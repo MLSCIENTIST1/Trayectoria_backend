@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Servicios</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <h2 class="logo">TRAYECTORIA</h2>
+        <button class="toggle-nav-btn" onclick="toggleNav()">☰</button>
+        <nav class="navegacion">
+            <a href="{{ url_for('auth.login') }}">Inicio</a>
+            <a href="{{ url_for('recive.show_notifications') }}">Notificaciones</a>
+            <a href="{{ url_for('dashboard.dashboard') }}">Mi dashboard
+            <a href="{{url_for('profile.editando')}}">Buscar Candidatos</a>
+            
+            
+            
+            <a href="{{ url_for('dashboard.new_service_page') }}">crear servicio</a>
+            <a href="{{ url_for('main.logout') }}">Cerrar sesión</a>
+            <button class="btn" onclick="window.location.href='{{ url_for('profile.edit_profile') }}'">Editar perfil</button>
+        </nav>
+    </header>
+
+    <div class="contenedor">
+        <h1>Editar Servicios</h1>
+
+        <!-- Edición del Servicio Principal -->
+        <h2>Servicio Principal</h2>
+        <p>Tu profesión: {{ principal_service }}</p>
+        <input type="text" id="principal-service-input" placeholder="Editar servicio principal">
+        <button class="btn" onclick="updateService('principal')">Guardar</button>
+        <button class="btn" onclick="deleteService('principal')">Eliminar</button>
+
+        <br><br>
+
+        <!-- Edición de Otros Servicios -->
+        <h2>Otros Servicios</h2>
+        <ul>
+            {% for service in other_services %}
+            <li>
+                <strong>Nombre del servicio:</strong>
+                <input type="text" id="name-{{ service.id_service }}" value="{{ service.nombre_servicio }}" placeholder="Editar nombre del servicio">
+                
+                <strong>Descripción:</strong>
+                <textarea id="description-{{ service.id_service }}" placeholder="Editar descripción">{{ service.descripcion }}</textarea>
+                
+                <strong>Categoría:</strong>
+                <input type="text" id="category-{{ service.id_service }}" value="{{ service.categoria }}" placeholder="Editar categoría">
+                
+                <strong>Precio:</strong>
+                <input type="number" id="price-{{ service.id_service }}" value="{{ service.precio }}" placeholder="Editar precio" step="0.01" min="0">
+
+                <button class="btn" onclick="updateService('other', {{ service.id_service }})">Guardar</button>
+                <button class="btn" onclick="deleteService('other', {{ service.id_service }})">Eliminar</button>
+            </li>
+            {% endfor %}
+        </ul>
+
+        <a href="{{ url_for('dashboard.dashboard') }}">Volver al Dashboard</a>
+    </div>
+
+    <script>
+        function updateService(type, serviceId = null) {
+            let url;
+            let bodyData = {};
+
+            if (type === 'principal') {
+                const inputValue = document.getElementById('principal-service-input').value;
+                url = '/dashboard/update_principal_service';
+                bodyData = { service_name: inputValue };
+            } else if (type === 'other' && serviceId) {
+                const name = document.getElementById(`name-${serviceId}`).value;
+                const description = document.getElementById(`description-${serviceId}`).value;
+                const category = document.getElementById(`category-${serviceId}`).value;
+                const price = document.getElementById(`price-${serviceId}`).value;
+
+                url = `/dashboard/update_other_service/${serviceId}`;
+                bodyData = {
+                    service_name: name,
+                    description: description,
+                    category: category,
+                    price: parseFloat(price) || null, // Convertir a número o enviar null si está vacío
+                };
+            }
+
+            if (Object.values(bodyData).some(value => value !== null && value !== '')) {
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(bodyData),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message || 'Servicio actualizado exitosamente');
+                    location.reload();
+                })
+                .catch(error => console.error('Error al actualizar el servicio:', error));
+            } else {
+                alert('Por favor, completa al menos un campo antes de guardar.');
+            }
+        }
+
+        function deleteService(type, serviceId = null) {
+            let url;
+
+            if (type === 'principal') {
+                url = '/dashboard/delete_principal_service';
+            } else if (type === 'other' && serviceId) {
+                url = `/dashboard/delete_other_service/${serviceId}`;
+                console.log(`URL generada para eliminar: ${url}`);
+                console.log(`Intentando eliminar el servicio con ID: ${serviceId}`);
+            }
+
+            if (confirm('¿Estás seguro de que deseas eliminar este servicio?')) {
+                fetch(url, {
+                    method: 'DELETE',
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Respuesta del servidor:", data);
+                    alert(data.message || 'Servicio eliminado exitosamente');
+                    location.reload();
+                })
+                .catch(error => console.error('Error al eliminar el servicio:', error));
+            }
+        }
+    </script>
+    <script>
+        // Función para mostrar/ocultar la barra de navegación
+        function toggleNav() {
+            const nav = document.querySelector('.navegacion');
+            nav.classList.toggle('hide');
+        }
+
+        function mostrarLogin() {
+            document.getElementById('loginFondo').classList.add('active');
+        }
+
+        function cerrarLogin() {
+            document.getElementById('loginFondo').classList.remove('active');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Calificar</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <h2 class="logo">TRAYECTORIA</h2>
+        <button class="toggle-nav-btn" onclick="toggleNav()">☰</button>
+        <nav class="navegacion">
+            <a href="{{ url_for('auth.login') }}">Inicio</a>
+            <a href="{{ url_for('dashboard.dashboard') }}">Regresar al Dashboard</a>
+            
+            <a href="{{ url_for('auth.login') }}">Inicio</a>
+            <a href="{{ url_for('recive.show_notifications') }}">Notificaciones</a>
+            <a href="{{ url_for('dashboard.dashboard') }}">Mi dashboard
+            <a href="{{url_for('profile.editando')}}">Buscar Candidatos</a>
+            
+            
+            
+            <a href="{{ url_for('dashboard.new_service_page') }}">crear servicio</a>
+            <a href="{{ url_for('main.logout') }}">Cerrar sesión</a>
+            <button class="btn" onclick="window.location.href='{{ url_for('profile.edit_profile') }}'">Editar perfil</button>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Calificación del Contrato ID {{ contracts[0].id_servicio }}</h1>
+
+        <!-- Texto dinámico según el rol -->
+        <p>
+            Aquí puedes calificar a 
+            <strong>{{ contracts[0].contratado.nombre if contracts[0].id_contratante == current_user.id_usuario else contracts[0].contratante.nombre }}</strong>, 
+            {{ 'a quien contrataste' if contracts[0].id_contratante == current_user.id_usuario else 'quien te contrató' }} 
+            para el cargo "<strong>{{ contracts[0].nombre_servicio }}</strong>". 
+            Por favor, realiza una calificación objetiva y transparente, considerando las tres etapas: 
+            al inicio, a la mitad y al finalizar el contrato.
+
+            El algoritmo de Trayectoria está disñado de tal forma que tus calificaciones sean afectadas si eres o no objetivo.
+        </p><br><br>
+
+        <!-- Formulario de calificación -->
+        <form action="{{ url_for('calificar.rate_contratante' if contracts[0].id_contratante == current_user.id_usuario else 'calificar.rate_contratado', servicio_id=contracts[0].id_servicio) }}" method="POST">
+            {% if contracts[0].id_contratante == current_user.id_usuario %}
+                <label for="cal_contratante1">Primera etapa:</label>
+                <input type="number" name="cal_contratante1" min="1" max="10" required><br>
+
+                <label for="cal_contratante2">Segunda etapa:</label>
+                <input type="number" name="cal_contratante2" min="1" max="10" required><br>
+
+                <label for="cal_contratante3">Etapa final:</label>
+                <input type="number" name="cal_contratante3" min="1" max="10" required><br><br>
+
+                <label for="comentario_contratante">Comentario final:</label><br>
+                <textarea name="comentario_contratante" rows="3" placeholder="Escribe tu comentario aquí..."></textarea><br><br>
+                <button type="submit" class="btn">Guardar Calificación</button>
+            {% elif contracts[0].id_contratado == current_user.id_usuario %}
+                <label for="cal_contratado1">Inicio:</label>
+                <input type="number" name="cal_contratado1" min="1" max="10" required><br>
+
+                <label for="cal_contratado2">Mitad:</label>
+                <input type="number" name="cal_contratado2" min="1" max="10" required><br>
+
+                <label for="cal_contratado3">Final:</label>
+                <input type="number" name="cal_contratado3" min="1" max="10" required><br><br>
+
+                <label for="comentario_contratado">Comentario final:</label><br>
+                <textarea name="comentario_contratado" rows="3" placeholder="Escribe tu comentario aquí..."></textarea><br><br>
+                <button type="submit" class="btn">Guardar Calificación</button>
+            {% endif %}
+        </form>
+        <script>
+            // Función para mostrar/ocultar la barra de navegación
+            function toggleNav() {
+                const nav = document.querySelector('.navegacion');
+                nav.classList.toggle('hide');
+            }
+    
+            function mostrarLogin() {
+                document.getElementById('loginFondo').classList.add('active');
+            }
+    
+            function cerrarLogin() {
+                document.getElementById('loginFondo').classList.remove('active');
+            }
+        </script>
+    </main>
+</body>
+</html>

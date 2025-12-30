@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://kit.fontawesome.com/c4d33f5660.js" crossorigin="anonymous"></script>
+    <title>Notificaciones</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/notifications.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  </head>
+  <body>
+    <header>
+      <h2 class="logo">TRAYECTORIA</h2>
+      <button class="toggle-nav-btn" onclick="toggleNav()">☰</button>
+      <h4>{{ current_user.nombre | upper }}</h4>
+      <nav class="navegacion">
+        <a href="{{ url_for('auth.login') }}">Inicio</a>
+        <a href="{{ url_for('recive.show_notifications') }}">Notificaciones</a>
+        <a href="{{ url_for('dashboard.dashboard') }}">Mi dashboard
+        <a href="{{url_for('profile.editando')}}">Buscar Candidatos</a>
+        
+        
+        
+        <a href="{{ url_for('dashboard.new_service_page') }}">crear servicio</a>
+        <a href="{{ url_for('main.logout') }}">Cerrar sesión</a>
+        <button class="btn" onclick="window.location.href='{{ url_for('profile.edit_profile') }}'">Editar perfil</button>
+    </nav>
+    </header>
+
+    <div class="contenedor-form registrar">
+      <h2>Notificaciones</h2><br>
+
+      <!-- Mostrar mensajes flash -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-messages">
+            {% for category, message in messages %}
+              <div class="alert {{ category }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <ul>
+        {% for notification in notifications %}
+          <!-- Cada notificación envuelta en un recuadro estilizado -->
+          <li class="notificacion btn">
+            <h4>{{ notification.message }}</h4>
+            <p><strong>Fecha:</strong> {{ notification.timestamp }}</p>
+
+            {% if notification.request_id %}
+              <p><strong>Solicitud ID:</strong> {{ notification.request_id }}</p>
+            {% endif %}
+
+            <!-- Detalles adicionales -->
+            {% if notification.request_message_details %}
+              <div class="detalle-solicitud">
+                <p>{{ notification.request_message_details }}</p>
+              </div>
+            {% endif %}
+
+            {% if notification.questions %}
+              <div class="pregunta">
+                <p><strong>Pregunta:</strong> {{ notification.questions }}</p>
+              </div>
+            {% endif %}
+
+            {% if notification.messages %}
+              <div class="mensajes">
+                <h4>Respuestas recibidas:</h4>
+                <ul>
+                  {% for message in notification.messages %}
+                    <li>
+                      <p><strong>{{ message.sender_id }}:</strong> {{ message.content }} - {{ message.timestamp }}</p>
+                    </li>
+                  {% endfor %}
+                </ul>
+              </div>
+            {% endif %}
+
+            <!-- Botones de acción -->
+            <div class="acciones">
+              <form method="POST" action="{{ url_for('recive.accept_notification', notification_id=notification.id) }}" onsubmit="return confirmAction('{{ notification.id }}')">
+                <button type="submit" class="btn aceptar">Aceptar</button>
+              </form>
+              <form method="POST" action="{{ url_for('recive.reject_notification', notification_id=notification.id) }}">
+                <button type="submit" class="btn rechazar">Rechazar</button>
+              </form>
+              <form action="{{ url_for('recive.more_details', notification_id=notification.id) }}" method="post">
+                <textarea name="questions" placeholder="Escribe tu pregunta aquí..." required></textarea>
+                <button type="submit" class="btn detalles">Solicitar Más Detalles</button>
+              </form>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <script>
+      // Función para mostrar/ocultar la barra de navegación
+      function toggleNav() {
+        const nav = document.querySelector('.navegacion');
+        nav.classList.toggle('hide');
+      }
+    </script>
+  </body>
+</html>

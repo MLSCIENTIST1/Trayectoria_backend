@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://kit.fontawesome.com/c4d33f5660.js" crossorigin="anonymous"></script>
+    <title>Usuario logueado</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+</head>
+<body>
+    <header>
+        <h2 class="logo">TRAYECTORIA</h2>
+        <button class="toggle-nav-btn" onclick="toggleNav()">☰</button>
+        <nav class="navegacion">
+            <a href="{{ url_for('auth.login') }}">Inicio</a>
+            <a href="{{ url_for('recive.show_notifications') }}">Notificaciones</a>
+            <a href="{{ url_for('dashboard.dashboard') }}">Mi dashboard
+            <a href="{{url_for('profile.editando')}}">Buscar Candidatos</a>
+            
+            
+            
+            <a href="{{ url_for('dashboard.new_service_page') }}">crear servicio</a>
+            <a href="{{ url_for('main.logout') }}">Cerrar sesión</a>
+            <button class="btn" onclick="window.location.href='{{ url_for('profile.edit_profile') }}'">Editar perfil</button>
+            
+        </nav>
+    </header>
+
+    <div class="fondo" id="loginFondo">
+        <span class="icono-cerrar" onclick="cerrarLogin()"><i class="fa-regular fa-circle-xmark"></i></span>
+        <div class="contenedor-form login">
+            <h2>Contratar un servicio</h2>
+            <form action="#">
+                <div class="contenedor-input">
+                    <span class="icono"><i class="fa-solid fa-city"></i></span>
+                    <input type="email" id="login-email" required>
+                    <label for="login-email">Escribe la ciudad</label>
+                </div>
+                <div class="contenedor-input">
+                    <span class="icono"><i class="fa-solid fa-person-digging"></i></span>
+                    <input type="text" id="login-password" required>
+                    <label for="login-password">Labor que quieres Contratar</label>
+                </div>
+                <div class="contenedor-input">
+                    <span class="icono"><i class="fa-solid fa-sack-dollar"></i></span>
+                    <input type="number" id="login-password" required>
+                    <label for="login-password">Tope máximo a pagar</label>
+                </div>
+                <div class="contenedor-input">
+                    <span class="icono"><i class="fa-regular fa-handshake"></i></span>
+                    <input type="number" id="login-password" required>
+                    <label for="login-password">Score TRAYECTORIA minimo (1-100)</label>
+                </div>
+                <div class="recordar">
+                    <label for="recordar"><input type="checkbox" id="recordar"> Solo titulados</label>
+                    
+                </div>
+                <button type="submit" class="btn">Buscar talento</button>
+                <div class="registrar">
+                    <p>No tienes cuenta? Registrate <a href="#" class="registrar-link">Aquí pero ya!</a></p>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+
+    <div class="contenedor-form registrar">
+        <h2>Resultado 1</h2>
+        <form action="#">
+            <div class="contenedor-input">
+                <span class="icono"><i class="fa-regular fa-user"></i></span>
+                <input type="text" id="register-nombres" >
+                <label for="register-nombres">Jorge luis </label>
+            </div>
+            <div class="contenedor-input">
+                <span class="icono"><i class="fa-light fa-user"></i></span>
+                <input type="text" id="register-apellidos" >
+                <label for="register-apellidos">Apellido bloqueado</label>
+            </div>
+            <div class="contenedor-input">
+                <span class="icono"><i class="fa-solid fa-id-card"></i></span>
+                <input type="text" id="register-cedula" >
+                <label for="register-cedula">Cédula bloqueado</label>
+            </div>
+            <div class="contenedor-input">
+                <span class="icono"><i class="fa-solid fa-id-card"></i></span>
+                <input type="text" id="register-labor" >
+                <label for="register-labor">Labor: Profesor adso</label>
+            </div>
+            <div class="contenedor-input">
+                <span class="icono"><i class="fa-regular fa-user"></i></span>
+                <input type="text" id="register-nombres" >
+                <label for="register-nombres">Disponibilidad inmediata(Si) </label>
+            </div>
+            <div class="contenedor-input">
+                <span class="icono"><i class="fa-solid fa-envelope"></i></span>
+                <input type="email" id="register-correo" >
+                <label for="register-correo">Correo - bloqueado</label>
+            </div>
+            <div class="contenedor-input">
+                <span class="icono"><i class="fa-solid fa-mobile-retro"></i></span>
+                
+                <input type="text" id="register-celular" >
+                <label for="register-celular">Número Celular(Bloqueado)</label>
+            </div>
+            <div class="contenedor-input">
+                <span class="icono"><i class="fa-solid fa-lock"></i></span>
+                <input type="password" id="register-password" >
+                <label for="register-password">Ultima Calificación (83/100)</label>
+            </div>
+            <div class="contenedor-input">
+                <span class="icono"><i class="fa-solid fa-lock"></i></span>
+                <input type="password" id="register-confirm-password" >
+                <label for="register-confirm-password">65 Calificación global  </label>
+            </div>
+            <div class="recordar">
+                <label for="aceptar-terminos"><input type="checkbox" id="aceptar-terminos"> Chatear antes de contratar </label>
+                
+            </div>
+            <button type="submit" class="btn"> <a href="mainpage.html"></a>Contratar</button>
+            <div class="registrar">
+                <p>No es lo que esperabas? <a href="#" class="login-link">SIGUIENTE →</a></p>
+                <p>volver? <a href="#" class="login-link"> Atras </a></p>
+            </div>
+            
+        </form>
+    </div>
+    <div>
+        
+    </div>
+    <script>
+        function mostrarLogin() {
+            document.getElementById('loginFondo').classList.add('active');
+        }
+
+        function cerrarLogin() {
+            document.getElementById('loginFondo').classList.remove('active');
+        }
+    </script>
+    <script>
+        // Función para mostrar/ocultar la barra de navegación
+        function toggleNav() {
+            const nav = document.querySelector('.navegacion');
+            nav.classList.toggle('hide');
+        }
+
+        function mostrarLogin() {
+            document.getElementById('loginFondo').classList.add('active');
+        }
+
+        function cerrarLogin() {
+            document.getElementById('loginFondo').classList.remove('active');
+        }
+    </script>
+</body>
+</html>

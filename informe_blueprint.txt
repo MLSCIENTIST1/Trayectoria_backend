@@ -1,0 +1,404 @@
+Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 20: from .auth.authentication_bp import authentication_bp
+-
+Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\__init__.py
+Línea 60: app.register_blueprint(authentication_bp, url_prefix='/authentication')
+-
+Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 18: authentication_bp = Blueprint('authentication_bp', __name__)
+-
+Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-Archivo: C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\api\auth\authentication_bp.py
+Línea 20: @authentication_bp.route('/login', methods=['POST'])
+-

@@ -1,0 +1,165 @@
+<!DOCTYPE html> 
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://kit.fontawesome.com/c4d33f5660.js" crossorigin="anonymous"></script>
+    <title>Detalle del Candidato</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  </head>
+  <body>
+    <header>
+      <h2 class="logo">TRAYECTORIA</h2>
+      <button class="toggle-nav-btn" onclick="toggleNav()">☰</button>
+      <h4>{{ current_user.nombre|upper }}</h4>
+      <nav class="navegacion">
+        <a href="{{ url_for('auth.login') }}">Inicio</a>
+        <a href="{{ url_for('recive.show_notifications') }}">Notificaciones</a>
+        <a href="{{ url_for('dashboard.dashboard') }}">Mi dashboard
+        <a href="{{url_for('profile.editando')}}">Buscar Candidatos</a>
+        
+        
+        
+        <a href="{{ url_for('dashboard.new_service_page') }}">crear servicio</a>
+        <a href="{{ url_for('main.logout') }}">Cerrar sesión</a>
+        <button class="btn" onclick="window.location.href='{{ url_for('profile.edit_profile') }}'">Editar perfil</button>
+      </nav>
+    </header>
+
+    <div class="contenedor-form registrar">
+      <h2>Trayectoria de: {{ usuario.nombre }}</h2>
+      <br>
+  
+      <!-- Información del usuario -->
+      <div class="contenedor-input">
+          <p><strong>Nombre:</strong> {{ usuario.nombre }}</p>
+      </div>
+      <div class="contenedor-input">
+          <p><strong>Ciudad:</strong> {{ usuario.ciudad }}</p>
+      </div>
+      <div class="contenedor-input">
+          <p><strong>Disponibilidad inmediata:</strong> (Pendiente agregar código)</p>
+      </div>
+      <div class="contenedor-input">
+          <p><strong>Datos de Contacto:</strong> Los datos de contacto serán desbloqueados cuando <strong>{{ usuario.nombre }}</strong> acepte la solicitud de contrato.</p>
+      </div>
+  
+      <p><strong>Puntaje en la Última Labor:</strong> 
+          {% if puntaje_ultima_labor %}
+              {{ puntaje_ultima_labor|round(2) }}
+          {% else %}
+              No disponible
+          {% endif %}
+      </p>
+      <div class="contenedor-input">
+          <p><strong>Calificación Global:</strong> (Pendiente agregar código)</p>
+      </div>
+  
+      <!-- Servicios ofrecidos por el usuario -->
+      <h3>Servicios ofrecidos:</h3>
+     
+  </div>
+
+  <form id="contratarForm" action="{{ url_for('notifications.notifications', candidato_id=usuario.id_usuario) }}" method="POST">
+    <input type="hidden" name="id_service" value="{{ servicio.id_service if servicio else '' }}">
+    <div class="contenedor-input">
+        <label for="mensaje"><strong>Mensaje:</strong></label>
+        <textarea id="mensaje" name="mensaje" rows="4" cols="50" placeholder="Escribe aquí un mensaje para contratar este servicio. Por favor, limita tu mensaje a los términos y condiciones del contrato."></textarea>
+    </div>
+    <button type="submit" class="btn">Continuar</button>
+</form>
+
+      <div class="registrar">
+        <p>No es lo que esperabas? <a href="#" class="login-link">SIGUIENTE →</a></p>
+        <p>¿Volver? <a href="#" class="login-link">Atrás</a></p>
+      </div>
+    </div>
+    
+
+    <!-- Espacio para mostrar mensajes del estado -->
+    <div id="statusMessage" style="margin-top: 20px; color: blue; font-weight: bold;"></div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        console.log("El DOM está completamente cargado.");
+
+        // Buscar el formulario
+        const contratarForm = document.getElementById('contratarForm');
+        const statusMessage = document.getElementById('statusMessage');
+
+        if (!contratarForm) {
+          console.error("Formulario 'contratarForm' no encontrado.");
+          return; // Detenemos el script si el formulario no existe
+        }
+
+        // Agregar el evento submit al formulario
+        contratarForm.addEventListener('submit', async function(event) {
+          event.preventDefault(); // Evita el envío del formulario por ahora
+          console.log("Intentando enviar el formulario...");
+
+          // Mostrar datos capturados
+          const formData = new FormData(contratarForm);
+          console.log("Datos enviados:", Object.fromEntries(formData));
+
+          // Confirmación de envío
+          if (!confirm('¿Estás seguro de que deseas contratar a este usuario?')) {
+            console.log('Formulario no enviado - Cancelado por el usuario.');
+            return;
+          }
+
+          // Enviar datos al servidor con fetch
+          try {
+            statusMessage.textContent = "Enviando...";
+            const response = await fetch(contratarForm.action, {
+              method: 'POST',
+              body: formData,
+            });
+
+            if (response.ok) {
+              console.log("Formulario enviado exitosamente.");
+              statusMessage.textContent = "¡Formulario enviado correctamente!";
+            } else {
+              console.error("Error al enviar el formulario:", response.status, response.statusText);
+              statusMessage.textContent = `Error al enviar: ${response.status}`;
+            }
+          } catch (error) {
+            console.error("Error durante el envío del formulario:", error);
+            statusMessage.textContent = `Error durante el envío: ${error.message}`;
+          }
+        });
+      });
+
+      // Funciones para manejar la ventana de login
+      function mostrarLogin() {
+        console.log("Se intentó mostrar la ventana de edición de perfil.");
+        const loginFondo = document.getElementById('loginFondo');
+        if (loginFondo) loginFondo.classList.add('active');
+      }
+
+      function cerrarLogin() {
+        console.log("Se intentó cerrar la ventana de edición de perfil.");
+        const loginFondo = document.getElementById('loginFondo');
+        if (loginFondo) loginFondo.classList.remove('active');
+      }
+    </script>
+    <script>
+      // Función para mostrar/ocultar la barra de navegación
+      function toggleNav() {
+          const nav = document.querySelector('.navegacion');
+          nav.classList.toggle('hide');
+      }
+
+      function mostrarLogin() {
+          document.getElementById('loginFondo').classList.add('active');
+      }
+
+      function cerrarLogin() {
+          document.getElementById('loginFondo').classList.remove('active');
+      }
+  </script>
+      
+    
+    <!-- Si no hay servicios -->
+    <p>No se encontraron servicios ofrecidos por este usuario.</p>
+  </body>
+</html>

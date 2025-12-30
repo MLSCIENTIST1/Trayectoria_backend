@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Contratos Vigentes</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <h2 class="logo">TRAYECTORIA</h2>
+        <button class="toggle-nav-btn" onclick="toggleNav()">☰</button>
+        <nav class="navegacion">
+            <a href="{{ url_for('dashboard.dashboard') }}">Regresar al Dashboard</a>
+            <a href="{{ url_for('main.logout') }}">Cerrar Sesión</a>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Contratos Vigentes como {{ 'Contratante' if role == 'contratante' else 'Contratado' }}</h1>
+
+        {% if contracts %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID Contrato</th>
+                        <th>Nombre</th>
+                        <th>Fecha Inicio</th>
+                        <th>Fecha Fin</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contract in contracts %}
+                        <tr>
+                            <td>{{ contract.id_servicio }}</td>
+                            <td>{{ contract.nombre_servicio }}</td>
+                            <td>{{ contract.fecha_inicio }}</td>
+                            <td>{{ contract.fecha_fin }}</td>
+                            <td>
+                                <form action="{{ url_for('calificar.show_calificar', servicio_id=contract.id_servicio) }}" method="GET">
+                                    <button type="submit" class="btn">Ir a calificar a {{ contract.person_to_rate }}</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No tienes contratos vigentes como {{ 'contratante' if role == 'contratante' else 'contratado' }}.</p>
+        {% endif %}
+    </main>
+    <script>
+        // Función para mostrar/ocultar la barra de navegación
+        function toggleNav() {
+            const nav = document.querySelector('.navegacion');
+            nav.classList.toggle('hide');
+        }
+
+        function mostrarLogin() {
+            document.getElementById('loginFondo').classList.add('active');
+        }
+
+        function cerrarLogin() {
+            document.getElementById('loginFondo').classList.remove('active');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bienvenida-registro</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style_editando2.css') }}">
+</head>
+<body>
+    <header>
+        <h2>Bienvenido</h2>
+        <button class="toggle-nav-btn" onclick="toggleNav()">☰</button>
+    </header>
+    <main>
+        <h1>¡Gracias por registrarte!</h1>
+        <p>Tu registro ha sido exitoso.</p>
+        <a href="/">Volver al inicio</a>
+    </main>
+    <script>
+        // Función para mostrar/ocultar la barra de navegación
+        function toggleNav() {
+            const nav = document.querySelector('.navegacion');
+            nav.classList.toggle('hide');
+        }
+
+        function mostrarLogin() {
+            document.getElementById('loginFondo').classList.add('active');
+        }
+
+        function cerrarLogin() {
+            document.getElementById('loginFondo').classList.remove('active');
+        }
+    </script>
+</body>
+</html>

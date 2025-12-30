@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Perfil</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        
+        <h2 class="logo">TRAYECTORIA</h2>
+        <button class="toggle-nav-btn" onclick="toggleNav()">☰</button>
+        <nav class="navegacion">
+            <a href="{{ url_for('auth.login') }}">Inicio</a>
+            <a href="{{ url_for('recive.show_notifications') }}">Notificaciones</a>
+            <a href="{{ url_for('dashboard.dashboard') }}">Mi dashboard
+            <a href="{{url_for('profile.editando')}}">Buscar Candidatos</a>
+            
+            
+            
+            <a href="{{ url_for('dashboard.new_service_page') }}">crear servicio</a>
+            <a href="{{ url_for('main.logout') }}">Cerrar sesión</a>
+            <button class="btn" onclick="window.location.href='{{ url_for('profile.edit_profile') }}'">Editar perfil</button>
+
+        </nav>
+
+    </header>
+
+    <div class="container">
+        <h3>Actualizar Información</h3>
+        <form method="POST" action="{{ url_for('profile.edit_profile') }}">
+
+            {{ form.hidden_tag() }}
+            <div>
+                {{ form.nombre.label }}
+                {{ form.nombre(size=32, class_='input') }}
+            </div>
+            <div>
+                {{ form.apellidos.label }}
+                {{ form.apellidos(size=32, class_='input') }}
+            </div>
+            <div>
+                {{ form.celular.label }}
+                {{ form.celular(size=15, class_='input') }}
+            </div>
+            <div>
+                {{ form.ciudad.label }}
+                {{ form.ciudad(size=20, class_='input') }}
+            </div>
+            <div>
+                {{ form.submit(class_='btn') }}
+            </div>
+        </form>
+        <a href="{{ url_for('profile.editando') }}">Volver</a><br><br>
+
+        <form action="{{url_for('profile.logic_delete_user')}}" method="POST">
+            <button type="submit" class="btn-danger">Solicitar darme de baja en la plataforma</button>
+        </form>
+    </div>
+    <script>
+        // Función para mostrar/ocultar la barra de navegación
+        function toggleNav() {
+            const nav = document.querySelector('.navegacion');
+            nav.classList.toggle('hide');
+        }
+
+        function mostrarLogin() {
+            document.getElementById('loginFondo').classList.add('active');
+        }
+
+        function cerrarLogin() {
+            document.getElementById('loginFondo').classList.remove('active');
+        }
+    </script>
+    <script>
+        // Función para mostrar/ocultar la barra de navegación
+        function toggleNav() {
+            const nav = document.querySelector('.navegacion');
+            nav.classList.toggle('hide');
+        }
+
+        function mostrarLogin() {
+            document.getElementById('loginFondo').classList.add('active');
+        }
+
+        function cerrarLogin() {
+            document.getElementById('loginFondo').classList.remove('active');
+        }
+    </script>
+    
+</body>
+</html>

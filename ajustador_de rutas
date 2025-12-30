@@ -1,0 +1,79 @@
+import os
+import re
+
+# Ruta al directorio raíz (carpeta api)
+directory = "C:/Users/carlo/Desktop/proyecto_sena/TRAYECTORIA_Python_mvc/src/api/"
+output_file = os.path.join(directory, "__init__.py")  # Archivo __init__.py que será actualizado
+
+def adjust_routes(file_path):
+    """Ajusta las rutas de los Blueprints en el archivo proporcionado."""
+    updated_lines = []
+    with open(file_path, 'r', encoding='utf-8') as file:
+        for line in file:
+            # Ajustar rutas a minúsculas y simplificar prefijos en el Blueprint
+            route_match = re.search(r'@.*\.route\([\'"]([^\'"]+)[\'"]', line)
+            if route_match:
+                original_route = route_match.group(1)
+                # Convertir la ruta a minúsculas
+                adjusted_route = original_route.lower()
+                # Simplificar prefijos si es necesario (ejemplo: eliminar redundancia)
+                adjusted_route = re.sub(r'^/', '', adjusted_route)  # Eliminar barra inicial
+                adjusted_route = f"/{adjusted_route}"  # Asegurar barra inicial
+                updated_lines.append(re.sub(original_route, adjusted_route, line))
+            else:
+                updated_lines.append(line)
+    # Escribir las líneas actualizadas en el archivo
+    with open(file_path, 'w', encoding='utf-8') as file:
+        file.writelines(updated_lines)
+
+def update_init(directory):
+    """Actualiza el archivo __init__.py para registrar Blueprints correctamente."""
+    imports = []
+    registrations = []
+
+    for root, _, files in os.walk(directory):
+        for file in files:
+            if file.endswith(".py") and file != "__init__.py":
+                file_path = os.path.join(root, file)
+                relative_import = os.path.relpath(file_path, directory).replace("\\", ".").replace(".py", "")
+
+                # Ajustar rutas dentro del archivo actual
+                adjust_routes(file_path)
+
+                # Extraer Blueprints definidos en el archivo
+                with open(file_path, 'r', encoding='utf-8') as file_content:
+                    for line in file_content:
+                        bp_match = re.search(r'Blueprint\(\s*[\'"](\w+)[\'"]', line)
+                        if bp_match:
+                            blueprint_name = bp_match.group(1)
+                            imports.append(f"from .{relative_import} import {blueprint_name}")
+                            # Usar un prefijo simplificado basado en el nombre del Blueprint
+                            registrations.append(f"    app.register_blueprint({blueprint_name}, url_prefix='/{blueprint_name.lower()}')")
+
+    if not imports:
+        print("⚠️ No se encontraron Blueprints en los archivos. Revisa tu código.")
+        return
+
+    # Actualizar el archivo __init__.py
+    with open(output_file, 'w', encoding='utf-8') as init_file:
+        init_file.write("# Auto-generado __init__.py con ajustes RESTful\n\n")
+        init_file.write("from flask import Blueprint\n")
+        init_file.write("from flask import Flask\n")
+        init_file.write("app = Flask(__name__)\n\n")
+
+        init_file.write("# Importación de Blueprints\n")
+        init_file.write("\n".join(imports) + "\n\n")
+
+        init_file.write("# Registro de Blueprints\n")
+        init_file.write("def register_blueprints():\n")
+        init_file.write("\n".join(registrations) + "\n")
+
+    print(f"✅ Archivo __init__.py actualizado correctamente en: {output_file}")
+    print(f"✏️ En tu archivo app.py, agrega lo siguiente:\n")
+    print("from src.api import app, register_blueprints\n")
+    print("register_blueprints()\n")
+    print("if __name__ == '__main__':")
+    print("    app.run(debug=True)")
+
+# Ejecutar el script
+update_init(directory)

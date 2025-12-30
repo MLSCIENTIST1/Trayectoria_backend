@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agregar Nuevo Servicio</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <h2 class="logo">TRAYECTORIA</h2>
+        <button class="toggle-nav-btn" onclick="toggleNav()">☰</button>
+        <nav class="navegacion">
+            <a href="{{ url_for('auth.login') }}">Inicio</a>
+            <a href="{{ url_for('recive.show_notifications') }}">Notificaciones</a>
+            <a href="{{ url_for('dashboard.dashboard') }}">Mi dashboard
+            <a href="{{url_for('profile.editando')}}">Buscar Candidatos</a>
+            
+            
+            
+            <a href="{{ url_for('dashboard.new_service_page') }}">crear servicio</a>
+            <a href="{{ url_for('main.logout') }}">Cerrar sesión</a>
+            <button class="btn" onclick="window.location.href='{{ url_for('profile.edit_profile') }}'">PERFIL</button>
+        </nav>
+    </header>
+
+    <main>
+        <section class="form-section fondo">
+            <h1>Ofertar Nuevo Servicio</h1>
+            <form action="{{ url_for('dashboard.new_service_page') }}" method="POST" enctype="multipart/form-data">
+    <div id="form-container">
+        <div class="form-group">
+            <label for="nombre_servicio">Nombre del Servicio:</label>
+            <input type="text" id="nombre_servicio" name="nombre_servicio" required>
+        </div>
+
+        <div class="form-group">
+            <label for="descripcion">Descripción del Servicio:</label>
+            <textarea id="descripcion" name="descripcion"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="categoria">Categoría:</label>
+            <input type="text" id="categoria" name="categoria">
+        </div>
+
+        <div class="form-group">
+            <label for="precio_hora">Precio por Hora:</label>
+            <input type="number" id="precio_hora" name="precio_hora" step="0.01" min="0">
+        </div>
+
+        <div class="form-group">
+            <label for="etapas_calificacion">Cantidad de calificaciones permitidas por contrato (1-50):</label>
+            <input type="number" id="etapas_calificacion" name="etapas_calificacion" min="1" max="50" value="1" required>
+        </div>
+
+        <div class="form-group">
+            <p>¿Disponibilidad para viajar dentro del país?</p>
+            <label>
+                <input type="radio" name="viajar_dentro_pais" value="sí" required> Sí
+            </label>
+            <label>
+                <input type="radio" name="viajar_dentro_pais" value="no" required> No
+            </label>
+        </div>
+
+        <!-- GRUPOS OCULTOS -->
+        <div class="extra-fields hidden">
+            <!-- Disponibilidad de viajar fuera del país -->
+    <div class="form-group">
+        <p>¿Disponibilidad para viajar fuera del país?</p>
+        <label>
+            <input type="radio" name="viajar_fuera_pais" value="sí" required> Sí
+        </label>
+        <label>
+            <input type="radio" name="viajar_fuera_pais" value="no" required> No
+        </label>
+    </div>
+    <div class="form-group">
+        <p>¿Con este nuevo servicio puedes hacer domicilios?</p>
+        <label>
+            <input type="radio" name="viajar_fuera_pais" value="sí" required> Sí
+        </label>
+        <label>
+            <input type="radio" name="viajar_fuera_pais" value="no" required> No
+        </label>
+    </div>
+    <!-- Modelo de negocio -->
+    <div class="form-group">
+        <label for="modelo_negocio1">Modelo de Negocio:</label>
+        <select id="modelo_negocio" name="modelo_negocio_1" required>
+            <option value="ninguno">Ninguno</option>
+            <option value="persona_a_persona">Persona a Persona</option>
+            <option value="persona_a_empresa">Persona a Empresa</option>
+            <option value="empresa_a_empresa">Empresa a Empresa</option>
+            <option value="empresa_a_gobierno">Empresa a Gobierno</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="modelo_negocio2">Modelo de Negocio:</label>
+        <select id="modelo_negocio" name="modelo_negocio_2" required>
+            <option value="ninguno">Ninguno</option>
+            <option value="persona_a_persona">Persona a Persona</option>
+            <option value="persona_a_empresa">Persona a Empresa</option>
+            <option value="empresa_a_empresa">Empresa a Empresa</option>
+            <option value="empresa_a_gobierno">Empresa a Gobierno</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="modelo_negocio3">Modelo de Negocio:</label>
+        <select id="modelo_negocio" name="modelo_negocio_3" required>
+            <option value="ninguno">Ninguno</option>
+            <option value="persona_a_persona">Persona a Persona</option>
+            <option value="persona_a_empresa">Persona a Empresa</option>
+            <option value="empresa_a_empresa">Empresa a Empresa</option>
+            <option value="empresa_a_gobierno">Empresa a Gobierno</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="modelo_negocio4">Modelo de Negocio:</label>
+        <select id="modelo_negocio" name="modelo_negocio_4" required>
+            <option value="ninguno">Ninguno</option>
+            <option value="persona_a_persona">Persona a Persona</option>
+            <option value="persona_a_empresa">Persona a Empresa</option>
+            <option value="empresa_a_empresa">Empresa a Empresa</option>
+            <option value="empresa_a_gobierno">Empresa a Gobierno</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <p>¿Incluyes asesoría o consultoría dentro del servicio?</p>
+        <label>
+            <input type="radio" name="incluye_asesoria" value="sí" required> Sí
+        </label>
+        <label>
+            <input type="radio" name="incluye_asesoria" value="no" required> No
+        </label>
+    </div>
+    
+    <div class="form-group">
+        <p>¿El servicio requiere la presencia del cliente durante la ejecución?</p>
+        <label>
+            <input type="radio" name="requiere_presencia_cliente" value="sí" required> Sí
+        </label>
+        <label>
+            <input type="radio" name="requiere_presencia_cliente" value="no" required> No
+        </label>
+    </div>
+    
+    <div class="form-group">
+        <p>¿Tienes experiencia previa realizando este tipo de servicios?</p>
+        <label>
+            <input type="radio" name="experiencia_previa" value="sí" required> Sí
+        </label>
+        <label>
+            <input type="radio" name="experiencia_previa" value="no" required> No
+        </label>
+    </div>
+    
+    <div class="form-group">
+        <p>¿Ofreces facturación formal para este servicio?</p>
+        <label>
+            <input type="radio" name="facturacion_formal" value="sí" required> Sí
+        </label>
+        <label>
+            <input type="radio" name="facturacion_formal" value="no" required> No
+        </label>
+    </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="button" class="btn" onclick="mostrarMasCampos()">Agregar más</button>
+        </div>
+
+        <div class="form-actions">
+            <button type="button" class="btn" onclick="addReference()">Crear Una Referencia</button>
+            <button type="submit" name="agregar_servicio" class="btn">Agregar Servicio</button>
+        </div>
+    </div>
+</form>
+
+<script>
+    function mostrarMasCampos() {
+        let hiddenFields = document.querySelectorAll(".extra-fields.hidden");
+        if (hiddenFields.length > 0) {
+            hiddenFields[0].classList.remove("hidden");
+        }
+    }
+</script>
+
+<style>
+    .hidden {
+        display: none;
+    }
+</style>
+        </section>
+
+        <section class="references-section fondo">
+            <h2>Referencias por Etapa</h2>
+            <div id="references-container">
+                <!-- Sección donde se añadirán dinámicamente las referencias -->
+            </div>
+            <div class="form-actions">
+                <button type="submit" name="guardar_archivos" class="btn btn-secondary">Guardar Archivos</button>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-cancel" onclick="removeLastReference()">Quitar Última Referencia</button>
+            </div>
+        </section>
+    </main>
+    
+
+    <script>
+        // Función para agregar una nueva referencia con 3 etapas
+        function addReference() {
+            const referencesContainer = document.getElementById('references-container');
+            const referenceCount = referencesContainer.childElementCount + 1;
+
+            // Crear un contenedor de referencia por etapa
+            const referenceDiv = document.createElement('div');
+            referenceDiv.classList.add('reference-container', 'fondo');
+            referenceDiv.setAttribute('id', `reference-${referenceCount}`);
+
+            // Generar las tres etapas dinámicamente
+            referenceDiv.innerHTML = `
+                <h3>Referencia ${referenceCount}</h3>
+                <div class="etapa-container fondo">
+                    <h4>Etapa Inicial</h4>
+                    <div class="form-group">
+                        <label for="fotos-inicial-${referenceCount}">Fotos:</label>
+                        <input type="file" id="fotos-inicial-${referenceCount}" name="fotos-inicial-${referenceCount}" multiple accept="image/*">
+                    </div>
+                    <div class="form-group">
+                        <label for="audio-inicial-${referenceCount}">Audio:</label>
+                        <input type="file" id="audio-inicial-${referenceCount}" name="audio-inicial-${referenceCount}" accept="audio/*">
+                    </div>
+                    <div class="form-group">
+                        <label for="videos-inicial-${referenceCount}">Videos:</label>
+                        <input type="file" id="videos-inicial-${referenceCount}" name="videos-inicial-${referenceCount}" multiple accept="video/*">
+                    </div>
+                </div>
+                <div class="etapa-container fondo">
+                    <h4>Etapa Media</h4>
+                    <div class="form-group">
+                        <label for="fotos-media-${referenceCount}">Fotos:</label>
+                        <input type="file" id="fotos-media-${referenceCount}" name="fotos-media-${referenceCount}" multiple accept="image/*">
+                    </div>
+                    <div class="form-group">
+                        <label for="audio-media-${referenceCount}">Audio:</label>
+                        <input type="file" id="audio-media-${referenceCount}" name="audio-media-${referenceCount}" accept="audio/*">
+                    </div>
+                    <div class="form-group">
+                        <label for="videos-media-${referenceCount}">Videos:</label>
+                        <input type="file" id="videos-media-${referenceCount}" name="videos-media-${referenceCount}" multiple accept="video/*">
+                    </div>
+                </div>
+                <div class="etapa-container fondo">
+                    <h4>Etapa Final</h4>
+                    <div class="form-group">
+                        <label for="fotos-final-${referenceCount}">Fotos:</label>
+                        <input type="file" id="fotos-final-${referenceCount}" name="fotos-final-${referenceCount}" multiple accept="image/*">
+                    </div>
+                    <div class="form-group">
+                        <label for="audio-final-${referenceCount}">Audio:</label>
+                        <input type="file" id="audio-final-${referenceCount}" name="audio-final-${referenceCount}" accept="audio/*">
+                    </div>
+                    <div class="form-group">
+                        <label for="videos-final-${referenceCount}">Videos:</label>
+                        <input type="file" id="videos-final-${referenceCount}" name="videos-final-${referenceCount}" multiple accept="video/*">
+                    </div>
+                </div>
+            `;
+
+            // Añadir el contenedor al references-container
+            referencesContainer.appendChild(referenceDiv);
+        }
+
+        // Función para eliminar la última referencia
+        function removeLastReference() {
+            const referencesContainer = document.getElementById('references-container');
+
+            if (referencesContainer.childElementCount > 0) {
+                referencesContainer.removeChild(referencesContainer.lastChild);
+            } else {
+                alert('No hay referencias para eliminar.');
+            }
+        }
+
+        // Función para mostrar/ocultar la barra de navegación
+        function toggleNav() {
+            const nav = document.querySelector('.navegacion');
+            nav.classList.toggle('hide');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,114 @@
+from src.models.database import db
+from src.models.usuarios import Usuario
+import logging
+from flask import Blueprint, jsonify, request
+from flask_login import login_required
+
+# Configuración del Logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+logger.addHandler(ch)
+
+# Blueprint para solicitudes de contratación
+contract_requests_bp = Blueprint('contract-requests-bp', __name__)
+
+@contract_requests_bp.route('/prueba', methods=['POST'])
+@login_required
+def send_contract_request(candidato_id):
+    """
+    API para enviar solicitudes de contratación a un candidato.
+    Devuelve el estado y detalles de la operación en formato JSON.
+    """
+    logger.info(f"Procesando solicitud POST para el candidato ID {candidato_id}")
+
+    try:
+        # Buscar al candidato
+        candidato = Usuario.query.get_or_404(candidato_id)
+        logger.debug(f"Candidato encontrado: {candidato.nombre}")
+    except SQLAlchemyError:
+        logger.exception("Error al buscar el candidato.")
+        return jsonify({"error": "Error al buscar el candidato."}), 500
+
+    # Obtener datos del cuerpo de la solicitud
+    data = request.get_json()
+    user_message = data.get('mensaje', '')
+    id_service = data.get('id_service', None)
+
+    if id_service:
+        try:
+            # Buscar detalles del servicio
+            service_details = Servicio.query.filter_by(id_servicio=id_service, id_usuario=candidato.id_usuario).first()
+            if not service_details:
+                logger.warning("El servicio seleccionado no existe o no pertenece al candidato.")
+                return jsonify({"error": "El servicio seleccionado no existe o no pertenece al candidato."}), 404
+        except SQLAlchemyError:
+            logger.exception("Error al buscar el servicio.")
+            return jsonify({"error": "Error interno al buscar el servicio."}), 500
+    else:
+        service_details = None
+
+    # Generar el mensaje de notificación
+    if service_details:
+        notification_message = (
+            f'{current_user.nombre} te ha enviado una solicitud de contratación para el servicio: {service_details.nombre_servicio}. '
+            f'Mensaje: {user_message}'
+        )
+    else:
+        notification_message = (
+            f'{current_user.nombre} te ha enviado una solicitud de contratación. '
+            f'Mensaje: {user_message}'
+        )
+
+    logger.debug(f"Mensaje de notificación generado: {notification_message}")
+
+    # Verificar notificaciones duplicadas
+    if Notification.query.filter_by(user_id=candidato.id_usuario, message=notification_message).first():
+        logger.warning("Notificación duplicada detectada.")
+        return jsonify({"warning": "Ya existe una solicitud para este candidato."}), 400
+
+    # Generar un nuevo request_id
+    try:
+        request_id = db.session.query(func.coalesce(func.max(Notification.request_id), 0) + 1).scalar()
+        logger.debug(f"Nuevo request_id generado: {request_id}")
+    except SQLAlchemyError:
+        logger.exception("Error al generar request_id.")
+        return jsonify({"error": "Error interno al generar el request_id."}), 500
+
+    # Crear la notificación y registrar el mensaje
+    try:
+        new_notification = Notification.create_notification(
+            user_id=candidato.id_usuario,
+            sender_id=current_user.id_usuario,
+            request_id=request_id,
+            message=notification_message,
+            params={'type': 'contract_request'},
+            extra_data={"sender_id": current_user.id_usuario}
+        )
+
+        new_message = Message(
+            notification_id=new_notification.id,
+            sender_id=current_user.id_usuario,
+            receiver_id=candidato.id_usuario,
+            content=user_message
+        )
+        db.session.add(new_message)
+        db.session.commit()
+
+        logger.info(f"Notificación creada con ID {new_notification.id}")
+        send_contract_request_notification(candidato.id_usuario, notification_message)
+
+        return jsonify({
+            "message": "Solicitud de contratación enviada exitosamente.",
+            "notification_id": new_notification.id,
+            "request_id": request_id
+        }), 201
+
+    except SQLAlchemyError:
+        logger.exception("Error al registrar en la base de datos.")
+        db.session.rollback()
+        return jsonify({"error": "Error al registrar la solicitud."}), 500

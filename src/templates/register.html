@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://kit.fontawesome.com/c4d33f5660.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <title>Registro TRAYECTORIA</title>
+    
+</head>
+<body>
+    <header>
+        <h2 class="logo">TRAYECTORIA</h2>
+        <button class="toggle-nav-btn" onclick="toggleNav()">☰</button>
+        
+        <nav class="navegacion">
+            <a href="{{url_for("main.index")}}">Inicio</a>
+            <a href="#">Información</a>
+            <a href="#">Servicios</a>
+            <a href="#">Contacto</a>
+            <div>
+                <button class="navegacion btn" onclick="window.location.href='{{ url_for('auth.login') }}'">Iniciar Sesión</button>            
+            </div>
+        </nav>
+    </header>
+
+    <div>
+        <p>...</p>
+    </div>
+
+    <!-- Política de Tratamiento -->
+    <div class="fondo" id="loginFondo">
+        <div class="titulo-terminos">Política de Tratamiento de Datos Personales</div>
+        <div class="fondo terminos">
+            <p>
+                Al utilizar la aplicación Trayectoria, el usuario autoriza el tratamiento de sus datos personales conforme a lo dispuesto en la Ley 1581 de 2012 y sus decretos reglamentarios, con el objetivo de proporcionar una experiencia orientada al crecimiento profesional y la mejora continua.
+            </p>
+        </div>
+        <button type="button" class="btn" onclick="aceptarTerminos()">Aceptar</button>
+    </div>
+
+    <!-- Formulario de registro -->
+    <div class="fondo formulario-principal" id="registroUsuario" style="display: none;">
+        <div class="titulo-form">
+            <h3>Registro de Nuevo Usuario</h3>
+        </div>
+
+        <form method="POST" action="{{ url_for('api.post_register_api.register_user') }}" class="contenedor-form">            {{ form.hidden_tag() }}
+
+            <div class="fila">
+                <div class="contenedor-input">
+                    <label for="nombre">Nombre:</label>
+                    <input type="text" id="nombre" name="nombre" value="{{ form.nombre.data }}" class="input-field">
+                </div>
+                <div class="contenedor-input">
+                    <label for="apellidos">Apellidos:</label>
+                    {{ form.apellidos(class="input-field") }}
+                </div>
+            </div>
+
+            <div class="fila">
+                <div class="contenedor-input">
+                    <label for="cedula">Cédula:</label>
+                    {{ form.cedula(class="input-field") }}
+                </div>
+                <div class="fila">
+                    <div class="contenedor-input">
+                        <label for="correo">Correo:</label>
+                        <input type="text" id="correo" name="correo" class="input-field" list="dominios-correo" 
+                               placeholder="Escribe tu correo">
+                        <datalist id="dominios-correo">
+                            <option value="@gmail.com"></option>
+                            <option value="@hotmail.com"></option>
+                            <option value="@outlook.com"></option>
+                            <option value="@yahoo.com"></option>
+                            <option value="@icloud.com"></option>
+                        </datalist>
+                    </div>
+                </div>
+            </div>
+
+            <div class="fila">
+                <div class="contenedor-input">
+                    <label for="contrasenia">Contraseña:</label>
+                    <input type="password" id="contrasenia" name="contrasenia" class="input-field" placeholder="Escribe tu contraseña">
+                </div>
+            </div>
+            
+            <div class="fila">
+                <div class="contenedor-input">
+                    <label for="confirmar_contrasenia">Confirmar Contraseña:</label>
+                    <input type="password" id="confirmar_contrasenia" name="confirmar_contrasenia" class="input-field" 
+                           placeholder="Confirma tu contraseña" oninput="mostrarMensaje()">
+                    <p id="mensaje-confirmacion" class="mensaje-contraseña" style="display: none; color: red;">
+                        El sistema de recuperación de cuentas está en proceso. Por favor, asegure muy bien su contraseña, ya que el proceso de recuperación podría tardar hasta un mes.
+                    </p>
+                </div>
+            </div>
+            <style>
+                .mensaje-contraseña {
+                    font-size: 0.9rem;
+                    margin-top: 5px;
+                }
+            </style>
+
+            <div class="fila">
+                <div class="contenedor-input">
+                    <label for="celular">Celular:</label>
+                    {{ form.celular(class="input-field") }}
+                </div>
+            </div>
+
+            <div class="fila">
+                <div class="contenedor-input">
+                    <label for="pais">País:</label>
+                    <select id="pais" name="pais" class="input-field" onchange="verificarPais()">
+                        <option value="">Selecciona tu país</option>
+                        <option value="Colombia">Colombia</option>
+                        <option value="México">México</option>
+                        <option value="Argentina">Argentina</option>
+                        <option value="España">España</option>
+                        <option value="Brasil">Brasil</option>
+                    </select>
+                    </select>
+                </div>
+            </div>
+
+            <div class="fila">
+                <div class="contenedor-input">
+                    <label for="ciudad">Ciudad:</label>
+                    <input type="text" id="ciudad" name="ciudad" class="input-field" list="ciudades-sugeridas"
+                           oninput="filtrarCiudades(this.value)" placeholder="Escribe tu ciudad">
+                    <datalist id="ciudades-sugeridas">
+                        <!-- Opciones dinámicas generadas aquí -->
+                    </datalist>
+                </div>
+            </div>
+
+            <div class="fila">
+                <button type="submit" class="btn">Registrarse</button>
+            </div>
+        </form>
+    </div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    
+</body>
+
+   

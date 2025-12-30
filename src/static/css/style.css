@@ -1,0 +1,522 @@
+/* PARTE 1: Configuración general y estilos globales */
+
+/* Importar fuente Poppins */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900&display=swap');
+
+/* Estilos globales */
+* {
+    font-family: 'Poppins', sans-serif;
+    margin: 0; /* Resetear márgenes */
+    padding: 0; /* Resetear padding */
+    box-sizing: border-box; /* Garantizar manejo consistente del tamaño */
+}
+
+/* Estilos para el cuerpo */
+body {
+    display: flex; /* Centrar contenido */
+    justify-content: center; /* Centrar horizontalmente */
+    align-items: center; /* Centrar verticalmente */
+    min-height: 110vh; /* Altura mínima para evitar solapamiento */
+    background: url('/static/images/pfondo.jpg'); /* Imagen de fondo */
+    background-size: cover; /* Cubrir toda el área visible */
+    background-position: center; /* Centrar la imagen */
+    flex-direction: column; /* Dirección vertical */
+    padding-top: 100px; /* Espacio para evitar solapamiento con el header */
+}
+
+/* Barra de navegación (header) */
+header {
+    position: fixed; /* Fijo en la parte superior */
+    top: 0;
+    left: 0;
+    width: 100%; /* Mantener el ancho completo */
+    padding: 8px 200px; /* Reducir el padding para hacer la barra más delgada */
+    display: flex; /* Asegurar alineación con flexbox */
+    align-items: center; /* Centrar elementos verticalmente */
+    justify-content: space-between; /* Separar logo y navegación */
+    z-index: 99; /* Prioridad visual */
+    background: rgba(255, 255, 255, 0.1); /* Fondo translúcido */
+    backdrop-filter: blur(25px); /* Efecto de desenfoque */
+    border-bottom: 2px solid rgba(255, 255, 255, 0.5); /* Línea inferior discreta */
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3); /* Sombra más suave */
+    height: auto; /* Permitir que se ajuste automáticamente */
+}
+.navegacion a::after {
+    content: "";
+    position: absolute;
+    width: 100%;
+    bottom: -6px;
+    left: 0;
+    height: 2px;
+    background: rgb(221, 221, 221);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.4s;
+}
+
+.navegacion a:hover::after {
+    transform: scaleX(1);
+    transform-origin: right;
+}
+
+/* Navegación dentro del header */
+.navegacion {
+    display: flex; /* Elementos en fila */
+    align-items: center; /* Centrar verticalmente */
+    gap: 30px; /* Espaciado entre elementos */
+}
+
+.navegacion a {
+    font-size: 1.1rem; /* Tamaño del texto */
+    color: #faf6f6; /* Color blanco suave */
+    text-decoration: none; /* Eliminar subrayado */
+    font-weight: 500; /* Peso moderado */
+}
+
+/* Botón con menos redondeo en el borde */
+/* Botón inicial: texto negro y borde blanco */
+/* Botón inicial: texto blanco y borde negro */
+/* Botón inicial: borde grueso, letras delgadas */
+/* Botón inicial: letras gruesas y borde delgado */
+.navegacion .btn {
+    width: 150px; /* Incrementar el ancho para que el texto quepa en una sola línea */
+    height: 50px; /* Mantener la altura */
+    background: transparent; /* Fondo transparente */
+    border: 2px solid black; /* Borde delgado negro */
+    border-radius: 10px; /* Bordes ligeramente redondeados */
+    cursor: pointer; /* Cursor interactivo */
+    font-size: 1.1rem; /* Tamaño del texto */
+    color: white; /* Texto blanco inicial */
+    font-weight: 700; /* Letras gruesas */
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3); /* Sombra ligera */
+    transition: all 0.3s ease; /* Transición suave */
+    white-space: nowrap;
+}
+
+/* Hover: letras delgadas y borde grueso */
+.navegacion .btn:hover {
+    background: transparent; /* Mantener el fondo transparente */
+    border: 4px solid white; /* Cambiar el borde a grueso y blanco */
+    color: black; /* Cambiar el texto a negro */
+    font-weight: 300; /* Texto delgado */
+    transform: scale(1.05); /* Ampliación ligera para dinamismo */
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5); /* Sombra más pronunciada */
+}
+/* Ajustes responsivos para móviles */
+@media (max-width: 480px) {
+    .navegacion {
+        flex-wrap: nowrap; /* Mantener elementos en una sola línea */
+        justify-content: space-around; /* Espaciado uniforme */
+        gap: 10px; /* Reducir espacio entre elementos */
+    }
+
+    .navegacion .btn {
+        font-size: 0.9rem; /* Texto más pequeño */
+        padding: 5px 10px; /* Ajustar espacio interno */
+        white-space: nowrap; /* Evitar que el texto se divida en múltiples líneas */
+    }
+
+    header {
+        padding: 10px 20px; /* Reducir el padding */
+    }
+}
+/* PARTE 2: Contenedores principales y formulario */
+
+/* Estilo general para los contenedores */
+.main-container {
+    position: relative; /* Posicionamiento relativo para flexibilidad */
+    width: 100%;
+    height: calc(100vh - 80px); /* Altura total menos la barra de navegación */
+    overflow: hidden; /* Ocultar contenido que excede el área */
+}
+
+/* Contenedor principal con fondo texto de terminos y condiciones */
+.fondo {
+    position: relative;
+    width: 90%;
+    max-width: 600px; /* Ajustar ancho máximo */
+    background: transparent; /* Fondo transparente */
+    border: 2px solid rgba(255, 255, 255, 0.5); /* Bordes translúcidos */
+    border-radius: 20px; /* Bordes redondeados */
+    backdrop-filter: blur(25px); /* Desenfoque para fondo */
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5); /* Sombra del cuadro */
+    display: flex; /* Diseño en flex para alineación */
+    flex-direction: column; /* Dirección de los elementos */
+    justify-content: butt; /* MODIFICA LA RELACION DEL ALTO DE LA BARRA VS TEXTO */
+    align-items: center; /* Centrar contenido horizontalmente */
+    overflow: hidden; /* Ocultar contenido adicional */
+    padding: 40px 20px; /* Espaciado interno */
+    gap: 20px; /* Espaciado entre los elementos */
+    margin-top: 120px; /* Separar del header */
+}
+
+/* Estilo específico del formulario dentro del contenedor */
+.fondo .contenedor-form.registrar {
+    width: 100%;
+    max-width: 700px; /* Mayor ancho para pantallas grandes */
+    background: rgba(255, 255, 255, 0.1); /* Fondo translúcido */
+    border-radius: 10px; /* Bordes redondeados */
+    padding: 30px; /* Espaciado interno */
+    display: grid; /* Diseño tipo grid */
+    grid-template-columns: repeat(2, 1fr); /* Dividir en dos columnas */
+    gap: 20px; /* Espacio entre las columnas */
+}
+
+/* Título del formulario */
+.fondo .contenedor-form.registrar h3 {
+    grid-column: span 2; /* Título ocupa ambas columnas */
+    font-size: 2rem; /* Tamaño grande del texto */
+    font-weight: bold; /* Negrita */
+    color: rgb(255, 255, 255); /* Color blanco */
+    text-align: center; /* Centrado */
+    margin-bottom: 20px; /* Separación inferior */
+}
+
+/* Inputs dentro del formulario */
+.contenedor-input {
+    width: 100%;
+    display: flex; /* Diseño flex para alineación */
+    flex-direction: column; /* Alineación vertical */
+}
+
+.contenedor-input label {
+    font-size: 1.2rem; /* Tamaño del texto para etiquetas */
+    color: rgb(255, 255, 255); /* Color blanco */
+    margin-bottom: 10px; /* Espacio inferior */
+}
+
+.contenedor-input input {
+    width: 100%; /* Ocupa todo el ancho del contenedor */
+    padding: 10px; /* Espaciado interno */
+    border: 2px solid rgba(176, 177, 177, 0.548); /* Borde translúcido */
+    background: transparent; /* Fondo transparente */
+    outline: none; /* Eliminar contorno al seleccionar */
+    font-size: 1rem; /* Tamaño del texto */
+    color: rgba(200, 200, 200, 0.9); /* Texto gris claro */
+    border-radius: 5px; /* Bordes redondeados */
+}
+
+/* Placeholder del input */
+.input-field::placeholder {
+    color: #b6b6b6; /* Color del texto del placeholder */
+    font-style: italic; /* Estilo cursiva */
+    opacity: 0.8; /* Opacidad del texto */
+}
+
+/* Botón del formulario */
+.registrar.btn {
+    grid-column: span 2; /* Botón ocupa ambas columnas del grid */
+    width: 100%; /* Ocupa todo el ancho disponible */
+    padding: 15px; /* Espaciado interno */
+    border: none; /* Sin borde */
+    border-radius: 5px; /* Bordes redondeados */
+    font-size: 1.2rem; /* Texto grande */
+    font-weight: bold; /* Texto en negrita */
+    color: rgb(255, 255, 255); /* Texto blanco */
+    background: rgba(185, 184, 184, 0.7); /* Fondo gris translúcido */
+    cursor: pointer; /* Manito interactiva */
+    transition: background 0.3s ease; /* Transición suave en hover */
+    margin-top: auto; /* Mover al final del formulario */
+    align-self: center; /* Centrarse horizontalmente */
+}
+
+/* Hover del botón */
+.registrar.btn:hover {
+    background: rgba(185, 184, 184, 1); /* Fondo más opaco al pasar el mouse */
+}
+#registroUsuario {
+    display: none; /* Ocultar el contenedor del formulario por defecto */
+}
+/* Barra de desplazamiento para contenedor */
+.fondo.terminos::-webkit-scrollbar {
+    width: 8px; /* Ancho de la barra */
+}
+.fondo.terminos::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.4); /* Color oscuro de la barra */
+    border-radius: 4px; /* Bordes redondeados */
+}
+.fondo.terminos::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.7); /* Más oscuro al pasar el mouse */
+}
+
+/* PARTE 3: Estilos específicos y botones generales */
+
+/* Contenedor con estilos de términos y condiciones */
+.fondo.terminos {
+    position: relative;
+    width: 90%; /* Usar el 90% del ancho de la pantalla */
+    max-width: 600px; /* Limitar el ancho máximo */
+    max-height: 400px; /* Reducir la altura máxima para móviles */
+    overflow-y: auto; /* Habilitar el scroll vertical */
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-radius: 20px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+    padding: 15px; /* Reducir el padding interno */
+    margin: 20px auto; /* Centrarlo horizontalmente */
+    color: #000;
+    line-height: 1.6;
+    font-size: 1rem; /* Tamaño del texto */
+    text-align: justify; /* Justificar el texto */
+    z-index: 1;
+}
+
+/* Barra de desplazamiento personalizada */
+.fondo.terminos::-webkit-scrollbar {
+    width: 8px; /* Tamaño de la barra de desplazamiento */
+}
+
+.fondo.terminos::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.4); /* Color oscuro del scroll */
+    border-radius: 4px; /* Bordes redondeados */
+}
+
+.fondo.terminos::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.7); /* Color más oscuro al pasar el mouse */
+}
+
+/* Botones generales */
+.btn {
+    width: 100%; /* Botón ocupa el ancho completo */
+    max-width: 700px; /* Ajuste máximo igual que el contenedor de registro */
+    padding: 15px; /* Espaciado interno adecuado */
+    border: 2px solid rgba(255, 255, 255, 0.5); /* Bordes suaves y translúcidos */
+    border-radius: 10px; /* Bordes redondeados */
+    font-size: 1.2rem; /* Tamaño del texto */
+    font-weight: bold; /* Texto en negrita */
+    color: rgba(255, 255, 255, 0.9); /* Texto gris claro */
+    background: rgba(255, 255, 255, 0.1); /* Fondo translúcido */
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5); /* Sombra similar al contenedor */
+    backdrop-filter: blur(25px); /* Efecto de desenfoque */
+    cursor: pointer; /* Cursor interactivo */
+    transition: all 0.3s ease; /* Transición suave para hover */
+    margin-bottom: 20px; /* Separación entre otros elementos */
+}
+
+.btn.principal-button {
+    height: auto; /* Deja que la altura se ajuste automáticamente */
+    padding: 10px 20px; /* Incrementa el espacio interno */
+    background: rgba(255, 255, 255, 0.1);
+}
+/* Efecto hover para botones generales */
+.btn:hover {
+    background: rgba(255, 255, 255, 0.2); /* Fondo ligeramente más claro */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); /* Sombra más pronunciada */
+    transform: scale(1.02); /* Ampliación ligera para interacción visual */
+}
+
+/* Contenedor especial para servicios */
+.servicios-container {
+    display: flex; /* Diseño flexible */
+    flex-wrap: wrap; /* Asegurar que los elementos se ajusten en múltiples filas */
+    gap: 20px; /* Espaciado entre elementos */
+    justify-content: center; /* Centrar elementos dentro del contenedor */
+}
+
+.servicio-card {
+    background: #fff; /* Fondo blanco */
+    border: 1px solid #ddd; /* Borde gris claro */
+    border-radius: 10px; /* Bordes suaves */
+    padding: 15px; /* Espaciado interno */
+    width: 300px; /* Tamaño consistente de las tarjetas */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Sombra ligera */
+}
+
+.servicio-card h4 {
+    margin-top: 0; /* Eliminar margen superior */
+    font-size: 1.2em; /* Ajustar tamaño de título */
+    color: #333; /* Texto gris oscuro */
+}
+
+.servicio-card p {
+    font-size: 0.9em; /* Texto más pequeño para contenido adicional */
+    color: #666; /* Texto gris claro */
+    margin: 5px 0; /* Separación entre párrafos */
+}
+
+/* Botón dentro de las tarjetas de servicios */
+.servicio-card .btn {
+    display: inline-block; /* Mostrar como botón en línea */
+    margin-top: 10px; /* Separación del contenido principal */
+    
+    padding: 10px; /* Espaciado interno del botón */
+    text-align: center; /* Centrar texto dentro del botón */
+    text-decoration: none; /* Sin subrayado */
+    border-radius: 5px; /* Bordes suaves */
+}
+
+
+/* PARTE 4: Responsividad y ajustes específicos para pantallas pequeñas */
+
+@media (max-width: 768px) {
+    .fondo.terminos {
+        max-height: 600px; /* Reducir altura máxima en móviles */
+        padding: 10px; /* Reducir espacio interno */
+        font-size: 0.9rem; /* Reducir tamaño del texto ligeramente */
+    }
+}
+/* Responsividad para tablets */
+@media (max-width: 768px) {
+    header {
+        padding: 15px 50px; /* Reducir padding en dispositivos más pequeños */
+        flex-direction: column; /* Cambiar a diseño vertical */
+        align-items: center; /* Centrar elementos */
+    }
+
+    .logo {
+        font-size: 2.5rem; /* Reducir tamaño del logo */
+        margin-bottom: 10px; /* Espaciado adicional debajo del logo */
+    }
+
+    .navegacion {
+        flex-wrap: wrap; /* Asegurar que los elementos ocupen varias líneas si es necesario */
+        justify-content: center; /* Centrar la navegación */
+    }
+
+    
+
+    .fondo {
+        padding: 30px 15px; /* Reducir el padding interno */
+        margin-top: 100px; /* Ajustar la separación con el header */
+    }
+
+    .titulo-terminos {
+        font-size: 1.6rem; /* Reducir tamaño del título */
+    }
+
+    .fondo.terminos {
+        max-height: 400px; /* Limitar altura en tablets */
+    }
+
+    .contenedor-form.registrar h3 {
+        text-align: center; /* Centrar el texto del título */
+        font-size: 2rem; /* Ajustar tamaño del texto */
+        margin-bottom: 20px; /* Espaciado inferior */
+    }
+}
+
+/* Responsividad para móviles */
+@media (max-width: 480px) {
+    .fondo {
+        padding: 20px; /* Reducir el padding interno */
+        margin-top: 80px; /* Espaciado adicional en la parte superior */
+    }
+
+    .titulo-terminos {
+        font-size: 1.5rem; /* Reducir aún más el tamaño del título */
+        margin-bottom: 8px; /* Espaciado inferior reducido */
+    }
+
+    .fondo.terminos {
+        box-sizing: border-box; /* Incluir padding y bordes en el tamaño total */
+        height: 600px; /* Ajustar altura */
+        overflow-y: auto; /* Activar barra de desplazamiento */
+    }
+
+    .contenedor-form.registrar h3 {
+        font-size: 1.3rem; /* Reducir tamaño del texto */
+    }
+
+    .contenedor-input label {
+        font-size: 0.9rem; /* Ajustar tamaño de las etiquetas */
+    }
+}
+
+/* Mostrar/ocultar navegación en móviles */
+.toggle-nav-btn {
+    display: none; /* Por defecto está oculto */
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 30px; /* Tamaño del botón */
+    height: 30px;
+    background: rgba(185, 184, 184, 0.7); /* Fondo gris translúcido */
+    border: 2px solid gray; /* Borde gris */
+    border-radius: 6px; /* Bordes suaves */
+    font-size: 1.2rem; /* Tamaño del texto */
+    color: #fff; /* Texto blanco */
+    cursor: pointer; /* Mostrar cursor interactivo */
+    z-index: 100; /* Asegurar que quede encima de otros elementos */
+    justify-content: center; /* Centrar contenido horizontalmente */
+    align-items: center; /* Centrar contenido verticalmente */
+}
+
+.toggle-nav-btn:hover {
+    background: rgba(185, 184, 184, 1); /* Fondo más oscuro al pasar el mouse */
+}
+
+/* Ocultar la barra de navegación por defecto en móviles */
+.navegacion.hide {
+    display: none; /* Ocultar navegación */
+}
+
+/* Mostrar botón y cambiar diseño en móviles */
+@media (max-width: 768px) {
+    .toggle-nav-btn {
+        display: flex; /* Mostrar botón de alternancia */
+    }
+
+    .navegacion {
+        flex-direction: column; /* Cambiar navegación a vertical */
+        justify-content: flex-start; /* Alinear elementos al inicio */
+        align-items: center; /* Centrar elementos horizontalmente */
+    }
+}
+
+@media (min-width: 1024px) {
+    /* Contenedor principal (Términos y formulario) */
+    .fondo {
+        width: 60%; /* Reducir el ancho al 60% */
+        max-width: 900px; /* Limitar el tamaño máximo a 900px */
+        padding: 18px; /* Reducir el espaciado interno */
+        margin: 15px auto; /* Ajustar márgenes */
+        border-radius: 12px; /* Bordes menos redondeados */
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.3); /* Sombra ajustada */
+    }
+
+    /* Contenedor de términos y condiciones */
+    .fondo.terminos {
+        max-width: 800px; /* Reducir el ancho máximo */
+        max-height: 350px; /* Altura más compacta */
+        padding: 12px; /* Menor espaciado interno */
+        font-size: 0.85rem; /* Texto ligeramente reducido */
+        line-height: 1.4; /* Espaciado entre líneas más compacto */
+    }
+
+    /* Formulario de registro */
+    .formulario-principal {
+        width: 65%; /* Reducir el ancho del formulario */
+        max-width: 700px; /* Limitar el tamaño máximo */
+        padding: 18px; /* Espaciado interno más pequeño */
+        margin: 15px auto; /* Menor margen superior */
+    }
+
+    /* Inputs y estructura del formulario */
+    .contenedor-form {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr); /* Mantener dos columnas */
+        gap: 12px; /* Menor espaciado entre filas y columnas */
+    }
+
+    .contenedor-input {
+        flex: 1 1 calc(50% - 8px); /* Inputs más compactos */
+    }
+
+    .input-field {
+        padding: 8px; /* Reducir espaciado interno de los inputs */
+        font-size: 0.85rem; /* Reducir tamaño del texto */
+    }
+
+    /* Botones */
+    .btn {
+        padding: 8px 12px; /* Espaciado interno más compacto */
+        font-size: 0.85rem; /* Reducir el tamaño del texto */
+    }
+
+    /* Header más delgado */
+    header {
+        padding: 0.1px 100px; /* Reducir espaciado interno de la barra superior */
+        box-shadow: 0 0 8px rgba(0, 0, 0, 0.3); /* Sombra más ligera */
+        height: auto; /* Ajuste automático a los cambios de padding */
+    }
+}

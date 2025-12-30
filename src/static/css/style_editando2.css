@@ -1,0 +1,251 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900&display=swap');
+
+* {
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: url('/static/images/papel-pintado-gris-formas-geometricas.jpg'); 
+    background-size: cover;
+    background-position: center;
+}
+
+header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 20px 100px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 99;
+}
+
+.logo {
+    font-size: 3rem;
+    color: rgb(0, 0, 0);
+    user-select: none;
+    cursor: pointer;
+}
+
+.navegacion a {
+    position: relative;
+    font-size: 1.1rem;
+    color: #181717;
+    text-decoration: none;
+    font-weight: 500;
+    margin-left: 30px;
+}
+
+.navegacion a::after {
+    content: "";
+    position: absolute;
+    width: 100%;
+    bottom: -6px;
+    left: 0;
+    height: 2px;
+    background: rgb(26, 14, 14);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.4s;
+}
+
+.navegacion a:hover::after {
+    transform: scaleX(1);
+    transform-origin: left;
+}
+
+.navegacion .btn {
+    width: 130px;
+    height: 50px;
+    background: transparent;
+    border: 2px solid gray;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    color: gray;
+    font-weight: 600;
+    margin-left: 40px;
+}
+
+.navegacion .btn:hover {
+    background: gray;
+    color: white;
+}
+
+.fondo .icono-cerrar {
+    position: centre;
+    right: 0;
+    top: 0;
+    background-color: rgba(255, 255, 255, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+}
+
+.contenedor-input {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.contenedor-input input {
+    width: 90%;
+    padding: 10px;
+    padding-left: 40px;
+    border-bottom: 4px solid rgb(241, 80, 80);
+    background: transparent;
+    outline: none;
+    color: rgb(179, 142, 142);
+}
+
+.contenedor-input label {
+    position: centre;
+    left: 40px;
+    top: 10px;
+    pointer-events: none;
+    transition: 0.5s;
+    color: rgb(182, 143, 143);
+}
+
+.contenedor-input input:focus ~ label,
+.contenedor-input input:valid ~ label {
+    top: 10px;
+    left: 90px;
+    color: rgb(177, 147, 147);
+    font-size: 15px;
+}
+
+.icono {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: rgb(78, 58, 58);
+}
+
+.recordar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.recordar a {
+    color: rgb(104, 104, 104);
+    text-decoration: none;
+}
+
+.recordar a:hover {
+    text-decoration: underline;
+}
+
+.registrar {
+    text-align: center;
+    margin-top: 80px;
+}
+
+.registrar a {
+    color: rgb(46, 46, 46);
+    text-decoration: none;
+}
+
+.registrar a:hover {
+    text-decoration: underline;
+}
+
+.btn {
+    width: 100%;
+    height: auto;
+    outline: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: bold;
+    background-color: transparent;
+    color: #3f3f3f;
+    backdrop-filter: blur 5px;
+}
+
+.registrar {
+    font-size: 1.1em;
+    color: #8a8686;
+    text-align: center;
+    margin: 50px 0 10px;
+}
+
+.registrar p a:hover {
+    text-decoration: underline;
+}
+
+/* Media queries para responsividad */
+
+/* Tablets (pantallas medianas) */
+@media (max-width: 768px) {
+    header {
+        padding: 15px 50px;
+    }
+
+    .logo {
+        font-size: 2.5rem;
+    }
+
+    .navegacion a {
+        font-size: 1rem;
+        margin-left: 20px;
+    }
+
+    .navegacion .btn {
+        width: 100px;
+        height: 40px;
+        font-size: 1rem;
+        margin-left: 20px;
+    }
+}
+
+/* Móviles (pantallas pequeñas) */
+@media (max-width: 480px) {
+    body {
+        flex-direction: column;
+        padding: 20px;
+    }
+
+    header {
+        flex-direction: column;
+        align-items: center;
+        padding: 10px 20px;
+    }
+
+    .logo {
+        font-size: 1.8rem;
+        margin-bottom: 10px;
+    }
+
+    .navegacion a {
+        font-size: 0.9rem;
+        margin-left: 10px;
+    }
+
+    .navegacion .btn {
+        width: 90px;
+        height: 35px;
+        font-size: 0.9rem;
+        margin-left: 10px;
+    }
+
+    .contenedor-input input {
+        font-size: 0.9rem;
+        padding-left: 30px;
+    }
+
+    .contenedor-input label {
+        font-size: 0.8rem;
+    }
+}

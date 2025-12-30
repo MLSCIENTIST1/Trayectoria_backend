@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://kit.fontawesome.com/c4d33f5660.js" crossorigin="anonymous"></script>
+    <title>Iniciar sesión (Login)</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <h2 class="logo">TRAYECTORIA</h2>
+
+        <!-- Botón para mostrar/ocultar la barra de navegación en móviles -->
+        <button class="toggle-nav-btn" onclick="toggleNav()">☰</button>
+
+        <nav class="navegacion">
+            <a href="{{ url_for('main.index') }}">Inicio</a>
+            <a href="{{ url_for('register') }}">Registrarse</a>
+            <a href="#">Contacto</a>
+            <button class="btn" onclick="window.location.href='{{ url_for('profile.edit_profile') }}'">Buscar Trayector</button>
+        </nav>
+    </header>
+
+    <!-- Modal del login -->
+    <div class="fondo" id="loginFondo">
+        <span class="icono-cerrar" onclick="cerrarLogin()"><i class="fa-regular fa-circle-xmark"></i></span>
+        <div class="contenedor-form login">
+            <h2>Loguearse</h2>
+
+            <!-- Formulario de login -->
+            <form method="POST" action="/api/login">
+                {{ form.hidden_tag() }} <!-- CSRF token -->
+
+                <!-- Mostrar errores de validación -->
+                {% if form.errors %}
+                    <div class="errores">
+                        {% for field, errors in form.errors.items() %}
+                            <div class="error">
+                                <strong>{{ field.label }}:</strong>
+                                {% for error in errors %}
+                                    <p>{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <div class="contenedor-input">
+                    <span class="icono"><i class="fa-solid fa-city"></i></span>
+                    {{ form.correo(class="input-field", id="login-email") }}
+                    <label for="login-email">Escribe tu correo</label>
+                </div>
+
+                <div class="contenedor-input">
+                    <span class="icono"><i class="fa-solid fa-person-digging"></i></span>
+                    {{ form.password(class="input-field", id="login-password") }}
+                    <label for="login-password">Escribe tu contraseña</label>
+                </div>
+
+                <div class="recordar">
+                    {{ form.remember() }} <label for="recordar">Recordar sesión</label>
+                
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <ul class="flashes">
+            {% for category, message in messages %}
+                <li class="alert {{ category }}">{{ message }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+{% endwith %}
+                </div>
+
+                <button type="submit" class="btn">Iniciar sesión</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Función para mostrar/ocultar la barra de navegación
+        function toggleNav() {
+            const nav = document.querySelector('.navegacion');
+            nav.classList.toggle('hide');
+        }
+
+        function mostrarLogin() {
+            document.getElementById('loginFondo').classList.add('active');
+        }
+
+        function cerrarLogin() {
+            document.getElementById('loginFondo').classList.remove('active');
+        }
+    </script>
+</body>
+</html>

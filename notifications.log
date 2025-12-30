@@ -1,0 +1,51 @@
+2024-12-30 07:57:25,000 - src.models.notification - INFO - Notificación creada: <Notification 65>
+2024-12-30 12:27:34,046 - src.models.notification - INFO - Notificación con ID 65 aceptada.
+2024-12-30 16:16:21,717 - src.models.notification - INFO - Notificación creada: <Notification 66>
+2024-12-30 17:43:17,568 - src.models.notification - INFO - Notificación creada: <Notification 67>
+2024-12-30 19:47:38,990 - src.models.notification - DEBUG - Estado de la notificación después de commit: <Notification 67>
+2024-12-30 19:47:38,992 - src.models.notification - INFO - Notificación con ID 67 aceptada.
+2024-12-30 19:50:41,179 - src.models.notification - DEBUG - Estado de la notificación después de commit: <Notification 67>
+2024-12-30 19:50:41,179 - src.models.notification - INFO - Notificación con ID 67 aceptada.
+2024-12-30 20:20:54,858 - src.models.notification - INFO - Notificación creada: <Notification 68>
+2024-12-30 21:56:50,089 - src.models.notification - INFO - Notificación creada: <Notification 69>
+2024-12-31 08:32:18,085 - src.models.notification - DEBUG - Estado de la notificación después de commit: <Notification 69>
+2024-12-31 08:32:18,085 - src.models.notification - INFO - Notificación con ID 69 aceptada.
+2024-12-31 08:33:47,033 - src.models.notification - INFO - Notificación creada: <Notification 70>
+2025-01-08 10:16:35,536 - src.models.notification - DEBUG - Estado de la notificación después de commit: <Notification 70>
+2025-01-08 10:16:35,537 - src.models.notification - INFO - Notificación con ID 70 aceptada.
+2025-01-10 11:03:00,356 - src.models.notification - INFO - Notificación creada: <Notification 71>
+2025-03-14 10:11:30,461 - src.models.notification - INFO - Notificación creada: <Notification 72>
+2025-03-14 10:36:25,483 - src.models.notification - INFO - Notificación creada: <Notification 73>
+2025-03-14 11:05:53,974 - src.models.notification - INFO - Notificación creada: <Notification 74>
+2025-03-14 17:23:08,198 - src.models.notification - INFO - Notificación creada: <Notification 75>
+2025-03-14 17:33:45,370 - src.models.notification - INFO - Notificación creada: <Notification 76>
+2025-03-14 18:13:54,312 - src.models.notification - DEBUG - Estado de la notificación después de commit: <Notification 76>
+2025-03-14 18:13:54,313 - src.models.notification - INFO - Notificación con ID 76 aceptada.
+2025-03-14 19:43:41,428 - src.models.notification - DEBUG - Estado de la notificación después de commit: <Notification 76>
+2025-03-14 19:43:41,428 - src.models.notification - INFO - Notificación con ID 76 aceptada.
+2025-03-14 20:05:07,302 - src.models.notification - DEBUG - Estado de la notificación después de commit: <Notification 76>
+2025-03-14 20:05:07,302 - src.models.notification - INFO - Notificación con ID 76 aceptada.
+2025-03-14 20:08:04,770 - src.models.notification - DEBUG - Estado de la notificación después de commit: <Notification 76>
+2025-03-14 20:08:04,770 - src.models.notification - INFO - Notificación con ID 76 aceptada.
+2025-03-14 20:10:30,141 - src.models.notification - DEBUG - Estado de la notificación después de commit: <Notification 76>
+2025-03-14 20:10:30,141 - src.models.notification - INFO - Notificación con ID 76 aceptada.
+2025-03-14 20:19:41,454 - src.models.notification - DEBUG - Estado de la notificación después de commit: <Notification 76>
+2025-03-14 20:19:41,455 - src.models.notification - INFO - Notificación con ID 76 aceptada.
+2025-03-15 16:41:25,484 - src.models.notification - INFO - Notificación creada: <Notification 77>
+2025-03-15 16:43:34,592 - src.models.notification - DEBUG - Estado de la notificación después de commit: <Notification 77>
+2025-03-15 16:43:34,592 - src.models.notification - INFO - Notificación con ID 77 aceptada.
+2025-03-15 16:47:56,935 - src.models.notification - DEBUG - Estado de la notificación después de commit: <Notification 77>
+2025-03-15 16:47:56,935 - src.models.notification - INFO - Notificación con ID 77 aceptada.
+2025-03-15 18:28:13,512 - src.models.notification - INFO - Notificación creada: <Notification 78>
+2025-03-15 18:28:39,433 - src.models.notification - DEBUG - Estado de la notificación después de commit: <Notification 78>
+2025-03-15 18:28:39,433 - src.models.notification - INFO - Notificación con ID 78 aceptada.
+2025-03-15 22:47:18,693 - src.models.notification - INFO - Notificación creada: <Notification 79>
+2025-03-17 07:09:30,097 - src.models.notification - INFO - Notificación creada: <Notification 80>
+2025-03-17 18:26:25,795 - src.models.notification - INFO - Notificación creada: <Notification 81>
+2025-03-17 18:28:40,488 - src.models.notification - INFO - Notificación creada: <Notification 82>
+2025-03-18 13:58:33,105 - src.models.notification - INFO - Notificación creada: <Notification 83>
+2025-03-18 14:28:57,218 - src.models.notification - INFO - Notificación creada: <Notification 84>
+2025-03-18 16:04:11,725 - src.models.notification - INFO - Notificación creada: <Notification 85>
+2025-03-18 16:08:17,021 - src.models.notification - INFO - Notificación creada: <Notification 86>
+2025-03-24 19:18:05,299 - src.models.notification - INFO - Notificación creada: <Notification 87>
+2025-03-26 01:59:53,158 - src.models.notification - INFO - Notificación creada: <Notification 88>

@@ -1,0 +1,176 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900&display=swap');
+
+* {
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: url('/static/images/papel-pintado-gris-formas-geometricas.jpg'); 
+    background-size: cover;
+    background-position: center;
+}
+
+header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 20px 100px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 99;
+}
+
+.logo {
+    font-size: 3rem;
+    color: rgb(0, 0, 0);
+    user-select: none;
+    cursor: pointer;
+}
+
+.navegacion a {
+    position: relative;
+    font-size: 1.1rem;
+    color: #181717;
+    text-decoration: none;
+    font-weight: 500;
+    margin-left: 30px;
+}
+
+.navegacion a::after {
+    content: "";
+    position: absolute;
+    width: 100%;
+    bottom: -6px;
+    left: 0;
+    height: 2px;
+    background: rgb(26, 14, 14);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.4s;
+}
+
+.navegacion a:hover::after {
+    transform: scaleX(1);
+    transform-origin: left;
+}
+
+.navegacion .btn {
+    width: 130px;
+    height: 50px;
+    background: transparent;
+    border: 2px solid gray;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    color: gray;
+    font-weight: 600;
+    margin-left: 40px;
+}
+
+.navegacion .btn:hover {
+    background: gray;
+    color: white;
+}
+
+.fondo {
+    position: relative;
+    width: 400px;
+    height: 440px;
+    background: transparent;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-radius: 20px;
+    backdrop-filter: blur(25px); 
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    overflow: hidden;
+    transition: transform 0.5s ease, height 0.2s ease;
+    transform: scale(1);
+    left: -2%;
+}
+
+/* MEDIA QUERIES PARA RESPONSIVIDAD */
+
+/* Para pantallas medianas como tablets */
+@media (max-width: 768px) {
+    header {
+        padding: 15px 50px;
+    }
+
+    .logo {
+        font-size: 2rem;
+    }
+
+    .navegacion a {
+        font-size: 1rem;
+        margin-left: 20px;
+    }
+
+    .navegacion .btn {
+        width: 100px;
+        height: 40px;
+        font-size: 1rem;
+        margin-left: 20px;
+    }
+
+    .fondo {
+        width: 300px;
+        height: 400px;
+        left: 0;
+    }
+}
+
+/* Para pantallas pequeñas como móviles */
+@media (max-width: 480px) {
+    body {
+        flex-direction: column;
+        padding: 20px;
+    }
+
+    header {
+        flex-direction: column;
+        align-items: center;
+        padding: 10px 20px;
+    }
+
+    .logo {
+        font-size: 1.5rem;
+        margin-bottom: 10px;
+    }
+
+    .navegacion a {
+        font-size: 0.9rem;
+        margin-left: 10px;
+    }
+
+    .navegacion .btn {
+        width: 90px;
+        height: 35px;
+        font-size: 0.9rem;
+        margin-left: 10px;
+    }
+
+    .fondo {
+        width: 250px;
+        height: 350px;
+    }
+
+    .contenedor-input input {
+        padding: 8px;
+        padding-left: 30px;
+        font-size: 0.9rem;
+    }
+
+    .contenedor-input label {
+        font-size: 10px;
+    }
+}

@@ -1,0 +1,255 @@
+2024-12-27 09:46:39,528 - DEBUG - Solicitud de contratación recibida para candidato_id 12
+2024-12-27 09:46:39,529 - DEBUG - Candidato encontrado: ma
+2024-12-27 09:46:39,529 - INFO - Usuario ma está enviando una solicitud de contratación a ma
+2024-12-27 09:46:39,539 - WARNING - Ya existe una notificación para el candidato ID 12 con el mismo mensaje.
+2024-12-27 09:50:10,559 - DEBUG - Solicitud de contratación recibida para candidato_id 12
+2024-12-27 09:50:10,560 - DEBUG - Candidato encontrado: ma
+2024-12-27 09:50:10,560 - INFO - Usuario ma está enviando una solicitud de contratación a ma
+2024-12-27 09:50:10,571 - DEBUG - Nuevo request_id generado: 1
+2024-12-27 09:50:10,572 - DEBUG - Intentando crear la notificación en la base de datos...
+2024-12-27 09:50:10,578 - INFO - Notificación creada exitosamente en la base de datos con ID 63 y request_id 1
+2024-12-27 09:50:10,593 - INFO - Notificación enviada a ma con el mensaje: ma te ha enviado una solicitud de contratación para el puesto de atras.
+2024-12-27 09:50:30,069 - DEBUG - Solicitud de contratación recibida para candidato_id 12
+2024-12-27 09:50:30,070 - DEBUG - Candidato encontrado: ma
+2024-12-27 09:50:30,070 - INFO - Usuario ma está enviando una solicitud de contratación a ma
+2024-12-27 09:50:30,072 - WARNING - Ya existe una notificación para el candidato ID 12 con el mismo mensaje.
+2024-12-30 07:56:58,387 - DEBUG - Solicitud de contratación recibida para candidato_id 12
+2024-12-30 07:56:58,388 - DEBUG - Candidato encontrado: ma
+2024-12-30 07:56:58,389 - INFO - Usuario ma está enviando una solicitud a ma
+2024-12-30 07:56:58,397 - WARNING - Ya existe una notificación para el candidato ID 12 con el mismo mensaje.
+2024-12-30 07:57:02,237 - DEBUG - Solicitud de contratación recibida para candidato_id 12
+2024-12-30 07:57:02,238 - DEBUG - Candidato encontrado: ma
+2024-12-30 07:57:02,238 - INFO - Usuario ma está enviando una solicitud a ma
+2024-12-30 07:57:02,239 - WARNING - Ya existe una notificación para el candidato ID 12 con el mismo mensaje.
+2024-12-30 07:57:24,981 - DEBUG - Solicitud de contratación recibida para candidato_id 12
+2024-12-30 07:57:24,982 - DEBUG - Candidato encontrado: ma
+2024-12-30 07:57:24,983 - INFO - Usuario ma está enviando una solicitud a ma
+2024-12-30 07:57:24,993 - DEBUG - Nuevo request_id generado: 1
+2024-12-30 07:57:25,003 - INFO - Notificación creada con ID 65 y request_id 1
+2024-12-30 08:35:24,857 - DEBUG - Solicitud de contratación recibida para candidato_id 12
+2024-12-30 08:35:24,859 - DEBUG - Candidato encontrado: ma
+2024-12-30 08:35:24,859 - INFO - Usuario ma está enviando una solicitud a ma
+2024-12-30 08:35:24,863 - WARNING - Ya existe una notificación para el candidato ID 12 con el mismo mensaje.
+2024-12-30 08:43:25,471 - DEBUG - Solicitud de contratación recibida para candidato_id 12
+2024-12-30 08:43:25,473 - DEBUG - Candidato encontrado: ma
+2024-12-30 08:43:25,473 - INFO - Usuario ma está enviando una solicitud a ma
+2024-12-30 08:43:25,476 - WARNING - Ya existe una notificación para el candidato ID 12 con el mismo mensaje.
+2024-12-30 16:16:21,687 - DEBUG - Solicitud de contratación recibida para candidato_id 3
+2024-12-30 16:16:21,692 - DEBUG - Candidato encontrado: Armando
+2024-12-30 16:16:21,693 - INFO - Usuario ma está enviando una solicitud a Armando
+2024-12-30 16:16:21,702 - DEBUG - Nuevo request_id generado: 2
+2024-12-30 16:16:21,719 - INFO - Notificación creada con ID 66 y request_id 2
+2024-12-30 17:42:59,450 - DEBUG - Solicitud de contratación recibida para candidato_id 12
+2024-12-30 17:42:59,451 - DEBUG - Candidato encontrado: ma
+2024-12-30 17:42:59,451 - INFO - Usuario ma está enviando una solicitud a ma
+2024-12-30 17:42:59,454 - WARNING - Ya existe una notificación para el candidato ID 12 con el mismo mensaje.
+2024-12-30 17:43:17,545 - DEBUG - Solicitud de contratación recibida para candidato_id 12
+2024-12-30 17:43:17,546 - DEBUG - Candidato encontrado: ma
+2024-12-30 17:43:17,546 - INFO - Usuario ma está enviando una solicitud a ma
+2024-12-30 17:43:17,552 - DEBUG - Nuevo request_id generado: 1
+2024-12-30 17:43:17,570 - INFO - Notificación creada con ID 67 y request_id 1
+2024-12-30 17:43:59,779 - DEBUG - Solicitud de contratación recibida para candidato_id 12
+2024-12-30 17:43:59,780 - DEBUG - Candidato encontrado: ma
+2024-12-30 17:43:59,781 - INFO - Usuario ma está enviando una solicitud a ma
+2024-12-30 17:43:59,783 - WARNING - Ya existe una notificación para el candidato ID 12 con el mismo mensaje.
+2024-12-30 17:44:13,491 - DEBUG - Solicitud de contratación recibida para candidato_id 12
+2024-12-30 17:44:13,491 - DEBUG - Candidato encontrado: ma
+2024-12-30 17:44:13,492 - INFO - Usuario ma está enviando una solicitud a ma
+2024-12-30 17:44:13,545 - WARNING - Ya existe una notificación para el candidato ID 12 con el mismo mensaje.
+2024-12-30 20:20:54,830 - DEBUG - Solicitud de contratación recibida para candidato_id 3
+2024-12-30 20:20:54,832 - DEBUG - Candidato encontrado: Armando
+2024-12-30 20:20:54,832 - INFO - Usuario ma está enviando una solicitud a Armando
+2024-12-30 20:20:54,842 - DEBUG - Nuevo request_id generado: 2
+2024-12-30 20:20:54,861 - INFO - Notificación creada con ID 68 y request_id 2
+2024-12-30 21:56:50,074 - DEBUG - Solicitud de contratación recibida para candidato_id 12
+2024-12-30 21:56:50,076 - DEBUG - Candidato encontrado: ma
+2024-12-30 21:56:50,077 - INFO - Usuario Armando está enviando una solicitud a ma
+2024-12-30 21:56:50,082 - DEBUG - Nuevo request_id generado: 1
+2024-12-30 21:56:50,092 - INFO - Notificación creada con ID 69 y request_id 1
+2024-12-30 21:58:12,988 - DEBUG - Solicitud de contratación recibida para candidato_id 12
+2024-12-30 21:58:12,990 - DEBUG - Candidato encontrado: ma
+2024-12-30 21:58:12,990 - INFO - Usuario Armando está enviando una solicitud a ma
+2024-12-30 21:58:12,992 - WARNING - Ya existe una notificación para el candidato ID 12 con el mismo mensaje.
+2024-12-30 22:08:50,195 - DEBUG - Solicitud de contratación recibida para candidato_id 12
+2024-12-30 22:08:50,197 - DEBUG - Candidato encontrado: ma
+2024-12-30 22:08:50,198 - INFO - Usuario Armando está enviando una solicitud a ma
+2024-12-30 22:08:50,201 - WARNING - Ya existe una notificación para el candidato ID 12 con el mismo mensaje.
+2024-12-31 08:31:25,886 - DEBUG - Solicitud de contratación recibida para candidato_id 12
+2024-12-31 08:31:25,887 - DEBUG - Candidato encontrado: ma
+2024-12-31 08:31:25,888 - INFO - Usuario Armando está enviando una solicitud a ma
+2024-12-31 08:31:25,889 - WARNING - Ya existe una notificación para el candidato ID 12 con el mismo mensaje.
+2024-12-31 08:33:47,021 - DEBUG - Solicitud de contratación recibida para candidato_id 12
+2024-12-31 08:33:47,023 - DEBUG - Candidato encontrado: ma
+2024-12-31 08:33:47,024 - INFO - Usuario Armando está enviando una solicitud a ma
+2024-12-31 08:33:47,029 - DEBUG - Nuevo request_id generado: 1
+2024-12-31 08:33:47,038 - INFO - Notificación creada con ID 70 y request_id 1
+2024-12-31 08:33:51,514 - DEBUG - Solicitud de contratación recibida para candidato_id 12
+2024-12-31 08:33:51,516 - DEBUG - Candidato encontrado: ma
+2024-12-31 08:33:51,516 - INFO - Usuario Armando está enviando una solicitud a ma
+2024-12-31 08:33:51,517 - WARNING - Ya existe una notificación para el candidato ID 12 con el mismo mensaje.
+2025-01-10 11:03:00,333 - DEBUG - Solicitud de contratación recibida para candidato_id 12
+2025-01-10 11:03:00,338 - DEBUG - Candidato encontrado: mario
+2025-01-10 11:03:00,338 - INFO - Usuario Armando está enviando una solicitud a mario
+2025-01-10 11:03:00,345 - DEBUG - Nuevo request_id generado: 1
+2025-01-10 11:03:00,358 - INFO - Notificación creada con ID 71 y request_id 1
+2025-03-14 09:27:31,692 - DEBUG - Solicitud de contratación recibida para candidato_id 1
+2025-03-14 09:27:31,700 - DEBUG - Candidato encontrado: CARLOS
+2025-03-14 09:27:31,701 - INFO - Usuario jorge está enviando una solicitud a CARLOS
+2025-03-14 09:27:56,278 - DEBUG - Solicitud de contratación recibida para candidato_id 1
+2025-03-14 09:27:56,278 - DEBUG - Candidato encontrado: CARLOS
+2025-03-14 09:27:56,278 - INFO - Usuario jorge está enviando una solicitud a CARLOS
+2025-03-14 09:34:25,298 - DEBUG - Solicitud de contratación recibida para candidato_id 1
+2025-03-14 09:34:25,298 - DEBUG - Candidato encontrado: CARLOS
+2025-03-14 09:34:25,298 - INFO - Usuario jorge está enviando una solicitud a CARLOS
+2025-03-14 09:47:15,239 - DEBUG - Solicitud de contratación recibida para candidato_id 1
+2025-03-14 09:47:15,241 - DEBUG - Candidato encontrado: CARLOS
+2025-03-14 09:47:15,241 - INFO - Usuario jorge está enviando una solicitud a CARLOS
+2025-03-14 09:47:15,252 - DEBUG - Nuevo request_id generado: 2
+2025-03-14 09:47:15,252 - ERROR - Error al enviar la notificación.
+Traceback (most recent call last):
+  File "C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\controllers\send_controller.py", line 58, in notifications
+    new_notification = Notification.create_notification(
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: Notification.create_notification() got an unexpected keyword argument 'message'
+2025-03-14 09:51:09,767 - DEBUG - Solicitud de contratación recibida para candidato_id 1
+2025-03-14 09:51:09,767 - DEBUG - Candidato encontrado: CARLOS
+2025-03-14 09:51:09,767 - INFO - Usuario jorge está enviando una solicitud a CARLOS
+2025-03-14 09:51:09,767 - DEBUG - Nuevo request_id generado: 2
+2025-03-14 09:51:09,767 - ERROR - Error al enviar la notificación.
+Traceback (most recent call last):
+  File "C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\controllers\send_controller.py", line 58, in notifications
+    new_notification = Notification.create_notification(
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: Notification.create_notification() got an unexpected keyword argument 'message'
+2025-03-14 10:04:33,675 - DEBUG - Solicitud de contratación recibida para candidato_id 1
+2025-03-14 10:04:33,680 - DEBUG - Candidato encontrado: CARLOS
+2025-03-14 10:04:33,680 - INFO - Usuario jorge está enviando una solicitud a CARLOS
+2025-03-14 10:04:33,682 - DEBUG - Nuevo request_id generado: 2
+2025-03-14 10:04:33,683 - ERROR - Error al enviar la notificación.
+Traceback (most recent call last):
+  File "C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\controllers\send_controller.py", line 58, in notifications
+    new_notification = Notification.create_notification(
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: Notification.create_notification() got an unexpected keyword argument 'message'
+2025-03-14 10:11:30,436 - DEBUG - Solicitud de contratación recibida para candidato_id 1
+2025-03-14 10:11:30,437 - DEBUG - Candidato encontrado: CARLOS
+2025-03-14 10:11:30,438 - INFO - Usuario jorge está enviando una solicitud a CARLOS
+2025-03-14 10:11:30,447 - DEBUG - Nuevo request_id generado: 2
+2025-03-14 10:11:30,465 - INFO - Notificación creada con ID 72 y request_id 2
+2025-03-14 10:33:59,990 - DEBUG - Solicitud de contratación recibida para candidato_id 1
+2025-03-14 10:33:59,991 - DEBUG - Candidato encontrado: CARLOS
+2025-03-14 10:35:06,259 - DEBUG - Solicitud de contratación recibida para candidato_id 1
+2025-03-14 10:35:06,260 - DEBUG - Candidato encontrado: CARLOS
+2025-03-14 10:35:57,274 - DEBUG - Solicitud de contratación recibida para candidato_id 1
+2025-03-14 10:35:57,274 - DEBUG - Candidato encontrado: CARLOS
+2025-03-14 10:36:25,462 - DEBUG - Solicitud de contratación recibida para candidato_id 1
+2025-03-14 10:36:25,462 - DEBUG - Candidato encontrado: CARLOS
+2025-03-14 10:36:25,462 - INFO - Usuario jorge está enviando una solicitud a CARLOS
+2025-03-14 10:36:25,476 - DEBUG - Nuevo request_id generado: 2
+2025-03-14 10:36:25,487 - INFO - Notificación creada con ID 73 y request_id 2
+2025-03-14 10:50:59,546 - DEBUG - Solicitud de contratación recibida para candidato_id 1
+2025-03-14 10:50:59,547 - DEBUG - Candidato encontrado: CARLOS
+2025-03-14 11:05:53,957 - DEBUG - Solicitud de contratación recibida para candidato_id 1
+2025-03-14 11:05:53,959 - DEBUG - Candidato encontrado: CARLOS
+2025-03-14 11:05:53,960 - INFO - Usuario jorge está enviando una solicitud a CARLOS con el mensaje: esto es una prueba
+2025-03-14 11:05:53,964 - DEBUG - Nuevo request_id generado: 3
+2025-03-14 11:05:53,982 - INFO - Notificación creada con ID 74 y request_id 3
+2025-03-14 11:05:53,982 - INFO - Mensaje creado con ID 1
+2025-03-14 17:13:03,336 - DEBUG - Solicitud de contratación recibida para candidato_id 15
+2025-03-14 17:13:03,337 - DEBUG - Candidato encontrado: jorge
+2025-03-14 17:13:03,339 - INFO - Usuario CARLOS está enviando una solicitud a jorge con el mensaje: esto es un mensaje de prueba
+2025-03-14 17:13:03,346 - DEBUG - Nuevo request_id generado: 4
+2025-03-14 17:13:03,347 - ERROR - Error al enviar la notificación.
+Traceback (most recent call last):
+  File "C:\Users\carlo\Desktop\proyecto_sena\TRAYECTORIA_Python_mvc\src\controllers\send_controller.py", line 56, in notifications
+    new_notification = Notification.create_notification(
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: Notification.create_notification() missing 1 required positional argument: 'sender_id'
+2025-03-14 17:23:08,177 - DEBUG - Solicitud de contratación recibida para candidato_id 15
+2025-03-14 17:23:08,180 - DEBUG - Candidato encontrado: jorge
+2025-03-14 17:23:08,181 - INFO - Usuario CARLOS está enviando una solicitud a jorge con el mensaje: mensaje para id 15
+2025-03-14 17:23:08,187 - DEBUG - Nuevo request_id generado: 4
+2025-03-14 17:23:08,207 - INFO - Notificación creada con ID 75 y request_id 4
+2025-03-14 17:23:08,212 - INFO - Mensaje creado con ID 5
+2025-03-14 17:33:45,357 - DEBUG - Solicitud de contratación recibida para candidato_id 15
+2025-03-14 17:33:45,359 - DEBUG - Candidato encontrado: jorge
+2025-03-14 17:33:45,360 - INFO - Usuario CARLOS está enviando una solicitud a jorge con el mensaje: primer mensaje
+2025-03-14 17:33:45,365 - DEBUG - Nuevo request_id generado: 1
+2025-03-14 17:33:45,376 - INFO - Notificación creada con ID 76 y request_id 1
+2025-03-14 17:33:45,377 - INFO - Mensaje creado con ID 7
+2025-03-15 16:41:25,463 - DEBUG - Solicitud de contratación recibida para candidato_id 16
+2025-03-15 16:41:25,467 - DEBUG - Candidato encontrado: carlos
+2025-03-15 16:41:25,468 - INFO - Usuario armando  está enviando una solicitud a carlos con el mensaje: Este es el primer mensaje para contratar
+2025-03-15 16:41:25,474 - DEBUG - Nuevo request_id generado: 1
+2025-03-15 16:41:25,497 - INFO - Notificación creada con ID 77 y request_id 1
+2025-03-15 16:41:25,501 - INFO - Mensaje creado con ID 13
+2025-03-15 18:28:13,492 - DEBUG - Solicitud de contratación recibida para candidato_id 16
+2025-03-15 18:28:13,494 - DEBUG - Candidato encontrado: carlos
+2025-03-15 18:28:13,498 - INFO - Usuario armando  está enviando una solicitud a carlos con el mensaje: solicitud cuando empiezo
+2025-03-15 18:28:13,503 - DEBUG - Nuevo request_id generado: 1
+2025-03-15 18:28:13,519 - INFO - Notificación creada con ID 78 y request_id 1
+2025-03-15 18:28:13,521 - INFO - Mensaje creado con ID 16
+2025-03-15 22:47:18,674 - DEBUG - Solicitud de contratación recibida para candidato_id 16
+2025-03-15 22:47:18,676 - DEBUG - Candidato encontrado: carlos
+2025-03-15 22:47:18,679 - INFO - Usuario armando  está enviando una solicitud a carlos con el mensaje: sin mensaje
+2025-03-15 22:47:18,688 - DEBUG - Nuevo request_id generado: 1
+2025-03-15 22:47:18,705 - INFO - Notificación creada con ID 79 y request_id 1
+2025-03-15 22:47:18,708 - INFO - Mensaje creado con ID 17
+2025-03-17 07:09:30,063 - DEBUG - Solicitud de contratación recibida para candidato_id 19
+2025-03-17 07:09:30,064 - DEBUG - Candidato encontrado: carlos
+2025-03-17 07:09:30,066 - INFO - Usuario carlos está enviando una solicitud a carlos con el mensaje: 
+2025-03-17 07:09:30,082 - DEBUG - Nuevo request_id generado: 1
+2025-03-17 07:09:30,119 - INFO - Notificación creada con ID 80 y request_id 1
+2025-03-17 07:09:30,122 - INFO - Mensaje creado con ID 18
+2025-03-17 18:26:25,772 - DEBUG - Solicitud de contratación recibida para candidato_id 19
+2025-03-17 18:26:25,774 - DEBUG - Candidato encontrado: carlos
+2025-03-17 18:26:25,776 - INFO - Usuario armando casas está enviando una solicitud a carlos con el mensaje: prueba para agregar nuevo servicio
+2025-03-17 18:26:25,786 - DEBUG - Nuevo request_id generado: 2
+2025-03-17 18:26:25,805 - INFO - Notificación creada con ID 81 y request_id 2
+2025-03-17 18:26:25,808 - INFO - Mensaje creado con ID 19
+2025-03-17 18:28:40,478 - DEBUG - Solicitud de contratación recibida para candidato_id 18
+2025-03-17 18:28:40,480 - DEBUG - Candidato encontrado: Carlos
+2025-03-17 18:28:40,481 - INFO - Usuario armando casas está enviando una solicitud a Carlos con el mensaje: prueba para crear nuevo servicio
+2025-03-17 18:28:40,484 - DEBUG - Nuevo request_id generado: 3
+2025-03-17 18:28:40,493 - INFO - Notificación creada con ID 82 y request_id 3
+2025-03-17 18:28:40,494 - INFO - Mensaje creado con ID 20
+2025-03-17 19:00:28,537 - DEBUG - Solicitud de contratación recibida para candidato_id 18
+2025-03-17 19:00:28,539 - DEBUG - Candidato encontrado: Carlos
+2025-03-17 19:00:28,540 - INFO - Usuario armando casas está enviando una solicitud a Carlos con el mensaje: prueba para crear nuevo servicio
+2025-03-17 19:00:28,545 - WARNING - Ya existe una notificación para el candidato ID 18 con el mismo mensaje.
+2025-03-18 13:58:33,080 - DEBUG - Solicitud de contratación recibida para candidato_id 18
+2025-03-18 13:58:33,082 - DEBUG - Candidato encontrado: Carlos
+2025-03-18 13:58:33,085 - INFO - Usuario Carlos está enviando una solicitud a Carlos con el mensaje: solicitud como asustador de suegras desde carlos
+2025-03-18 13:58:33,096 - DEBUG - Nuevo request_id generado: 4
+2025-03-18 13:58:33,116 - INFO - Notificación creada con ID 83 y request_id 4
+2025-03-18 13:58:33,120 - INFO - Mensaje creado con ID 21
+2025-03-18 14:28:57,205 - DEBUG - Solicitud de contratación recibida para candidato_id 18
+2025-03-18 14:28:57,205 - DEBUG - Candidato encontrado: Carlos
+2025-03-18 14:28:57,209 - INFO - Usuario Carlos está enviando una solicitud a Carlos con el mensaje: 
+2025-03-18 14:28:57,213 - DEBUG - Nuevo request_id generado: 5
+2025-03-18 14:28:57,223 - INFO - Notificación creada con ID 84 y request_id 5
+2025-03-18 14:28:57,224 - INFO - Mensaje creado con ID 22
+2025-03-18 16:04:11,705 - DEBUG - Solicitud de contratación recibida para candidato_id 18
+2025-03-18 16:04:11,707 - DEBUG - Candidato encontrado: Carlos
+2025-03-18 16:04:11,708 - INFO - Usuario armando casas está enviando una solicitud a Carlos con el mensaje: armando envia a carlos
+2025-03-18 16:04:11,716 - DEBUG - Nuevo request_id generado: 6
+2025-03-18 16:04:11,734 - INFO - Notificación creada con ID 85 y request_id 6
+2025-03-18 16:04:11,739 - INFO - Mensaje creado con ID 23
+2025-03-18 16:08:17,009 - DEBUG - Solicitud de contratación recibida para candidato_id 20
+2025-03-18 16:08:17,010 - DEBUG - Candidato encontrado: armando casas
+2025-03-18 16:08:17,011 - INFO - Usuario armando casas está enviando una solicitud a armando casas con el mensaje: carlos a armando
+2025-03-18 16:08:17,019 - DEBUG - Nuevo request_id generado: 7
+2025-03-18 16:08:17,025 - INFO - Notificación creada con ID 86 y request_id 7
+2025-03-18 16:08:17,027 - INFO - Mensaje creado con ID 24
+2025-03-24 19:18:05,271 - DEBUG - Solicitud de contratación recibida para candidato_id 18
+2025-03-24 19:18:05,273 - DEBUG - Candidato encontrado: Carlos
+2025-03-24 19:18:05,276 - INFO - Usuario armando casas está enviando una solicitud a Carlos con el mensaje: Prueba desde el celular 
+2025-03-24 19:18:05,283 - DEBUG - Nuevo request_id generado: 8
+2025-03-24 19:18:05,309 - INFO - Notificación creada con ID 87 y request_id 8
+2025-03-24 19:18:05,311 - INFO - Mensaje creado con ID 25
+2025-03-26 01:59:53,132 - DEBUG - Solicitud de contratación recibida para candidato_id 23
+2025-03-26 01:59:53,137 - DEBUG - Candidato encontrado: Jorge
+2025-03-26 01:59:53,139 - INFO - Usuario oscar está enviando una solicitud a Jorge con el mensaje: Saludos profe, a como cobra la hora de asesoria
+2025-03-26 01:59:53,149 - DEBUG - Nuevo request_id generado: 1
+2025-03-26 01:59:53,171 - INFO - Notificación creada con ID 88 y request_id 1
+2025-03-26 01:59:53,175 - INFO - Mensaje creado con ID 26

@@ -1,0 +1,75 @@
+/* Recuadro de notificación */
+.notificacion {
+    width: 90%;
+    max-width: 700px;
+    background: rgba(255, 255, 255, 0.1); /* Fondo translúcido */
+    border: 2px solid rgba(255, 255, 255, 0.5); /* Bordes suaves */
+    border-radius: 10px; /* Bordes redondeados */
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5); /* Sombra elegante */
+    padding: 20px;
+    margin-bottom: 20px;
+    color: rgba(50, 50, 50, 0.9); /* Color gris oscuro para mejor contraste */
+    font-size: 1rem;
+}
+
+/* Títulos destacados en la notificación */
+.notificacion h4 {
+    font-size: 1.3rem; /* Tamaño moderado */
+    font-weight: bold;
+    color: rgba(30, 30, 30, 1); /* Gris casi negro */
+    margin-bottom: 10px;
+}
+
+/* Texto descriptivo en la notificación */
+.notificacion p {
+    font-size: 1rem;
+    margin-bottom: 10px;
+    color: rgba(40, 40, 40, 1); /* Oscurecido para contraste claro */
+}
+
+/* Detalles adicionales */
+.notificacion .detalle-solicitud,
+.notificacion .pregunta,
+.notificacion .mensajes {
+    background: rgba(255, 255, 255, 0.05); /* Fondo más claro */
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 10px;
+    color: rgba(60, 60, 60, 1); /* Gris oscuro para buen contraste */
+}
+
+/* Títulos dentro de secciones */
+.notificacion .mensajes h4 {
+    font-size: 1.2rem;
+    margin-bottom: 8px;
+    color: rgba(20, 20, 20, 1); /* Texto más oscuro para destacar */
+}
+
+/* Botones de acción */
+.notificacion .acciones .btn {
+    background: rgba(255, 255, 255, 0.15);
+    color: rgba(30, 30, 30, 1); /* Oscuro en texto de los botones */
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+/* Hover de los botones */
+.notificacion .acciones .btn:hover {
+    background: rgba(255, 255, 255, 0.2); /* Fondo más claro en hover */
+    color: rgba(0, 0, 0, 1); /* Negro absoluto para contraste en hover */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5); /* Sombra para énfasis */
+}
+
+/* Estilo general de hover para recuadros y botones */
+.btn:hover,
+.notificacion:hover {
+    background: rgba(255, 255, 255, 0.15); /* Fondo sutil */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Sombra ligera */
+    transform: scale(1.02); /* Ampliación sutil */
+    transition: all 0.3s ease; /* Suavidad en el efecto */
+    /* Eliminar cualquier referencia al desenfoque */
+}

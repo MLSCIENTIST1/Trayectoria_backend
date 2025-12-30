@@ -1,0 +1,305 @@
+listado de ciudades colombia:
+"Leticia", "Puerto Nariño", "Medellín", "Bello", "Itagüí", "Envigado", "Rionegro", "Apartadó", "Arauca", "Saravena", 
+        "Arauquita", "Barranquilla", "Soledad", "Malambo", "Puerto Colombia", "Cartagena", "Magangué", "Turbaco", "Tunja", 
+        "Duitama", "Sogamoso", "Chiquinquirá", "Manizales", "Villamaría", "Chinchiná", "Florencia", "Yopal", "Popayán", 
+        "Santander de Quilichao", "Valledupar", "Aguachica", "Istmina", "Montería", "Cereté", "Lorica", "Bogotá", 
+        "Soacha", "Zipaquirá", "Girardot", "Facatativá", "Chía", "Fusagasugá", "Inírida", "San José del Guaviare", "Neiva", 
+        "Pitalito", "Garzón", "Riohacha", "Maicao", "Uribia", "Santa Marta", "Ciénaga", "Fundación", "Villavicencio", 
+        "Acacías", "Granada", "Pasto", "Ipiales", "Tumaco", "Cúcuta", "Ocaña", "Pamplona", "Mocoa", "Puerto Asís", 
+        "Armenia", "Montenegro", "Circasia", "Pereira", "Dosquebradas", "Santa Rosa de Cabal", "San Andrés", "Providencia", 
+        "Bucaramanga", "Floridablanca", "Girón", "Piedecuesta", "Sincelejo", "Corozal", "Ibagué", "Espinal", "Melgar", 
+        "Cali", "Palmira", "Buenaventura", "Tuluá", "Jamundí", "Mitú", "Puerto Carreño", "Abejorral", "Abriaquí", 
+        "Alejandría", "Amagá", "Amalfi", "Andes", "Angelópolis", "Angostura", "Anorí", "Anzá", "Arboletes", "Argelia", 
+        "Armenia", "Barbosa", "Belmira", "Betania", "Betulia", "Briceño", "Buriticá", "Cáceres", "Caicedo", "Caldas", 
+        "Campamento", "Cañasgordas", "Caracolí", "Caramanta", "Carepa", "Carolina del Príncipe", "Caucasia", "Chigorodó", 
+        "Cisneros", "Ciudad Bolívar", "Cocorná", "Concepción", "Concordia", "Copacabana", "Dabeiba", "Donmatías", 
+        "Ebéjico", "El Bagre", "El Carmen de Viboral", "El Santuario", "Entrerríos", "Fredonia", "Frontino", "Giraldo", 
+        "Girardota", "Gómez Plata", "Granada", "Guadalupe", "Guarne", "Guatapé", "Heliconia", "Hispania", "Itagüí", 
+        "Ituango", "Jardín", "Jericó", "La Ceja", "La Estrella", "La Pintada", "La Unión", "Liborina", "Maceo", 
+        "Marinilla", "Montebello", "Murindó", "Mutatá", "Nariño", "Nechí", "Olaya", "Peque", "Pueblorrico", "Puerto Berrío", 
+        "Puerto Nare", "Puerto Triunfo", "Remedios", "Retiro", "Rionegro", "Sabanalarga", "Sabaneta", "Salgar", "San Andrés", 
+        "San Carlos", "San Francisco", "San Jerónimo", "San José de la Montaña", "San Juan de Urabá", "San Luis", 
+        "San Pedro de Urabá", "San Pedro de los Milagros", "San Rafael", "San Roque", "San Vicente", "Santa Bárbara", 
+        "Santa Fe de Antioquia", "Santa Rosa de Osos", "Santo Domingo", "Segovia", "Sonsón", "Sopetrán", "Támesis", 
+        "Tarazá", "Tarso", "Titiribí", "Toledo", "Turbo", "Uramita", "Urrao", "Valdivia", "Valparaíso", "Vegachí", 
+        "Venecia", "Vigía del Fuerte", "Yalí", "Yarumal", "Yolombó", "Yondó", "Zaragoza", "Abriaquí", "Alejandría", "Amagá", "Amalfi", "Andes", "Angelópolis", "Angostura", "Anorí", "Anzá", 
+        "Arboletes", "Argelia", "Armenia", "Barbosa", "Belmira", "Betania", "Betulia", "Briceño", "Buriticá", 
+        "Cáceres", "Caicedo", "Caldas", "Campamento", "Cañasgordas", "Caracolí", "Caramanta", "Carepa", 
+        "Carolina del Príncipe", "Caucasia", "Chigorodó", "Cisneros", "Ciudad Bolívar", "Cocorná", "Concepción", 
+        "Concordia", "Copacabana", "Dabeiba", "Donmatías", "Ebéjico", "El Bagre", "El Carmen de Viboral", 
+        "El Santuario", "Entrerríos", "Fredonia", "Frontino", "Giraldo", "Girardota", "Gómez Plata", "Granada", 
+        "Guadalupe", "Guarne", "Guatapé", "Heliconia", "Hispania", "Itagüí", "Ituango", "Jardín", "Jericó", 
+        "La Ceja", "La Estrella", "La Pintada", "La Unión", "Liborina", "Maceo", "Marinilla", "Montebello", 
+        "Murindó", "Mutatá", "Nariño", "Nechí", "Olaya", "Peque", "Pueblorrico", "Puerto Berrío", "Puerto Nare", 
+        "Puerto Triunfo", "Remedios", "Retiro", "Rionegro", "Sabanalarga", "Sabaneta", "Salgar", "San Andrés", 
+        "San Carlos", "San Francisco", "San Jerónimo", "San José de la Montaña", "San Juan de Urabá", "San Luis", 
+        "San Pedro de Urabá", "San Pedro de los Milagros", "San Rafael", "San Roque", "San Vicente", "Santa Bárbara", 
+        "Santa Fe de Antioquia", "Santa Rosa de Osos", "Santo Domingo", "Segovia", "Sonsón", "Sopetrán", "Támesis", 
+        "Tarazá", "Tarso", "Titiribí", "Toledo", "Turbo", "Uramita", "Urrao", "Valdivia", "Valparaíso", "Vegachí", 
+        "Venecia", "Vigía del Fuerte", "Yalí", "Yarumal", "Yolombó", "Yondó", "Zaragoza", "Aguazul", "Albania", 
+        "Alcalá", "Anapoima", "Anserma", "Apía", "Armero", "Ayapel", "Bahía Solano", "Balboa", "Baranoa", 
+        "Becerril", "Belalcázar", "Belén", "Beltrán", "Betéitiva", "Boavita", "Bolívar", "Bosconia", "Bugalagrande", 
+        "Cabuyaro", "Cajamarca", "Calamar", "Caloto", "Campoalegre", "Canalete", "Candelaria", "Caparrapí", 
+        "Capitanejo", "Carmen de Apicalá", "Carmen de Carupa", "Cartago", "Caucasia", "Cajibío", "Caldas", 
+        "Castilla la Nueva", "Cereté", "Chalán", "Chámeza", "Chaparral", "Chía", "Chimá", "Chinchiná", "Chiriguaná", 
+        "Chocontá", "Chinchiná", "Chinú", "Chipaque", "Choachí", "Chopinzal", "Circasia", "Ciénaga", "Cisneros", 
+        "Cota", "Coper", "Cómbita", "Coromoro", "Cumaral", "Cuítiva", "Dagua", "Dibulla", "Distracción", "El Banco", 
+        "El Carmen de Bolívar", "El Cerrito", "El Colegio", "El Dorado", "El Líbano", "El Molino", "El Peñol", 
+        "El Retorno", "El Zulia", "Enciso", "Entrerríos", "Espinal", "Gachalá", "Gachancipá", "Gachetá", "Gamarra", 
+        "Gámeza", "Garzón", "Gigante", "Guaduas", "Guamo", "Guapi", "Guavatá", "Guayabal de Síquima", "Guática", 
+        "Gutiérrez", "Hato", "Herrán", "Herveo", "Honda", "Icononzo", "Ipiales", "Isnos", "Jamundí", "Jenoy", 
+        "Jerusalén", "La Belleza", "La Calera", "La Esperanza", "La Florida", "La Jagua de Ibirico", "La Mesa", 
+        "La Paz", "La Tebaida", "La Unión", "Labateca", "Lago Agrio","La Dorada", "La Vega", "La Victoria", "Lebrija", "Líbano", "Linares", "Lorica", "Los Andes", "Los Palmitos", 
+        "Madrid", "Magangué", "Mahates", "Malambo", "Manaure", "Manzanares", "Mariquita", "Marmato", "Marsella", 
+        "Martinica", "Medina", "Mejía", "Mesitas", "Miraflores", "Mistrató", "Mocoa", "Momil", "Montelíbano", 
+        "Montecristo", "Montenegro", "Morales", "Mosquera", "Murillo", "Natagaima", "Nemocón", "Neiva", "Nilo", 
+        "Nocaima", "Norcasia", "Obando", "Ocamonte", "Oiba", "Oporapa", "Orito", "Ospina", "Otanche", "Pachavita", 
+        "Paicol", "Pailitas", "Palermo", "Palestina", "Palmar", "Palmas del Socorro", "Palmira", "Pamplona", "Pamplonita", 
+        "Pandi", "Paratebueno", "Pasca", "Patía", "Paz de Río", "Pedraza", "Pelaya", "Peñol", "Pensilvania", "Pereira", 
+        "Piedecuesta", "Pinchote", "Piojó", "Pisba", "Pitalito", "Plato", "Policarpa", "Pradera", "Pueblo Rico", 
+        "Puerto Berrío", "Puerto Boyacá", "Puerto Caicedo", "Puerto Carreño", "Puerto Colombia", "Puerto Concordia", 
+        "Puerto Escondido", "Puerto Gaitán", "Puerto Guzmán", "Puerto Libertador", "Puerto Lleras", "Puerto Nariño", 
+        "Puerto Rico", "Puerto Salgar", "Puerto Santander", "Puracé", "Purificación", "Quebradanegra", "Quibdó", 
+        "Quinchía", "Quipile", "Ricaurte", "Río Viejo", "Riofrío", "Rionegro", "Risaralda", "Riviera", "Roberto Payán", 
+        "Roldanillo", "Roncesvalles", "San Benito", "San Bernardo", "San Diego", "San Estanislao", "San Jacinto", 
+        "San José", "San Juan Nepomuceno", "San Luis de Gaceno", "San Miguel", "San Onofre", "San Pablo", "San Pelayo", 
+        "San Sebastián", "San Vicente", "Santa Ana", "Santa Bárbara", "Santa Catalina", "Santa Isabel", "Santa Lucía", 
+        "Santa María", "Santa Rosa", "Santa Rosalía", "Santander", "Santo Domingo", "Santuario", "Sapuyes", "Saravena", 
+        "Sardinata", "Sasaima", "Segovia", "Sesquilé", "Sibaté", "Silvia", "Sitionuevo", "Soacha", "Soplaviento", 
+        "Sora", "Sotaquirá", "Suaza", "Suesca", "Supatá", "Suquita", "Suratá", "Susacón", "Sutamarchán", "Támara", 
+        "Tame", "Taminango", "Tangatá", "Tauramena", "Tenza", "Tibacuy", "Tibaná", "Tibú", "Timaná", "Timbío", "Timoteo", 
+        "Titiribí", "Toca", "Tocancipá", "Toledo", "Tolu", "Toluviejo", "Tomarrazón", "Trujillo", "Tubará", "Tumaco", 
+        "Tuta", "Tutazá", "Ubala", "Ubalá", "Ulloa", "Umbita", "Une", "Útica", "Valdivia", "Valle de San Juan", 
+        "Valledupar", "Vegachí", "Venadillo", "Venecia", "Vergara", "Vetas", "Villamaría", "Villanueva", "Villapinzón", 
+        "Villeta", "Viterbo", "Yacuanquer", "Yaguará", "Yarumal", "Yolombó", "Yondo", "Yopal", "Zambrano", "Zapatoca", 
+        "Zaragoza", "Zetaquira","Acevedo", "Achí", "Agrado", "Aipe", "Albania", "Aldana", "Alejandría", "Algarrobo", "Almaguer", 
+        "Altamira", "Alto Baudó", "Altos del Rosario", "Ancuya", "Andalucía", "Anorí", "Anza", "Apartadó", 
+        "Aracataca", "Aranzazu", "Arbeláez", "Arboleda", "Arboledas", "Arjona", "Armenia", "Astrea", "Ataco", 
+        "Atrato", "Ayapel", "Bagadó", "Bahía Solano", "Barbacoas", "Barichara", "Barrancas", "Becerril", 
+        "Belén de Bajirá", "Belén de Umbría", "Belén", "Berbeo", "Betéitiva", "Bolívar", "Bosconia", "Bochalema", 
+        "Boyacá", "Briceño", "Buenavista", "Buenaventura", "Buenos Aires", "Buriticá", "Cabrera", "Cabuyaro", 
+        "Cáchira", "Cajamarca", "Cajibío", "Calamar", "Calarcá", "Calima", "Campamento", "Campo de la Cruz", 
+        "Campoalegre", "Cantagallo", "Caparrapí", "Caracolí", "Caramanta", "Carepa", "Carmen del Darién", 
+        "Carmen de Chucurí", "Carmen de Viboral", "Carurú", "Casabianca", "Castilla la Nueva", "Caucasia", 
+        "Cepitá", "Cereté", "Chachagüí", "Chaguaní", "Chámeza", "Chaparral", "Charalá", "Charta", "Chíquiza", 
+        "Chigorodó", "Choachí", "Chocontá", "Chámeza", "Cicuco", "Colón", "Colosó", "Coper", "Corrales", 
+        "Cota", "Cotorra", "Coveñas", "Cravo Norte", "Curití", "Curumaní", "Cumbal", "Cumbitara", "Cunday", 
+        "Dabeiba", "Dagua", "Dibulla", "Distracción", "Dolores", "Donmatías", "Durania", "El Águila", 
+        "El Banco", "El Cantón del San Pablo", "El Carmen de Bolívar", "El Carmen", "El Charco", 
+        "El Cocuy", "El Colegio", "El Copey", "El Doncello", "El Dorado", "El Encanto", "El Espino", 
+        "El Litoral del San Juan", "El Molino", "El Paso", "El Peñol", "El Piñón", "El Playón", "El Retiro", 
+        "El Roble", "El Rosal", "El Rosario", "El Tablón de Gómez", "El Tarra", "El Zulia", "Encino", 
+        "Enciso", "Entrerríos", "Envigado", "Flandes", "Florencia", "Florian", "Floridablanca", 
+        "Fosca", "Francisco Pizarro", "Fredonia", "Fresno", "Frontino", "Fuente de Oro", "Fundación", 
+        "Funza", "Funes", "Fusagasugá", "Gachalá", "Gachancipá", "Gachetá", "Galapa", "Galeras", 
+        "Gama", "Gamarra", "Garagoa", "Garzón", "Genova", "Gigante", "Ginebra", "Giraldo", "Girardota", 
+        "Gómez Plata", "Guaca", "Guacamayas", "Guachené", "Guachetá", "Guadalupe", "Guaduas", "Guaitarilla", 
+        "Gualmatán", "Guamal", "Guamo", "Guapí", "Guayabal de Síquima", "Guayabetal", "Gutiérrez", 
+        "Hato Corozal", "Heliconia", "Herrán", "Herveo", "Honda", "Iles", "Imués", "Inzá", 
+        "Ipiales", "Isnos", "Istmina", "Ituango", "Jambaló", "Jardín", "Jericó", "Jerusalén", "Junín", 
+        "La Apartada", "La Argentina", "La Belleza", "La Capilla", "La Cumbre", "La Gloria", 
+        "La Jagua de Ibirico", "La Llanada", "La Macarena", "La Mesa", "La Palma", "La Paz", "La Plata", 
+        "La Primavera", "La Salina", "La Sierra", "La Tebaida", "La Uvita", "La Vega", "La Victoria", "Labranzagrande", "Landázuri", "Lebrija", "Leiva", "Lenguazaque", "Lérida", "Liborina", "Linares", "López de Micay", 
+        "Lorica", "Los Andes", "Los Córdobas", "Los Palmitos", "Luruaco", "Macanal", "Maceo", "Machetá", "Madrid", 
+        "Magüí Payán", "Majagual", "Malambo", "Mallama", "Manatí", "Manaure Balcón del Cesar", "Manaure", "Manzanares", 
+        "Mapiripán", "Mapiripana", "Margarita", "María la Baja", "Marinilla", "Maripí", "Mariquita", "Marmato", "Marsella", 
+        "Marulanda", "Matanza", "Medina", "Medio Atrato", "Medio Baudó", "Medio San Juan", "Melgar", "Mercaderes", 
+        "Mesetas", "Milán", "Miraflores", "Miranda", "Mistrató", "Mocarí", "Mogotes", "Molagavita", "Momil", 
+        "Mompox", "Montelíbano", "Montecristo", "Montenegro", "Morales", "Morelia", "Morroa", "Murillo", "Murindó", 
+        "Mutatá", "Mutiscua", "Nariño", "Nátaga", "Natagaima", "Nechí", "Nemocón", "Nilo", "Nimaima", "Nobsa", 
+        "Nocaima", "Norcasia", "Norosí", "Novita", "Nueva Granada", "Nuevo Colón", "Nunchía", "Nuquí", "Obando", 
+        "Ocamonte", "Ocaña", "Ochí", "Olaya Herrera", "Onzaga", "Oporapa", "Ovejas", "Pachavita", "Padilla", 
+        "Paicol", "Pajarito", "Palestina", "Palmar de Varela", "Palmar", "Palmas del Socorro", "Pamplonita", 
+        "Pandi", "Panqueba", "Páramo",  "Pasca", "Paz de Ariporo", "Pedraza", "Pelaya", "Pensilvania", 
+        "Peque", "Pesca", "Piamonte", "Pie de Cuesta", "Piedras", "Piendamó", "Pijao", "Pijiño del Carmen", 
+        "Piojó", "Pisba", "Policarpa", "Ponedera", "Popayán", "Pore", "Potosí", "Pradera", "Providencia", 
+        "Puerto Alegría", "Puerto Arica", "Puerto Asís", "Puerto Berrío", "Puerto Bogotá", "Puerto Boyacá", 
+        "Puerto Caicedo", "Puerto Carreño", "Puerto Colombia", "Puerto Concordia", "Puerto Escondido", 
+        "Puerto Gaitán", "Puerto Guzmán", "Puerto Leguízamo", "Puerto Libertador", "Puerto Lleras", 
+        "Puerto López", "Puerto Nare", "Puerto Nariño", "Puerto Parra", "Puerto Rico", "Puerto Rondón", 
+        "Puerto Salgar", "Puerto Santander", "Puerto Tejada", "Puerto Triunfo", "Puerto Wilches", 
+        "Puracé", "Pueblorrico", "Puebloviejo", "Quebradanegra", "Quetame", "Quimbaya", "Quinchía", 
+        "Quipama", "Ragonvalia", "Ramiriquí", "Recetor", "Regidor", "Remedios", "Remolino", "Ricaurte", 
+        "Río de Oro", "Río Quito", "Risaralda", "Riosucio", "Risaralda", "Rivera", "Roberto Payán", 
+        "Roldanillo", "Roncesvalles", "Rondón", "Rosas", "Rovira", "Sabana de Torres", "Sabana Larga", 
+        "Sabanagrande", "Sabanalarga", "Sabaneta", "Saboyá", "Sacama", "Sáchica", "Sahagún", "Saladoblanco", 
+        "Salamina", "Salazar", "Saldaña", "Salento", "Samacá", "Samaná", "Samaniego", "San Agustín", 
+        "San Alberto", "San Andrés", "San Andrés de Cuerquia", "San Antero", "San Antonio del Tequendama", 
+        "San Benito Abad", "San Benito", "San Bernardo del Viento", "San Bernardo", "San Calixto", 
+        "San Carlos", "San Diego", "San Eduardo", "San Estanislao", "San Francisco", "San Gil", "San Jacinto", 
+        "San Jacinto del Cauca", "San Jerónimo", "San José del Guaviare"
+
+
+1. Colombia
+Variables del contexto colombiano:
+
+ciudad: Importante debido a la diversidad de servicios regionales.
+
+categoría_servicio: Hay sectores muy específicos según la región (ej. turismo en Cartagena, café en el Eje Cafetero).
+
+estrato_social: Pertinente para segmentar usuarios y ajustar precios.
+
+acceso_a_internet: Puede variar dependiendo de la ubicación (zonas urbanas vs. rurales).
+
+idiomas_hablados: Considerar comunidades indígenas (ej. Wayuunaiki en La Guajira).
+
+calificación: Cultura del "boca a boca" en servicios.
+
+2. México
+Variables del contexto mexicano:
+
+estado: Necesario porque las demandas varían según el desarrollo estatal.
+
+ciudad: Diferencias clave entre grandes urbes como CDMX y pequeños pueblos.
+
+tipo_migración: Alto flujo migratorio interno y externo.
+
+idiomas_hablados: Español y lenguas indígenas (náhuatl, maya, mixteco, etc.).
+
+moneda_local: Algunos servicios pueden adaptarse al intercambio en pesos.
+
+servicios_disponibles_por_zona: Ej. Turismo en Cancún, producción artesanal en Oaxaca.
+
+3. Brasil
+Variables del contexto brasileño:
+
+estado: Influencia fuerte en la segmentación de servicios (ej. São Paulo vs. Amazonas).
+
+ciudad: Gran disparidad entre servicios rurales y urbanos.
+
+idioma: Portugués con variantes regionales.
+
+nivel_de_acceso_a_tecnología: Importante debido a disparidades en infraestructura digital.
+
+turismo_nacional: Gran enfoque en servicios turísticos (playas, selva amazónica).
+
+eventos_culturales: Carnaval y otros festivales impactan la demanda de servicios.
+
+4. Argentina
+Variables del contexto argentino:
+
+provincia: Fuertes diferencias económicas y sociales entre provincias.
+
+ciudad: Grandes urbes como Buenos Aires concentran servicios especializados.
+
+inflación: Impacta la fijación de precios.
+
+sector_agrícola: Demanda servicios específicos en regiones rurales.
+
+idioma: Predomina el español rioplatense.
+
+consumo_cultural: Ej. eventos deportivos, música y cine.
+
+5. Estados Unidos
+Variables del contexto estadounidense:
+
+estado: Impacta leyes laborales y disponibilidad de servicios.
+
+ciudad: Centros urbanos como Nueva York o zonas rurales requieren servicios distintos.
+
+idioma: Inglés predominante, pero demanda alta en español y otros idiomas.
+
+nivel_de_tecnologización: Servicios digitales son más populares en áreas urbanas.
+
+ingresos_disponibles: Fuerte disparidad entre regiones afecta precios y accesibilidad.
+
+diversidad_migratoria: Servicios específicos según la comunidad (ej. hispana, asiática).
+
+6. España
+Variables del contexto español:
+
+comunidad_autonoma: Importante para segmentar según culturas locales (Cataluña, Andalucía, etc.).
+
+idioma: Español, catalán, gallego y euskera según la región.
+
+turismo_internacional: Un factor clave para ciertas regiones (Islas Baleares, Costa del Sol).
+
+calidad_de_vida: Impacta servicios como asistencia personal.
+
+eventos_locales: Fallas en Valencia, San Fermín, etc.
+
+demografía_envejecida: Alta demanda de servicios para personas mayores.
+
+7. Chile
+Variables del contexto chileno:
+
+región: Gran extensión geográfica con diferencias socioeconómicas marcadas.
+
+ciudad: Grandes centros como Santiago concentran servicios especializados.
+
+minería: Demanda en regiones mineras como Atacama.
+
+idioma: Predomina el español, pero aumenta el inglés en zonas turísticas.
+
+turismo_sostenible: Patagonia y regiones naturales generan necesidades específicas.
+
+infraestructura: La geografía desafiante afecta el acceso.
+
+8. Perú
+Variables del contexto peruano:
+
+departamento: Contexto muy diverso entre costa, sierra y selva.
+
+idioma: Español, quechua, aimara y lenguas amazónicas en ciertas regiones.
+
+turismo_histórico: Gran influencia en servicios (ej. Machu Picchu).
+
+gastronomía: Impacta los servicios relacionados con alimentos y eventos.
+
+acceso_a_tecnología: Limita ciertas zonas rurales.
+
+sector_agrícola: Importancia en áreas rurales.
+
+9. Alemania
+Variables del contexto alemán:
+
+estado: Necesario por diferencias regionales.
+
+ciudad: Servicios altamente especializados en ciudades grandes como Berlín o Múnich.
+
+idioma: Alemán estándar, pero alta demanda en inglés y otros idiomas europeos.
+
+acceso_a_tecnología: País altamente digitalizado.
+
+sector_industrial: Gran demanda de servicios técnicos y profesionales.
+
+10. Canadá
+Variables del contexto canadiense:
+
+provincia: Importante por sus sistemas legales y culturales diferenciados.
+
+ciudad: Diferencias clave entre Toronto, Montreal y áreas rurales.
+
+idioma: Inglés y francés.
+
+turismo_de_naturaleza: Gran enfoque en servicios relacionados con el medio ambiente.
+
+diversidad_cultural: Fuerte influencia en los servicios ofrecidos.
+
+11. Reino Unido
+Variables del contexto británico:
+
+región: Inglaterra, Escocia, Gales e Irlanda del Norte tienen contextos distintos.
+
+ciudad: Londres concentra servicios financieros, mientras otras ciudades demandan servicios locales.
+
+idioma: Inglés predominante con influencia de lenguas locales como galés.
+
+sector_tecnológico: Alta demanda de servicios digitales.
+
+turismo: Gran impacto en ciudades históricas como Edimburgo o Oxford.
+
+12. Francia
+Variables del contexto francés:
+
+departamento: Gran importancia para segmentar usuarios.
+
+idioma: Francés predominante, pero demanda en inglés en zonas turísticas.
+
+turismo_de_lujo: Genera servicios muy específicos en París y la Riviera Francesa.
+
+agricultura: Demanda servicios en zonas rurales.
+
+sector_educativo: Servicios asociados a universidades y escuelas.
+
+Estas variables están pensadas para reflejar mejor los desafíos y oportunidades en cada país. Si necesitas ajustes o más detalles, ¡aquí estaré para ayudarte!

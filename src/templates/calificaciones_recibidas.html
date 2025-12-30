@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://kit.fontawesome.com/c4d33f5660.js" crossorigin="anonymous"></script>
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <h2 class="logo">TRAYECTORIA</h2>
+        <h4>{{current_user.nombre|upper}}</h4>
+        <button class="toggle-nav-btn" onclick="toggleNav()">☰</button>
+        <nav class="navegacion">
+            <a href="{{ url_for('auth.login') }}">Inicio</a>
+            <a href="{{ url_for('recive.show_notifications') }}">Notificaciones</a>
+            <a href="{{ url_for('dashboard.dashboard') }}">Mi dashboard
+            <a href="{{url_for('profile.editando')}}">Buscar Candidatos</a>
+            
+            
+            
+            <a href="{{ url_for('dashboard.new_service_page') }}">crear servicio</a>
+            <a href="{{ url_for('main.logout') }}">Cerrar sesión</a>
+            <button class="btn" onclick="window.location.href='{{ url_for('profile.edit_profile') }}'">Editar perfil</button>
+        </nav>
+    </header>
+
+    <main>
+        <div class="contenedor">
+            <h1>Calificaciones Recibidas</h1>
+            <p>Rol: {{ rol }}</p>
+        
+            {% if calificaciones|length > 0 %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID Servicio</th>
+                            <th>Primera Etapa</th>
+                            <th>Segunda Etapa</th>
+                            <th>Etapa Final</th>
+                            <th>Comentario</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for calificacion in calificaciones %}
+                        <tr>
+                            <td>{{ calificacion.servicio_id }}</td>
+                            <td>{{ calificacion.calificacion_recived_contratante1 or calificacion.calificacion_recived_contratado1 }}</td>
+                            <td>{{ calificacion.calificacion_recived_contratante2 or calificacion.calificacion_recived_contratado2 }}</td>
+                            <td>{{ calificacion.calificacion_recived_contratante3 or calificacion.calificacion_recived_contratado3 }}</td>
+                            <td>
+                                {% if rol == 'contratante' %}
+                                    {{ calificacion.comentary_hired_employer or 'Sin comentario' }}
+                                {% else %}
+                                    {{ calificacion.comentary_employer_hired or 'Sin comentario' }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No tienes calificaciones recibidas.</p>
+            {% endif %}
+        </div>
+    </main>
+   
+    <script>
+        function mostrarLogin() {
+            document.getElementById('loginFondo').classList.toggle('activo');
+        }
+    </script>
+    <script>
+        // Función para mostrar/ocultar la barra de navegación
+        function toggleNav() {
+            const nav = document.querySelector('.navegacion');
+            nav.classList.toggle('hide');
+        }
+
+        function mostrarLogin() {
+            document.getElementById('loginFondo').classList.add('active');
+        }
+
+        function cerrarLogin() {
+            document.getElementById('loginFondo').classList.remove('active');
+        }
+    </script>
+</body>
+</html>
