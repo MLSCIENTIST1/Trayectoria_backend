@@ -6,76 +6,70 @@ from src.models.usuarios import Usuario
 # Configuración de Logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-logger.addHandler(ch)
 
 # Definición del Blueprint
 auth_api_bp = Blueprint('auth_api', __name__)
 
 @auth_api_bp.route('/login', methods=['POST'])
 def login_api():
-    logger.info("Solicitud de inicio de sesión recibida.")
+    logger.info("--- Nueva solicitud de inicio de sesión ---")
     
-    # Verificar si el usuario ya está autenticado
+    # 1. Verificar si el usuario ya está autenticado
     if current_user.is_authenticated:
-        logger.info(f"El usuario {current_user.nombre} ya está autenticado.")
         return jsonify({"message": f"Ya has iniciado sesión como {current_user.nombre}"}), 200
 
-    # Obtener datos de la solicitud JSON
+    # 2. Obtener y validar datos JSON
     data = request.get_json()
-    logger.debug(f"Datos recibidos en la solicitud: {data}")
-    
     if not data:
-        logger.error("No se proporcionaron datos en la solicitud.")
-        return jsonify({"error": "Datos no proporcionados"}), 400
+        return jsonify({"error": "No se proporcionaron datos"}), 400
 
-    # Extraer campos del JSON
     correo = data.get('correo', '').strip()
-    password_input = data.get('password', '').strip()
-    logger.debug(f"Datos procesados: correo={correo}, password_input={'*' * len(password_input)}")
+    # Aceptamos ambos nombres para evitar errores entre front y back
+    password_input = (data.get('password') or data.get('contrasenia') or '').strip()
 
-    # Manejo de intentos fallidos
+    if not correo or not password_input:
+        return jsonify({"error": "Correo y contraseña son requeridos"}), 400
+
+    # 3. Manejo de intentos fallidos (Seguridad)
     if 'login_attempts' not in session:
-        logger.debug("Inicializando contador de intentos de inicio de sesión.")
         session['login_attempts'] = 0
 
     if session['login_attempts'] >= 5:
-        logger.warning("Intentos fallidos excedidos para inicio de sesión.")
-        return jsonify({"error": "Has alcanzado el número máximo de intentos. Intenta más tarde."}), 429
+        logger.warning(f"Bloqueo temporal por intentos fallidos: {correo}")
+        return jsonify({"error": "Demasiados intentos. Intenta más tarde."}), 429
 
     try:
-        # Buscar al usuario en la base de datos
-        logger.info(f"Buscando usuario con correo: {correo}")
+        # 4. Buscar usuario
         usuario = Usuario.query.filter_by(correo=correo).first()
         
         if not usuario:
-            logger.warning(f"No se encontró un usuario con el correo: {correo}")
+            logger.warning(f"Usuario no encontrado: {correo}")
             session['login_attempts'] += 1
-            logger.debug(f"Número de intentos de inicio de sesión actualizados: {session['login_attempts']}")
-            return jsonify({"error": "Correo o contraseña incorrectos."}), 401
+            return jsonify({"error": "Correo o contraseña incorrectos"}), 401
 
-        # Verificar si la cuenta está activa
         if not usuario.active:
-            logger.info(f"Usuario {correo} desactivado.")
-            return jsonify({"error": "Tu cuenta está desactivada. Contacta con soporte para reactivarla."}), 403
+            return jsonify({"error": "Cuenta desactivada. Contacta a soporte."}), 403
 
-        # Verificar la contraseña
-        logger.info("Verificando contraseña del usuario...")
+        # 5. VERIFICACIÓN DE BCRYPT (Aquí ocurre la magia)
+        # El método check_password de tu modelo hace el bcrypt.checkpw internamente
         if usuario.check_password(password_input):
-            logger.info(f"Inicio de sesión exitoso para el usuario: {correo}")
+            logger.info(f"Login exitoso: {correo}")
             login_user(usuario)
-            session['login_attempts'] = 0  # Reiniciar intentos fallidos
-            logger.debug("Intentos de inicio de sesión reiniciados.")
-            return jsonify({"message": "Inicio de sesión exitoso."}), 200
+            session['login_attempts'] = 0  # Reiniciar contador
+            
+            return jsonify({
+                "message": "Inicio de sesión exitoso",
+                "user": {
+                    "nombre": usuario.nombre,
+                    "correo": usuario.correo,
+                    "id": usuario.id_usuario
+                }
+            }), 200
         else:
-            logger.warning(f"Contraseña incorrecta para el usuario {correo}.")
+            logger.warning(f"Contraseña incorrecta para: {correo}")
             session['login_attempts'] += 1
-            logger.debug(f"Número de intentos de inicio de sesión actualizados: {session['login_attempts']}")
-            return jsonify({"error": "Correo o contraseña incorrectos."}), 401
+            return jsonify({"error": "Correo o contraseña incorrectos"}), 401
 
     except Exception as e:
-        logger.error(f"Error durante la autenticación: {e}", exc_info=True)
+        logger.error(f"Error crítico en login: {str(e)}", exc_info=True)
         return jsonify({"error": "Error interno del servidor"}), 500
