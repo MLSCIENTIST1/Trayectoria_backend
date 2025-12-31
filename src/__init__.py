@@ -8,26 +8,35 @@ import logging
 
 # Importaciones internas
 from src.models.database import db, init_app
-# 1. IMPORTANTE: Importamos tanto el blueprint como la función de registro
 from src.api import api_bp, register_api 
+from llenar_colombia import poblar_ciudades # Importamos tu script de ciudades
 
-# Importación de modelos
+# Importación de modelos para que Migrate y SQLAlchemy los reconozcan
 from src.models.usuarios import Usuario
-# ... (el resto de tus modelos se mantienen igual)
+from src.models.etapa import Etapa
+from src.models.foto import Foto
+from src.models.audio import Audio
+from src.models.video import Video
+from src.models.colombia_data.colombia_data import Colombia
+from src.models.colombia_data.colombia_feedbacks import Feedback
+from src.models.colombia_data.monetization_management import MonetizationManagement
+from src.models.colombia_data.ratings.service_overall_scores import ServiceOverallScores
+from src.models.colombia_data.ratings.service_qualifiers import ServiceQualifiers
+from src.models.colombia_data.ratings.service_ratings import ServiceRatings
 
 logger = logging.getLogger(__name__)
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'clave_secreta_predeterminada')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    # Agrega la URI de tu base de datos aquí si no está en init_app
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') 
+    # Render usa DATABASE_URL para PostgreSQL
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
 
 def create_app():
     logger.info("🚀 Iniciando la Factoría de la Aplicación")
     app = Flask(__name__)
     
-    # 2. CORS GLOBAL (Permite peticiones desde tus dominios de Firebase)
+    # 1. Configuración de CORS
     CORS(app, resources={r"/*": {"origins": [
         "https://trayectoria-rxdc1.web.app",
         "https://mitrayectoria.web.app",
@@ -36,7 +45,7 @@ def create_app():
     
     app.config.from_object(Config)
 
-    # 3. Inicialización de Base de Datos
+    # 2. Inicialización de Base de Datos y Migraciones
     try:
         init_app(app)
         Migrate(app, db)
@@ -45,26 +54,34 @@ def create_app():
         logger.error(f"❌ Error en base de datos: {e}")
         raise e
 
-    # 4. Configuración de LoginManager
+    # 3. Configuración de LoginManager
     login_manager = LoginManager()
     login_manager.init_app(app)
-    login_manager.login_view = 'api.init_sesion_bp.login' # Ajustado al nombre del blueprint
+    login_manager.login_view = 'api.init_sesion_bp.login'
 
     @login_manager.user_loader
     def load_user(id_usuario):
         return Usuario.query.get(int(id_usuario))
 
-    # 5. REGISTRO DE RUTAS (EL CAMBIO CLAVE)
-    # Primero: Ejecutamos la función que llena el api_bp con todas las sub-rutas
+    # 4. Registro de Rutas y Auto-poblado
     with app.app_context():
+        # Registra todos los sub-blueprints dentro de api_bp y luego api_bp en app
         register_api(app) 
-        logger.info("🔗 Rutas internas vinculadas al Blueprint principal")
+        logger.info("🔗 Rutas registradas exitosamente")
 
-    # Segundo: El blueprint ya se registró dentro de la función register_api(app) 
-    # que me pasaste antes, así que NO hace falta repetirlo aquí si register_api ya hace:
-    # app.register_blueprint(api_bp, url_prefix='/api')
+        # --- LÓGICA DE AUTO-POBLADO DE CIUDADES ---
+        try:
+            # Verificamos si la tabla Colombia está vacía
+            if Colombia.query.first() is None:
+                logger.info("⚠️ Tabla de ciudades vacía. Poblando datos...")
+                poblar_ciudades()
+                logger.info("✅ Ciudades cargadas correctamente.")
+            else:
+                logger.debug("ℹ️ La tabla de ciudades ya tiene datos.")
+        except Exception as e:
+            logger.error(f"❌ No se pudo verificar/poblar la tabla Colombia: {e}")
 
-    # 6. Carpetas de carga
+    # 5. Configuración de carpetas de archivos (Uploads)
     upload_folder = os.path.join(app.root_path, 'static', 'uploads')
     if not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
