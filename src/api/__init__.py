@@ -7,7 +7,7 @@ def register_api(app):
     """
     Registra todos los Blueprints en la aplicación Flask.
     """
-    # Importar los Blueprints encontrados
+    # --- IMPORTACIONES EXISTENTES ---
     from .auth.auth_api import auth_api_bp
     from .auth.close_sesion_api import close_sesion_bp
     from .auth.init_sesion_api import init_sesion_bp
@@ -58,7 +58,11 @@ def register_api(app):
     from .utils.get_cities_api import get_cities_bp
     from .utils.register_user_api import register_user_bp
 
-    # Registrar los Blueprints en el Blueprint principal
+    # --- NUEVA IMPORTACIÓN: NEGOCIO ---
+    # Asegúrate de que el archivo esté en src/api/negocio_api.py
+    from .negocio.negocio_api import negocio_api_bp 
+
+    # --- REGISTRO DE BLUEPRINTS ---
     api_bp.register_blueprint(auth_api_bp)
     api_bp.register_blueprint(close_sesion_bp)
     api_bp.register_blueprint(init_sesion_bp)
@@ -108,6 +112,9 @@ def register_api(app):
 
     api_bp.register_blueprint(get_cities_bp)
     api_bp.register_blueprint(register_user_bp)
+
+    # --- REGISTRO DEL NUEVO BLUEPRINT ---
+    api_bp.register_blueprint(negocio_api_bp)
 
     # Registrar el Blueprint principal en la aplicación
     app.register_blueprint(api_bp, url_prefix='/api')
