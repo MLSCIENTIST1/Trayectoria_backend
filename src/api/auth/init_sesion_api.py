@@ -34,7 +34,8 @@ def ingreso():
         return jsonify({"error": "Datos no proporcionados"}), 400
 
     correo = data.get('correo', '').strip()
-    password_input = data.get('password', '').strip()
+    password_input = data.get('password',) or data.get('contrasenia', '').strip()
+    logger.debug(f"Datos procesados: correo={correo}, password_input={'***' if password_input else 'VACÍO'}")
 
     if 'login_attempts' not in session:
         session['login_attempts'] = 0
