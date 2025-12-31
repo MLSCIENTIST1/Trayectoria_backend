@@ -1,5 +1,5 @@
 import logging
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, make_response
 from flask_login import login_user, current_user, logout_user, login_required
 from src.models.usuarios import Usuario
 
@@ -14,26 +14,39 @@ auth_api_bp = Blueprint('auth_api', __name__)
 def login_api():
     logger.info("--- Nueva solicitud de inicio de sesión ---")
     
+    # 1. Si ya está autenticado, devolvemos sus datos directamente
     if current_user.is_authenticated:
-        return jsonify({"message": f"Ya has iniciado sesión como {current_user.nombre}"}), 200
+        return jsonify({
+            "message": "Sesión ya activa",
+            "user": {
+                "nombre": current_user.nombre,
+                "correo": current_user.correo,
+                "id": current_user.id_usuario
+            }
+        }), 200
 
+    # 2. Obtener y validar datos
     data = request.get_json()
     if not data:
         return jsonify({"error": "No se proporcionaron datos"}), 400
 
     correo = data.get('correo', '').strip()
+    # Soporte para ambos nombres de campo (front/back)
     password_input = (data.get('password') or data.get('contrasenia') or '').strip()
 
     if not correo or not password_input:
         return jsonify({"error": "Correo y contraseña son requeridos"}), 400
 
+    # 3. Control de intentos fallidos
     if 'login_attempts' not in session:
         session['login_attempts'] = 0
 
     if session['login_attempts'] >= 5:
+        logger.warning(f"Bloqueo por intentos: {correo}")
         return jsonify({"error": "Demasiados intentos. Intenta más tarde."}), 429
 
     try:
+        # 4. Buscar usuario en DB
         usuario = Usuario.query.filter_by(correo=correo).first()
         
         if not usuario:
@@ -41,14 +54,19 @@ def login_api():
             return jsonify({"error": "Correo o contraseña incorrectos"}), 401
 
         if not usuario.active:
-            return jsonify({"error": "Cuenta desactivada."}), 403
+            return jsonify({"error": "Cuenta desactivada. Contacta soporte."}), 403
 
+        # 5. Validar contraseña
         if usuario.check_password(password_input):
-            login_user(usuario)
+            # login_user crea la sesión en Flask-Login
+            login_user(usuario, remember=True) 
             session['login_attempts'] = 0 
+            session.permanent = True # Hace que la sesión dure lo configurado en la app
             
+            logger.info(f"Login exitoso: {correo}")
             return jsonify({
                 "message": "Inicio de sesión exitoso",
+                "token": "session_active", # Token simbólico para localStorage
                 "user": {
                     "nombre": usuario.nombre,
                     "correo": usuario.correo,
@@ -63,30 +81,33 @@ def login_api():
         logger.error(f"Error crítico en login: {str(e)}", exc_info=True)
         return jsonify({"error": "Error interno del servidor"}), 500
 
-# --- NUEVO ENDPOINT PARA VALIDAR SESIÓN DESDE BIZFLOW ---
+# --- ENDPOINT PARA VALIDAR SESIÓN DESDE BIZFLOW ---
 
 @auth_api_bp.route('/session_status', methods=['GET'])
 def session_status():
-    """
-    Verifica si el usuario tiene una sesión activa en el servidor.
-    Utilizado por BF.js para proteger rutas.
-    """
+    """ Verifica si el usuario sigue logueado para permitir el uso de BizFlow """
     if current_user.is_authenticated:
-        logger.info(f"Sesión validada para el usuario: {current_user.correo}")
         return jsonify({
             "authenticated": True,
             "user": {
                 "nombre": current_user.nombre,
-                "correo": current_user.correo
+                "correo": current_user.correo,
+                "id": current_user.id_usuario
             }
         }), 200
-    else:
-        logger.warning("Intento de acceso sin sesión activa.")
-        return jsonify({"authenticated": False, "error": "Sesión no válida"}), 401
+    
+    return jsonify({
+        "authenticated": False, 
+        "error": "Sesión expirada"
+    }), 401
 
-@auth_api_bp.route('/logout', methods=['POST'])
-@login_required
+# --- ENDPOINT PARA CERRAR SESIÓN ---
+
+@auth_api_bp.route('/logout', methods=['POST', 'GET'])
 def logout():
+    """ Cierra la sesión tanto en servidor como en cliente """
+    correo = current_user.correo if current_user.is_authenticated else "Anónimo"
     logout_user()
     session.clear()
+    logger.info(f"Sesión cerrada para: {correo}")
     return jsonify({"message": "Sesión cerrada correctamente"}), 200
