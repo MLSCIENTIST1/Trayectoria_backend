@@ -11,7 +11,7 @@ from src.models.database import db, init_app
 from src.api import api_bp, register_api 
 from llenar_colombia import poblar_ciudades 
 
-# Importación de modelos
+# Importación de modelos para asegurar el registro en SQLAlchemy
 from src.models.usuarios import Usuario
 from src.models.etapa import Etapa
 from src.models.foto import Foto
@@ -40,13 +40,12 @@ def create_app():
     app.config.from_object(Config)
 
     # 1. Configuración de CORS REFORZADA
-    # Añadimos allow_headers y methods para evitar el "TypeError: Failed to fetch"
     CORS(app, resources={r"/api/*": {
         "origins": [
             "https://trayectoria-rxdc1.web.app",
             "https://mitrayectoria.web.app",
             "http://localhost:5001",
-            "http://localhost:5173" # Por si usas Vite localmente
+            "http://localhost:5173"
         ],
         "methods": ["GET", "POST", "OPTIONS", "PUT", "DELETE"],
         "allow_headers": ["Content-Type", "Authorization", "Accept"],
@@ -60,33 +59,38 @@ def create_app():
         logger.info("✅ Base de datos y Migrate conectados")
     except Exception as e:
         logger.error(f"❌ Error en base de datos: {e}")
-        # En producción es mejor no detener la app si falla migrate, 
-        # pero para debug lo mantenemos
 
     # 3. Configuración de LoginManager
     login_manager = LoginManager()
     login_manager.init_app(app)
-    # Ajustado para que apunte al Blueprint correcto
-    login_manager.login_view = 'api.init_sesion_bp.login'
+    
+    # ✅ CORRECCIÓN CRÍTICA: Cambiado '.login' por '.ingreso' 
+    # Esto resuelve el BuildError de Werkzeug
+    login_manager.login_view = 'api.init_sesion_bp.ingreso'
+    login_manager.login_message = "Por favor inicia sesión para acceder a esta página."
 
     @login_manager.user_loader
     def load_user(id_usuario):
-        return Usuario.query.get(int(id_usuario))
+        # Usar session.get es más seguro en versiones recientes de SQLAlchemy
+        return db.session.get(Usuario, int(id_usuario))
 
     # 4. Registro de Rutas y Auto-poblado
     with app.app_context():
-        # register_api ahora usa el sistema de nombres únicos que arreglamos antes
+        # register_api registra los Blueprints
         register_api(app) 
         logger.info("🔗 Rutas registradas exitosamente")
 
         # --- LÓGICA DE AUTO-POBLADO ---
         try:
-            if Colombia.query.first() is None:
-                logger.info("⚠️ Tabla de ciudades vacía. Poblando datos...")
-                poblar_ciudades()
-                logger.info("✅ Ciudades cargadas correctamente.")
-            else:
-                logger.debug("ℹ️ La tabla de ciudades ya tiene datos.")
+            # Verificamos si la tabla existe antes de consultar
+            inspector = db.inspect(db.engine)
+            if 'colombia' in inspector.get_table_names():
+                if Colombia.query.first() is None:
+                    logger.info("⚠️ Tabla de ciudades vacía. Poblando datos...")
+                    poblar_ciudades()
+                    logger.info("✅ Ciudades cargadas correctamente.")
+                else:
+                    logger.debug("ℹ️ La tabla de ciudades ya tiene datos.")
         except Exception as e:
             logger.error(f"❌ No se pudo verificar/poblar la tabla Colombia: {e}")
 
