@@ -1,7 +1,7 @@
 import logging
 from flask import Blueprint
 
-# Crear el Blueprint principal que agrupará a todos los demás
+# Crear el Blueprint principal que agrupará a todos los demás bajo el prefijo /api
 api_bp = Blueprint('api', __name__)
 
 def register_api(app):
@@ -63,13 +63,16 @@ def register_api(app):
         from .utils.get_cities_api import get_cities_bp
         from .utils.register_user_api import register_user_bp
 
-        # --- MÓDULO NEGOCIO ---
+        # --- MÓDULO NEGOCIO (IMPORTACIÓN) ---
         print("📝 LOG: Cargando módulo de Negocio...")
         from .negocio.negocio_api import negocio_api_bp 
 
         # --- 2. REGISTRO COLECTIVO CON IDENTIFICADORES ÚNICOS ---
-        # Registramos primero el de negocio con un nombre explícito para evitar que 'get_cities_bp' lo pise
+        
+        # PRIORIDAD: Registramos el de negocio con un nombre interno único. 
+        # Esto evita que colisione con el Blueprint 'get_cities_bp' si ambos tienen rutas similares.
         api_bp.register_blueprint(negocio_api_bp, name="modulo_negocio")
+        print("✅ LOG: Blueprint 'negocio_api_bp' registrado como 'modulo_negocio'.")
         
         # Lista del resto de blueprints
         blueprints = [
@@ -92,28 +95,29 @@ def register_api(app):
             api_bp.register_blueprint(bp)
         
         # --- 3. REGISTRO FINAL EN LA APP ---
+        # Todas las rutas dentro de api_bp colgarán de /api/...
         app.register_blueprint(api_bp, url_prefix='/api')
         
         print("✅ LOG: Estructura jerárquica de Blueprints completada.")
 
-        # --- 4. VERIFICACIÓN DE MAPA DE RUTAS (Modificado para Debug) ---
+        # --- 4. VERIFICACIÓN DE MAPA DE RUTAS ---
         print("\n🔍 INSPECCIÓN DE RUTAS BAJO '/api':")
         routes_found = 0
         for rule in app.url_map.iter_rules():
             rule_str = str(rule)
             if rule_str.startswith('/api'):
-                # Log especial para la ruta que falla
+                # Resaltamos nuestra ruta objetivo para confirmar que existe
                 status_icon = "📍"
                 if "/ciudades" in rule_str:
                     status_icon = "⭐ [OBJETIVO]"
                 
-                print(f"   {status_icon} RUTA: {rule_str} | Endpoint: {rule.endpoint}")
+                print(f"   {status_icon} RUTA: {rule_str.ljust(40)} | Endpoint: {rule.endpoint}")
                 routes_found += 1
         
-        print(f"\n📊 Total de endpoints registrados satisfactoriamente: {routes_found}")
+        print(f"\n📊 Total de endpoints registrados en /api: {routes_found}")
 
     except Exception as e:
-        print(f"❌ ERROR CRÍTICO: No se pudieron registrar las APIs: {str(e)}")
+        print(f"❌ ERROR CRÍTICO en register_api: {str(e)}")
         import traceback
         traceback.print_exc()
 
