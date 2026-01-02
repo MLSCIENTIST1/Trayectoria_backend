@@ -86,5 +86,5 @@ class Servicio(db.Model):
 
 # Importaciones diferidas para evitar ciclos
 from src.models.usuarios import Usuario
-from src.models.colombia_data.colombia import Colombia
+from src.models.colombia_data.colombia_data import Colombia
 from src.models.colombia_data.ratings.service_ratings import ServiceRatings
