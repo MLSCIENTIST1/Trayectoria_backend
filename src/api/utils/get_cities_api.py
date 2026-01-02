@@ -1,7 +1,8 @@
 from src.models.database import db
 from src.models.usuarios import Usuario
 # CORRECCIÓN: El archivo se llama colombia_data y la clase Colombia
-from src.models.colombia_data import Colombia  
+ 
+from src.models.colombia_data.colombia_data import Colombia
 import logging
 import sys
 from flask import Blueprint, jsonify, request
