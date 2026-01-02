@@ -8,19 +8,24 @@ from src.models.database import db
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-file_handler = logging.FileHandler('notifications.log')
-file_handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
+# Evitar errores si el archivo ya tiene handlers
+if not logger.handlers:
+    file_handler = logging.FileHandler('notifications.log')
+    file_handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
 
 # Modelo Notification
 class Notification(db.Model):
     __tablename__ = "notification"
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('usuario.id_usuario'), nullable=False)  # Receptor
-    sender_id = Column(Integer, ForeignKey('usuario.id_usuario'), nullable=False)  # Remitente
+    
+    # ✅ CORRECCIÓN: Apuntar a 'usuarios' (plural) para coincidir con el modelo Usuario corregido
+    user_id = Column(Integer, ForeignKey('usuarios.id_usuario'), nullable=False)  # Receptor
+    sender_id = Column(Integer, ForeignKey('usuarios.id_usuario'), nullable=False) # Remitente
+    
     request_id = Column(Integer, nullable=True)  # ID de solicitud relacionado
     is_accepted = Column(Boolean, default=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
@@ -32,9 +37,9 @@ class Notification(db.Model):
     questions = Column(String(255), nullable=True)
     message = Column(String(255), nullable=True)
 
-    # Relaciones con Usuario
-    sender = relationship('Usuario', foreign_keys=[sender_id], back_populates='sent_notifications')  # Remitente
-    receiver = relationship('Usuario', foreign_keys=[user_id], back_populates='received_notifications')  # Receptor
+    # ✅ Relaciones con Usuario (usando el nombre de la clase 'Usuario')
+    sender = relationship('Usuario', foreign_keys=[sender_id], back_populates='sent_notifications')
+    receiver = relationship('Usuario', foreign_keys=[user_id], back_populates='received_notifications')
 
     # Relación con Message
     messages = relationship('Message', back_populates='notification', lazy='select')
@@ -81,6 +86,9 @@ class Notification(db.Model):
             db.session.rollback()
             return False
 
-# Importar Message y Usuario después de definir Notification
+    def __repr__(self):
+        return f"<Notification id={self.id} type={self.type} is_read={self.is_read}>"
+
+# Importaciones al final para evitar problemas de importación circular
 from src.models.message import Message
 from src.models.usuarios import Usuario
