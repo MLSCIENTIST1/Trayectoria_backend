@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify  # Añadido jsonify
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_cors import CORS
@@ -11,7 +11,7 @@ from src.models.database import db, init_app
 from src.api import api_bp, register_api 
 from llenar_colombia import poblar_ciudades 
 
-# Importación de modelos para asegurar el registro en SQLAlchemy
+# Importación de modelos
 from src.models.usuarios import Usuario
 from src.models.etapa import Etapa
 from src.models.foto import Foto
@@ -30,7 +30,6 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'clave_secreta_predeterminada')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
-    # Ajuste para DATABASE_URL de Render (Postgres requiere postgresql://)
     if SQLALCHEMY_DATABASE_URI and SQLALCHEMY_DATABASE_URI.startswith("postgres://"):
         SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace("postgres://", "postgresql://", 1)
 
@@ -39,7 +38,7 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # 1. Configuración de CORS REFORZADA
+    # 1. Configuración de CORS REFORZADA para SPA
     CORS(app, resources={r"/api/*": {
         "origins": [
             "https://trayectoria-rxdc1.web.app",
@@ -60,41 +59,44 @@ def create_app():
     except Exception as e:
         logger.error(f"❌ Error en base de datos: {e}")
 
-    # 3. Configuración de LoginManager
+    # 3. Configuración de LoginManager optimizada para API
     login_manager = LoginManager()
     login_manager.init_app(app)
     
-    # ✅ CORRECCIÓN CRÍTICA: Cambiado '.login' por '.ingreso' 
-    # Esto resuelve el BuildError de Werkzeug
+    # Sincronizado con init_sesion_bp.ingreso
     login_manager.login_view = 'api.init_sesion_bp.ingreso'
-    login_manager.login_message = "Por favor inicia sesión para acceder a esta página."
+
+    # ✅ SOLUCIÓN AL ERROR 302/405: 
+    # Este manejador evita que Flask redireccione y rompa la comunicación con el Frontend
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        logger.warning("🚫 Intento de acceso no autorizado interceptado.")
+        return jsonify({
+            "error": "unauthorized",
+            "message": "La sesión ha expirado o no has iniciado sesión."
+        }), 401
 
     @login_manager.user_loader
     def load_user(id_usuario):
-        # Usar session.get es más seguro en versiones recientes de SQLAlchemy
         return db.session.get(Usuario, int(id_usuario))
 
     # 4. Registro de Rutas y Auto-poblado
     with app.app_context():
-        # register_api registra los Blueprints
         register_api(app) 
         logger.info("🔗 Rutas registradas exitosamente")
 
-        # --- LÓGICA DE AUTO-POBLADO ---
         try:
-            # Verificamos si la tabla existe antes de consultar
             inspector = db.inspect(db.engine)
             if 'colombia' in inspector.get_table_names():
                 if Colombia.query.first() is None:
                     logger.info("⚠️ Tabla de ciudades vacía. Poblando datos...")
                     poblar_ciudades()
-                    logger.info("✅ Ciudades cargadas correctamente.")
                 else:
                     logger.debug("ℹ️ La tabla de ciudades ya tiene datos.")
         except Exception as e:
-            logger.error(f"❌ No se pudo verificar/poblar la tabla Colombia: {e}")
+            logger.error(f"❌ Error al verificar tabla Colombia: {e}")
 
-    # 5. Configuración de carpetas de archivos (Uploads)
+    # 5. Configuración de carpetas de archivos
     upload_folder = os.path.join(app.root_path, 'static', 'uploads')
     if not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
