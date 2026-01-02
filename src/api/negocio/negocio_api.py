@@ -1,5 +1,6 @@
 import logging
 import sys
+import traceback
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 from flask_cors import cross_origin
@@ -9,54 +10,73 @@ from src.models.colombia_data.negocio import Negocio
 from src.models.colombia_data.colombia_data import Colombia 
 from src.models.database import db
 
-# Configuración de logs para Render (Salida forzada a stdout)
+# Configuración de logs extrema para Render
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-stream_handler = logging.StreamHandler(sys.stdout)
-logger.addHandler(stream_handler)
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(logging.Formatter('%(asctime) - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(handler)
 
 negocio_api_bp = Blueprint('negocio_api_bp', __name__)
 
-@negocio_api_bp.route('/ciudades', methods=['GET'])
+@negocio_api_bp.before_request
+def debug_before_request():
+    """Este log aparecerá CUALQUIER vez que se intente tocar una ruta de este Blueprint"""
+    print(f"\n📡 [BLUEPRINT NEGOCIO] Intento de acceso a: {request.path} [{request.method}]")
+
+@negocio_api_bp.route('/ciudades', methods=['GET', 'OPTIONS'])
 @cross_origin()
 def get_ciudades():
     """Retorna ciudades para el autocompletado con logs profundos"""
-    print("\n--- [LOG INICIO: GET /api/ciudades] ---")
-    try:
-        # 1. Verificar parámetros
-        termino = request.args.get('q', '').strip()
-        print(f"DEBUG: Buscando ciudades con término: '{termino}'")
-        
-        # 2. Verificar estado de la tabla Colombia
-        try:
-            total_ciudades = Colombia.query.count()
-            print(f"DEBUG: Conexión DB OK. Registros totales en tabla 'colombia': {total_ciudades}")
-        except Exception as db_err:
-            print(f"❌ ERROR DB: La tabla 'colombia' no parece existir o no es accesible: {str(db_err)}")
-            return jsonify({"error": "Error de base de datos", "details": str(db_err)}), 500
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
 
-        # 3. Construir query
+    print("--- [LOG INICIO: GET /ciudades] ---")
+    try:
+        # 1. Inspección de la Request
+        termino = request.args.get('q', '').strip()
+        print(f"DEBUG: Headers recibidos: {dict(request.headers)}")
+        print(f"DEBUG: Parámetro de búsqueda 'q': '{termino}'")
+        
+        # 2. Diagnóstico de la Base de Datos
+        print("DEBUG: Verificando conexión a tabla 'colombia'...")
+        try:
+            total_db = db.session.query(Colombia).count()
+            print(f"✅ DB STATUS: La tabla 'colombia' es accesible. Total registros: {total_db}")
+        except Exception as e_db:
+            print(f"❌ DB ERROR: No se puede leer la tabla 'colombia'. ¿Existe la tabla?")
+            print(f"DETALLE ERROR DB: {str(e_db)}")
+            return jsonify({"error": "Error de acceso a DB", "details": str(e_db)}), 500
+
+        # 3. Ejecución de la Query
+        print(f"DEBUG: Ejecutando Query con filtro ILIKE '%{termino}%'...")
         query = Colombia.query.with_entities(Colombia.ciudad_id, Colombia.ciudad_nombre)
         
         if termino:
             query = query.filter(Colombia.ciudad_nombre.ilike(f"%{termino}%"))
         
         ciudades_db = query.limit(20).all()
-        print(f"DEBUG: Resultados encontrados para '{termino}': {len(ciudades_db)}")
+        print(f"✅ QUERY EXITOSA: Se recuperaron {len(ciudades_db)} filas de la DB.")
 
-        # 4. Formatear resultados
+        # 4. Formateo y Respuesta
         resultado = [
             {"id": c.ciudad_id, "nombre": c.ciudad_nombre} 
             for c in ciudades_db
         ]
         
-        print(f"DEBUG: JSON de salida: {resultado[:3]}... (truncado)")
-        print("--- [LOG FIN: EXITOSO] ---\n")
+        # Imprimimos los 2 primeros resultados para ver si el formato es correcto
+        if resultado:
+            print(f"DEBUG: Ejemplo de datos encontrados: {resultado[:2]}")
+        else:
+            print("⚠️ ADVERTENCIA: La query no devolvió ningún resultado para ese término.")
+
+        print("--- [LOG FIN: SOLICITUD PROCESADA] ---\n")
         return jsonify(resultado), 200
 
     except Exception as e:
         print(f"❌ ERROR CRÍTICO en get_ciudades: {str(e)}")
-        return jsonify({"error": "Error interno", "details": str(e)}), 500
+        print(traceback.format_exc())
+        return jsonify({"error": "Error interno del servidor", "details": str(e)}), 500
 
 @negocio_api_bp.route('/registrar_negocio', methods=['POST', 'OPTIONS'])
 @cross_origin()
@@ -65,22 +85,24 @@ def registrar_negocio():
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
 
-    print("\n--- [LOG INICIO: POST /api/registrar_negocio] ---")
-    data = request.get_json()
-    print(f"DEBUG: Datos recibidos del frontend: {data}")
-
+    print("\n--- [LOG INICIO: POST /registrar_negocio] ---")
+    
     try:
-        # 1. Validaciones básicas
+        data = request.get_json()
+        print(f"DEBUG: Payload recibido: {data}")
+        print(f"DEBUG: Usuario autenticado: {current_user.id_usuario if current_user else 'ANÓNIMO'}")
+
+        # 1. Validaciones
         if not data:
-            print("❌ ERROR: No se recibieron datos (JSON vacío)")
+            print("❌ ERROR: Request Body vacío")
             return jsonify({"error": "No se enviaron datos"}), 400
             
         if not data.get('ciudad_id'):
-            print("❌ ERROR: ciudad_id ausente en el JSON")
-            return jsonify({"error": "Debe seleccionar una ciudad válida"}), 400
+            print("❌ ERROR: El campo 'ciudad_id' es obligatorio")
+            return jsonify({"error": "Falta ciudad_id"}), 400
 
-        # 2. Crear instancia del modelo
-        print(f"DEBUG: Intentando guardar negocio para usuario ID: {current_user.id_usuario}")
+        # 2. Creación del Registro
+        print("DEBUG: Mapeando datos al modelo Negocio...")
         nuevo_negocio = Negocio(
             nombre_negocio=data.get('nombre_negocio'),
             categoria=data.get('tipoNegocio'), 
@@ -91,16 +113,17 @@ def registrar_negocio():
             usuario_id=current_user.id_usuario 
         )
         
-        # 3. Persistencia
+        # 3. Commit
         db.session.add(nuevo_negocio)
         db.session.commit()
         
-        print(f"✅ ÉXITO: Negocio '{nuevo_negocio.nombre_negocio}' creado con ID: {nuevo_negocio.id}")
-        print("--- [LOG FIN: REGISTRO COMPLETADO] ---\n")
+        print(f"✅ REGISTRO EXITOSO: Negocio ID {nuevo_negocio.id} guardado.")
+        print("--- [LOG FIN: POST FINALIZADO] ---\n")
         
-        return jsonify({"message": "Negocio registrado con éxito", "id": nuevo_negocio.id}), 201
+        return jsonify({"message": "Negocio registrado", "id": nuevo_negocio.id}), 201
 
     except Exception as e:
         db.session.rollback()
-        print(f"❌ ERROR AL REGISTRAR NEGOCIO: {str(e)}")
+        print(f"❌ ERROR EN POST: {str(e)}")
+        print(traceback.format_exc())
         return jsonify({"error": f"Error interno: {str(e)}"}), 500
