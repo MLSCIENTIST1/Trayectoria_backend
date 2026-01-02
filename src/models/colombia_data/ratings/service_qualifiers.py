@@ -1,6 +1,4 @@
-
-
-from sqlalchemy import Column, Integer, String, Date, ForeignKey,String, Boolean
+from sqlalchemy import Column, Integer, String, Boolean, Float
 from sqlalchemy.orm import relationship
 from src.models.database import db
 
@@ -10,23 +8,26 @@ logger = logging.getLogger(__name__)
 
 logger.debug("Modelo ServiceQualifiers cargado correctamente.")
 
-
-
-
-
-
-
-
-
 class ServiceQualifiers(db.Model):
     __tablename__ = "service_qualifiers"
 
-    id_qualifier = db.Column(db.Integer, primary_key=True)
-    nombre_calificativo = db.Column(db.String(50), nullable=False, unique=True)  # Ejemplo: "Excelente", "Bueno", "Regular", etc.
-    descripcion = db.Column(db.String(255), nullable=True)
-    calificativo_mas_usado = db.Column(db.Boolean, nullable=True)
-    calificativo_menos_usado = db.Column(db.Boolean, nullable=True)
-    peso_calificativo = db.Column(db.Float, nullable=True)
+    id_qualifier = Column(Integer, primary_key=True)
+    nombre_calificativo = Column(String(50), nullable=False, unique=True)  # Ejemplo: "Excelente", "Bueno"
+    descripcion = Column(String(255), nullable=True)
+    calificativo_mas_usado = Column(Boolean, nullable=True)
+    calificativo_menos_usado = Column(Boolean, nullable=True)
+    peso_calificativo = Column(Float, nullable=True)
 
-    # Relación bidireccional
-    ratings = db.relationship('ServiceRatings', back_populates='calificativo')
+    # Relación bidireccional con ServiceRatings
+    ratings = relationship('ServiceRatings', back_populates='calificativo')
+
+    def __repr__(self):
+        return f"<ServiceQualifier {self.nombre_calificativo}>"
+
+    def serialize(self):
+        return {
+            "id_qualifier": self.id_qualifier,
+            "nombre": self.nombre_calificativo,
+            "descripcion": self.descripcion,
+            "peso": self.peso_calificativo
+        }
