@@ -14,7 +14,6 @@ def register_api(app):
 
     try:
         # --- 1. IMPORTACIONES DE BLUEPRINTS ---
-        # Agrupados por módulos para mayor orden
         from .auth.auth_api import auth_api_bp
         from .auth.close_sesion_api import close_sesion_bp
         from .auth.init_sesion_api import init_sesion_bp
@@ -68,7 +67,11 @@ def register_api(app):
         print("📝 LOG: Cargando módulo de Negocio...")
         from .negocio.negocio_api import negocio_api_bp 
 
-        # --- 2. REGISTRO COLECTIVO EN EL PARENT BLUEPRINT (api_bp) ---
+        # --- 2. REGISTRO COLECTIVO CON IDENTIFICADORES ÚNICOS ---
+        # Registramos primero el de negocio con un nombre explícito para evitar que 'get_cities_bp' lo pise
+        api_bp.register_blueprint(negocio_api_bp, name="modulo_negocio")
+        
+        # Lista del resto de blueprints
         blueprints = [
             auth_api_bp, close_sesion_bp, init_sesion_bp, password_bp,
             calificaciones_recibidas_contractor_bp, calificaciones_recibidas_hiree_bp,
@@ -82,30 +85,32 @@ def register_api(app):
             count_total_service_bp, delete_principal_service_bp, delete_service_bp,
             edit_service_bp, filter_service_results_bp, publish_service_bp,
             search_service_autocomplete_bp, total_service_bp, view_service_page_bp,
-            get_cities_bp, register_user_bp, negocio_api_bp
+            get_cities_bp, register_user_bp
         ]
 
         for bp in blueprints:
             api_bp.register_blueprint(bp)
         
-        # --- 3. REGISTRO FINAL EN LA APP CON PREFIJO GLOBAL ---
-        # Este es el único lugar donde debe definirse '/api'
+        # --- 3. REGISTRO FINAL EN LA APP ---
         app.register_blueprint(api_bp, url_prefix='/api')
         
         print("✅ LOG: Estructura jerárquica de Blueprints completada.")
 
-        # --- 4. VERIFICACIÓN DE MAPA DE RUTAS ---
-        print("\n🔍 MAPA DE RUTAS DETECTADO:")
+        # --- 4. VERIFICACIÓN DE MAPA DE RUTAS (Modificado para Debug) ---
+        print("\n🔍 INSPECCIÓN DE RUTAS BAJO '/api':")
         routes_found = 0
         for rule in app.url_map.iter_rules():
-            if str(rule).startswith('/api'):
-                print(f"   📍 RUTA: {rule}")
+            rule_str = str(rule)
+            if rule_str.startswith('/api'):
+                # Log especial para la ruta que falla
+                status_icon = "📍"
+                if "/ciudades" in rule_str:
+                    status_icon = "⭐ [OBJETIVO]"
+                
+                print(f"   {status_icon} RUTA: {rule_str} | Endpoint: {rule.endpoint}")
                 routes_found += 1
         
-        if routes_found == 0:
-            print("⚠️ ADVERTENCIA: No se detectaron rutas bajo el prefijo '/api'.")
-        else:
-            print(f"📊 Total de endpoints registrados satisfactoriamente: {routes_found}")
+        print(f"\n📊 Total de endpoints registrados satisfactoriamente: {routes_found}")
 
     except Exception as e:
         print(f"❌ ERROR CRÍTICO: No se pudieron registrar las APIs: {str(e)}")
