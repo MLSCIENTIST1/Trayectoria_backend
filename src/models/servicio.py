@@ -40,9 +40,9 @@ class Servicio(db.Model):
     id_contratante = Column(Integer, ForeignKey('usuarios.id_usuario'), nullable=True)
     id_contratado = Column(Integer, ForeignKey('usuarios.id_usuario'), nullable=True)
 
-    # Relaciones con mapeo explícito
+    # ✅ CORRECCIÓN DE TYPO: de 'id_contrado' a 'id_contratado'
     contratante = relationship("Usuario", foreign_keys=[id_contratante], back_populates="servicios_como_contratante")
-    contratado = relationship("Usuario", foreign_keys=[id_contrado], back_populates="servicios_como_contratado")
+    contratado = relationship("Usuario", foreign_keys=[id_contratado], back_populates="servicios_como_contratado")
 
     # Relación con usuarios (Muchos a Muchos)
     usuarios = relationship("Usuario", secondary=usuario_servicio, back_populates="servicios")
