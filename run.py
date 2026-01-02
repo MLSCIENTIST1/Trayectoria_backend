@@ -1,70 +1,68 @@
 import logging
 import os
+import sys
 from src import create_app
-from flask_cors import CORS 
-from flask_migrate import Migrate
 
 # --- Configuración del Logger ---
+# En Render, sys.stdout es vital para ver los logs en tiempo real
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('app_startup.log')
+    ]
+)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
-# Manejador para consola (importante para ver en Render)
-stream_handler = logging.StreamHandler()
-stream_handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-stream_handler.setFormatter(formatter)
-logger.addHandler(stream_handler)
-
-# Manejador para archivo
-file_handler = logging.FileHandler('app_startup.log')
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
-
-logger.info("🚀 Inicializando la aplicación desde run.py")
+logger.info("🚀 Inicializando lanzador run.py")
 
 try:
-    # 1. Crear la aplicación usando tu fábrica
+    # 1. Crear la aplicación usando tu fábrica (CORS ya se configura dentro de create_app)
     app = create_app()  
     
-    # 2. Configurar CORS (Vital para que Firebase pueda hablar con Render)
-    CORS(app, resources={
-        r"/*": {
-            "origins": [
-                "https://trayectoria-rxdc1.web.app",
-                "https://mitrayectoria.web.app"
-            ],
-            "methods": ["GET", "POST", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"]
-        }
-    })
-    
-    logger.info("✅ Aplicación creada y CORS configurado.")
-
-    # 3. INSPECTOR DE RUTAS (Esto imprimirá las rutas en los logs de Render)
-    with app.app_context():
-        print("\n" + "="*50)
-        print("🔍 MAPA DE RUTAS REGISTRADAS EN EL SERVIDOR:")
-        for rule in app.url_map.iter_rules():
-            # Filtrar las rutas estáticas para leer mejor
-            if "static" not in rule.endpoint:
-                print(f"   MÉTODO: {list(rule.methods)} | RUTA: {rule.rule} --> ENDPOINT: {rule.endpoint}")
-        print("="*50 + "\n")
+    if app:
+        logger.info("✅ Aplicación creada exitosamente desde la factoría.")
+        
+        # 2. INSPECTOR DE RUTAS 
+        # Útil para confirmar que /api/ciudades existe realmente al arrancar
+        with app.app_context():
+            print("\n" + "="*70)
+            print("🔍 MAPA DE RUTAS REGISTRADAS (Inspección de Arranque):")
+            for rule in app.url_map.iter_rules():
+                if "static" not in rule.endpoint:
+                    # Buscamos nuestra ruta objetivo para resaltarla en el log
+                    marker = " ⭐ [OBJETIVO]" if "/ciudades" in str(rule) else ""
+                    print(f"   {list(rule.methods)} {str(rule).ljust(40)} --> {rule.endpoint}{marker}")
+            print("="*70 + "\n")
+    else:
+        logger.error("❌ La factoría create_app() devolvió None.")
 
 except Exception as e:
     logger.error(f"❌ Error crítico al inicializar la aplicación: {e}", exc_info=True)
     app = None
 
+# 3. Definición de rutas base de salud del servidor
 if app:
+    @app.route('/health')
     @app.route('/')
     def home():
-        logger.debug("Ruta de inicio accesada")
-        return "¡Hola, Flask está funcionando, CORS activo y Rutas mapeadas!"
+        logger.debug("Ping a ruta de salud del servidor")
+        return {
+            "status": "online",
+            "message": "Servidor Flask activo",
+            "cors": "configurado"
+        }, 200
 
-    if __name__ == "__main__":
-        # Render asigna automáticamente un puerto dinámico
+# 4. Punto de entrada para Gunicorn (Render) y ejecución local
+if __name__ == "__main__":
+    if app:
+        # Render asigna el puerto mediante la variable de entorno PORT
         port = int(os.environ.get("PORT", 5000))
-        logger.info(f"🛰️ Servidor listo en puerto: {port}")
+        logger.info(f"🛰️ Servidor listo y escuchando en puerto: {port}")
+        
+        # debug=True en local ayuda a ver errores, Render lo ignora si usas gunicorn
         app.run(host='0.0.0.0', port=port, debug=True)
-else:
-    logger.warning("⚠️ La aplicación no se pudo iniciar.")
+    else:
+        print("Fallo crítico: No se pudo levantar la aplicación.")
+        sys.exit(1)
