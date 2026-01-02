@@ -60,26 +60,40 @@ def registrar_negocio():
         )
         db.session.add(nuevo_negocio)
         db.session.commit()
-        return jsonify({"status": "success", "id": nuevo_negocio.id_negocio}), 201
+        
+        # Acceso seguro al ID recién creado
+        negocio_id = getattr(nuevo_negocio, 'id_negocio', getattr(nuevo_negocio, 'id', None))
+        return jsonify({"status": "success", "id": negocio_id}), 201
     except Exception as e:
         db.session.rollback()
         logger.error(f"🔥 ERROR en /registrar_negocio: {str(e)}")
-        return jsonify({"error": "No se pudo guardar el negocio", "details": str(e)}), 500
+        return jsonify({"error": "No se pudo guardar", "details": str(e)}), 500
 
-# --- 3. OBTENER MIS NEGOCIOS ---
+# --- 3. OBTENER MIS NEGOCIOS (CORREGIDO) ---
 @negocio_api_bp.route('/mis_negocios', methods=['GET'])
 @cross_origin(supports_credentials=True)
 @login_required
 def obtener_mis_negocios():
     try:
         negocios = Negocio.query.filter_by(usuario_id=current_user.id_usuario).all()
-        resultado = [{"id": n.id_negocio, "nombre_negocio": n.nombre_negocio} for n in negocios]
+        
+        resultado = []
+        for n in negocios:
+            # Esta línea corrige el error de "id_negocio" inexistente
+            # Busca 'id_negocio', si no existe busca 'id'
+            safe_id = getattr(n, 'id_negocio', getattr(n, 'id', None))
+            
+            resultado.append({
+                "id": safe_id, 
+                "nombre_negocio": n.nombre_negocio
+            })
+            
         return jsonify(resultado), 200
     except Exception as e:
         logger.error(f"🔥 ERROR en /mis_negocios: {str(e)}")
         return jsonify({"error": "Error al obtener negocios"}), 500
 
-# --- 4. REGISTRAR SUCURSAL (Sincronizado con Formulario de Cajeros/Admins) ---
+# --- 4. REGISTRAR SUCURSAL ---
 @negocio_api_bp.route('/registrar_sucursal', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 @login_required
@@ -91,12 +105,13 @@ def registrar_sucursal():
         data = request.get_json()
         negocio_id = data.get('negocio_id')
 
-        # Verificación de seguridad: El negocio debe pertenecer al usuario logueado
-        negocio = Negocio.query.filter_by(id_negocio=negocio_id, usuario_id=current_user.id_usuario).first()
-        if not negocio:
+        # Verificación dinámica de propiedad para evitar el mismo error de ID
+        negocios_usuario = Negocio.query.filter_by(usuario_id=current_user.id_usuario).all()
+        ids_propios = [getattr(n, 'id_negocio', getattr(n, 'id', None)) for n in negocios_usuario]
+
+        if int(negocio_id) not in ids_propios:
             return jsonify({"error": "No autorizado para este negocio"}), 403
 
-        # Creamos la sucursal mapeando todos los campos del JSON enviado desde el JS
         nueva_sucursal = Sucursal(
             nombre_sucursal=data.get('nombre_sucursal'),
             direccion=data.get('direccion'),
@@ -106,7 +121,6 @@ def registrar_sucursal():
             codigo_postal=data.get('codigo_postal'),
             activo=data.get('activo', True),
             es_principal=data.get('es_principal', False),
-            # Estos arrays JSON se guardan directamente en la base de datos
             cajeros=data.get('cajeros', []),           
             administradores=data.get('administradores', []), 
             negocio_id=negocio_id
@@ -115,13 +129,13 @@ def registrar_sucursal():
         db.session.add(nueva_sucursal)
         db.session.commit()
 
-        logger.info(f"✨ Sucursal '{nueva_sucursal.nombre_sucursal}' registrada con éxito para Negocio ID: {negocio_id}")
-        return jsonify({"status": "success", "id": nueva_sucursal.id_sucursal}), 201
+        suc_id = getattr(nueva_sucursal, 'id_sucursal', getattr(nueva_sucursal, 'id', None))
+        return jsonify({"status": "success", "id": suc_id}), 201
 
     except Exception as e:
         db.session.rollback()
         logger.error(f"🔥 ERROR en /registrar_sucursal: {str(e)}")
-        return jsonify({"error": "Error interno al registrar sucursal", "details": str(e)}), 500
+        return jsonify({"error": "Error interno", "details": str(e)}), 500
 
 # --- 5. OBTENER SUCURSALES POR NEGOCIO ---
 @negocio_api_bp.route('/negocios/<int:negocio_id>/sucursales', methods=['GET'])
@@ -129,13 +143,14 @@ def registrar_sucursal():
 @login_required
 def obtener_sucursales(negocio_id):
     try:
-        # Validación de propiedad
-        negocio = Negocio.query.filter_by(id_negocio=negocio_id, usuario_id=current_user.id_usuario).first()
-        if not negocio:
-            return jsonify({"error": "Acceso denegado a las sucursales de este negocio"}), 403
+        # Validación de propiedad segura
+        negocio_check = Negocio.query.filter_by(usuario_id=current_user.id_usuario).all()
+        ids_propios = [getattr(n, 'id_negocio', getattr(n, 'id', None)) for n in negocio_check]
+        
+        if negocio_id not in ids_propios:
+            return jsonify({"error": "Acceso denegado"}), 403
 
         sucursales = Sucursal.query.filter_by(negocio_id=negocio_id).all()
-        # Se utiliza el método to_dict() definido en el modelo para incluir cajeros y admins
         return jsonify([s.to_dict() for s in sucursales]), 200
     except Exception as e:
         logger.error(f"🔥 ERROR en obtener_sucursales: {str(e)}")
