@@ -8,8 +8,7 @@ from flask_cors import cross_origin
 # Importaciones de modelos
 from src.models.colombia_data.negocio import Negocio
 from src.models.colombia_data.colombia_data import Colombia 
-# NOTA: Asegúrate de que este sea el nombre correcto de tu modelo de Sucursal
-from src.models.colombia_data.sucursal import Sucursal 
+from src.models.colombia_data.sucursales import Sucursal # Sincronizado con tu nuevo archivo
 from src.models.database import db
 
 # --- CONFIGURACIÓN DE LOGS ---
@@ -45,7 +44,7 @@ def get_ciudades():
         logger.error(f"🔥 ERROR en /ciudades: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# --- 2. REGISTRAR NEGOCIO (POST) ---
+# --- 2. REGISTRAR NEGOCIO ---
 @negocio_api_bp.route('/registrar_negocio', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 @login_required 
@@ -55,8 +54,6 @@ def registrar_negocio():
     
     try:
         data = request.get_json()
-        logger.info(f"👤 Registro por: {current_user.correo} (ID: {current_user.id_usuario})")
-
         nombre_negocio = data.get('nombre_negocio')
         ciudad_id = data.get('ciudad_id')
 
@@ -78,57 +75,73 @@ def registrar_negocio():
         
         negocio_id = getattr(nuevo_negocio, 'id_negocio', getattr(nuevo_negocio, 'id', 'N/A'))
         return jsonify({"status": "success", "id": negocio_id}), 201
-
     except Exception as e:
         db.session.rollback()
         logger.error(f"🔥 ERROR en /registrar_negocio: {str(e)}")
         return jsonify({"error": "No se pudo guardar", "details": str(e)}), 500
 
-# --- 3. OBTENER MIS NEGOCIOS (Para el Selector) ---
+# --- 3. OBTENER MIS NEGOCIOS (Para Selectores) ---
 @negocio_api_bp.route('/mis_negocios', methods=['GET'])
 @cross_origin(supports_credentials=True)
 @login_required
 def obtener_mis_negocios():
-    """Retorna los negocios pertenecientes al usuario logueado"""
     try:
-        logger.info(f"📋 Consultando negocios para usuario: {current_user.id_usuario}")
-        # Filtramos negocios por el ID del usuario actual
         negocios = Negocio.query.filter_by(usuario_id=current_user.id_usuario).all()
-        
-        resultado = []
-        for n in negocios:
-            resultado.append({
-                "id": getattr(n, 'id_negocio', n.id), # Maneja si tu columna es 'id' o 'id_negocio'
-                "nombre_negocio": n.nombre_negocio
-            })
-        
+        resultado = [{"id": getattr(n, 'id_negocio', n.id), "nombre_negocio": n.nombre_negocio} for n in negocios]
         return jsonify(resultado), 200
     except Exception as e:
         logger.error(f"🔥 ERROR en /mis_negocios: {str(e)}")
         return jsonify({"error": "Error al obtener negocios"}), 500
 
-# --- 4. OBTENER SUCURSALES POR NEGOCIO ---
+# --- 4. REGISTRAR SUCURSAL (NUEVA RUTA) ---
+@negocio_api_bp.route('/registrar_sucursal', methods=['POST', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+@login_required
+def registrar_sucursal():
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    try:
+        data = request.get_json()
+        logger.info(f"🏢 Intentando registrar sucursal para negocio ID: {data.get('negocio_id')}")
+
+        # Validamos que el negocio pertenezca al usuario antes de dejarle crear una sucursal
+        negocio = Negocio.query.filter_by(id_negocio=data.get('negocio_id'), usuario_id=current_user.id_usuario).first()
+        if not negocio:
+            return jsonify({"error": "No tienes permiso para agregar sucursales a este negocio"}), 403
+
+        nueva_sucursal = Sucursal(
+            nombre_sucursal=data.get('nombre_sucursal'),
+            direccion=data.get('direccion'),
+            telefono=data.get('telefono'),
+            es_principal=data.get('es_principal', False),
+            negocio_id=data.get('negocio_id')
+        )
+
+        db.session.add(nueva_sucursal)
+        db.session.commit()
+
+        logger.info(f"✨ Sucursal '{nueva_sucursal.nombre_sucursal}' creada con éxito.")
+        return jsonify({"status": "success", "id": nueva_sucursal.id_sucursal}), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"🔥 ERROR en /registrar_sucursal: {str(e)}")
+        return jsonify({"error": "No se pudo registrar la sucursal", "details": str(e)}), 500
+
+# --- 5. OBTENER SUCURSALES POR NEGOCIO ---
 @negocio_api_bp.route('/negocios/<int:negocio_id>/sucursales', methods=['GET'])
 @cross_origin(supports_credentials=True)
 @login_required
 def obtener_sucursales(negocio_id):
-    """Retorna las sucursales de un negocio específico"""
     try:
-        # Verificación de seguridad: El negocio debe pertenecer al usuario logueado
+        # Seguridad: Solo ver sucursales de negocios propios
         negocio = Negocio.query.filter_by(id_negocio=negocio_id, usuario_id=current_user.id_usuario).first()
-        
         if not negocio:
-            return jsonify({"error": "Negocio no encontrado o acceso denegado"}), 403
+            return jsonify({"error": "Acceso denegado"}), 403
 
         sucursales = Sucursal.query.filter_by(negocio_id=negocio_id).all()
-        
-        resultado = []
-        for s in sucursales:
-            resultado.append({
-                "id": getattr(s, 'id_sucursal', s.id),
-                "nombre_sucursal": s.nombre_sucursal
-            })
-            
+        resultado = [{"id": s.id_sucursal, "nombre_sucursal": s.nombre_sucursal} for s in sucursales]
         return jsonify(resultado), 200
     except Exception as e:
         logger.error(f"🔥 ERROR en sucursales: {str(e)}")
