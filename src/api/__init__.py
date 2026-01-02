@@ -1,134 +1,105 @@
 import logging
+import traceback
 from flask import Blueprint
 
-# Crear el Blueprint principal (Contenedor de la API)
+# Crear el Blueprint contenedor de la API
 api_bp = Blueprint('api', __name__)
 
 def register_api(app):
     """
     Registra todos los Blueprints en la aplicación Flask con trazabilidad completa.
-    Garantiza que las rutas de negocio tengan prioridad para evitar colisiones.
+    Implementa un sistema de tolerancia a fallos para evitar que un error de importación
+    detenga el registro de otras rutas críticas.
     """
-    print("\n" + "="*60)
-    print("🚀 LOG: Iniciando Proceso de Registro de Rutas API")
-    print("="*60)
+    print("\n" + "🚀" * 20)
+    print("INICIANDO REGISTRO SEGURO DE RUTAS API")
+    print("🚀" * 20)
+
+    # 1. Función auxiliar para intentar registros sin romper el flujo principal
+    def safe_import_and_register(module_path, bp_name, display_name, unique_name=None):
+        try:
+            # Importación dinámica del módulo
+            module = __import__(module_path, fromlist=[bp_name])
+            blueprint = getattr(module, bp_name)
+            
+            # Registro en el api_bp principal
+            if unique_name:
+                api_bp.register_blueprint(blueprint, name=unique_name)
+            else:
+                api_bp.register_blueprint(blueprint)
+                
+            print(f"✅ [OK] {display_name}")
+            return True
+        except Exception as e:
+            print(f"❌ [FALLO] {display_name}: No se pudo cargar. Error: {str(e)}")
+            return False
 
     try:
-        # --- 1. IMPORTACIONES DE BLUEPRINTS ---
-        # Módulos Core y Autenticación
-        from .auth.auth_api import auth_api_bp
-        from .auth.close_sesion_api import close_sesion_bp
-        from .auth.init_sesion_api import init_sesion_bp
-        from .auth.password_api import password_bp
+        # --- 2. MÓDULO DE NEGOCIO (PRIORIDAD ALTA) ---
+        # Lo registramos primero con un nombre único para evitar que colisione con /ciudades de utils
+        print("\n--- Cargando Módulos de Negocio ---")
+        safe_import_and_register(
+            'src.api.negocio.negocio_api', 
+            'negocio_api_bp', 
+            'Módulo Negocio (Ciudades/Registro)', 
+            'negocio_refactor'
+        )
 
-        # Calificaciones
-        from .calificaciones.calificaciones_received_contractor_api import calificaciones_recibidas_contractor_bp
-        from .calificaciones.calificaciones_received_hiree_api import calificaciones_recibidas_hiree_bp
-        from .calificaciones.calificar_api import calificar_bp
-        from .calificaciones.rate_contractor_api import rate_contractor_bp
-        from .calificaciones.rate_hiree_api import rate_hiree_bp
-
-        # Candidatos y Contratos
-        from .candidates.details_candidate_api import details_candidate_bp
-        from .contracts.contract_requests_api import contract_requests_bp
-        from .contracts.contract_vigent_api import contract_vigent_bp
-        from .contracts.contratos_roles_api import contratos_roles_bp
-        from .contracts.create_contract_api import create_contract_bp
-
-        # Dashboard e Inicio
-        from .dashboard.dashboard_main_api import dashboard_main_bp
-        from .inicio.index_api import index_bp
-
-        # Notificaciones y Chat
-        from .notifications.accept_notification_api import accept_notification_bp
-        from .notifications.chat_api import chat_bp
-        from .notifications.detail_notifications_api import detail_notifications_bp
-        from .notifications.notifications_api import notifications_bp
-        from .notifications.reject_notification_api import reject_notification_bp
-        from .notifications.request_more_details_bp import request_more_details_bp
-        from .notifications.show_notifications_api import show_notifications_bp
-
-        # Perfil y Usuario
-        from .profile.edit_profile_api import edit_profile_bp
-        from .profile.logic_delete_user_api import logic_delete_user_bp
-        from .profile.view_logged_user_api import view_logged_user_bp
-        from .profile.view_user_info_api import view_user_info_bp
-
-        # Servicios y Búsqueda
-        from .search.search_results_api import search_results_bp
-        from .services.count_service_api import count_total_service_bp
-        from .services.delete_principal_service_api import delete_principal_service_bp
-        from .services.delete_service_api import delete_service_bp
-        from .services.edit_service_api import edit_service_bp
-        from .services.filter_service_results_api import filter_service_results_bp
-        from .services.publish_service_api import publish_service_bp
-        from .services.search_service_autocomplete_api import search_service_autocomplete_bp
-        from .services.total_service_api import total_service_bp
-        from .services.view_service_page_bp import view_service_page_bp
-
-        # Utils
-        from .utils.get_cities_api import get_cities_bp
-        from .utils.register_user_api import register_user_bp
-
-        # --- MÓDULO NEGOCIO (IMPORTACIÓN CRÍTICA) ---
-        print("📝 LOG: Cargando módulo de Negocio...")
-        from .negocio.negocio_api import negocio_api_bp 
-
-        # --- 2. REGISTRO JERÁRQUICO ---
+        # --- 3. CARGA DEL RESTO DE MÓDULOS ---
+        print("\n--- Cargando Otros Módulos ---")
         
-        # Registramos primero el módulo de negocio con un nombre interno único
-        # Esto asegura que sus rutas (/ciudades, /registrar_negocio) no sean pisadas
-        api_bp.register_blueprint(negocio_api_bp, name="negocio_refactor")
-        print("✅ LOG: Blueprint 'negocio_api_bp' registrado bajo el namespace 'negocio_refactor'.")
-        
-        # Lista del resto de blueprints
-        blueprints = [
-            auth_api_bp, close_sesion_bp, init_sesion_bp, password_bp,
-            calificaciones_recibidas_contractor_bp, calificaciones_recibidas_hiree_bp,
-            calificar_bp, rate_contractor_bp, rate_hiree_bp,
-            details_candidate_bp, contract_requests_bp, contract_vigent_bp,
-            contratos_roles_bp, create_contract_bp, dashboard_main_bp, index_bp,
-            accept_notification_bp, chat_bp, detail_notifications_bp,
-            notifications_bp, reject_notification_bp, request_more_details_bp,
-            show_notifications_bp, edit_profile_bp, logic_delete_user_bp,
-            view_logged_user_bp, view_user_info_bp, search_results_bp,
-            count_total_service_bp, delete_principal_service_bp, delete_service_bp,
-            edit_service_bp, filter_service_results_bp, publish_service_bp,
-            search_service_autocomplete_bp, total_service_bp, view_service_page_bp,
-            get_cities_bp, register_user_bp
-        ]
+        # Diccionario de módulos a cargar: { 'Ruta del módulo': ('Nombre del BP', 'Nombre descriptivo') }
+        modulos = {
+            # Auth
+            'src.api.auth.auth_api': ('auth_api_bp', 'Autenticación Principal'),
+            'src.api.auth.close_sesion_api': ('close_sesion_bp', 'Cierre de Sesión'),
+            'src.api.auth.init_sesion_api': ('init_sesion_bp', 'Inicio de Sesión'),
+            'src.api.auth.password_api': ('password_bp', 'Gestión de Password'),
 
-        for bp in blueprints:
-            api_bp.register_blueprint(bp)
-        
-        # --- 3. REGISTRO FINAL EN LA APP CON PREFIJO ---
+            # Calificaciones (Donde estaba el error crítico)
+            'src.api.calificaciones.calificaciones_received_contractor_api': ('calificaciones_recibidas_contractor_bp', 'Calific. Recibidas Contractor'),
+            'src.api.calificaciones.calificaciones_received_hiree_api': ('calificaciones_recibidas_hiree_bp', 'Calific. Recibidas Hiree'),
+            'src.api.calificaciones.calificar_api': ('calificar_bp', 'Acción Calificar'),
+            
+            # Contratos y Candidatos
+            'src.api.candidates.details_candidate_api': ('details_candidate_bp', 'Detalles Candidato'),
+            'src.api.contracts.create_contract_api': ('create_contract_bp', 'Creación de Contratos'),
+            'src.api.contracts.contract_vigent_api': ('contract_vigent_bp', 'Contratos Vigentes'),
+
+            # Notificaciones
+            'src.api.notifications.notifications_api': ('notifications_bp', 'Módulo Notificaciones'),
+            'src.api.notifications.chat_api': ('chat_bp', 'Sistema de Chat'),
+
+            # Perfil
+            'src.api.profile.view_logged_user_api': ('view_logged_user_bp', 'Ver Usuario Logueado'),
+            'src.api.profile.edit_profile_api': ('edit_profile_bp', 'Editar Perfil'),
+
+            # Servicios
+            'src.api.services.publish_service_api': ('publish_service_bp', 'Publicar Servicio'),
+            'src.api.services.search_service_autocomplete_api': ('search_service_autocomplete_bp', 'Búsqueda Autocomplete'),
+            'src.api.services.view_service_page_bp': ('view_service_page_bp', 'Vista de Página Servicio'),
+
+            # Utils
+            'src.api.utils.get_cities_api': ('get_cities_bp', 'Utils: Obtener Ciudades'),
+            'src.api.utils.register_user_api': ('register_user_bp', 'Registro de Usuario Base')
+        }
+
+        for path, info in modulos.items():
+            safe_import_and_register(path, info[0], info[1])
+
+        # --- 4. REGISTRO DEL CONTENEDOR EN LA APP ---
         app.register_blueprint(api_bp, url_prefix='/api')
-        
-        print("✅ LOG: Estructura jerárquica de Blueprints completada.")
+        print("\n✅ LOG: Estructura de Blueprints anclada a /api")
 
-        # --- 4. VERIFICACIÓN DE MAPA DE RUTAS Y MÉTODOS ---
-        print("\n🔍 INSPECCIÓN DE RUTAS BAJO '/api':")
-        routes_found = 0
+        # --- 5. INSPECCIÓN FINAL DE RUTAS ---
+        print("\n🔍 VERIFICACIÓN DE MAPA DE RUTAS:")
         for rule in app.url_map.iter_rules():
-            rule_str = str(rule)
-            if rule_str.startswith('/api'):
-                status_icon = "📍"
-                # Verificamos si la ruta objetivo tiene OPTIONS habilitado
-                if "/ciudades" in rule_str:
-                    methods = list(rule.methods)
-                    if "OPTIONS" in methods:
-                        status_icon = "⭐ [OK: OPTIONS DETECTADO]"
-                    else:
-                        status_icon = "⚠️ [ERROR: NO OPTIONS]"
-                
-                print(f"   {status_icon} RUTA: {rule_str.ljust(35)} | Métodos: {list(rule.methods)}")
-                routes_found += 1
-        
-        print(f"\n📊 Total de endpoints registrados satisfactoriamente: {routes_found}")
+            if "/api/ciudades" in str(rule):
+                status = "⭐ [ACTIVA]" if "OPTIONS" in rule.methods else "⚠️ [FALTA OPTIONS]"
+                print(f"   {status} {rule.rule} -> {rule.endpoint} | Métodos: {list(rule.methods)}")
 
     except Exception as e:
-        print(f"❌ ERROR CRÍTICO en register_api: {str(e)}")
-        import traceback
+        print(f"🔥 ERROR CRÍTICO TOTAL en register_api: {str(e)}")
         traceback.print_exc()
 
-    print("="*60 + "\n")
+    print("\n" + "="*60 + "\n")
