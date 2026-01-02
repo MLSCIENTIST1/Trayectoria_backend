@@ -1,19 +1,20 @@
 import logging
 from flask import Blueprint
 
-# Crear el Blueprint principal
+# Crear el Blueprint principal que agrupará a todos los demás
 api_bp = Blueprint('api', __name__)
 
 def register_api(app):
     """
-    Registra todos los Blueprints en la aplicación Flask con LOGS DE SEGUIMIENTO.
+    Registra todos los Blueprints en la aplicación Flask con trazabilidad completa.
     """
-    print("\n" + "="*50)
-    print("LOG: Iniciando Registro de Rutas API...")
-    print("="*50)
+    print("\n" + "="*60)
+    print("🚀 LOG: Iniciando Proceso de Registro de Rutas API")
+    print("="*60)
 
     try:
-        # --- IMPORTACIONES EXISTENTES ---
+        # --- 1. IMPORTACIONES DE BLUEPRINTS ---
+        # Agrupados por módulos para mayor orden
         from .auth.auth_api import auth_api_bp
         from .auth.close_sesion_api import close_sesion_bp
         from .auth.init_sesion_api import init_sesion_bp
@@ -33,7 +34,6 @@ def register_api(app):
         from .contracts.create_contract_api import create_contract_bp
 
         from .dashboard.dashboard_main_api import dashboard_main_bp
-
         from .inicio.index_api import index_bp
 
         from .notifications.accept_notification_api import accept_notification_bp
@@ -64,12 +64,12 @@ def register_api(app):
         from .utils.get_cities_api import get_cities_bp
         from .utils.register_user_api import register_user_bp
 
-        # --- NUEVA IMPORTACIÓN: NEGOCIO ---
-        print("LOG: Importando negocio_api_bp...")
+        # --- MÓDULO NEGOCIO ---
+        print("📝 LOG: Cargando módulo de Negocio...")
         from .negocio.negocio_api import negocio_api_bp 
 
-        # --- REGISTRO EN API_BP ---
-        blueprints_to_register = [
+        # --- 2. REGISTRO COLECTIVO EN EL PARENT BLUEPRINT (api_bp) ---
+        blueprints = [
             auth_api_bp, close_sesion_bp, init_sesion_bp, password_bp,
             calificaciones_recibidas_contractor_bp, calificaciones_recibidas_hiree_bp,
             calificar_bp, rate_contractor_bp, rate_hiree_bp,
@@ -82,29 +82,34 @@ def register_api(app):
             count_total_service_bp, delete_principal_service_bp, delete_service_bp,
             edit_service_bp, filter_service_results_bp, publish_service_bp,
             search_service_autocomplete_bp, total_service_bp, view_service_page_bp,
-            get_cities_bp, register_user_bp, negocio_api_bp  # <--- Aquí está el nuevo
+            get_cities_bp, register_user_bp, negocio_api_bp
         ]
 
-        for bp in blueprints_to_register:
+        for bp in blueprints:
             api_bp.register_blueprint(bp)
         
-        # Registrar el Blueprint principal en la aplicación con prefijo /api
+        # --- 3. REGISTRO FINAL EN LA APP CON PREFIJO GLOBAL ---
+        # Este es el único lugar donde debe definirse '/api'
         app.register_blueprint(api_bp, url_prefix='/api')
         
-        print("✅ LOG: Todos los Blueprints se registraron en app.register_blueprint(url_prefix='/api')")
+        print("✅ LOG: Estructura jerárquica de Blueprints completada.")
 
-        # --- LOG DE INSPECCIÓN DE RUTAS ---
-        print("\n🔍 LOG: Verificando rutas registradas bajo '/api':")
-        count = 0
+        # --- 4. VERIFICACIÓN DE MAPA DE RUTAS ---
+        print("\n🔍 MAPA DE RUTAS DETECTADO:")
+        routes_found = 0
         for rule in app.url_map.iter_rules():
-            if rule.rule.startswith('/api'):
-                print(f"   [RUTA ACTIVA] -> {rule.rule}")
-                count += 1
-        print(f"📊 Total de rutas API detectadas: {count}")
+            if str(rule).startswith('/api'):
+                print(f"   📍 RUTA: {rule}")
+                routes_found += 1
+        
+        if routes_found == 0:
+            print("⚠️ ADVERTENCIA: No se detectaron rutas bajo el prefijo '/api'.")
+        else:
+            print(f"📊 Total de endpoints registrados satisfactoriamente: {routes_found}")
 
     except Exception as e:
-        print(f"❌ LOG ERROR: Fallo crítico al registrar Blueprints: {str(e)}")
+        print(f"❌ ERROR CRÍTICO: No se pudieron registrar las APIs: {str(e)}")
         import traceback
         traceback.print_exc()
 
-    print("="*50 + "\n")
+    print("="*60 + "\n")
