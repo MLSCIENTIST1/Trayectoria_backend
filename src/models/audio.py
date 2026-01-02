@@ -5,11 +5,19 @@ from src.models.database import db
 class Audio(db.Model):
     __tablename__ = 'audios'
 
-    id_audio = db.Column(db.Integer, primary_key=True)
-    url = db.Column(db.String(200), nullable=False)
-    etapa_id = db.Column(db.Integer, db.ForeignKey('etapas.id_etapa'), nullable=False)
+    id_audio = Column(Integer, primary_key=True)
+    url = Column(String(200), nullable=False)
+    etapa_id = Column(Integer, ForeignKey('etapas.id_etapa'), nullable=False)
+
+    # Relación con Etapa
+    etapa = relationship("Etapa", back_populates="audios")
 
     def __repr__(self):
         return f"<Audio {self.url}>"
-    # Relación con Etapa
-    etapa = relationship("Etapa", back_populates="audios")
+
+    def serialize(self):
+        return {
+            "id_audio": self.id_audio,
+            "url": self.url,
+            "etapa_id": self.etapa_id
+        }
