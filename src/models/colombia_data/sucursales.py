@@ -1,34 +1,42 @@
 from src.models.database import db
 from datetime import datetime
-from sqlalchemy.dialects.postgresql import JSON  # O usa db.JSON si usas SQLite/MySQL moderno
+import sqlalchemy as sa
 
 class Sucursal(db.Model):
+    """
+    Modelo para la gestión de sucursales de un negocio.
+    Incluye almacenamiento flexible de personal mediante JSON.
+    """
     __tablename__ = 'sucursales'
     
-    id_sucursal = db.Column(db.Integer, primary_key=True)
-    nombre_sucursal = db.Column(db.String(100), nullable=False)
-    direccion = db.Column(db.String(200))
-    telefono = db.Column(db.String(20))
-    ciudad = db.Column(db.String(100))
-    departamento = db.Column(db.String(100))
-    codigo_postal = db.Column(db.String(20))
+    # 1. Identificación y Ubicación
+    id_sucursal = sa.Column(sa.Integer, primary_key=True)
+    nombre_sucursal = sa.Column(sa.String(100), nullable=False)
+    direccion = sa.Column(sa.String(200))
+    telefono = sa.Column(sa.String(20))
+    ciudad = sa.Column(sa.String(100))
+    departamento = sa.Column(sa.String(100))
+    codigo_postal = sa.Column(sa.String(20))
     
-    activo = db.Column(db.Boolean, default=True)
-    es_principal = db.Column(db.Boolean, default=False)
-    fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
+    # 2. Estado y Control
+    activo = sa.Column(sa.Boolean, default=True)
+    es_principal = sa.Column(sa.Boolean, default=False)
+    fecha_registro = sa.Column(sa.DateTime, default=datetime.utcnow)
     
-    # --- ALMACENAMIENTO DE PERSONAL (Estructura flexible) ---
-    # Almacena listas de objetos: [{"nombre": "...", "identificacion": "..."}]
-    cajeros = db.Column(db.JSON, default=[])
-    administradores = db.Column(db.JSON, default=[])
+    # 3. Personal (Uso de JSON para flexibilidad en PostgreSQL)
+    # Almacena: [{"nombre": "Ana", "identificacion": "123"}, ...]
+    cajeros = sa.Column(sa.JSON, default=list, server_default='[]')
+    administradores = sa.Column(sa.JSON, default=list, server_default='[]')
     
-    # LLAVE FORÁNEA: Conecta con la tabla de negocios
-    negocio_id = db.Column(db.Integer, db.ForeignKey('negocios.id_negocio'), nullable=False)
+    # 4. Relación con Negocio
+    # IMPORTANTE: Apunta a 'negocios.id_negocio', que es la PK corregida en negocio.py
+    negocio_id = sa.Column(sa.Integer, sa.ForeignKey('negocios.id_negocio', ondelete='CASCADE'), nullable=False)
 
     def to_dict(self):
-        """Convierte el objeto en un diccionario para respuestas API JSON"""
+        """Convierte el modelo a diccionario para respuestas JSON de la API"""
         return {
             "id": self.id_sucursal,
+            "id_sucursal": self.id_sucursal,
             "nombre_sucursal": self.nombre_sucursal,
             "direccion": self.direccion,
             "telefono": self.telefono,
@@ -37,8 +45,11 @@ class Sucursal(db.Model):
             "codigo_postal": self.codigo_postal,
             "activo": self.activo,
             "es_principal": self.es_principal,
-            "cajeros": self.cajeros,
-            "administradores": self.administradores,
+            "cajeros": self.cajeros if self.cajeros is not None else [],
+            "administradores": self.administradores if self.administradores is not None else [],
             "negocio_id": self.negocio_id,
             "fecha_registro": self.fecha_registro.isoformat() if self.fecha_registro else None
         }
+
+    def __repr__(self):
+        return f'<Sucursal {self.nombre_sucursal} - Negocio ID {self.negocio_id}>'
