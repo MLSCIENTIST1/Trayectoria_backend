@@ -1,32 +1,33 @@
 import logging
 import traceback
+import sys
 from flask import Blueprint
 
-# Crear el Blueprint contenedor de la API
+# Crear el Blueprint contenedor principal
 api_bp = Blueprint('api', __name__)
 
 def register_api(app):
     """
     Registra todos los Blueprints en la aplicación Flask con trazabilidad completa.
-    Implementa un sistema de tolerancia a fallos para evitar que un error de importación
-    detenga el registro de otras rutas críticas.
+    Implementa un sistema de tolerancia a fallos para evitar que errores en módulos 
+    secundarios bloqueen rutas críticas como Negocio o Auth.
     """
     print("\n" + "🚀" * 20)
     print("INICIANDO REGISTRO SEGURO DE RUTAS API")
     print("🚀" * 20)
 
-    # 1. Función auxiliar para intentar registros sin romper el flujo principal
     def safe_import_and_register(module_path, bp_name, display_name, unique_name=None):
         try:
-            # Importación dinámica del módulo
+            # Importación dinámica
             module = __import__(module_path, fromlist=[bp_name])
             blueprint = getattr(module, bp_name)
             
             # Registro en el api_bp principal
+            # Usamos unique_name para evitar colisiones de nombres de endpoints en Flask
             if unique_name:
-                api_bp.register_blueprint(blueprint, name=unique_name)
+                app.register_blueprint(blueprint, url_prefix='/api', name=unique_name)
             else:
-                api_bp.register_blueprint(blueprint)
+                app.register_blueprint(blueprint, url_prefix='/api')
                 
             print(f"✅ [OK] {display_name}")
             return True
@@ -35,8 +36,8 @@ def register_api(app):
             return False
 
     try:
-        # --- 2. MÓDULO DE NEGOCIO (PRIORIDAD ALTA) ---
-        # Lo registramos primero con un nombre único para evitar que colisione con /ciudades de utils
+        # --- 1. MÓDULO DE NEGOCIO (PRIORIDAD ALTA) ---
+        # Registrado con nombre único 'negocio_refactor' para evitar choques con rutas de ciudades viejas
         print("\n--- Cargando Módulos de Negocio ---")
         safe_import_and_register(
             'src.api.negocio.negocio_api', 
@@ -45,20 +46,21 @@ def register_api(app):
             'negocio_refactor'
         )
 
-        # --- 3. CARGA DEL RESTO DE MÓDULOS ---
-        print("\n--- Cargando Otros Módulos ---")
-        
-        # Diccionario de módulos a cargar: { 'Ruta del módulo': ('Nombre del BP', 'Nombre descriptivo') }
-        modulos = {
-            # Auth
+        # --- 2. CARGA DE MÓDULOS DE AUTENTICACIÓN ---
+        print("\n--- Cargando Autenticación ---")
+        auth_modulos = {
             'src.api.auth.auth_api': ('auth_api_bp', 'Autenticación Principal'),
             'src.api.auth.close_sesion_api': ('close_sesion_bp', 'Cierre de Sesión'),
             'src.api.auth.init_sesion_api': ('init_sesion_bp', 'Inicio de Sesión'),
             'src.api.auth.password_api': ('password_bp', 'Gestión de Password'),
+        }
+        for path, info in auth_modulos.items():
+            safe_import_and_register(path, info[0], info[1])
 
-            # Calificaciones (Donde estaba el error crítico)
-            'src.api.calificaciones.calificaciones_received_contractor_api': ('calificaciones_recibidas_contractor_bp', 'Calific. Recibidas Contractor'),
-            'src.api.calificaciones.calificaciones_received_hiree_api': ('calificaciones_recibidas_hiree_bp', 'Calific. Recibidas Hiree'),
+        # --- 3. RESTO DE MÓDULOS ---
+        print("\n--- Cargando Otros Módulos ---")
+        otros_modulos = {
+            # Calificaciones
             'src.api.calificaciones.calificar_api': ('calificar_bp', 'Acción Calificar'),
             
             # Contratos y Candidatos
@@ -80,23 +82,22 @@ def register_api(app):
             'src.api.services.view_service_page_bp': ('view_service_page_bp', 'Vista de Página Servicio'),
 
             # Utils
-            'src.api.utils.get_cities_api': ('get_cities_bp', 'Utils: Obtener Ciudades'),
             'src.api.utils.register_user_api': ('register_user_bp', 'Registro de Usuario Base')
         }
 
-        for path, info in modulos.items():
+        for path, info in otros_modulos.items():
             safe_import_and_register(path, info[0], info[1])
 
-        # --- 4. REGISTRO DEL CONTENEDOR EN LA APP ---
-        app.register_blueprint(api_bp, url_prefix='/api')
-        print("\n✅ LOG: Estructura de Blueprints anclada a /api")
+        print("\n✅ LOG: Todos los Blueprints disponibles registrados en /api")
 
-        # --- 5. INSPECCIÓN FINAL DE RUTAS ---
+        # --- 4. INSPECCIÓN FINAL DE RUTAS ---
+        # Esto te permite ver en la consola de Render qué rutas están activas
         print("\n🔍 VERIFICACIÓN DE MAPA DE RUTAS:")
         for rule in app.url_map.iter_rules():
-            if "/api/ciudades" in str(rule):
-                status = "⭐ [ACTIVA]" if "OPTIONS" in rule.methods else "⚠️ [FALTA OPTIONS]"
-                print(f"   {status} {rule.rule} -> {rule.endpoint} | Métodos: {list(rule.methods)}")
+            if "/api/" in str(rule):
+                # Marcamos nuestras rutas objetivo con una estrella
+                objetivo = "⭐" if any(x in str(rule) for x in ["mis_negocios", "ciudades", "sucursal"]) else "  "
+                print(f" {objetivo} {rule.rule} -> {rule.endpoint} | Métodos: {list(rule.methods)}")
 
     except Exception as e:
         print(f"🔥 ERROR CRÍTICO TOTAL en register_api: {str(e)}")
