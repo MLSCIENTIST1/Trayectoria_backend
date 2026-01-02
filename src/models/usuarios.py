@@ -6,7 +6,7 @@ from flask_login import UserMixin
 from src.models.usuario_servicio import usuario_servicio
 
 class Usuario(db.Model, UserMixin):
-    # IMPORTANTE: Cambiado a 'usuarios' (plural) para coincidir con la FK de Negocio
+    # IMPORTANTE: Cambiado a 'usuarios' (plural) para coincidir con todas las FKs corregidas
     __tablename__ = "usuarios"
 
     # 1. Columnas Principales
@@ -30,22 +30,28 @@ class Usuario(db.Model, UserMixin):
     ciudad_id = Column(Integer, ForeignKey('colombia.ciudad_id'), nullable=True)
     ciudad_rel = relationship("Colombia", backref="usuarios_en_ciudad")
 
-    # 4. Otras Relaciones
-    # Nota: Asegúrate de que los modelos Notification, MonetizationManagement, etc., 
-    # estén importados en el __init__.py de modelos para evitar errores de mapeo.
+    # 4. Relaciones Sincronizadas
+    
+    # Notificaciones (Asegúrate de que el modelo Notification use 'receiver' y 'sender' en back_populates)
     received_notifications = relationship("Notification", foreign_keys='Notification.user_id', back_populates='receiver')
     sent_notifications = relationship("Notification", foreign_keys='Notification.sender_id', back_populates='sender')
     
     # Relación muchos a muchos con Servicios
     servicios = relationship("Servicio", secondary=usuario_servicio, back_populates="usuarios", lazy='select')
     
-    # Relaciones específicas de contratos
+    # Relaciones específicas de contratos (Sincronizadas con Servicio.py)
     servicios_como_contratante = relationship("Servicio", foreign_keys="[Servicio.id_contratante]", back_populates="contratante")
     servicios_como_contratado = relationship("Servicio", foreign_keys="[Servicio.id_contratado]", back_populates="contratado")
     
+    # Monetización (Sincronizada con monetization_management.py)
     monetizaciones = relationship("MonetizationManagement", back_populates="usuario", cascade="all, delete-orphan")
+    
+    # Calificaciones (Sincronizada con service_ratings.py)
     calificaciones = relationship('ServiceRatings', back_populates='usuario')
-    received_feedbacks = relationship("Feedback", back_populates="usuario", cascade="all, delete-orphan", lazy='dynamic')
+    
+    # ✅ CORRECCIÓN FINAL: Nombre cambiado de 'received_feedbacks' a 'feedbacks' 
+    # para que coincida con back_populates="feedbacks" en colombia_feedbacks.py
+    feedbacks = relationship("Feedback", back_populates="usuario", cascade="all, delete-orphan")
 
     def __init__(self, nombre, apellidos, correo, profesion, cedula, celular, ciudad, validate=False, black_list=False):
         self.nombre = nombre
