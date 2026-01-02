@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from src.models.database import db
@@ -12,16 +12,30 @@ logger.debug("Modelo Feedback cargado correctamente.")
 class Feedback(db.Model):
     __tablename__ = "feedback"
 
-    id_feedback = db.Column(db.Integer, primary_key=True)
-    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id_usuario', ondelete='CASCADE'), nullable=True)  # Usuario que envió el feedback
-    rol_usuario = db.Column(db.String(50), nullable=True)  # Rol del usuario: Contratante/Contratado
-
-    tipo_feedback = db.Column(db.String(50), nullable=False)  # Tipo de feedback: Sugerencia, Error, Queja
-    descripcion = db.Column(db.Text, nullable=False)  # Contenido del feedback
-
-    fecha_envio = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)  # Fecha y hora de envío
-    estado = db.Column(db.String(50), nullable=False, default="Pendiente")  # Estado actual del feedback
-    prioridad = db.Column(db.String(50), nullable=True)  # Opcional: Nivel de prioridad
-
-    usuario = relationship("Usuario", back_populates="received_feedbacks", lazy="joined")
+    id_feedback = Column(Integer, primary_key=True)
     
+    # ✅ CORRECCIÓN: Apuntar a 'usuarios.id_usuario' (plural)
+    usuario_id = Column(Integer, ForeignKey('usuarios.id_usuario', ondelete='CASCADE'), nullable=True)
+    
+    rol_usuario = Column(String(50), nullable=True)  # Rol del usuario: Contratante/Contratado
+    tipo_feedback = Column(String(50), nullable=False)  # Tipo: Sugerencia, Error, Queja
+    descripcion = Column(Text, nullable=False)  # Contenido del feedback
+
+    fecha_envio = Column(DateTime, default=datetime.utcnow, nullable=False)
+    estado = Column(String(50), nullable=False, default="Pendiente")
+    prioridad = Column(String(50), nullable=True)
+
+    # ✅ CORRECCIÓN: Asegurar que back_populates coincida con la relación en Usuario
+    usuario = relationship("Usuario", back_populates="feedbacks", lazy="joined")
+
+    def serialize(self):
+        return {
+            "id_feedback": self.id_feedback,
+            "tipo": self.tipo_feedback,
+            "descripcion": self.descripcion,
+            "estado": self.estado,
+            "fecha": self.fecha_envio.isoformat()
+        }
+
+# Importación al final para evitar ciclos
+from src.models.usuarios import Usuario
