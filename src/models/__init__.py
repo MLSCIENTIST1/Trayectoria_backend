@@ -14,7 +14,7 @@ from src.models.colombia_data.ratings.service_qualifiers import ServiceQualifier
 from src.models.colombia_data.colombia_data import Colombia
 from src.models.colombia_data.colombia_feedbacks import Feedback
 from src.models.colombia_data.monetization_management import MonetizationManagement
-from src.models.colombia_data.sucursales import Sucursales
+from src.models.colombia_data.sucursales import Sucursal
 
 # NUEVO: Importación del modelo Negocio que recreamos
 from src.models.colombia_data.negocio import Negocio
@@ -42,5 +42,5 @@ __all__ = [
     "ServiceQualifiers",
     "Feedback",
     "MonetizationManagement"
-    "sucursales"
+    "sucursal"
 ]
