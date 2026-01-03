@@ -41,14 +41,15 @@ def register_api(app):
             return True
         except Exception as e:
             print(f"❌ [FALLO] {display_name}: No se pudo cargar. Error: {str(e)}")
-            # traceback.print_exc() # Descomentar para depuración profunda
+            # Descomentar para una depuración más profunda
+            # traceback.print_exc()
             return False
 
     try:
         # --- 1. MÓDULO DE NEGOCIO Y CATÁLOGO (PRIORIDAD ALTA) ---
         print("\n--- Cargando Módulos de Negocio y Catálogo ---")
 
-        # CORRECCIÓN: Usar la ruta de importación correcta con el subdirectorio 'negocio'
+        # CORRECCIÓN: La ruta correcta a los módulos de negocio y catálogo
         safe_import_and_register(
             'src.api.negocio.negocio_api',
             'negocio_api_bp',
@@ -56,7 +57,6 @@ def register_api(app):
             'negocio_refactor'
         )
 
-        # CORRECCIÓN: Usar la ruta de importación correcta para el catálogo
         safe_import_and_register(
             'src.api.negocio.catalogo_api',
             'catalogo_api_bp',
@@ -72,7 +72,7 @@ def register_api(app):
             'src.api.auth.init_sesion_api': ('init_sesion_bp', 'Inicio de Sesión'),
             'src.api.auth.password_api': ('password_bp', 'Gestión de Password'),
         }
-        # CORRECCIÓN: Se accede al índice correcto de la tupla (info[1]) para evitar el TypeError
+        # CORRECCIÓN: Corregido el error de tipeo que causaba el TypeError
         for path, info in auth_modulos.items():
             safe_import_and_register(path, info[0], info[1])
 
