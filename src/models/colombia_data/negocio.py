@@ -7,7 +7,6 @@ class Negocio(db.Model):
     __tablename__ = 'negocios'
 
     # 1. Columnas Principales
-    # Se cambia 'id' por 'id_negocio' para que coincida con la ForeignKey de Sucursales
     id_negocio = sa.Column(sa.Integer, primary_key=True)
     nombre_negocio = sa.Column(sa.String(150), nullable=False)
     descripcion = sa.Column(sa.Text, nullable=True)
@@ -15,15 +14,24 @@ class Negocio(db.Model):
     telefono = sa.Column(sa.String(20), nullable=True)
     categoria = sa.Column(sa.String(100), nullable=True) 
     
+    # --- NUEVOS CAMPOS PARA "MI PÁGINA" ---
+    # tiene_pagina: Controla si se muestra el badge verde en tu dashboard
+    tiene_pagina = sa.Column(sa.Boolean, default=False)
+    # plantilla_id: Guarda el ID de la plantilla elegida (p1, p2, p3)
+    plantilla_id = sa.Column(sa.String(50), nullable=True)
+    # slug: El nombre único para la URL (ej: 'rodar' para /sitio/rodar)
+    slug = sa.Column(sa.String(100), unique=True, nullable=True)
+    # color_tema: Por si el usuario quiere personalizar el color de su página
+    color_tema = sa.Column(sa.String(20), default="#4cd137")
+    # --------------------------------------
+
     # 2. Claves Foráneas (Foreign Keys)
     ciudad_id = sa.Column(sa.Integer, sa.ForeignKey('colombia.ciudad_id'), nullable=False)
     usuario_id = sa.Column(sa.Integer, sa.ForeignKey('usuarios.id_usuario'), nullable=False)
     
-    # Usamos func.now() o datetime.utcnow para mayor precisión
     fecha_registro = sa.Column(sa.DateTime, default=datetime.utcnow)
 
     # 3. Relaciones (Relationships)
-    # Importante: El back_populates es preferible a backref en SQLAlchemy moderno
     ciudad = relationship(
         "Colombia", 
         foreign_keys=[ciudad_id]
@@ -34,7 +42,7 @@ class Negocio(db.Model):
         foreign_keys=[usuario_id]
     )
 
-    # Relación inversa con sucursales (opcional pero recomendada)
+    # Relación inversa con sucursales
     sucursales = relationship("Sucursal", backref="negocio", cascade="all, delete-orphan")
 
     def __repr__(self):
@@ -48,7 +56,7 @@ class Negocio(db.Model):
             nombre_ciudad = "Error al cargar ciudad"
 
         return {
-            "id": self.id_negocio, # Mantenemos la llave "id" para el JSON del frontend
+            "id": self.id_negocio,
             "id_negocio": self.id_negocio,
             "nombre_negocio": self.nombre_negocio,
             "descripcion": self.descripcion,
@@ -57,5 +65,12 @@ class Negocio(db.Model):
             "categoria": self.categoria,
             "ciudad_id": self.ciudad_id,
             "nombre_ciudad": nombre_ciudad,
-            "fecha_registro": self.fecha_registro.strftime('%Y-%m-%d') if self.fecha_registro else None
+            "fecha_registro": self.fecha_registro.strftime('%Y-%m-%d') if self.fecha_registro else None,
+            
+            # Datos de la página web
+            "tiene_pagina": self.tiene_pagina,
+            "plantilla_id": self.plantilla_id,
+            "slug": self.slug,
+            "color_tema": self.color_tema,
+            "url_sitio": f"/sitio/{self.slug}" if self.slug else None
         }
