@@ -30,13 +30,13 @@ def register_api(app):
             # Importación dinámica
             module = __import__(module_path, fromlist=[bp_name])
             blueprint = getattr(module, bp_name)
-            
+
             # Registro en el app con prefijo /api
             if unique_name:
                 app.register_blueprint(blueprint, url_prefix='/api', name=unique_name)
             else:
                 app.register_blueprint(blueprint, url_prefix='/api')
-                
+
             print(f"✅ [OK] {display_name}")
             return True
         except Exception as e:
@@ -47,20 +47,20 @@ def register_api(app):
     try:
         # --- 1. MÓDULO DE NEGOCIO Y CATÁLOGO (PRIORIDAD ALTA) ---
         print("\n--- Cargando Módulos de Negocio y Catálogo ---")
-        
-        # CORRECCIÓN: Apuntar al módulo correcto 'src.api.negocio_api'
+
+        # CORRECCIÓN: Usar la ruta de importación correcta con el subdirectorio 'negocio'
         safe_import_and_register(
-            'src.api.negocio_api', 
-            'negocio_api_bp', 
-            'Módulo Negocio (Ciudades/Registro)', 
+            'src.api.negocio.negocio_api',
+            'negocio_api_bp',
+            'Módulo Negocio (Ciudades/Registro)',
             'negocio_refactor'
         )
 
-        # CORRECCIÓN: Apuntar al mismo módulo para el catálogo
+        # CORRECCIÓN: Usar la ruta de importación correcta para el catálogo
         safe_import_and_register(
-            'src.api.negocio_api', 
-            'catalogo_api_bp', 
-            'Módulo Catálogo (Productos/Inyección)', 
+            'src.api.negocio.catalogo_api',
+            'catalogo_api_bp',
+            'Módulo Catálogo (Productos/Inyección)',
             'catalogo_service'
         )
 
