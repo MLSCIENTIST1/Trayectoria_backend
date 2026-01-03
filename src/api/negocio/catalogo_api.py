@@ -1,6 +1,7 @@
 import cloudinary
 import cloudinary.uploader
 from flask import Blueprint, request, jsonify
+from flask_cors import cross_origin
 from src.models.database import db
 from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo
 from flask_login import login_required, current_user
@@ -27,11 +28,13 @@ def health_check():
     return jsonify({"status": "online", "module": "catalogo"}), 200
 
 # --- 1. RUTA PARA GUARDAR PRODUCTO ---
-# Se agregan ambas variantes para evitar el error 404 del registro dinámico
-@catalogo_api_bp.route('/producto/guardar', methods=['POST'])
-@catalogo_api_bp.route('/api/producto/guardar', methods=['POST'])
+@catalogo_api_bp.route('/producto/guardar', methods=['POST', 'OPTIONS'])
+@catalogo_api_bp.route('/api/producto/guardar', methods=['POST', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
 @login_required
 def guardar_producto():
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
     try:
         # Extraemos datos del Formulario
         nombre = request.form.get('nombre')
@@ -90,9 +93,12 @@ def guardar_producto():
         return jsonify({"success": False, "message": f"Error en servidor: {str(e)}"}), 500
 
 # --- 2. RUTA PARA OBTENER CATÁLOGO PÚBLICO ---
-@catalogo_api_bp.route('/publico/<int:negocio_id>', methods=['GET'])
-@catalogo_api_bp.route('/api/publico/<int:negocio_id>', methods=['GET'])
+@catalogo_api_bp.route('/publico/<int:negocio_id>', methods=['GET', 'OPTIONS'])
+@catalogo_api_bp.route('/api/publico/<int:negocio_id>', methods=['GET', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
 def obtener_catalogo_publico(negocio_id):
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
     try:
         productos = ProductoCatalogo.query.filter_by(
             negocio_id=negocio_id, 
@@ -103,10 +109,13 @@ def obtener_catalogo_publico(negocio_id):
         return jsonify({"success": False, "message": str(e)}), 500
 
 # --- 3. RUTA PARA ELIMINAR PRODUCTO ---
-@catalogo_api_bp.route('/producto/eliminar/<int:id_producto>', methods=['DELETE'])
-@catalogo_api_bp.route('/api/producto/eliminar/<int:id_producto>', methods=['DELETE'])
+@catalogo_api_bp.route('/producto/eliminar/<int:id_producto>', methods=['DELETE', 'OPTIONS'])
+@catalogo_api_bp.route('/api/producto/eliminar/<int:id_producto>', methods=['DELETE', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
 @login_required
 def eliminar_producto(id_producto):
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
     try:
         # Seguridad: solo el dueño puede borrarlo
         prod = ProductoCatalogo.query.filter_by(
