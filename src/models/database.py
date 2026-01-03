@@ -6,8 +6,14 @@ import configparser
 import sys
 import os
 
-# 1. Instancias globales
-db = SQLAlchemy()
+# 1. Instancias globales con SOPORTE PARA RECONEXIÓN
+# Añadimos engine_options para evitar el error "SSL connection has been closed unexpectedly"
+db = SQLAlchemy(engine_options={
+    "pool_pre_ping": True,    # Verifica si la conexión está viva antes de cada consulta
+    "pool_recycle": 280,      # Cierra conexiones inactivas antes de que Render/Neon las corte (300s)
+    "pool_size": 10,          # Mantiene un grupo base de conexiones
+    "max_overflow": 20        # Permite conexiones extra en picos de tráfico
+})
 migrate = Migrate()
 
 # 2. Función para leer la configuración
@@ -19,7 +25,7 @@ def read_config(file_path):
     config.read(file_path, encoding='utf-8')
     return config
 
-# 3. DINÁMICO: Obtener la ruta del archivo database.conf en la carpeta actual
+# 3. DINÁMICO: Obtener la ruta del archivo database.conf
 basedir = os.path.abspath(os.path.dirname(__file__))
 config_path = os.path.join(basedir, 'database.conf')
 
@@ -32,25 +38,30 @@ if config:
     password = config['database']['password']
     database = config['database']['database']
     
-    # IMPORTANTE: Agregamos sslmode=require para Neon Cloud
+    # IMPORTANTE: Aseguramos el esquema postgresql:// y el sslmode=require
+    # Neon Cloud requiere sslmode para mantener la estabilidad
     DATABASE_URL = f"postgresql://{user}:{password}@{host}/{database}?sslmode=require"
 else:
-    print("❌ No se pudo cargar la configuración de la base de datos.")
-    sys.exit(1)
+    # Fallback para variables de entorno (útil en Render si no encuentra el .conf)
+    DATABASE_URL = os.environ.get("DATABASE_URL")
+    if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    
+    if not DATABASE_URL:
+        print("❌ No se pudo cargar la configuración de la base de datos (.conf o ENV).")
+        sys.exit(1)
 
-# 5. Probar conexión inicial (Opcional pero útil)
+# 5. Probar conexión inicial
 try:
-    # Usamos la URL completa con SSL para la prueba
-    engine = psycopg2.connect(DATABASE_URL)
-    print(f"✅ Conexión exitosa a Neon: {host}")
-    engine.close()
+    engine_test = psycopg2.connect(DATABASE_URL)
+    print(f"✅ Conexión exitosa a la DB: {host}")
+    engine_test.close()
 except Exception as e:
-    print(f"⚠️ Nota: No se pudo conectar vía psycopg2 directamente: {e}")
+    print(f"⚠️ Nota: Prueba de conexión directa falló (pero Flask puede funcionar): {e}")
 
-# 6. Crear la base de datos (Solo para Local, en Neon suele dar error de permisos)
+# 6. Crear la base de datos (Local únicamente)
 def create_database():
     if 'localhost' not in host and '127.0.0.1' not in host:
-        print("☁️ [INFO]: Saltando creación de DB (Estás en la nube de Neon).")
         return
 
     print("🏠 [LOCAL]: Verificando base de datos local...")
@@ -73,6 +84,9 @@ def create_database():
 def init_app(app):
     app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # Vinculación de instancias
     db.init_app(app)
     migrate.init_app(app, db)
-    print("🚀 Base de datos y migraciones configuradas correctamente.")
+    
+    print("🚀 Base de datos inicializada con Pool Management (Pre-Ping habilitado).")
