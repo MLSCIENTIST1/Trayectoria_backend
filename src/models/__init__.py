@@ -1,3 +1,4 @@
+# Modelos Base
 from .notification import Notification
 from .servicio import Servicio
 from .message import Message
@@ -15,9 +16,11 @@ from src.models.colombia_data.colombia_data import Colombia
 from src.models.colombia_data.colombia_feedbacks import Feedback
 from src.models.colombia_data.monetization_management import MonetizationManagement
 from src.models.colombia_data.sucursales import Sucursal
-
-# NUEVO: Importación del modelo Negocio que recreamos
 from src.models.colombia_data.negocio import Negocio
+
+# --- NUEVOS: Módulos de Catálogo BizFlow ---
+from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo
+from src.models.colombia_data.catalogo.producto import Producto
 
 # Configuración de base de datos
 from src.models.database import db, init_app, DATABASE_URL
@@ -36,11 +39,13 @@ __all__ = [
     "Audio",
     "Video",
     "Colombia",
-    "Negocio",  # Agregado a la lista de exportación
+    "Negocio",
+    "Sucursal",
+    "ProductoCatalogo",  # Agregado para persistencia en DB
+    "Producto",          # Agregado para persistencia en DB
     "ServiceRatings",
     "ServiceOverallScores",
     "ServiceQualifiers",
     "Feedback",
     "MonetizationManagement"
-    "sucursal"
 ]

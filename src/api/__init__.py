@@ -13,7 +13,7 @@ def register_api(app):
     secundarios bloqueen rutas críticas como Negocio o Auth.
     """
     print("\n" + "🚀" * 20)
-    print("INICIANDO REGISTRO SEGURO DE RUTAS API")
+    print("INICIANDO REGISTRO SEGURO DE RUTAS API - BIZFLOW STUDIO")
     print("🚀" * 20)
 
     def safe_import_and_register(module_path, bp_name, display_name, unique_name=None):
@@ -36,14 +36,23 @@ def register_api(app):
             return False
 
     try:
-        # --- 1. MÓDULO DE NEGOCIO (PRIORIDAD ALTA) ---
-        # Registrado con nombre único 'negocio_refactor' para evitar choques con rutas de ciudades viejas
-        print("\n--- Cargando Módulos de Negocio ---")
+        # --- 1. MÓDULO DE NEGOCIO Y CATÁLOGO (PRIORIDAD ALTA) ---
+        print("\n--- Cargando Módulos de Negocio y Catálogo ---")
+        
+        # Módulo de Negocio Principal
         safe_import_and_register(
             'src.api.negocio.negocio_api', 
             'negocio_api_bp', 
             'Módulo Negocio (Ciudades/Registro)', 
             'negocio_refactor'
+        )
+
+        # NUEVO: Módulo de Catálogo e Inyección de Productos
+        safe_import_and_register(
+            'src.api.negocio.catalogo_api', 
+            'catalogo_api_bp', 
+            'Módulo Catálogo (Productos/Inyección)', 
+            'catalogo_service'
         )
 
         # --- 2. CARGA DE MÓDULOS DE AUTENTICACIÓN ---
@@ -91,12 +100,11 @@ def register_api(app):
         print("\n✅ LOG: Todos los Blueprints disponibles registrados en /api")
 
         # --- 4. INSPECCIÓN FINAL DE RUTAS ---
-        # Esto te permite ver en la consola de Render qué rutas están activas
         print("\n🔍 VERIFICACIÓN DE MAPA DE RUTAS:")
         for rule in app.url_map.iter_rules():
             if "/api/" in str(rule):
-                # Marcamos nuestras rutas objetivo con una estrella
-                objetivo = "⭐" if any(x in str(rule) for x in ["mis_negocios", "ciudades", "sucursal"]) else "  "
+                # Marcamos rutas de negocio y catálogo con estrella para fácil identificación
+                objetivo = "⭐" if any(x in str(rule) for x in ["catalogo", "producto", "negocio", "sucursal"]) else "  "
                 print(f" {objetivo} {rule.rule} -> {rule.endpoint} | Métodos: {list(rule.methods)}")
 
     except Exception as e:
