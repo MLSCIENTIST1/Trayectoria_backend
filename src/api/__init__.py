@@ -75,7 +75,7 @@ def register_api(app):
             'src.api.auth.password_api': ('password_bp', 'Gestión de Password'),
         }
         for path, info in auth_modulos.items():
-            safe_import_and_register(path, info[0], info[info[1] if isinstance(info[1], str) else 1])
+            safe_import_and_register(path, info[0], info[1])
 
         # --- 3. RESTO DE MÓDULOS ---
         print("\n--- Cargando Otros Módulos ---")
