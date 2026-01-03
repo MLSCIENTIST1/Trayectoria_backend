@@ -28,7 +28,7 @@ from src.models.colombia_data.sucursales import Sucursal
 
 # ✅ NUEVAS IMPORTACIONES: Modelos de Catálogo para BizFlow
 from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo
-from src.models.colombia_data.catalogo.producto import Producto
+
 
 logger = logging.getLogger(__name__)
 

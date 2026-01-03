@@ -20,7 +20,7 @@ from src.models.colombia_data.negocio import Negocio
 
 # --- NUEVOS: Módulos de Catálogo BizFlow ---
 from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo
-from src.models.colombia_data.catalogo.producto import Producto
+
 
 # Configuración de base de datos
 from src.models.database import db, init_app, DATABASE_URL
@@ -42,7 +42,6 @@ __all__ = [
     "Negocio",
     "Sucursal",
     "ProductoCatalogo",  # Agregado para persistencia en DB
-    "Producto",          # Agregado para persistencia en DB
     "ServiceRatings",
     "ServiceOverallScores",
     "ServiceQualifiers",
