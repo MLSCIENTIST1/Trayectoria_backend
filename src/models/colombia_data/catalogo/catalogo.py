@@ -1,3 +1,4 @@
+
 from src.models.database import db
 from datetime import datetime
 import sqlalchemy as sa
@@ -9,7 +10,6 @@ class ProductoCatalogo(db.Model):
 
     # Identificadores Únicos
     id_producto = sa.Column(sa.Integer, primary_key=True)
-    referencia_sku = sa.Column(sa.String(100), nullable=True) # Para inventarios
 
     # Información del Producto
     nombre = sa.Column(sa.String(150), nullable=False)
@@ -38,7 +38,6 @@ class ProductoCatalogo(db.Model):
         """Convierte el modelo a un diccionario para respuestas JSON (API)"""
         return {
             "id": self.id_producto,
-            "sku": self.referencia_sku,
             "nombre": self.nombre,
             "descripcion": self.descripcion,
             "precio": self.precio,
