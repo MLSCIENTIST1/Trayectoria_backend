@@ -32,8 +32,6 @@ def register_api(app):
             blueprint = getattr(module, bp_name)
             
             # Registro en el app con prefijo /api
-            # IMPORTANTE: Al usar url_prefix='/api', todas las rutas del blueprint
-            # se sumarán a este prefijo. Ej: /api + /producto/guardar
             if unique_name:
                 app.register_blueprint(blueprint, url_prefix='/api', name=unique_name)
             else:
@@ -43,24 +41,24 @@ def register_api(app):
             return True
         except Exception as e:
             print(f"❌ [FALLO] {display_name}: No se pudo cargar. Error: {str(e)}")
+            # Imprimir el traceback completo para más detalles en caso de fallo
+            # traceback.print_exc()
             return False
 
     try:
         # --- 1. MÓDULO DE NEGOCIO Y CATÁLOGO (PRIORIDAD ALTA) ---
         print("\n--- Cargando Módulos de Negocio y Catálogo ---")
         
-        # Módulo de Negocio Principal
+        # Usamos rutas de importación relativas para mayor robustez
         safe_import_and_register(
-            'src.api.negocio_api', 
-            'catalogo_api_bp', 
+            'src.api.negocio.negocio_api', 
+            'negocio_api_bp', 
             'Módulo Negocio (Ciudades/Registro)', 
             'negocio_refactor'
         )
 
-        # Módulo de Catálogo e Inyección de Productos
-        # Este es el que define /producto/guardar
         safe_import_and_register(
-            'src.api.negocio_api', 
+            'src.api.negocio.catalogo_api', 
             'catalogo_api_bp', 
             'Módulo Catálogo (Productos/Inyección)', 
             'catalogo_service'
@@ -74,6 +72,7 @@ def register_api(app):
             'src.api.auth.init_sesion_api': ('init_sesion_bp', 'Inicio de Sesión'),
             'src.api.auth.password_api': ('password_bp', 'Gestión de Password'),
         }
+        # CORRECCIÓN: Se accede al índice correcto de la tupla (info[1])
         for path, info in auth_modulos.items():
             safe_import_and_register(path, info[0], info[1])
 
@@ -98,12 +97,12 @@ def register_api(app):
             safe_import_and_register(path, info[0], info[1])
 
         # --- 4. INSPECCIÓN FINAL DE RUTAS ---
-        print("\n🔍 VERIFICACIÓN DE MAPA DE RUTAS:")
+        print("\n" + "="*25 + "\n🔍 MAPA DE RUTAS REGISTRADO (Inspección de Arranque):")
         for rule in app.url_map.iter_rules():
             if "/api/" in str(rule):
-                # Marcamos rutas clave con estrella
-                objetivo = "⭐" if any(x in str(rule) for x in ["catalogo", "producto", "negocio", "sucursal"]) else "  "
-                print(f" {objetivo} {rule.rule} -> {rule.endpoint} | Métodos: {list(rule.methods)}")
+                objetivo = "⭐" if any(x in str(rule) for x in ["catalogo", "producto", "negocio", "auth", "login"]) else "  "
+                print(f"   {objetivo} {rule.rule} -> {rule.endpoint} | Métodos: {sorted(list(rule.methods))}")
+        print("="*60 + "\n")
 
     except Exception as e:
         print(f"🔥 ERROR CRÍTICO TOTAL en register_api: {str(e)}")
