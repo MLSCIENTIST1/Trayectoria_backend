@@ -1,7 +1,7 @@
 import logging
 import traceback
 import sys
-from flask import Blueprint
+from flask import Blueprint, jsonify
 
 # Crear el Blueprint contenedor principal
 api_bp = Blueprint('api', __name__)
@@ -16,14 +16,24 @@ def register_api(app):
     print("INICIANDO REGISTRO SEGURO DE RUTAS API - BIZFLOW STUDIO")
     print("🚀" * 20)
 
+    # --- 0. RUTA DE SALUD GLOBAL (Para el Monitor de Telemetría) ---
+    @app.route('/api/health', methods=['GET'])
+    def global_health():
+        return jsonify({
+            "status": "online",
+            "message": "BizFlow Core Engine is running",
+            "environment": "production/render"
+        }), 200
+
     def safe_import_and_register(module_path, bp_name, display_name, unique_name=None):
         try:
             # Importación dinámica
             module = __import__(module_path, fromlist=[bp_name])
             blueprint = getattr(module, bp_name)
             
-            # Registro en el api_bp principal
-            # Usamos unique_name para evitar colisiones de nombres de endpoints en Flask
+            # Registro en el app con prefijo /api
+            # IMPORTANTE: Al usar url_prefix='/api', todas las rutas del blueprint
+            # se sumarán a este prefijo. Ej: /api + /producto/guardar
             if unique_name:
                 app.register_blueprint(blueprint, url_prefix='/api', name=unique_name)
             else:
@@ -47,7 +57,8 @@ def register_api(app):
             'negocio_refactor'
         )
 
-        # NUEVO: Módulo de Catálogo e Inyección de Productos
+        # Módulo de Catálogo e Inyección de Productos
+        # Este es el que define /producto/guardar
         safe_import_and_register(
             'src.api.negocio.catalogo_api', 
             'catalogo_api_bp', 
@@ -64,46 +75,33 @@ def register_api(app):
             'src.api.auth.password_api': ('password_bp', 'Gestión de Password'),
         }
         for path, info in auth_modulos.items():
-            safe_import_and_register(path, info[0], info[1])
+            safe_import_and_register(path, info[0], info[info[1] if isinstance(info[1], str) else 1])
 
         # --- 3. RESTO DE MÓDULOS ---
         print("\n--- Cargando Otros Módulos ---")
         otros_modulos = {
-            # Calificaciones
             'src.api.calificaciones.calificar_api': ('calificar_bp', 'Acción Calificar'),
-            
-            # Contratos y Candidatos
             'src.api.candidates.details_candidate_api': ('details_candidate_bp', 'Detalles Candidato'),
             'src.api.contracts.create_contract_api': ('create_contract_bp', 'Creación de Contratos'),
             'src.api.contracts.contract_vigent_api': ('contract_vigent_bp', 'Contratos Vigentes'),
-
-            # Notificaciones
             'src.api.notifications.notifications_api': ('notifications_bp', 'Módulo Notificaciones'),
             'src.api.notifications.chat_api': ('chat_bp', 'Sistema de Chat'),
-
-            # Perfil
             'src.api.profile.view_logged_user_api': ('view_logged_user_bp', 'Ver Usuario Logueado'),
             'src.api.profile.edit_profile_api': ('edit_profile_bp', 'Editar Perfil'),
-
-            # Servicios
             'src.api.services.publish_service_api': ('publish_service_bp', 'Publicar Servicio'),
             'src.api.services.search_service_autocomplete_api': ('search_service_autocomplete_bp', 'Búsqueda Autocomplete'),
             'src.api.services.view_service_page_bp': ('view_service_page_bp', 'Vista de Página Servicio'),
-
-            # Utils
             'src.api.utils.register_user_api': ('register_user_bp', 'Registro de Usuario Base')
         }
 
         for path, info in otros_modulos.items():
             safe_import_and_register(path, info[0], info[1])
 
-        print("\n✅ LOG: Todos los Blueprints disponibles registrados en /api")
-
         # --- 4. INSPECCIÓN FINAL DE RUTAS ---
         print("\n🔍 VERIFICACIÓN DE MAPA DE RUTAS:")
         for rule in app.url_map.iter_rules():
             if "/api/" in str(rule):
-                # Marcamos rutas de negocio y catálogo con estrella para fácil identificación
+                # Marcamos rutas clave con estrella
                 objetivo = "⭐" if any(x in str(rule) for x in ["catalogo", "producto", "negocio", "sucursal"]) else "  "
                 print(f" {objetivo} {rule.rule} -> {rule.endpoint} | Métodos: {list(rule.methods)}")
 
