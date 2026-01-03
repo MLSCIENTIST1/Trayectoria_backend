@@ -1,5 +1,6 @@
 import traceback
 from flask import Blueprint, jsonify
+from flask_cors import CORS
 
 # Blueprint principal de la API
 api_bp = Blueprint('api', __name__)
@@ -8,6 +9,9 @@ def register_api(app):
     """
     Registra de forma segura todos los Blueprints en la aplicación Flask.
     """
+    # Aplica CORS a toda la aplicación, permitiendo credenciales
+    CORS(app, supports_credentials=True)
+
     print("\n🚀 Iniciando registro de rutas API...")
 
     # Ruta de salud global
