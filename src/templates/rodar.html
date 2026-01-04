@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="Electromechanics Pro - Herramientas de diagnóstico y soluciones para talleres.">
+    <meta name="author" content="Rodar">
+    <title>Electromechanics Pro | Equipando tu Taller</title>
+
+    <link rel="icon" href="../../assets/css/electromechanics/imgs/Rodar.png" type="image/png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="../../assets/css/electromechanics/css/electromechanics.css">
+</head>
+
+<body data-spy="scroll" data-target=".navbar" data-offset="40" id="inicio">
+
+    <nav class="custom-navbar navbar navbar-expand-lg navbar-dark fixed-top" data-spy="affix" data-offset-top="10">
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav">
+                <li class="nav-item"><a class="nav-link" href="#inicio">Inicio</a></li>
+                <li class="nav-item"><a class="nav-link" href="#acerca">Acerca de</a></li>
+                <li class="nav-item"><a class="nav-link" href="#galeria">Productos</a></li>
+            </ul>
+            
+            <a class="navbar-brand m-auto" href="#">
+                <img src="../../assets/css/electromechanics/imgs/Rodar.png" class="brand-img" alt="Logo">
+                <span class="brand-txt">Electromechanics</span>
+            </a>
+
+            <ul class="navbar-nav">
+                <li class="nav-item"><a class="nav-link" href="#blog">Ofertas</a></li>
+                <li class="nav-item"><a class="nav-link" href="#contacto">Contacto</a></li>
+                <li class="nav-item">
+                    <a href="#contacto" class="btn btn-primary ml-xl-4">Cotizar Ahora</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <header class="header">
+        <div class="overlay text-white text-center">
+            <h1 class="display-4 font-weight-bold my-3">Rodar</h1>
+            <h3 class="mb-5 font-weight-light">Equipando talleres, impulsando soluciones profesionales.</h3>
+            <p class="lead mb-5">(Nuestra plataforma oficial está en construcción para brindarte la mejor experiencia)</p>
+            <a class="btn btn-lg btn-primary" href="#galeria">Explorar Catálogo</a>
+        </div>
+    </header>
+
+    <section id="acerca" class="container-fluid py-5">
+        <div class="row align-items-center">
+            <div class="col-lg-6 has-img-bg" style="background-image: url('../../assets/css/electromechanics/imgs/taller-bg.jpg'); min-height: 400px;"></div>
+            <div class="col-lg-6 px-5">
+                <h2 class="section-title mb-4">Potenciamos tu trabajo</h2>
+                <p>En <b>Rodar</b>, nos especializamos en la venta de herramientas de alta precisión para talleres mecánicos, eléctricos y de reparación diésel.</p>
+                <p>Nuestra misión es proporcionar productos confiables y de alta tecnología...</p>
+                <p class="font-weight-bold text-primary">🚗🔧 Electromechanics Pro – Tu aliado en cada diagnóstico.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="blog" class="container py-5 text-center">
+        <h2 class="section-title mb-5">OFERTAS DE TEMPORADA</h2>
+        <div class="row justify-content-center" id="contenedor-ofertas">
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0">
+                    <img src="../../assets/css/electromechanics/imgs/blog-1.jpg" class="card-img-top" alt="Cargando...">
+                    <div class="card-body text-dark">
+                        <p>Cargando catálogo...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="py-4 bg-dark text-white text-center">
+        <p class="mb-0">&copy; 2025 Electromechanics Pro | Una marca de <b>Rodar Ledger</b></p>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+    /**
+     * MOTOR DE RENDERIZADO BIZFLOW
+     * Este script conecta el LocalStorage con la interfaz de Rodar
+     */
+    document.addEventListener('DOMContentLoaded', function() {
+        const bizKey = 'catalogo_rodar'; // Llave exacta definida en el panel
+        const contenedor = document.getElementById('contenedor-ofertas');
+
+        function cargarCatalogo() {
+            const datosStr = localStorage.getItem(bizKey);
+            
+            if (datosStr) {
+                try {
+                    const productos = JSON.parse(datosStr);
+                    
+                    if (productos.length > 0) {
+                        contenedor.innerHTML = ''; // Limpiar el "Cargando..."
+                        
+                        productos.forEach(prod => {
+                            const html = `
+                                <div class="col-md-4 mb-4">
+                                    <div class="card shadow-sm border-0 h-100">
+                                        <img src="${prod.img}" class="card-img-top" alt="${prod.nombre}" onerror="this.src='../../assets/css/electromechanics/imgs/blog-1.jpg'">
+                                        <div class="card-body text-dark d-flex flex-column">
+                                            <span class="badge badge-success mb-2 w-50 mx-auto">En Stock</span>
+                                            <h4 class="card-title">${prod.nombre}</h4>
+                                            <h2 class="text-primary font-weight-bold">${prod.precio}</h2>
+                                            <div class="mt-auto">
+                                                <a href="https://wa.me/573058916907?text=Hola! Me interesa el producto: ${prod.nombre}" 
+                                                   class="btn btn-outline-primary btn-block" target="_blank">
+                                                   Pedir por WhatsApp
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>`;
+                            contenedor.innerHTML += html;
+                        });
+                        console.log("✅ Catálogo sincronizado con éxito.");
+                    }
+                } catch (e) {
+                    console.error("❌ Error al procesar el catálogo inyectado:", e);
+                }
+            } else {
+                console.warn("⚠️ No se encontró catálogo inyectado para 'rodar'. Usando valores por defecto.");
+            }
+        }
+
+        // Ejecutar carga inicial
+        cargarCatalogo();
+
+        // Escuchar si el usuario cambia algo en la otra pestaña (BizFlow)
+        window.addEventListener('storage', (e) => {
+            if (e.key === bizKey) {
+                console.log("🔄 Cambio detectado en BizFlow, actualizando...");
+                cargarCatalogo();
+            }
+        });
+    });
+    </script>
+</body>
+</html>
