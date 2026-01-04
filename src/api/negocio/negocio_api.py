@@ -41,18 +41,68 @@ def get_ciudades():
         logger.error(f"🔥 ERROR en /ciudades: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# --- 2. REGISTRAR NEGOCIO ---
+# --- 2. CONFIGURACIÓN DE PÁGINA (NUEVO) ---
+@negocio_api_bp.route('/configuracion-pagina/<int:negocio_id>', methods=['GET', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+@login_required
+def obtener_configuracion_pagina(negocio_id):
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+    try:
+        # Validamos que el negocio pertenezca al usuario
+        negocio = Negocio.query.filter_by(id_negocio=negocio_id, usuario_id=current_user.id_usuario).first()
+        if not negocio:
+            return jsonify({"success": False, "error": "Negocio no encontrado"}), 404
+        
+        return jsonify({
+            "success": True,
+            "has_page": getattr(negocio, 'tiene_pagina', False),
+            "slug": getattr(negocio, 'slug', None),
+            "plantilla_id": getattr(negocio, 'plantilla_id', None)
+        }), 200
+    except Exception as e:
+        logger.error(f"🔥 ERROR en /configuracion-pagina: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@negocio_api_bp.route('/publicar-pagina', methods=['POST', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+@login_required
+def publicar_pagina():
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+    try:
+        data = request.get_json()
+        negocio_id = data.get('id_negocio')
+        plantilla_id = data.get('plantilla_id')
+
+        negocio = Negocio.query.filter_by(id_negocio=negocio_id, usuario_id=current_user.id_usuario).first()
+        if not negocio:
+            return jsonify({"success": False, "error": "No autorizado"}), 403
+
+        # Actualizamos datos de publicación
+        negocio.tiene_pagina = True
+        negocio.plantilla_id = plantilla_id
+        
+        # Generar slug simple si no tiene uno
+        if not getattr(negocio, 'slug', None):
+            negocio.slug = negocio.nombre_negocio.lower().replace(" ", "-")
+
+        db.session.commit()
+        return jsonify({"success": True, "slug": negocio.slug}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# --- 3. REGISTRAR NEGOCIO ---
 @negocio_api_bp.route('/registrar_negocio', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 @login_required 
 def registrar_negocio():
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
-    
     try:
         data = request.get_json()
         logger.info(f"📩 Registro negocio: {data.get('nombre_negocio')}")
-        
         nuevo_negocio = Negocio(
             nombre_negocio=data.get('nombre_negocio'),
             categoria=data.get('tipo_negocio') or data.get('categoria'), 
@@ -64,27 +114,22 @@ def registrar_negocio():
         )
         db.session.add(nuevo_negocio)
         db.session.commit()
-        
         return jsonify({"status": "success", "id": nuevo_negocio.id_negocio}), 201
     except Exception as e:
         db.session.rollback()
         logger.error(f"🔥 ERROR en /registrar_negocio: {str(e)}")
         return jsonify({"error": "No se pudo guardar", "details": str(e)}), 500
 
-# --- 3. OBTENER MIS NEGOCIOS ---
-# Se añade 'OPTIONS' explícitamente para evitar el 404 de CORS
+# --- 4. OBTENER MIS NEGOCIOS ---
 @negocio_api_bp.route('/mis_negocios', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 @login_required
 def obtener_mis_negocios():
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
-        
     try:
         logger.debug(f"👤 Buscando negocios para usuario ID: {current_user.id_usuario}")
         negocios = Negocio.query.filter_by(usuario_id=current_user.id_usuario).all()
-        
-        # Usamos el método serialize() del modelo Negocio
         resultado = [n.serialize() for n in negocios]
         logger.info(f"📋 Enviando {len(resultado)} negocios.")
         return jsonify(resultado), 200
@@ -92,26 +137,22 @@ def obtener_mis_negocios():
         logger.error(f"🔥 ERROR en /mis_negocios: {str(e)}")
         return jsonify({"error": "Error al obtener negocios"}), 500
 
-# --- 4. REGISTRAR SUCURSAL ---
+# --- 5. REGISTRAR SUCURSAL ---
 @negocio_api_bp.route('/registrar_sucursal', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 @login_required
 def registrar_sucursal():
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
-
     try:
         data = request.get_json()
-        logger.info(f"📩 Datos recibidos sucursal: {data}")
-
         negocio_id = data.get('negocio_id')
         if not negocio_id:
             return jsonify({"error": "ID de negocio requerido"}), 400
 
-        # Validación de propiedad
         negocio = Negocio.query.filter_by(id_negocio=negocio_id, usuario_id=current_user.id_usuario).first()
         if not negocio:
-            return jsonify({"error": "No autorizado para este negocio"}), 403
+            return jsonify({"error": "No autorizado"}), 403
 
         nueva_sucursal = Sucursal(
             nombre_sucursal=data.get('nombre_sucursal'),
@@ -122,23 +163,16 @@ def registrar_sucursal():
             codigo_postal=data.get('codigo_postal'),
             activo=data.get('activo', True),
             es_principal=data.get('es_principal', False),
-            cajeros=data.get('cashiers', []),           
-            administradores=data.get('administrators', []), 
             negocio_id=int(negocio_id)
         )
-
         db.session.add(nueva_sucursal)
         db.session.commit()
-
-        logger.info(f"✅ Sucursal registrada: {nueva_sucursal.id_sucursal}")
         return jsonify({"status": "success", "id": nueva_sucursal.id_sucursal}), 201
-
     except Exception as e:
         db.session.rollback()
-        logger.error(f"🔥 ERROR CRÍTICO en /registrar_sucursal: {str(e)}")
         return jsonify({"error": "Error interno", "details": str(e)}), 500
 
-# --- 5. OBTENER SUCURSALES ---
+# --- 6. OBTENER SUCURSALES ---
 @negocio_api_bp.route('/negocios/<int:negocio_id>/sucursales', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 @login_required
@@ -149,7 +183,6 @@ def obtener_sucursales(negocio_id):
         negocio = Negocio.query.filter_by(id_negocio=negocio_id, usuario_id=current_user.id_usuario).first()
         if not negocio:
             return jsonify({"error": "Acceso denegado"}), 403
-
         sucursales = Sucursal.query.filter_by(negocio_id=negocio_id).all()
         return jsonify([s.to_dict() for s in sucursales]), 200
     except Exception as e:
