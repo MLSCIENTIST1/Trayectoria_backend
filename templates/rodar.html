@@ -12,9 +12,26 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/rodar.css') }}">
 
     <style>
-        /* Estilo extra para resaltar los enlaces en el mensaje emergente */
-        .modal-body a { font-weight: bold; color: #007bff; text-decoration: underline; }
-        .modal-header { background-color: #007bff; color: white; }
+        /* Mejoras estéticas para el Modal */
+        .modal-content { border-radius: 15px; border: none; overflow: hidden; }
+        .modal-header { background: linear-gradient(45deg, #007bff, #0056b3); color: white; border: none; }
+        .modal-body { font-size: 1.05rem; line-height: 1.6; }
+        .social-card { 
+            display: flex; 
+            align-items: center; 
+            padding: 15px; 
+            margin-bottom: 10px; 
+            border-radius: 10px; 
+            border: 1px solid #e9ecef; 
+            transition: all 0.3s ease;
+            text-decoration: none !important;
+            color: #333 !important;
+        }
+        .social-card:hover { background-color: #f8f9fa; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .social-icon { font-size: 2rem; margin-right: 15px; }
+        .facebook-color { color: #1877F2; }
+        .messenger-color { color: #00B2FF; }
+        .highlight-box { background-color: #f0f7ff; border-left: 4px solid #007bff; padding: 15px; border-radius: 0 8px 8px 0; margin-bottom: 20px; }
     </style>
 </head>
 
@@ -22,23 +39,41 @@
 
     <div class="modal fade" id="mensajeBienvenida" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" role="document">
-            <div class="modal-content">
+            <div class="modal-content shadow-lg">
                 <div class="modal-header">
-                    <h5 class="modal-title">¡Hola! Bienvenido a Rodar</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true" style="color: white;">&times;</span>
+                    <h5 class="modal-title font-weight-bold"><i class="fas fa-hand-holding-heart mr-2"></i> ¡Bienvenido a la familia Rodar!</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
                 <div class="modal-body text-dark">
-                    <p>Si estás ingresando a nuestra web <b>Rodar</b> es porque ya has comprado con nosotros y queremos recordarte que es de vital importancia que en el chat de <b>Messenger</b> nos dejes la calificación de nuestro servicio, ya que es fundamental para seguir creciendo como emprendedores.</p>
-                    <hr>
-                    <p>Te invitamos a unirte a nuestro grupo de <b>Facebook</b> para compartir tu experiencia:</p>
-                    <p><a href="https://www.facebook.com/groups/1572269854195768" target="_blank"><i class="fab fa-facebook-square"></i> Grupo Oficial Rodar</a> (¡Publica una foto con tu producto recibido!)</p>
-                    <p>También síguenos en nuestra página oficial:</p>
-                    <p><a href="https://www.facebook.com/profile.php?id=61584734677591" target="_blank"><i class="fab fa-facebook"></i> Página Oficial Rodar</a></p>
+                    <p>Hola, es un placer saludarte. Si estás aquí es porque ya has confiado en nosotros para equipar tu taller, ¡y eso lo valoramos muchísimo!</p>
+                    
+                    <div class="highlight-box">
+                        <p class="mb-0"><b>¿Nos regalas un minuto?</b><br>
+                        Como emprendedores, tu opinión es nuestro motor. Por favor, déjanos tu calificación en el chat de <b>Messenger</b>. Tu feedback es fundamental para seguir creciendo y ofreciéndote lo mejor.</p>
+                    </div>
+
+                    <p class="font-weight-bold mb-3">Únete a nuestra comunidad activa:</p>
+                    
+                    <a href="https://www.facebook.com/groups/1572269854195768" target="_blank" class="social-card">
+                        <i class="fab fa-facebook-messenger social-icon messenger-color"></i>
+                        <div>
+                            <span class="d-block font-weight-bold">Grupo de Facebook</span>
+                            <small class="text-muted">¡Comparte una foto de tu pedido y ayuda a otros colegas!</small>
+                        </div>
+                    </a>
+
+                    <a href="https://www.facebook.com/profile.php?id=61584734677591" target="_blank" class="social-card">
+                        <i class="fab fa-facebook social-icon facebook-color"></i>
+                        <div>
+                            <span class="d-block font-weight-bold">Página Oficial Rodar</span>
+                            <small class="text-muted">Síguenos para lanzamientos y ofertas exclusivas.</small>
+                        </div>
+                    </a>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" data-dismiss="modal">Entendido, gracias</button>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="button" class="btn btn-primary btn-block py-2 font-weight-bold" data-dismiss="modal">¡Entendido, cuenta con ello!</button>
                 </div>
             </div>
         </div>
@@ -86,7 +121,7 @@
             <div class="col-lg-6 px-5">
                 <h2 class="section-title mb-4">Potenciamos tu trabajo</h2>
                 <p>En <b>Rodar</b>, nos especializamos en la venta de herramientas de alta precisión para talleres mecánicos, eléctricos y de reparación diésel.</p>
-                <p>Nuestra misión es proporcionar productos confiables y de alta tecnología para el diagnóstico automotriz.</p>
+                <p>Nuestra misión es proporcionar productos confiables y de alta tecnología para el diagnóstico automotriz profesional.</p>
                 <p class="font-weight-bold text-primary">🚗🔧 Electromechanics Pro – Tu aliado en cada diagnóstico.</p>
             </div>
         </div>
@@ -112,10 +147,10 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // 1. Mostrar el mensaje emergente automáticamente al cargar
+        // 1. Mostrar el modal automáticamente
         $('#mensajeBienvenida').modal('show');
 
-        // 2. Configuración del Catálogo BizFlow
+        // 2. Lógica del Catálogo
         const bizKey = 'catalogo_rodar'; 
         const contenedor = document.getElementById('contenedor-ofertas');
         const fallbackImg = "{{ url_for('static', filename='imgs/blog-1.jpg') }}";
@@ -137,12 +172,12 @@
                                         <img src="${prod.img}" class="card-img-top" alt="${prod.nombre}" onerror="this.src='${fallbackImg}'">
                                         <div class="card-body text-dark d-flex flex-column">
                                             <span class="badge badge-success mb-2 w-50 mx-auto">En Stock</span>
-                                            <h4 class="card-title">${prod.nombre}</h4>
-                                            <h2 class="text-primary font-weight-bold">${prod.precio}</h2>
-                                            <div class="mt-auto">
+                                            <h5 class="card-title font-weight-bold">${prod.nombre}</h5>
+                                            <h3 class="text-primary font-weight-bold">${prod.precio}</h3>
+                                            <div class="mt-auto pt-3">
                                                 <a href="https://wa.me/573058916907?text=Hola! Me interesa el producto: ${prod.nombre}" 
-                                                   class="btn btn-outline-primary btn-block" target="_blank">
-                                                    Pedir por WhatsApp
+                                                   class="btn btn-outline-primary btn-block font-weight-bold" target="_blank">
+                                                    <i class="fab fa-whatsapp"></i> Pedir por WhatsApp
                                                 </a>
                                             </div>
                                         </div>
@@ -150,19 +185,19 @@
                                 </div>`;
                             contenedor.innerHTML += html;
                         });
-                        console.log("✅ Catálogo sincronizado.");
+                        console.log("✅ Catálogo Rodar actualizado.");
                     }
                 } catch (e) {
-                    console.error("❌ Error en JSON:", e);
+                    console.error("❌ Error procesando el catálogo:", e);
                 }
             } else {
-                contenedor.innerHTML = '<p class="text-muted">Explora nuestras soluciones en el catálogo principal.</p>';
+                contenedor.innerHTML = '<p class="text-muted">Explora nuestro catálogo completo de herramientas profesionales.</p>';
             }
         }
 
         cargarCatalogo();
 
-        // Escuchar cambios en tiempo real si el usuario actualiza el catálogo desde el panel
+        // Escuchar cambios de BizFlow
         window.addEventListener('storage', (e) => {
             if (e.key === bizKey) cargarCatalogo();
         });
