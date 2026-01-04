@@ -10,95 +10,133 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <style>
-        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .navbar-catalogo { background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.1); sticky-top; }
-        .btn-back { color: #333; font-size: 1.2rem; }
-        
-        .hero-catalogo { background: #1a1a1a; color: white; padding: 40px 0; margin-bottom: 30px; text-align: center; }
-        
-        /* Buscador */
-        .search-box { margin-top: -30px; margin-bottom: 40px; }
+        body { background-color: #f4f7f6; font-family: 'Inter', sans-serif; }
+        .navbar-catalogo { background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .hero-catalogo { 
+            background: linear-gradient(135deg, #1a1a1a 0%, #333 100%); 
+            color: white; padding: 60px 0; text-align: center; 
+        }
+        .search-box { margin-top: -35px; z-index: 10; position: relative; }
         .search-input { 
-            border: none; border-radius: 50px; padding: 25px 30px; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1); font-size: 1.1rem; 
+            border: none; border-radius: 15px; padding: 28px 30px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); font-size: 1.1rem; 
         }
 
-        /* Tarjetas de Producto */
+        /* Card Estilo E-commerce */
         .product-card { 
-            border: none; border-radius: 15px; background: #fff; 
-            transition: 0.3s; height: 100%; overflow: hidden;
+            border: none; border-radius: 16px; background: #fff; 
+            transition: all 0.3s ease; height: 100%; display: flex; flex-direction: column;
         }
-        .product-card:hover { transform: translateY(-10px); box-shadow: 0 15px 30px rgba(0,0,0,0.15); }
-        .img-wrapper { height: 220px; background: #eee; overflow: hidden; }
-        .img-wrapper img { width: 100%; height: 100%; object-fit: cover; }
+        .product-card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
         
-        .price { color: #007bff; font-weight: 800; font-size: 1.5rem; }
+        .img-wrapper { height: 200px; overflow: hidden; border-radius: 16px 16px 0 0; background: #f9f9f9; }
+        .img-wrapper img { width: 100%; height: 100%; object-fit: cover; transition: 0.5s; }
+        .product-card:hover .img-wrapper img { scale: 1.1; }
+        
+        .card-body { padding: 1.2rem; display: flex; flex-direction: column; justify-content: space-between; flex-grow: 1; }
+        .product-title { font-size: 0.95rem; font-weight: 700; color: #2d3436; margin-bottom: 5px; }
+        .product-category { font-size: 0.75rem; color: #a0a0a0; text-transform: uppercase; letter-spacing: 1px; }
+        .price { color: #007bff; font-weight: 800; font-size: 1.3rem; margin: 10px 0; }
+        
         .btn-whatsapp { 
-            background: #25D366; color: white; font-weight: bold; 
-            border-radius: 50px; padding: 10px; border: none; 
+            background: #25D366; color: white; font-weight: bold; border-radius: 12px; 
+            padding: 12px; border: none; transition: 0.3s;
         }
-        .btn-whatsapp:hover { background: #128C7E; color: white; }
+        .btn-whatsapp:hover { background: #1eb954; color: white; box-shadow: 0 5px 15px rgba(37, 211, 102, 0.4); }
     </style>
 </head>
 <body>
 
     <nav class="navbar navbar-catalogo px-4 py-3">
-        <a href="{{ url_for('pagina_api_bp.ver_micrositio', slug=negocio.slug) }}" class="btn-back">
-            <i class="fas fa-chevron-left"></i> Volver a Inicio
+        <a href="{{ url_for('pagina_api_bp.ver_micrositio', slug=negocio.slug) }}" class="btn-back text-dark">
+            <i class="fas fa-arrow-left"></i> <span class="ml-2 font-weight-bold">Volver</span>
         </a>
-        <img src="{{ url_for('static', filename='imgs/Rodar.png') }}" height="40" alt="Logo">
+        <span class="navbar-brand mb-0 h1 ml-auto" style="font-size: 1.1rem;">{{ negocio.nombre_negocio }}</span>
     </nav>
 
     <header class="hero-catalogo">
         <div class="container">
-            <h1 class="font-weight-bold">Nuestro Catálogo</h1>
-            <p class="lead">Herramientas de diagnóstico profesional para tu taller</p>
+            <h1 class="display-4 font-weight-bold">Catálogo de Productos</h1>
+            <p class="lead opacity-75">Explora nuestras soluciones y herramientas disponibles</p>
         </div>
     </header>
 
     <div class="container">
         <div class="row justify-content-center search-box">
             <div class="col-md-8">
-                <input type="text" id="searchInput" class="form-control search-input" placeholder="🔍 ¿Qué herramienta estás buscando?">
+                <input type="text" id="searchInput" class="form-control search-input" placeholder="🔍 Buscar por nombre o categoría...">
             </div>
         </div>
 
-        <div class="row" id="productGrid">
+        <div class="row mt-5" id="productGrid">
             <div class="col-12 text-center py-5">
                 <div class="spinner-border text-primary" role="status"></div>
-                <p class="mt-2">Sincronizando con BizFlow Studio...</p>
+                <p class="mt-3 text-muted font-italic">Obteniendo productos actualizados de Neon DB...</p>
             </div>
         </div>
     </div>
 
     <footer class="py-5 bg-white text-center mt-5 border-top">
-        <p class="mb-0 text-muted small">© 2025 {{ negocio.nombre_negocio }} | Desarrollado por BizFlow</p>
+        <p class="mb-0 text-muted small">© 2026 {{ negocio.nombre_negocio }} | Powered by <strong>BizFlow Studio</strong></p>
     </footer>
 
     <script>
-        const bizKey = 'catalogo_rodar';
+        // CONFIGURACIÓN DINÁMICA DESDE FLASK
+        const NEGOCIO_ID = "{{ negocio.id_negocio }}";
+        const WHATSAPP_NEGOCIO = "{{ negocio.telefono or '573058916907' }}";
+        const API_URL = "https://trayectoria-backend.onrender.com/api";
+
         const grid = document.getElementById('productGrid');
         const input = document.getElementById('searchInput');
         let productosCache = [];
 
-        function renderizar(items) {
-            if (items.length === 0) {
-                grid.innerHTML = '<div class="col-12 text-center py-5"><i class="fas fa-tools fa-3x mb-3 text-muted"></i><h4>No se encontraron productos coincidentes.</h4></div>';
-                return;
-            }
+        // Formateador de moneda
+        const formatter = new Intl.NumberFormat('es-CO', {
+            style: 'currency',
+            currency: 'COP',
+            minimumFractionDigits: 0
+        });
 
+        async function cargarProductos() {
+            try {
+                // Consultamos al endpoint que filtra por negocio_id
+                const response = await fetch(`${API_URL}/productos/publicos/${NEGOCIO_ID}`);
+                const result = await response.json();
+
+                if (result.success && result.data.length > 0) {
+                    productosCache = result.data;
+                    renderizar(productosCache);
+                } else {
+                    grid.innerHTML = `
+                        <div class="col-12 text-center py-5">
+                            <i class="fas fa-box-open fa-4x text-muted mb-3"></i>
+                            <h4 class="text-muted">Aún no hay productos publicados.</h4>
+                        </div>`;
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                grid.innerHTML = '<div class="col-12 text-center py-5"><h4 class="text-danger">Error al conectar con el servidor.</h4></div>';
+            }
+        }
+
+        function renderizar(items) {
             grid.innerHTML = items.map(p => `
                 <div class="col-6 col-md-4 col-lg-3 mb-4">
                     <div class="product-card shadow-sm">
                         <div class="img-wrapper">
-                            <img src="${p.img}" alt="${p.nombre}" onerror="this.src='/static/imgs/blog-1.jpg'">
+                            <img src="${p.img || '/static/imgs/placeholder.png'}" 
+                                 alt="${p.nombre}" 
+                                 onerror="this.src='https://via.placeholder.com/300x200?text=Sin+Imagen'">
                         </div>
                         <div class="card-body">
-                            <h6 class="text-truncate font-weight-bold mb-1">${p.nombre}</h6>
-                            <p class="price mb-3">${p.precio}</p>
-                            <a href="https://wa.me/573058916907?text=Hola! Estoy viendo su catálogo y me interesa: ${p.nombre}" 
+                            <div>
+                                <span class="product-category">${p.categoria || 'General'}</span>
+                                <h6 class="product-title text-truncate">${p.nombre}</h6>
+                                <p class="price">${formatter.format(p.precio)}</p>
+                            </div>
+                            <a href="https://wa.me/${WHATSAPP_NEGOCIO}?text=Hola! Me interesa este producto de su catálogo: *${p.nombre}* (Ref: ${p.sku || 'N/A'})" 
                                target="_blank" class="btn btn-whatsapp btn-block">
-                                <i class="fab fa-whatsapp"></i> Consultar
+                                <i class="fab fa-whatsapp mr-1"></i> Consultar
                             </a>
                         </div>
                     </div>
@@ -106,23 +144,17 @@
             `).join('');
         }
 
-        function cargarDatos() {
-            const data = localStorage.getItem(bizKey);
-            if (data) {
-                productosCache = JSON.parse(data);
-                renderizar(productosCache);
-            } else {
-                grid.innerHTML = '<div class="col-12 text-center py-5"><h4>El catálogo está vacío o en mantenimiento.</h4></div>';
-            }
-        }
-
+        // Filtro de búsqueda en tiempo real
         input.addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
-            const filtrados = productosCache.filter(p => p.nombre.toLowerCase().includes(term));
+            const filtrados = productosCache.filter(p => 
+                p.nombre.toLowerCase().includes(term) || 
+                (p.categoria && p.categoria.toLowerCase().includes(term))
+            );
             renderizar(filtrados);
         });
 
-        document.addEventListener('DOMContentLoaded', cargarDatos);
+        document.addEventListener('DOMContentLoaded', cargarProductos);
     </script>
 </body>
 </html>
