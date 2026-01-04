@@ -7,10 +7,13 @@
     <meta name="author" content="Rodar">
     <title>Electromechanics Pro | Equipando tu Taller</title>
 
-    <link rel="icon" href="../../assets/css/electromechanics/imgs/Rodar.png" type="image/png">
+    <link rel="icon" href="{{ url_for('static', filename='imgs/Rodar.png') }}" type="image/png">
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="../../assets/css/electromechanics/css/electromechanics.css">
-</head>
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/rodar.css') }}">
+    
+    </head>
 
 <body data-spy="scroll" data-target=".navbar" data-offset="40" id="inicio">
 
@@ -27,7 +30,7 @@
             </ul>
             
             <a class="navbar-brand m-auto" href="#">
-                <img src="../../assets/css/electromechanics/imgs/Rodar.png" class="brand-img" alt="Logo">
+                <img src="{{ url_for('static', filename='imgs/Rodar.png') }}" class="brand-img" alt="Logo">
                 <span class="brand-txt">Electromechanics</span>
             </a>
 
@@ -52,7 +55,7 @@
 
     <section id="acerca" class="container-fluid py-5">
         <div class="row align-items-center">
-            <div class="col-lg-6 has-img-bg" style="background-image: url('../../assets/css/electromechanics/imgs/taller-bg.jpg'); min-height: 400px;"></div>
+            <div class="col-lg-6 has-img-bg" style="background-image: url('{{ url_for('static', filename='imgs/taller-bg.jpg') }}'); min-height: 400px;"></div>
             <div class="col-lg-6 px-5">
                 <h2 class="section-title mb-4">Potenciamos tu trabajo</h2>
                 <p>En <b>Rodar</b>, nos especializamos en la venta de herramientas de alta precisión para talleres mecánicos, eléctricos y de reparación diésel.</p>
@@ -67,7 +70,7 @@
         <div class="row justify-content-center" id="contenedor-ofertas">
             <div class="col-md-4">
                 <div class="card shadow-sm border-0">
-                    <img src="../../assets/css/electromechanics/imgs/blog-1.jpg" class="card-img-top" alt="Cargando...">
+                    <img src="{{ url_for('static', filename='imgs/blog-1.jpg') }}" class="card-img-top" alt="Cargando...">
                     <div class="card-body text-dark">
                         <p>Cargando catálogo...</p>
                     </div>
@@ -86,11 +89,11 @@
     <script>
     /**
      * MOTOR DE RENDERIZADO BIZFLOW
-     * Este script conecta el LocalStorage con la interfaz de Rodar
      */
     document.addEventListener('DOMContentLoaded', function() {
-        const bizKey = 'catalogo_rodar'; // Llave exacta definida en el panel
+        const bizKey = 'catalogo_rodar'; 
         const contenedor = document.getElementById('contenedor-ofertas');
+        const fallbackImg = "{{ url_for('static', filename='imgs/blog-1.jpg') }}";
 
         function cargarCatalogo() {
             const datosStr = localStorage.getItem(bizKey);
@@ -100,13 +103,13 @@
                     const productos = JSON.parse(datosStr);
                     
                     if (productos.length > 0) {
-                        contenedor.innerHTML = ''; // Limpiar el "Cargando..."
+                        contenedor.innerHTML = ''; 
                         
                         productos.forEach(prod => {
                             const html = `
                                 <div class="col-md-4 mb-4">
                                     <div class="card shadow-sm border-0 h-100">
-                                        <img src="${prod.img}" class="card-img-top" alt="${prod.nombre}" onerror="this.src='../../assets/css/electromechanics/imgs/blog-1.jpg'">
+                                        <img src="${prod.img}" class="card-img-top" alt="${prod.nombre}" onerror="this.src='${fallbackImg}'">
                                         <div class="card-body text-dark d-flex flex-column">
                                             <span class="badge badge-success mb-2 w-50 mx-auto">En Stock</span>
                                             <h4 class="card-title">${prod.nombre}</h4>
@@ -114,7 +117,7 @@
                                             <div class="mt-auto">
                                                 <a href="https://wa.me/573058916907?text=Hola! Me interesa el producto: ${prod.nombre}" 
                                                    class="btn btn-outline-primary btn-block" target="_blank">
-                                                   Pedir por WhatsApp
+                                                    Pedir por WhatsApp
                                                 </a>
                                             </div>
                                         </div>
@@ -128,17 +131,14 @@
                     console.error("❌ Error al procesar el catálogo inyectado:", e);
                 }
             } else {
-                console.warn("⚠️ No se encontró catálogo inyectado para 'rodar'. Usando valores por defecto.");
+                console.warn("⚠️ No se encontró catálogo inyectado.");
             }
         }
 
-        // Ejecutar carga inicial
         cargarCatalogo();
 
-        // Escuchar si el usuario cambia algo en la otra pestaña (BizFlow)
         window.addEventListener('storage', (e) => {
             if (e.key === bizKey) {
-                console.log("🔄 Cambio detectado en BizFlow, actualizando...");
                 cargarCatalogo();
             }
         });

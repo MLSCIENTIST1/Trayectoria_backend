@@ -25,10 +25,7 @@ from src.models.colombia_data.ratings.service_qualifiers import ServiceQualifier
 from src.models.colombia_data.ratings.service_ratings import ServiceRatings
 from src.models.colombia_data.negocio import Negocio 
 from src.models.colombia_data.sucursales import Sucursal 
-
-# ✅ NUEVAS IMPORTACIONES: Modelos de Catálogo para BizFlow
 from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo
-
 
 logger = logging.getLogger(__name__)
 
@@ -51,11 +48,22 @@ class Config:
 
 def create_app():
     logger.info("🚀 Iniciando la Factoría de la Aplicación")
-    app = Flask(__name__)
+    
+    # --- AJUSTE DE RUTAS RAÍZ ---
+    # Al estar este archivo en 'src/', subimos un nivel para encontrar /templates y /static en la raíz
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    
+    app = Flask(__name__, 
+                instance_relative_config=False,
+                root_path=base_dir, 
+                template_folder='templates',
+                static_folder='static')
+
     app.config.from_object(Config)
 
-    # 1. Configuración de CORS
-    CORS(app, resources={r"/api/*": {
+    # 1. Configuración de CORS Globalizada
+    # Se cambia r"/api/*" por r"/*" para que las rutas de micrositios (/sitio/...) funcionen sin bloqueos
+    CORS(app, resources={r"/*": {
         "origins": [
             "https://trayectoria-rxdc1.web.app",
             "https://mitrayectoria.web.app",
@@ -87,18 +95,18 @@ def create_app():
     def load_user(id_usuario):
         return db.session.get(Usuario, int(id_usuario))
 
-    # 4. Creación de Estructura en Neon y Registro de Rutas
+    # 4. Registro de Rutas y Estructura Neon
     with app.app_context():
         try:
-            # ✅ IMPORTANTE: Aquí se crean las nuevas tablas de productos
             db.create_all()
             logger.info("🛠️ Estructura de base de datos verificada en Neon (Incluyendo Catálogos)")
         except Exception as e:
             logger.error(f"🔥 Error al crear tablas: {e}")
 
+        # Registro de todos los Blueprints
         register_api(app) 
 
-        # Poblado automático de ciudades
+        # Poblado automático de ciudades de Colombia
         try:
             inspector = db.inspect(db.engine)
             if 'colombia' in inspector.get_table_names():
@@ -108,8 +116,8 @@ def create_app():
         except Exception as e:
             logger.error(f"❌ Error en auto-poblado: {e}")
 
-    # 5. Directorio de Cargas
-    upload_folder = os.path.join(app.root_path, 'static', 'uploads')
+    # 5. Configuración de Directorio de Cargas (Ajustado a la nueva raíz)
+    upload_folder = os.path.join(base_dir, 'static', 'uploads')
     if not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
     app.config['UPLOAD_FOLDER'] = upload_folder
