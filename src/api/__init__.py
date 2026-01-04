@@ -36,7 +36,16 @@ def register_api(app):
     safe_import_and_register('src.api.negocio.negocio_api', 'negocio_api_bp', 'Negocio')
     safe_import_and_register('src.api.negocio.catalogo_api', 'catalogo_api_bp', 'Catálogo')
     
-    # NUEVO: Registro del Micrositio Público (Se registra sin prefijo /api para URL limpia)
+    # --- Centro de Control Operativo (Contabilidad, Inventario y Alertas) ---
+    print("\n--- Cargando Centro de Control Operativo ---")
+    # 1. API de Transacciones (Ventas, Gastos, Ingresos) y Dashboard
+    safe_import_and_register('src.api.contabilidad.control_api', 'control_api_bp', 'Control Operativo')
+    # 2. API de Procesamiento de CSV/Excel Masivo para Inventario
+    safe_import_and_register('src.api.contabilidad.carga_masiva_api', 'carga_masiva_bp', 'Carga Masiva')
+    # 3. API de Gestión de Alertas y Tareas Operativas
+    safe_import_and_register('src.api.contabilidad.alertas_api', 'alertas_api_bp', 'Alertas Operativas')
+
+    # Registro del Micrositio Público (Se registra sin prefijo /api para URL limpia)
     safe_import_and_register('src.api.negocio.pagina_api', 'pagina_api_bp', 'Micrositios Públicos', prefix=None)
 
     # --- Módulos de Autenticación ---
