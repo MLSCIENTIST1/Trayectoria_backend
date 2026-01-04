@@ -44,3 +44,25 @@ def ver_micrositio(slug):
     except Exception as e:
         logger.error(f"🔥 ERROR cargando micrositio '{slug}': {str(e)}")
         return f"Error interno en el servidor", 500
+
+# --- RUTA PARA VISUALIZAR EL CATÁLOGO COMPLETO ---
+@pagina_api_bp.route('/sitio/<slug>/catalogo', methods=['GET'])
+@cross_origin()
+def ver_catalogo(slug):
+    try:
+        logger.info(f"🛒 Accediendo al catálogo de: {slug}")
+        
+        negocio = Negocio.query.filter_by(slug=slug).first()
+        
+        if not negocio:
+            return "<h1>404 - Negocio no encontrado</h1>", 404
+            
+        if not getattr(negocio, 'tiene_pagina', False):
+            return "<h1>Catálogo no disponible</h1>", 403
+
+        # Renderizamos una nueva plantilla específica para el catálogo
+        return render_template('catalogo_cliente.html', negocio=negocio)
+
+    except Exception as e:
+        logger.error(f"🔥 ERROR cargando catálogo de '{slug}': {str(e)}")
+        return "Error al cargar el catálogo", 500
