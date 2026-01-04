@@ -8,14 +8,41 @@
     <title>Electromechanics Pro | Equipando tu Taller</title>
 
     <link rel="icon" href="{{ url_for('static', filename='imgs/Rodar.png') }}" type="image/png">
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
     <link rel="stylesheet" href="{{ url_for('static', filename='css/rodar.css') }}">
-    
-    </head>
+
+    <style>
+        /* Estilo extra para resaltar los enlaces en el mensaje emergente */
+        .modal-body a { font-weight: bold; color: #007bff; text-decoration: underline; }
+        .modal-header { background-color: #007bff; color: white; }
+    </style>
+</head>
 
 <body data-spy="scroll" data-target=".navbar" data-offset="40" id="inicio">
+
+    <div class="modal fade" id="mensajeBienvenida" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">¡Hola! Bienvenido a Rodar</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true" style="color: white;">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body text-dark">
+                    <p>Si estás ingresando a nuestra web <b>Rodar</b> es porque ya has comprado con nosotros y queremos recordarte que es de vital importancia que en el chat de <b>Messenger</b> nos dejes la calificación de nuestro servicio, ya que es fundamental para seguir creciendo como emprendedores.</p>
+                    <hr>
+                    <p>Te invitamos a unirte a nuestro grupo de <b>Facebook</b> para compartir tu experiencia:</p>
+                    <p><a href="https://www.facebook.com/groups/1572269854195768" target="_blank"><i class="fab fa-facebook-square"></i> Grupo Oficial Rodar</a> (¡Publica una foto con tu producto recibido!)</p>
+                    <p>También síguenos en nuestra página oficial:</p>
+                    <p><a href="https://www.facebook.com/profile.php?id=61584734677591" target="_blank"><i class="fab fa-facebook"></i> Página Oficial Rodar</a></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-dismiss="modal">Entendido, gracias</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <nav class="custom-navbar navbar navbar-expand-lg navbar-dark fixed-top" data-spy="affix" data-offset-top="10">
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent">
@@ -26,7 +53,7 @@
             <ul class="navbar-nav">
                 <li class="nav-item"><a class="nav-link" href="#inicio">Inicio</a></li>
                 <li class="nav-item"><a class="nav-link" href="#acerca">Acerca de</a></li>
-                <li class="nav-item"><a class="nav-link" href="#galeria">Productos</a></li>
+                <li class="nav-item"><a class="nav-link" href="#blog">Productos</a></li>
             </ul>
             
             <a class="navbar-brand m-auto" href="#">
@@ -49,7 +76,7 @@
             <h1 class="display-4 font-weight-bold my-3">Rodar</h1>
             <h3 class="mb-5 font-weight-light">Equipando talleres, impulsando soluciones profesionales.</h3>
             <p class="lead mb-5">(Nuestra plataforma oficial está en construcción para brindarte la mejor experiencia)</p>
-            <a class="btn btn-lg btn-primary" href="#galeria">Explorar Catálogo</a>
+            <a class="btn btn-lg btn-primary" href="#blog">Explorar Catálogo</a>
         </div>
     </header>
 
@@ -59,7 +86,7 @@
             <div class="col-lg-6 px-5">
                 <h2 class="section-title mb-4">Potenciamos tu trabajo</h2>
                 <p>En <b>Rodar</b>, nos especializamos en la venta de herramientas de alta precisión para talleres mecánicos, eléctricos y de reparación diésel.</p>
-                <p>Nuestra misión es proporcionar productos confiables y de alta tecnología...</p>
+                <p>Nuestra misión es proporcionar productos confiables y de alta tecnología para el diagnóstico automotriz.</p>
                 <p class="font-weight-bold text-primary">🚗🔧 Electromechanics Pro – Tu aliado en cada diagnóstico.</p>
             </div>
         </div>
@@ -69,11 +96,8 @@
         <h2 class="section-title mb-5">OFERTAS DE TEMPORADA</h2>
         <div class="row justify-content-center" id="contenedor-ofertas">
             <div class="col-md-4">
-                <div class="card shadow-sm border-0">
-                    <img src="{{ url_for('static', filename='imgs/blog-1.jpg') }}" class="card-img-top" alt="Cargando...">
-                    <div class="card-body text-dark">
-                        <p>Cargando catálogo...</p>
-                    </div>
+                <div class="spinner-border text-primary" role="status">
+                    <span class="sr-only">Cargando catálogo...</span>
                 </div>
             </div>
         </div>
@@ -83,14 +107,15 @@
         <p class="mb-0">&copy; 2025 Electromechanics Pro | Una marca de <b>Rodar Ledger</b></p>
     </footer>
 
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-    /**
-     * MOTOR DE RENDERIZADO BIZFLOW
-     */
     document.addEventListener('DOMContentLoaded', function() {
+        // 1. Mostrar el mensaje emergente automáticamente al cargar
+        $('#mensajeBienvenida').modal('show');
+
+        // 2. Configuración del Catálogo BizFlow
         const bizKey = 'catalogo_rodar'; 
         const contenedor = document.getElementById('contenedor-ofertas');
         const fallbackImg = "{{ url_for('static', filename='imgs/blog-1.jpg') }}";
@@ -102,7 +127,7 @@
                 try {
                     const productos = JSON.parse(datosStr);
                     
-                    if (productos.length > 0) {
+                    if (productos && productos.length > 0) {
                         contenedor.innerHTML = ''; 
                         
                         productos.forEach(prod => {
@@ -125,22 +150,21 @@
                                 </div>`;
                             contenedor.innerHTML += html;
                         });
-                        console.log("✅ Catálogo sincronizado con éxito.");
+                        console.log("✅ Catálogo sincronizado.");
                     }
                 } catch (e) {
-                    console.error("❌ Error al procesar el catálogo inyectado:", e);
+                    console.error("❌ Error en JSON:", e);
                 }
             } else {
-                console.warn("⚠️ No se encontró catálogo inyectado.");
+                contenedor.innerHTML = '<p class="text-muted">Explora nuestras soluciones en el catálogo principal.</p>';
             }
         }
 
         cargarCatalogo();
 
+        // Escuchar cambios en tiempo real si el usuario actualiza el catálogo desde el panel
         window.addEventListener('storage', (e) => {
-            if (e.key === bizKey) {
-                cargarCatalogo();
-            }
+            if (e.key === bizKey) cargarCatalogo();
         });
     });
     </script>
