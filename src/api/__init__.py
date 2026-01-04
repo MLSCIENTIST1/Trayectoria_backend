@@ -19,16 +19,15 @@ def register_api(app):
     def global_health():
         return jsonify({"status": "online", "message": "API Core is running"}), 200
 
-    def safe_import_and_register(module_path, bp_name, display_name):
+    def safe_import_and_register(module_path, bp_name, display_name, prefix='/api'):
         try:
             module = __import__(module_path, fromlist=[bp_name])
             blueprint = getattr(module, bp_name)
-            app.register_blueprint(blueprint, url_prefix='/api')
+            app.register_blueprint(blueprint, url_prefix=prefix)
             print(f"✅ [OK] Módulo cargado: {display_name}")
             return True
         except Exception as e:
             print(f"❌ [FALLO] No se pudo cargar {display_name}. Error: {e}")
-            # Descomentar para depuración profunda en desarrollo
             # traceback.print_exc()
             return False
 
@@ -36,6 +35,9 @@ def register_api(app):
     print("\n--- Cargando Módulos de Negocio y Catálogo ---")
     safe_import_and_register('src.api.negocio.negocio_api', 'negocio_api_bp', 'Negocio')
     safe_import_and_register('src.api.negocio.catalogo_api', 'catalogo_api_bp', 'Catálogo')
+    
+    # NUEVO: Registro del Micrositio Público (Se registra sin prefijo /api para URL limpia)
+    safe_import_and_register('src.api.negocio.pagina_api', 'pagina_api_bp', 'Micrositios Públicos', prefix=None)
 
     # --- Módulos de Autenticación ---
     print("\n--- Cargando Autenticación ---")
