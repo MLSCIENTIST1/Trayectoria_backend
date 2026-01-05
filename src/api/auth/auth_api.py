@@ -105,9 +105,23 @@ def session_status():
 
 @auth_api_bp.route('/logout', methods=['POST', 'GET'])
 def logout():
-    """ Cierra la sesión tanto en servidor como en cliente """
-    correo = current_user.correo if current_user.is_authenticated else "Anónimo"
+    """ Cierra la sesión detectando al usuario por sesión o por JSON explícito """
+    
+    # 1. Intentamos obtener el correo de la sesión de Flask (Cookie)
+    correo = current_user.correo if current_user.is_authenticated else None
+    
+    # 2. Si es Anónimo, intentamos leer el JSON que mandó el JavaScript
+    if not correo:
+        data = request.get_json(silent=True) or {}
+        correo = data.get('usuario') # El nombre que enviamos en logout.js
+
+    # 3. Fallback final si nada funcionó
+    if not correo:
+        correo = "Anónimo"
+
+    # Proceso de cierre
     logout_user()
     session.clear()
+    
     logger.info(f"Sesión cerrada para: {correo}")
-    return jsonify({"message": "Sesión cerrada correctamente"}), 200
+    return jsonify({"message": f"Sesión de {correo} cerrada correctamente"}), 200

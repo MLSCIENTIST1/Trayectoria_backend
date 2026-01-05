@@ -30,7 +30,8 @@ from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo
 logger = logging.getLogger(__name__)
 
 class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'clave_secreta_predeterminada')
+    # VITAL: La SECRET_KEY debe ser consistente para que la cookie de sesión sea válida
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'bizflow_studio_2026_key_secure')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Compatibilidad Neon/Render
@@ -39,18 +40,19 @@ class Config:
         SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace("postgres://", "postgresql://", 1)
     
     # Configuración de Cookies para Dominios Diferentes (Firebase + Render)
+    # Estos ajustes permiten que el navegador guarde la sesión aunque los dominios no coincidan
     SESSION_COOKIE_SAMESITE = 'None'
     SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
     REMEMBER_COOKIE_SAMESITE = 'None'
     REMEMBER_COOKIE_SECURE = True
+    REMEMBER_COOKIE_HTTPONLY = True
     PERMANENT_SESSION_LIFETIME = 86400 
 
 def create_app():
     logger.info("🚀 Iniciando la Factoría de la Aplicación")
     
     # --- AJUSTE DE RUTAS RAÍZ ---
-    # Al estar este archivo en 'src/', subimos un nivel para encontrar /templates y /static en la raíz
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     
     app = Flask(__name__, 
@@ -62,7 +64,8 @@ def create_app():
     app.config.from_object(Config)
 
     # 1. Configuración de CORS Globalizada
-    # Se cambia r"/api/*" por r"/*" para que las rutas de micrositios (/sitio/...) funcionen sin bloqueos
+    # supports_credentials=True es lo que permite que el 'carlos' de la sesión 
+    # viaje desde Firebase hasta Render.
     CORS(app, resources={r"/*": {
         "origins": [
             "https://trayectoria-rxdc1.web.app",
@@ -72,6 +75,7 @@ def create_app():
         ],
         "methods": ["GET", "POST", "OPTIONS", "PUT", "DELETE"],
         "allow_headers": ["Content-Type", "Authorization", "Accept"],
+        "expose_headers": ["Content-Type", "Authorization"],
         "supports_credentials": True 
     }})
     
@@ -82,6 +86,10 @@ def create_app():
     # 3. Configuración de LoginManager
     login_manager = LoginManager()
     login_manager.init_app(app)
+    
+    # Asegura que el nombre de la cookie de sesión sea estándar
+    app.config.update(SESSION_COOKIE_NAME='bizflow_session')
+
     login_manager.login_view = 'api.init_sesion_bp.ingreso'
 
     @login_manager.unauthorized_handler
@@ -99,7 +107,7 @@ def create_app():
     with app.app_context():
         try:
             db.create_all()
-            logger.info("🛠️ Estructura de base de datos verificada en Neon (Incluyendo Catálogos)")
+            logger.info("🛠️ Estructura de base de datos verificada en Neon")
         except Exception as e:
             logger.error(f"🔥 Error al crear tablas: {e}")
 
@@ -116,7 +124,7 @@ def create_app():
         except Exception as e:
             logger.error(f"❌ Error en auto-poblado: {e}")
 
-    # 5. Configuración de Directorio de Cargas (Ajustado a la nueva raíz)
+    # 5. Configuración de Directorio de Cargas
     upload_folder = os.path.join(base_dir, 'static', 'uploads')
     if not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
