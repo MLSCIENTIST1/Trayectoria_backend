@@ -200,20 +200,29 @@ def registrar_sucursal():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Error interno", "details": str(e)}), 500
-
-# --- 6. OBTENER SUCURSALES ---
 @negocio_api_bp.route('/negocios/<int:negocio_id>/sucursales', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
-@login_required
+# Quitamos @login_required temporalmente para usar validación por Header o validamos manual
 def obtener_sucursales(negocio_id):
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
+    
     try:
-        negocio = Negocio.query.filter_by(id_negocio=negocio_id, usuario_id=current_user.id_usuario).first()
+        # SISTEMA HÍBRIDO: Cookie o Header
+        user_id = current_user.id_usuario if current_user.is_authenticated else request.headers.get('X-User-ID')
+
+        if not user_id:
+            return jsonify({"error": "No autorizado", "message": "Falta X-User-ID"}), 401
+
+        # Validamos que el negocio pertenezca al usuario que consulta
+        negocio = Negocio.query.filter_by(id_negocio=negocio_id, usuario_id=user_id).first()
+        
         if not negocio:
             return jsonify({"error": "Acceso denegado"}), 403
+
         sucursales = Sucursal.query.filter_by(negocio_id=negocio_id).all()
         return jsonify([s.to_dict() for s in sucursales]), 200
+
     except Exception as e:
         logger.error(f"🔥 ERROR en obtener_sucursales: {str(e)}")
         return jsonify({"error": "Error al obtener sucursales"}), 500
