@@ -123,19 +123,48 @@ def registrar_negocio():
 # --- 4. OBTENER MIS NEGOCIOS ---
 @negocio_api_bp.route('/mis_negocios', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
-@login_required
 def obtener_mis_negocios():
+    # 1. Manejo de Preflight (CORS)
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
+
     try:
-        logger.debug(f"👤 Buscando negocios para usuario ID: {current_user.id_usuario}")
-        negocios = Negocio.query.filter_by(usuario_id=current_user.id_usuario).all()
+        # 2. SISTEMA DE IDENTIFICACIÓN HÍBRIDO
+        user_id = None
+
+        # Intento A: Por sesión activa (Cookies tradicionales)
+        if current_user.is_authenticated:
+            user_id = current_user.id_usuario
+            logger.debug(f"✅ Usuario detectado por Cookie: {user_id}")
+        
+        # Intento B: Por Header (Rescate para iFrames de BizFlow)
+        else:
+            # Buscamos el ID explícito enviado por el frontend
+            user_id = request.headers.get('X-User-ID')
+            if user_id:
+                logger.debug(f"🔗 Usuario detectado por Header X-User-ID: {user_id}")
+
+        # 3. Validación de Seguridad
+        if not user_id:
+            logger.warning("🚫 Intento de acceso sin identidad (401)")
+            return jsonify({
+                "error": "unauthorized", 
+                "message": "La sesión no es válida en este contexto (iFrame restriction)"
+            }), 401
+
+        # 4. Consulta a Base de Datos
+        logger.debug(f"👤 Buscando negocios para usuario ID: {user_id}")
+        # Asegúrate de que user_id sea del tipo correcto (int/str) según tu modelo
+        negocios = Negocio.query.filter_by(usuario_id=user_id).all()
+        
         resultado = [n.serialize() for n in negocios]
-        logger.info(f"📋 Enviando {len(resultado)} negocios.")
+        logger.info(f"📋 Enviando {len(resultado)} negocios para el usuario {user_id}.")
+        
         return jsonify(resultado), 200
+
     except Exception as e:
-        logger.error(f"🔥 ERROR en /mis_negocios: {str(e)}")
-        return jsonify({"error": "Error al obtener negocios"}), 500
+        logger.error(f"🔥 ERROR CRÍTICO en /mis_negocios: {str(e)}")
+        return jsonify({"error": "Error interno del servidor", "details": str(e)}), 500
 
 # --- 5. REGISTRAR SUCURSAL ---
 @negocio_api_bp.route('/registrar_sucursal', methods=['POST', 'OPTIONS'])
