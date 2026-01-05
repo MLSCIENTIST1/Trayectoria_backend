@@ -1,7 +1,7 @@
 import logging
 import sys
 from flask import Blueprint, jsonify, request
-from flask_login import current_user, login_required
+from flask_login import current_user
 from flask_cors import cross_origin
 
 # Importaciones de modelos
@@ -20,6 +20,13 @@ if not logger.handlers:
 
 negocio_api_bp = Blueprint('negocio_api_bp', __name__)
 
+# --- FUNCIÓN DE APOYO: IDENTIFICACIÓN SEGURA ---
+def get_auth_user_id():
+    """Identifica al usuario por Cookie o por Header X-User-ID"""
+    if current_user.is_authenticated:
+        return current_user.id_usuario
+    return request.headers.get('X-User-ID')
+
 # --- 1. CIUDADES ---
 @negocio_api_bp.route('/ciudades', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
@@ -28,8 +35,6 @@ def get_ciudades():
         return jsonify({"success": True}), 200
     try:
         termino = request.args.get('q', '').strip()
-        logger.debug(f"🔍 Buscando ciudades: '{termino}'")
-        
         query = Colombia.query.with_entities(Colombia.ciudad_id, Colombia.ciudad_nombre)
         if termino:
             query = query.filter(Colombia.ciudad_nombre.ilike(f"%{termino}%"))
@@ -41,16 +46,18 @@ def get_ciudades():
         logger.error(f"🔥 ERROR en /ciudades: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# --- 2. CONFIGURACIÓN DE PÁGINA (NUEVO) ---
+# --- 2. CONFIGURACIÓN DE PÁGINA ---
 @negocio_api_bp.route('/configuracion-pagina/<int:negocio_id>', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
-
 def obtener_configuracion_pagina(negocio_id):
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     try:
-        # Validamos que el negocio pertenezca al usuario
-        negocio = Negocio.query.filter_by(id_negocio=negocio_id, usuario_id=current_user.id_usuario).first()
+        user_id = get_auth_user_id()
+        if not user_id:
+            return jsonify({"success": False, "error": "No autorizado"}), 401
+
+        negocio = Negocio.query.filter_by(id_negocio=negocio_id, usuario_id=user_id).first()
         if not negocio:
             return jsonify({"success": False, "error": "Negocio no encontrado"}), 404
         
@@ -66,25 +73,25 @@ def obtener_configuracion_pagina(negocio_id):
 
 @negocio_api_bp.route('/publicar-pagina', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
-
 def publicar_pagina():
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     try:
+        user_id = get_auth_user_id()
+        if not user_id:
+            return jsonify({"success": False, "error": "No autorizado"}), 401
+
         data = request.get_json()
         negocio_id = data.get('id_negocio')
         plantilla_id = data.get('plantilla_id')
 
-        negocio = Negocio.query.filter_by(id_negocio=negocio_id, usuario_id=current_user.id_usuario).first()
+        negocio = Negocio.query.filter_by(id_negocio=negocio_id, usuario_id=user_id).first()
         if not negocio:
-            return jsonify({"success": False, "error": "No autorizado"}), 403
+            return jsonify({"success": False, "error": "Acceso denegado"}), 403
 
-        # Actualizamos datos de publicación
         negocio.tiene_pagina = True
         negocio.plantilla_id = plantilla_id
-        
-        # Generar slug simple si no tiene uno
-        if not getattr(negocio, 'slug', None):
+        if not negocio.slug:
             negocio.slug = negocio.nombre_negocio.lower().replace(" ", "-")
 
         db.session.commit()
@@ -96,13 +103,15 @@ def publicar_pagina():
 # --- 3. REGISTRAR NEGOCIO ---
 @negocio_api_bp.route('/registrar_negocio', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
-
 def registrar_negocio():
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     try:
+        user_id = get_auth_user_id()
+        if not user_id:
+            return jsonify({"success": False, "error": "Inicie sesión"}), 401
+
         data = request.get_json()
-        logger.info(f"📩 Registro negocio: {data.get('nombre_negocio')}")
         nuevo_negocio = Negocio(
             nombre_negocio=data.get('nombre_negocio'),
             categoria=data.get('tipo_negocio') or data.get('categoria'), 
@@ -110,76 +119,43 @@ def registrar_negocio():
             direccion=data.get('direccion'),
             ciudad_id=int(data.get('ciudad_id')) if data.get('ciudad_id') else None,
             telefono=data.get('telefono'),
-            usuario_id=current_user.id_usuario 
+            usuario_id=user_id 
         )
         db.session.add(nuevo_negocio)
         db.session.commit()
         return jsonify({"status": "success", "id": nuevo_negocio.id_negocio}), 201
     except Exception as e:
         db.session.rollback()
-        logger.error(f"🔥 ERROR en /registrar_negocio: {str(e)}")
-        return jsonify({"error": "No se pudo guardar", "details": str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
 # --- 4. OBTENER MIS NEGOCIOS ---
 @negocio_api_bp.route('/mis_negocios', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def obtener_mis_negocios():
-    # 1. Manejo de Preflight (CORS)
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
-
     try:
-        # 2. SISTEMA DE IDENTIFICACIÓN HÍBRIDO
-        user_id = None
-
-        # Intento A: Por sesión activa (Cookies tradicionales)
-        if current_user.is_authenticated:
-            user_id = current_user.id_usuario
-            logger.debug(f"✅ Usuario detectado por Cookie: {user_id}")
-        
-        # Intento B: Por Header (Rescate para iFrames de BizFlow)
-        else:
-            # Buscamos el ID explícito enviado por el frontend
-            user_id = request.headers.get('X-User-ID')
-            if user_id:
-                logger.debug(f"🔗 Usuario detectado por Header X-User-ID: {user_id}")
-
-        # 3. Validación de Seguridad
+        user_id = get_auth_user_id()
         if not user_id:
-            logger.warning("🚫 Intento de acceso sin identidad (401)")
-            return jsonify({
-                "error": "unauthorized", 
-                "message": "La sesión no es válida en este contexto (iFrame restriction)"
-            }), 401
+            return jsonify({"error": "unauthorized"}), 401
 
-        # 4. Consulta a Base de Datos
-        logger.debug(f"👤 Buscando negocios para usuario ID: {user_id}")
-        # Asegúrate de que user_id sea del tipo correcto (int/str) según tu modelo
         negocios = Negocio.query.filter_by(usuario_id=user_id).all()
-        
-        resultado = [n.serialize() for n in negocios]
-        logger.info(f"📋 Enviando {len(resultado)} negocios para el usuario {user_id}.")
-        
-        return jsonify(resultado), 200
-
+        return jsonify([n.serialize() for n in negocios]), 200
     except Exception as e:
-        logger.error(f"🔥 ERROR CRÍTICO en /mis_negocios: {str(e)}")
-        return jsonify({"error": "Error interno del servidor", "details": str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
 # --- 5. REGISTRAR SUCURSAL ---
 @negocio_api_bp.route('/registrar_sucursal', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
-
 def registrar_sucursal():
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     try:
+        user_id = get_auth_user_id()
         data = request.get_json()
         negocio_id = data.get('negocio_id')
-        if not negocio_id:
-            return jsonify({"error": "ID de negocio requerido"}), 400
 
-        negocio = Negocio.query.filter_by(id_negocio=negocio_id, usuario_id=current_user.id_usuario).first()
+        negocio = Negocio.query.filter_by(id_negocio=negocio_id, usuario_id=user_id).first()
         if not negocio:
             return jsonify({"error": "No autorizado"}), 403
 
@@ -199,30 +175,4 @@ def registrar_sucursal():
         return jsonify({"status": "success", "id": nueva_sucursal.id_sucursal}), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": "Error interno", "details": str(e)}), 500
-@negocio_api_bp.route('/negocios/<int:negocio_id>/sucursales', methods=['GET', 'OPTIONS'])
-@cross_origin(supports_credentials=True)
-# Quitamos @login_required temporalmente para usar validación por Header o validamos manual
-def obtener_sucursales(negocio_id):
-    if request.method == 'OPTIONS':
-        return jsonify({"success": True}), 200
-    
-    try:
-        # SISTEMA HÍBRIDO: Cookie o Header
-        user_id = current_user.id_usuario if current_user.is_authenticated else request.headers.get('X-User-ID')
-
-        if not user_id:
-            return jsonify({"error": "No autorizado", "message": "Falta X-User-ID"}), 401
-
-        # Validamos que el negocio pertenezca al usuario que consulta
-        negocio = Negocio.query.filter_by(id_negocio=negocio_id, usuario_id=user_id).first()
-        
-        if not negocio:
-            return jsonify({"error": "Acceso denegado"}), 403
-
-        sucursales = Sucursal.query.filter_by(negocio_id=negocio_id).all()
-        return jsonify([s.to_dict() for s in sucursales]), 200
-
-    except Exception as e:
-        logger.error(f"🔥 ERROR en obtener_sucursales: {str(e)}")
-        return jsonify({"error": "Error al obtener sucursales"}), 500
+        return jsonify({"error": str(e)}), 500
