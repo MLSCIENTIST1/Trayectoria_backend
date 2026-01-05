@@ -44,7 +44,7 @@ def get_ciudades():
 # --- 2. CONFIGURACIÓN DE PÁGINA (NUEVO) ---
 @negocio_api_bp.route('/configuracion-pagina/<int:negocio_id>', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
-@login_required
+
 def obtener_configuracion_pagina(negocio_id):
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -66,7 +66,7 @@ def obtener_configuracion_pagina(negocio_id):
 
 @negocio_api_bp.route('/publicar-pagina', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
-@login_required
+
 def publicar_pagina():
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -96,7 +96,7 @@ def publicar_pagina():
 # --- 3. REGISTRAR NEGOCIO ---
 @negocio_api_bp.route('/registrar_negocio', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
-@login_required 
+
 def registrar_negocio():
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -169,7 +169,7 @@ def obtener_mis_negocios():
 # --- 5. REGISTRAR SUCURSAL ---
 @negocio_api_bp.route('/registrar_sucursal', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
-@login_required
+
 def registrar_sucursal():
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
