@@ -140,3 +140,23 @@ def eliminar_producto(id_producto):
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": str(e)}), 500
+    
+    # --- 3. RUTA CATÁLOGO PÚBLICO (MODIFICADA) ---
+# Cambiamos '/publico/' por '/productos/publicos/' para que coincida con el JS
+@catalogo_api_bp.route('/productos/publicos/<int:negocio_id>', methods=['GET', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def obtener_catalogo_publico(negocio_id):
+    if request.method == 'OPTIONS': 
+        return jsonify({"success": True}), 200
+    try:
+        # Filtramos por negocio y que el producto esté activo
+        productos = ProductoCatalogo.query.filter_by(negocio_id=negocio_id, activo=True).all()
+        
+        # IMPORTANTE: Devolvemos el objeto con success y data para que el JS no falle
+        return jsonify({
+            "success": True,
+            "data": [p.to_dict() for p in productos]
+        }), 200
+    except Exception as e:
+        logger.error(f"Error en catálogo público: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
