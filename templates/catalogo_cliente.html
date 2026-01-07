@@ -7,79 +7,118 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --primary: #007bff; --whatsapp: #25D366; --dark: #1a1a1a; }
-        body { background-color: #f8f9fa; font-family: 'Inter', sans-serif; }
+        :root { --primary: #007bff; --success: #25D366; --dark: #1a1a1a; --light-bg: #f4f7f6; }
+        body { background-color: var(--light-bg); font-family: 'Inter', sans-serif; }
         
-        /* Navbar & Cart Icon */
-        .navbar-custom { background: white; border-bottom: 1px solid #eee; sticky: top; }
-        .cart-badge { position: absolute; top: -5px; right: -10px; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; }
+        /* Banner Pago Contra Entrega */
+        .trust-banner { background: #fff3cd; color: #856404; text-align: center; padding: 10px; font-weight: bold; border-bottom: 1px solid #ffeeba; }
         
-        /* Sidebar Categorías */
-        .sidebar { background: white; border-radius: 12px; padding: 20px; height: fit-content; }
-        .cat-item { cursor: pointer; padding: 10px; border-radius: 8px; transition: 0.3s; color: #555; }
-        .cat-item:hover, .cat-item.active { background: var(--primary); color: white; }
+        .navbar-custom { background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); sticky: top; }
+        .cart-badge { position: absolute; top: -5px; right: -10px; background: #ff4757; color: white; border-radius: 50%; padding: 2px 7px; font-size: 11px; font-weight: bold; }
+        
+        /* Sidebar e Items */
+        .sidebar { background: white; border-radius: 12px; padding: 20px; position: sticky; top: 90px; }
+        .cat-item { cursor: pointer; padding: 10px; border-radius: 8px; margin-bottom: 5px; color: #555; font-size: 0.9rem; transition: 0.3s; }
+        .cat-item:hover, .cat-item.active { background: var(--primary); color: white; font-weight: 600; }
 
-        /* Tarjetas de Producto */
-        .product-card { border: none; border-radius: 15px; transition: 0.3s; background: white; height: 100%; overflow: hidden; }
-        .product-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.1); }
-        .img-container { height: 180px; background: #f1f1f1; position: relative; }
+        .product-card { border: none; border-radius: 15px; background: white; transition: 0.3s; height: 100%; overflow: hidden; }
+        .product-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .img-container { height: 180px; background: #eee; }
         .img-container img { width: 100%; height: 100%; object-fit: cover; }
         
-        /* Botón Añadir */
-        .btn-add-cart { border-radius: 8px; font-weight: bold; background: var(--dark); color: white; border: none; padding: 8px; width: 100%; }
+        .btn-add-cart { background: var(--dark); color: white; border: none; padding: 10px; border-radius: 8px; width: 100%; font-weight: bold; font-size: 0.85rem; }
         .btn-add-cart:hover { background: var(--primary); }
 
-        /* Carrito Flotante (Sidebar derecha o Modal) */
-        .cart-sidebar { position: fixed; right: -400px; top: 0; width: 350px; height: 100%; background: white; z-index: 1100; box-shadow: -5px 0 15px rgba(0,0,0,0.1); transition: 0.4s; padding: 20px; display: flex; flex-direction: column; }
+        /* Carrito Checkout */
+        .cart-sidebar { position: fixed; right: -450px; top: 0; width: 400px; height: 100%; background: white; z-index: 1100; box-shadow: -5px 0 20px rgba(0,0,0,0.2); transition: 0.4s; display: flex; flex-direction: column; }
         .cart-sidebar.open { right: 0; }
+        .checkout-form input, .checkout-form select { font-size: 0.85rem; margin-bottom: 10px; border-radius: 6px; }
+        
+        @media (max-width: 500px) { .cart-sidebar { width: 100%; right: -100%; } }
     </style>
 </head>
 <body>
 
+<div class="trust-banner">
+    <i class="fas fa-shipping-fast mr-2"></i> ¡PAGA AL RECIBIR! Todos nuestros productos cuentan con **PAGO CONTRA ENTREGA**
+</div>
+
 <nav class="navbar navbar-light navbar-custom sticky-top px-4">
-    <a class="navbar-brand font-weight-bold" href="#">RODAR <span class="text-primary">SHOP</span></a>
-    <div class="ml-auto" style="position: relative; cursor: pointer;" onclick="toggleCart(true)">
-        <i class="fas fa-shopping-cart fa-lg"></i>
-        <span class="cart-badge" id="cartCount">0</span>
+    <a class="navbar-brand font-weight-bold" href="#">RODAR <span class="text-primary">E-SHOP</span></a>
+    <div class="ml-auto d-flex align-items-center">
+        <div style="position: relative; cursor: pointer;" onclick="toggleCart(true)">
+            <i class="fas fa-shopping-basket fa-lg"></i>
+            <span class="cart-badge" id="cartCount">0</span>
+        </div>
     </div>
 </nav>
 
 <div class="container-fluid mt-4">
     <div class="row">
-        <div class="col-lg-2 mb-4">
+        <div class="col-lg-2">
             <div class="sidebar shadow-sm">
-                <h6 class="font-weight-bold mb-3">CATEGORÍAS</h6>
+                <h6 class="font-weight-bold mb-3"><i class="fas fa-list mr-2"></i>CATEGORÍAS</h6>
                 <div class="cat-item active" onclick="filtrar('Todas')">Todas</div>
                 <div class="cat-item" onclick="filtrar('Ropa')">Ropa</div>
-                <div class="cat-item" onclick="filtrar('Herramientas Eléctricas')">Herramientas</div>
-                <div class="cat-item" onclick="filtrar('Accesorios para Bici')">Bici</div>
-                <div class="cat-item" onclick="filtrar('Accesorios para Moto')">Moto</div>
-                <div class="cat-item" onclick="filtrar('Accesorios para Carro')">Carro</div>
+                <div class="cat-item" onclick="filtrar('Herramientas Eléctricas')">Herramientas Eléctricas</div>
+                <div class="cat-item" onclick="filtrar('Accesorios para Bici')">Accesorios Bici</div>
+                <div class="cat-item" onclick="filtrar('Accesorios para Moto')">Accesorios Moto</div>
+                <div class="cat-item" onclick="filtrar('Accesorios para Carro')">Accesorios Carro</div>
                 <div class="cat-item" onclick="filtrar('Equipamiento Comercial')">Tiendas Automotrices</div>
             </div>
         </div>
 
         <div class="col-lg-10">
             <div class="row" id="productGrid">
+                <div class="col-12 text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
                 </div>
+            </div>
         </div>
     </div>
 </div>
 
 <div id="cartSidebar" class="cart-sidebar">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h5 class="mb-0">Mi Carrito</h5>
+    <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light">
+        <h5 class="mb-0 font-weight-bold">Finalizar Pedido</h5>
         <button class="close" onclick="toggleCart(false)">&times;</button>
     </div>
-    <div id="cartItems" style="flex-grow: 1; overflow-y: auto;">
+    
+    <div class="p-3 checkout-form" style="flex-grow: 1; overflow-y: auto;">
+        <h6 class="text-primary font-weight-bold mb-3"><i class="fas fa-shopping-cart mr-2"></i>Resumen de compra</h6>
+        <div id="cartItems" class="mb-4"></div>
+        
+        <h6 class="text-primary font-weight-bold mb-3"><i class="fas fa-truck mr-2"></i>Datos de Entrega</h6>
+        <form id="envioForm">
+            <input type="text" id="formNombre" class="form-control" placeholder="Nombre completo" required>
+            <input type="text" id="formDireccion" class="form-control" placeholder="Dirección exacta" required>
+            <div class="row px-2">
+                <input type="text" id="formBarrio" class="col-6 form-control" placeholder="Barrio" required>
+                <input type="text" id="formLocalidad" class="col-6 form-control" placeholder="Localidad">
+            </div>
+            <input type="text" id="formCiudad" class="form-control" placeholder="Ciudad" required>
+            <div class="row px-2">
+                <input type="tel" id="formCel" class="col-6 form-control" placeholder="Celular" required>
+                <input type="tel" id="formTelOp" class="col-6 form-control" placeholder="Tel. Opcional">
+            </div>
+            <label class="small font-weight-bold text-muted mt-2">¿Dónde recibes?</label>
+            <select id="formTipoEntrega" class="form-control">
+                <option value="Dirección Personal">Entregar en mi dirección</option>
+                <option value="Sucursal Rodar">Recoger en Sucursal</option>
+            </select>
+        </form>
+    </div>
+
+    <div class="p-3 border-top bg-light">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">Total a pagar:</span>
+            <h4 class="mb-0 font-weight-bold text-primary" id="cartTotal">$ 0</h4>
         </div>
-    <div class="border-top pt-3">
-        <div class="d-flex justify-content-between font-weight-bold mb-3">
-            <span>Total:</span>
-            <span id="cartTotal">$ 0</span>
-        </div>
-        <button class="btn btn-success btn-block py-3 font-weight-bold" onclick="enviarPedido()">
-            <i class="fab fa-whatsapp mr-2"></i> FINALIZAR PEDIDO
+        <p class="small text-center text-success font-weight-bold mb-3">
+            <i class="fas fa-check-circle"></i> Pagarás en efectivo al recibir
+        </p>
+        <button class="btn btn-success btn-block py-3 font-weight-bold shadow" onclick="enviarPedido()">
+            <i class="fab fa-whatsapp mr-2"></i> ENVIAR PEDIDO POR WHATSAPP
         </button>
     </div>
 </div>
@@ -87,19 +126,18 @@
 <script>
     const API_URL = "https://trayectoria-backend.onrender.com/api";
     const NEGOCIO_ID = "{{ negocio.id_negocio }}";
-    const WHATSAPP_CLIENTE = "573058916907"; // Tu número corregido
+    const WHATSAPP_CLIENTE = "573058916907";
 
     let productosRaw = [];
     let carrito = [];
 
-    // Cargar desde el Backend
     async function init() {
         try {
             const res = await fetch(`${API_URL}/productos/publicos/${NEGOCIO_ID}`);
             const json = await res.json();
             productosRaw = json.data;
             render(productosRaw);
-        } catch (e) { console.error("Error al cargar tienda"); }
+        } catch (e) { console.error("Error"); }
     }
 
     function render(items) {
@@ -111,9 +149,9 @@
                         <img src="${p.img || 'https://via.placeholder.com/300'}" alt="${p.nombre}">
                     </div>
                     <div class="p-3">
-                        <small class="text-muted text-uppercase">${p.categoria || 'General'}</small>
+                        <small class="text-primary font-weight-bold">${p.categoria || 'General'}</small>
                         <h6 class="text-truncate font-weight-bold mb-1">${p.nombre}</h6>
-                        <p class="text-primary font-weight-bold mb-3">$ ${p.precio.toLocaleString()}</p>
+                        <p class="mb-2 text-dark font-weight-bold">$ ${p.precio.toLocaleString()}</p>
                         <button class="btn-add-cart" onclick="addToCart(${p.id})">Añadir al Carrito</button>
                     </div>
                 </div>
@@ -121,7 +159,6 @@
         `).join('');
     }
 
-    // Lógica del Carrito
     function addToCart(id) {
         const prod = productosRaw.find(p => p.id === id);
         carrito.push(prod);
@@ -140,17 +177,16 @@
         container.innerHTML = carrito.map((item, index) => {
             sum += item.precio;
             return `
-                <div class="d-flex mb-3 border-bottom pb-2">
-                    <img src="${item.img}" width="50" height="50" class="rounded mr-2">
-                    <div style="flex:1">
-                        <h6 class="small font-weight-bold mb-0">${item.nombre}</h6>
-                        <span class="small text-primary">$ ${item.precio.toLocaleString()}</span>
+                <div class="d-flex align-items-center mb-2 bg-white p-2 rounded border">
+                    <img src="${item.img}" width="40" height="40" class="rounded mr-2">
+                    <div style="flex:1; font-size: 0.8rem;">
+                        <div class="font-weight-bold text-truncate" style="max-width: 150px;">${item.nombre}</div>
+                        <span class="text-primary">$ ${item.precio.toLocaleString()}</span>
                     </div>
-                    <button class="btn btn-sm text-danger" onclick="removeFromCart(${index})">×</button>
+                    <button class="btn btn-sm text-danger" onclick="removeFromCart(${index})">&times;</button>
                 </div>
             `;
         }).join('');
-
         total.innerText = `$ ${sum.toLocaleString()}`;
     }
 
@@ -164,10 +200,8 @@
     }
 
     function filtrar(cat) {
-        // Estilos de botones
         document.querySelectorAll('.cat-item').forEach(el => el.classList.remove('active'));
-        event.target.classList.add('active');
-
+        if(event) event.target.classList.add('active');
         if(cat === 'Todas') render(productosRaw);
         else render(productosRaw.filter(p => p.categoria === cat));
     }
@@ -175,19 +209,40 @@
     function enviarPedido() {
         if(carrito.length === 0) return alert("El carrito está vacío");
 
-        let msg = `*NUEVO PEDIDO - RODAR SHOP*%0A---------------------------%0A`;
+        // Capturar datos del formulario
+        const nombre = document.getElementById('formNombre').value;
+        const direccion = document.getElementById('formDireccion').value;
+        const barrio = document.getElementById('formBarrio').value;
+        const ciudad = document.getElementById('formCiudad').value;
+        const cel = document.getElementById('formCel').value;
+        const tipo = document.getElementById('formTipoEntrega').value;
+
+        if(!nombre || !direccion || !cel) return alert("Por favor completa los datos de envío.");
+
+        let msg = `*NUEVO PEDIDO: PAGO CONTRA ENTREGA*%0A`;
+        msg += `---------------------------%0A`;
+        msg += `*CLIENTE:* ${nombre}%0A`;
+        msg += `*TEL:* ${cel}%0A`;
+        msg += `*ENTREGA EN:* ${tipo}%0A`;
+        msg += `*DIRECCIÓN:* ${direccion}, ${barrio}%0A`;
+        msg += `*CIUDAD:* ${ciudad}%0A`;
+        msg += `---------------------------%0A`;
+        msg += `*PRODUCTOS:*%0A`;
+        
         carrito.forEach((p, i) => {
-            msg += `${i+1}. ${p.nombre} - *$${p.precio.toLocaleString()}*%0A`;
+            msg += `• ${p.nombre} - *$${p.precio.toLocaleString()}*%0A`;
         });
         
         let total = carrito.reduce((s, p) => s + p.precio, 0);
-        msg += `---------------------------%0A*TOTAL: $${total.toLocaleString()}*%0A%0A_Por favor, confírmeme la disponibilidad._`;
+        msg += `---------------------------%0A`;
+        msg += `*TOTAL A PAGAR: $${total.toLocaleString()}*%0A`;
+        msg += `---------------------------%0A`;
+        msg += `_Quedo atento a la confirmación del despacho._`;
         
         window.open(`https://wa.me/${WHATSAPP_CLIENTE}?text=${msg}`, '_blank');
     }
 
     init();
 </script>
-
 </body>
 </html>
