@@ -68,6 +68,11 @@ def obtener_mis_productos():
         return jsonify({"success": False, "message": "Error al cargar catálogo"}), 500
 
 # --- 2. RUTA PARA GUARDAR PRODUCTO ---
+import re
+import traceback
+from flask import request, jsonify
+from flask_cors import cross_origin
+
 @catalogo_api_bp.route('/producto/guardar', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def guardar_producto():
@@ -79,35 +84,60 @@ def guardar_producto():
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
-        nombre = request.form.get('nombre')
-        precio = request.form.get('precio')
+        # 1. Obtención de datos básicos
+        nombre = request.form.get('nombre', '').strip()
+        precio_raw = request.form.get('precio', '0')
         negocio_id = request.form.get('negocio_id')
         sucursal_id = request.form.get('sucursal_id')
         
-        if not all([nombre, precio, negocio_id]):
-            return jsonify({"success": False, "message": "Faltan datos obligatorios"}), 400
+        if not all([nombre, negocio_id]):
+            return jsonify({"success": False, "message": "Nombre y Negocio ID son obligatorios"}), 400
 
-        # Manejo de Imagen
+        # 2. Manejo de Imagen con limpieza de public_id
         file = request.files.get('imagen_file')
         imagen_url = "https://res.cloudinary.com/dp50v0bwj/image/upload/v1704285000/default_product.png"
 
         if file and file.filename and allowed_file(file.filename):
+            # LIMPIEZA CRÍTICA: Cloudinary no acepta espacios al final ni caracteres especiales
+            # Tomamos los primeros 15 caracteres, quitamos espacios y dejamos solo letras/números
+            nombre_limpio = re.sub(r'[^a-zA-Z0-9]', '', nombre[:15])
+            p_id = f"prod_{negocio_id}_{user_id}_{nombre_limpio}"
+
             upload_result = cloudinary.uploader.upload(
                 file,
                 folder="productos_bizflow",
-                public_id=f"prod_{negocio_id}_{user_id}_{nombre[:10]}"
+                public_id=p_id,
+                overwrite=True
             )
             imagen_url = upload_result['secure_url']
 
+        # 3. Conversión segura de valores numéricos para Neon DB
+        try:
+            precio_final = float(precio_raw)
+        except ValueError:
+            precio_final = 0.0
+
+        try:
+            stock_final = int(request.form.get('stock', 0))
+        except ValueError:
+            stock_final = 0
+
+        # Manejo de sucursal_id (por defecto 1 si no es válido)
+        if not sucursal_id or sucursal_id in ['null', 'undefined', '']:
+            sucursal_id_final = 1
+        else:
+            sucursal_id_final = int(sucursal_id)
+
+        # 4. Creación del objeto en la base de datos
         nuevo_producto = ProductoCatalogo(
             nombre=nombre,
-            descripcion=request.form.get('descripcion', ''),
-            precio=float(precio),
+            descripcion=request.form.get('descripcion', '').strip(),
+            precio=precio_final,
             imagen_url=imagen_url,
-            categoria=request.form.get('categoria', 'General'),
-            stock=int(request.form.get('stock', 0)),
+            categoria=request.form.get('categoria', 'General').strip(),
+            stock=stock_final,
             negocio_id=int(negocio_id),
-            sucursal_id=int(sucursal_id) if (sucursal_id and sucursal_id != 'null') else None,
+            sucursal_id=sucursal_id_final,
             usuario_id=user_id,
             activo=True
         )
@@ -115,13 +145,17 @@ def guardar_producto():
         db.session.add(nuevo_producto)
         db.session.commit()
 
-        return jsonify({"success": True, "id": nuevo_producto.id_producto, "url_foto": imagen_url}), 201
+        return jsonify({
+            "success": True, 
+            "id": nuevo_producto.id_producto, 
+            "url_foto": imagen_url,
+            "message": "Producto guardado con éxito"
+        }), 201
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"FALLO: {traceback.format_exc()}")
-        return jsonify({"success": False, "message": str(e)}), 500
-
+        logger.error(f"FALLO CRÍTICO EN GUARDAR PRODUCTO: {traceback.format_exc()}")
+        return jsonify({"success": False, "message": f"Error interno: {str(e)}"}), 500
 # --- 3. RUTA ELIMINAR ---
 @catalogo_api_bp.route('/producto/eliminar/<int:id_producto>', methods=['DELETE', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
