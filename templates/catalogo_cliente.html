@@ -42,6 +42,7 @@
 
 <div class="trust-banner">
     <i class="fas fa-shipping-fast mr-2"></i> ¡PAGA AL RECIBIR! Todos nuestros productos cuentan con **PAGO CONTRA ENTREGA**
+    <small>(Costo de envío varía según destino y se sumarà al valor del carrito con previa confirmacion al cliente por WHATSAPP)</small>
 </div>
 
 <nav class="navbar navbar-light navbar-custom sticky-top px-4">
@@ -221,7 +222,7 @@
         if(!nombre || !direccion || !cel) return alert("Por favor completa los datos de envío.");
 
         let msg = `*NUEVO PEDIDO: PAGO CONTRA ENTREGA*%0A`;
-        msg += `_El valor del envío depende del destino y se sumará al total con previa confirmación._%0A`;
+        
         msg += `---------------------------%0A`;
         msg += `*CLIENTE:* ${nombre}%0A`;
         msg += `*TEL:* ${cel}%0A`;
