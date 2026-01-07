@@ -3,151 +3,191 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Catálogo Oficial | {{ negocio.nombre_negocio }}</title>
-    
-    <link rel="icon" href="{{ url_for('static', filename='imgs/Rodar.png') }}" type="image/png">
+    <title>Tienda Oficial | Rodar</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
     <style>
-        body { background-color: #f4f7f6; font-family: 'Inter', sans-serif; }
-        .navbar-catalogo { background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .hero-catalogo { 
-            background: linear-gradient(135deg, #1a1a1a 0%, #333 100%); 
-            color: white; padding: 60px 0; text-align: center; 
-        }
-        .search-box { margin-top: -35px; z-index: 10; position: relative; }
-        .search-input { 
-            border: none; border-radius: 15px; padding: 28px 30px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1); font-size: 1.1rem; 
-        }
+        :root { --primary: #007bff; --whatsapp: #25D366; --dark: #1a1a1a; }
+        body { background-color: #f8f9fa; font-family: 'Inter', sans-serif; }
+        
+        /* Navbar & Cart Icon */
+        .navbar-custom { background: white; border-bottom: 1px solid #eee; sticky: top; }
+        .cart-badge { position: absolute; top: -5px; right: -10px; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; }
+        
+        /* Sidebar Categorías */
+        .sidebar { background: white; border-radius: 12px; padding: 20px; height: fit-content; }
+        .cat-item { cursor: pointer; padding: 10px; border-radius: 8px; transition: 0.3s; color: #555; }
+        .cat-item:hover, .cat-item.active { background: var(--primary); color: white; }
 
-        /* Card Estilo E-commerce */
-        .product-card { 
-            border: none; border-radius: 16px; background: #fff; 
-            transition: all 0.3s ease; height: 100%; display: flex; flex-direction: column;
-        }
-        .product-card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+        /* Tarjetas de Producto */
+        .product-card { border: none; border-radius: 15px; transition: 0.3s; background: white; height: 100%; overflow: hidden; }
+        .product-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.1); }
+        .img-container { height: 180px; background: #f1f1f1; position: relative; }
+        .img-container img { width: 100%; height: 100%; object-fit: cover; }
         
-        .img-wrapper { height: 200px; overflow: hidden; border-radius: 16px 16px 0 0; background: #f9f9f9; }
-        .img-wrapper img { width: 100%; height: 100%; object-fit: cover; transition: 0.5s; }
-        .product-card:hover .img-wrapper img { scale: 1.1; }
-        
-        .card-body { padding: 1.2rem; display: flex; flex-direction: column; justify-content: space-between; flex-grow: 1; }
-        .product-title { font-size: 0.95rem; font-weight: 700; color: #2d3436; margin-bottom: 5px; }
-        .product-category { font-size: 0.75rem; color: #a0a0a0; text-transform: uppercase; letter-spacing: 1px; }
-        .price { color: #007bff; font-weight: 800; font-size: 1.3rem; margin: 10px 0; }
-        
-        .btn-whatsapp { 
-            background: #25D366; color: white; font-weight: bold; border-radius: 12px; 
-            padding: 12px; border: none; transition: 0.3s;
-        }
-        .btn-whatsapp:hover { background: #1eb954; color: white; box-shadow: 0 5px 15px rgba(37, 211, 102, 0.4); }
+        /* Botón Añadir */
+        .btn-add-cart { border-radius: 8px; font-weight: bold; background: var(--dark); color: white; border: none; padding: 8px; width: 100%; }
+        .btn-add-cart:hover { background: var(--primary); }
+
+        /* Carrito Flotante (Sidebar derecha o Modal) */
+        .cart-sidebar { position: fixed; right: -400px; top: 0; width: 350px; height: 100%; background: white; z-index: 1100; box-shadow: -5px 0 15px rgba(0,0,0,0.1); transition: 0.4s; padding: 20px; display: flex; flex-direction: column; }
+        .cart-sidebar.open { right: 0; }
     </style>
 </head>
 <body>
 
-    <nav class="navbar navbar-catalogo px-4 py-3">
-        <a href="{{ url_for('pagina_api_bp.ver_micrositio', slug=negocio.slug) }}" class="btn-back text-dark">
-            <i class="fas fa-arrow-left"></i> <span class="ml-2 font-weight-bold">Volver</span>
-        </a>
-        <span class="navbar-brand mb-0 h1 ml-auto" style="font-size: 1.1rem;">{{ negocio.nombre_negocio }}</span>
-    </nav>
+<nav class="navbar navbar-light navbar-custom sticky-top px-4">
+    <a class="navbar-brand font-weight-bold" href="#">RODAR <span class="text-primary">SHOP</span></a>
+    <div class="ml-auto" style="position: relative; cursor: pointer;" onclick="toggleCart(true)">
+        <i class="fas fa-shopping-cart fa-lg"></i>
+        <span class="cart-badge" id="cartCount">0</span>
+    </div>
+</nav>
 
-    <header class="hero-catalogo">
-        <div class="container">
-            <h1 class="display-4 font-weight-bold">Catálogo de Productos</h1>
-            <p class="lead opacity-75">Explora nuestras soluciones y herramientas disponibles</p>
-        </div>
-    </header>
-
-    <div class="container">
-        <div class="row justify-content-center search-box">
-            <div class="col-md-8">
-                <input type="text" id="searchInput" class="form-control search-input" placeholder="🔍 Buscar por nombre o categoría...">
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-lg-2 mb-4">
+            <div class="sidebar shadow-sm">
+                <h6 class="font-weight-bold mb-3">CATEGORÍAS</h6>
+                <div class="cat-item active" onclick="filtrar('Todas')">Todas</div>
+                <div class="cat-item" onclick="filtrar('Ropa')">Ropa</div>
+                <div class="cat-item" onclick="filtrar('Herramientas Eléctricas')">Herramientas</div>
+                <div class="cat-item" onclick="filtrar('Accesorios para Bici')">Bici</div>
+                <div class="cat-item" onclick="filtrar('Accesorios para Moto')">Moto</div>
+                <div class="cat-item" onclick="filtrar('Accesorios para Carro')">Carro</div>
+                <div class="cat-item" onclick="filtrar('Equipamiento Comercial')">Tiendas Automotrices</div>
             </div>
         </div>
 
-        <div class="row mt-5" id="productGrid">
-            <div class="col-12 text-center py-5">
-                <div class="spinner-border text-primary" role="status"></div>
-                <p class="mt-3 text-muted font-italic">Obteniendo productos actualizados de Neon DB...</p>
-            </div>
+        <div class="col-lg-10">
+            <div class="row" id="productGrid">
+                </div>
         </div>
     </div>
+</div>
 
-    <footer class="py-5 bg-white text-center mt-5 border-top">
-        <p class="mb-0 text-muted small">© 2026 {{ negocio.nombre_negocio }} | Powered by <strong>BizFlow Studio</strong></p>
-    </footer>
+<div id="cartSidebar" class="cart-sidebar">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h5 class="mb-0">Mi Carrito</h5>
+        <button class="close" onclick="toggleCart(false)">&times;</button>
+    </div>
+    <div id="cartItems" style="flex-grow: 1; overflow-y: auto;">
+        </div>
+    <div class="border-top pt-3">
+        <div class="d-flex justify-content-between font-weight-bold mb-3">
+            <span>Total:</span>
+            <span id="cartTotal">$ 0</span>
+        </div>
+        <button class="btn btn-success btn-block py-3 font-weight-bold" onclick="enviarPedido()">
+            <i class="fab fa-whatsapp mr-2"></i> FINALIZAR PEDIDO
+        </button>
+    </div>
+</div>
 
-    <script>
-        // CONFIGURACIÓN DINÁMICA
-        const NEGOCIO_ID = "{{ negocio.id_negocio }}";
-        
-        // CORRECCIÓN WHATSAPP: Forzamos tu número y limpiamos cualquier carácter no numérico
-        const WHATSAPP_CONFIG = "{{ negocio.telefono }}".replace(/\D/g, ''); 
-        const WHATSAPP_NEGOCIO = WHATSAPP_CONFIG.length > 5 ? WHATSAPP_CONFIG : "573058916907";
+<script>
+    const API_URL = "https://trayectoria-backend.onrender.com/api";
+    const NEGOCIO_ID = "{{ negocio.id_negocio }}";
+    const WHATSAPP_CLIENTE = "573058916907"; // Tu número corregido
 
-        const API_URL = "https://trayectoria-backend.onrender.com/api";
+    let productosRaw = [];
+    let carrito = [];
+
+    // Cargar desde el Backend
+    async function init() {
+        try {
+            const res = await fetch(`${API_URL}/productos/publicos/${NEGOCIO_ID}`);
+            const json = await res.json();
+            productosRaw = json.data;
+            render(productosRaw);
+        } catch (e) { console.error("Error al cargar tienda"); }
+    }
+
+    function render(items) {
         const grid = document.getElementById('productGrid');
-        const input = document.getElementById('searchInput');
-        let productosCache = [];
-
-        const formatter = new Intl.NumberFormat('es-CO', {
-            style: 'currency', currency: 'COP', minimumFractionDigits: 0
-        });
-
-        async function cargarProductos() {
-            try {
-                const response = await fetch(`${API_URL}/productos/publicos/${NEGOCIO_ID}`);
-                const result = await response.json();
-
-                if (result.success && result.data.length > 0) {
-                    productosCache = result.data;
-                    renderizar(productosCache);
-                } else {
-                    grid.innerHTML = `<div class="col-12 text-center py-5"><h4 class="text-muted">Aún no hay productos publicados.</h4></div>`;
-                }
-            } catch (error) {
-                grid.innerHTML = '<div class="col-12 text-center py-5"><h4 class="text-danger">Error de conexión.</h4></div>';
-            }
-        }
-
-        function renderizar(items) {
-            grid.innerHTML = items.map(p => `
-                <div class="col-6 col-md-4 col-lg-3 mb-4">
-                    <div class="product-card shadow-sm">
-                        <div class="img-wrapper">
-                            <img src="${p.img || 'https://res.cloudinary.com/dp50v0bwj/image/upload/v1704285000/default_product.png'}" 
-                                 alt="${p.nombre}" 
-                                 onerror="this.src='https://via.placeholder.com/300x200?text=Sin+Imagen'">
-                        </div>
-                        <div class="card-body">
-                            <div>
-                                <span class="product-category">${p.categoria || 'General'}</span>
-                                <h6 class="product-title text-truncate">${p.nombre}</h6>
-                                <p class="price">${formatter.format(p.price || p.precio)}</p>
-                            </div>
-                            <a href="https://wa.me/${WHATSAPP_NEGOCIO}?text=Hola! Me interesa este producto de su catálogo: *${p.nombre}*%0A%0A*Descripción:* ${p.descripcion || 'Ver en catálogo'}%0A*Precio:* ${formatter.format(p.price || p.precio)}" 
-                               target="_blank" class="btn btn-whatsapp btn-block">
-                                <i class="fab fa-whatsapp mr-1"></i> Consultar
-                            </a>
-                        </div>
+        grid.innerHTML = items.map(p => `
+            <div class="col-6 col-md-4 col-lg-3 mb-4">
+                <div class="product-card shadow-sm">
+                    <div class="img-container">
+                        <img src="${p.img || 'https://via.placeholder.com/300'}" alt="${p.nombre}">
+                    </div>
+                    <div class="p-3">
+                        <small class="text-muted text-uppercase">${p.categoria || 'General'}</small>
+                        <h6 class="text-truncate font-weight-bold mb-1">${p.nombre}</h6>
+                        <p class="text-primary font-weight-bold mb-3">$ ${p.precio.toLocaleString()}</p>
+                        <button class="btn-add-cart" onclick="addToCart(${p.id})">Añadir al Carrito</button>
                     </div>
                 </div>
-            `).join('');
-        }
+            </div>
+        `).join('');
+    }
 
-        input.addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            const filtrados = productosCache.filter(p => 
-                p.nombre.toLowerCase().includes(term) || 
-                (p.categoria && p.categoria.toLowerCase().includes(term))
-            );
-            renderizar(filtrados);
+    // Lógica del Carrito
+    function addToCart(id) {
+        const prod = productosRaw.find(p => p.id === id);
+        carrito.push(prod);
+        updateCartUI();
+        toggleCart(true);
+    }
+
+    function updateCartUI() {
+        const container = document.getElementById('cartItems');
+        const count = document.getElementById('cartCount');
+        const total = document.getElementById('cartTotal');
+
+        count.innerText = carrito.length;
+        let sum = 0;
+
+        container.innerHTML = carrito.map((item, index) => {
+            sum += item.precio;
+            return `
+                <div class="d-flex mb-3 border-bottom pb-2">
+                    <img src="${item.img}" width="50" height="50" class="rounded mr-2">
+                    <div style="flex:1">
+                        <h6 class="small font-weight-bold mb-0">${item.nombre}</h6>
+                        <span class="small text-primary">$ ${item.precio.toLocaleString()}</span>
+                    </div>
+                    <button class="btn btn-sm text-danger" onclick="removeFromCart(${index})">×</button>
+                </div>
+            `;
+        }).join('');
+
+        total.innerText = `$ ${sum.toLocaleString()}`;
+    }
+
+    function removeFromCart(index) {
+        carrito.splice(index, 1);
+        updateCartUI();
+    }
+
+    function toggleCart(show) {
+        document.getElementById('cartSidebar').classList.toggle('open', show);
+    }
+
+    function filtrar(cat) {
+        // Estilos de botones
+        document.querySelectorAll('.cat-item').forEach(el => el.classList.remove('active'));
+        event.target.classList.add('active');
+
+        if(cat === 'Todas') render(productosRaw);
+        else render(productosRaw.filter(p => p.categoria === cat));
+    }
+
+    function enviarPedido() {
+        if(carrito.length === 0) return alert("El carrito está vacío");
+
+        let msg = `*NUEVO PEDIDO - RODAR SHOP*%0A---------------------------%0A`;
+        carrito.forEach((p, i) => {
+            msg += `${i+1}. ${p.nombre} - *$${p.precio.toLocaleString()}*%0A`;
         });
+        
+        let total = carrito.reduce((s, p) => s + p.precio, 0);
+        msg += `---------------------------%0A*TOTAL: $${total.toLocaleString()}*%0A%0A_Por favor, confírmeme la disponibilidad._`;
+        
+        window.open(`https://wa.me/${WHATSAPP_CLIENTE}?text=${msg}`, '_blank');
+    }
 
-        document.addEventListener('DOMContentLoaded', cargarProductos);
-    </script>
+    init();
+</script>
+
 </body>
 </html>
