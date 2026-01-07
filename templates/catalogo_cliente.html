@@ -64,7 +64,7 @@
                 <div class="cat-item" onclick="filtrar('Accesorios para Bici')">Accesorios Bici</div>
                 <div class="cat-item" onclick="filtrar('Accesorios para Moto')">Accesorios Moto</div>
                 <div class="cat-item" onclick="filtrar('Accesorios para Carro')">Accesorios Carro</div>
-                <div class="cat-item" onclick="filtrar('Equipamiento Comercial')">Tiendas Automotrices</div>
+                <div class="cat-item" onclick="filtrar('Equipamiento Comercial')">Equipamiento Comercial automotriz</div>
             </div>
         </div>
 
@@ -220,6 +220,7 @@
         if(!nombre || !direccion || !cel) return alert("Por favor completa los datos de envío.");
 
         let msg = `*NUEVO PEDIDO: PAGO CONTRA ENTREGA*%0A`;
+        let msg = `*El valor del envio depende del lugar de destino y se sumarà al total de carro de compras con previa confirmaciòn*%0A`;
         msg += `---------------------------%0A`;
         msg += `*CLIENTE:* ${nombre}%0A`;
         msg += `*TEL:* ${cel}%0A`;
