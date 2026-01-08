@@ -73,89 +73,85 @@ import traceback
 from flask import request, jsonify
 from flask_cors import cross_origin
 
-@catalogo_api_bp.route('/producto/guardar', methods=['POST', 'OPTIONS'])
+@control_api_bp.route('/control/operacion/guardar', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
-def guardar_producto():
+def guardar_operacion():
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
 
-    user_id = get_authorized_user_id()
+    # Identificación de usuario
+    user_id = request.headers.get('X-User-ID') or (current_user.id_usuario if current_user.is_authenticated else None)
     if not user_id:
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
-        # 1. Obtención de datos básicos
-        nombre = request.form.get('nombre', '').strip()
-        precio_raw = request.form.get('precio', '0')
-        negocio_id = request.form.get('negocio_id')
-        sucursal_id = request.form.get('sucursal_id')
+        is_form = 'multipart/form-data' in (request.content_type or '')
+        data = request.form if is_form else (request.get_json(silent=True) or {})
         
-        if not all([nombre, negocio_id]):
-            return jsonify({"success": False, "message": "Nombre y Negocio ID son obligatorios"}), 400
-
-        # 2. Manejo de Imagen con limpieza de public_id
+        # 1. PROCESAMIENTO DE IMAGEN (CLOUDINARY)
+        imagen_url = data.get('imagen_url') # Por si viene de un JSON anterior
         file = request.files.get('imagen_file')
-        imagen_url = "https://res.cloudinary.com/dp50v0bwj/image/upload/v1704285000/default_product.png"
-
-        if file and file.filename and allowed_file(file.filename):
-            # LIMPIEZA CRÍTICA: Cloudinary no acepta espacios al final ni caracteres especiales
-            # Tomamos los primeros 15 caracteres, quitamos espacios y dejamos solo letras/números
-            nombre_limpio = re.sub(r'[^a-zA-Z0-9]', '', nombre[:15])
-            p_id = f"prod_{negocio_id}_{user_id}_{nombre_limpio}"
-
+        
+        if file and file.filename:
+            nombre_limpio = re.sub(r'[^a-zA-Z0-9]', '', data.get('nombre', 'prod')[:15])
+            p_id = f"inv_{user_id}_{nombre_limpio}"
+            
             upload_result = cloudinary.uploader.upload(
                 file,
                 folder="productos_bizflow",
                 public_id=p_id,
                 overwrite=True
             )
-            imagen_url = upload_result['secure_url']
+            imagen_url = upload_result.get('secure_url')
 
-        # 3. Conversión segura de valores numéricos para Neon DB
-        try:
-            precio_final = float(precio_raw)
-        except ValueError:
-            precio_final = 0.0
-
-        try:
-            stock_final = int(request.form.get('stock', 0))
-        except ValueError:
-            stock_final = 0
-
-        # Manejo de sucursal_id (por defecto 1 si no es válido)
-        if not sucursal_id or sucursal_id in ['null', 'undefined', '']:
-            sucursal_id_final = 1
-        else:
-            sucursal_id_final = int(sucursal_id)
-
-        # 4. Creación del objeto en la base de datos
-        nuevo_producto = ProductoCatalogo(
-            nombre=nombre,
-            descripcion=request.form.get('descripcion', '').strip(),
-            precio=precio_final,
-            imagen_url=imagen_url,
-            categoria=request.form.get('categoria', 'General').strip(),
-            stock=stock_final,
-            negocio_id=int(negocio_id),
-            sucursal_id=sucursal_id_final,
-            usuario_id=user_id,
-            activo=True
+        # 2. REGISTRO CONTABLE
+        monto_f = float(data.get('precio', 0)) if is_form else float(data.get('monto', 0))
+        nueva_t = TransaccionOperativa(
+            negocio_id=int(data.get('negocio_id', 1)),
+            usuario_id=int(user_id),
+            sucursal_id=int(data.get('sucursal_id', 1)),
+            tipo=data.get('tipo', 'COMPRA'),
+            monto=monto_f,
+            concepto=f"Inventario: {data.get('nombre', 'Nuevo Producto')}",
+            categoria=data.get('categoria', 'General'),
+            metodo_pago=data.get('metodo_pago', 'Efectivo')
         )
+        db.session.add(nueva_t)
 
-        db.session.add(nuevo_producto)
+        # 3. SINCRONIZACIÓN NEON DB (PRODUCTO)
+        nombre_p = data.get('nombre')
+        neg_id = int(data.get('negocio_id', 1))
+        prod = ProductoCatalogo.query.filter_by(nombre=nombre_p, negocio_id=neg_id).first()
+
+        if prod:
+            # Actualización
+            if imagen_url: prod.imagen_url = imagen_url
+            if data.get('costo'): prod.costo = float(data.get('costo'))
+            if data.get('precio'): prod.precio = float(data.get('precio'))
+            if data.get('stock'): prod.stock = int(data.get('stock'))
+        else:
+            # Creación con todos los campos obligatorios
+            nuevo_prod = ProductoCatalogo(
+                nombre=nombre_p,
+                negocio_id=neg_id,
+                usuario_id=int(user_id),
+                sucursal_id=int(data.get('sucursal_id', 1)),
+                categoria=data.get('categoria', 'General'),
+                costo=float(data.get('costo', 0)),
+                precio=float(data.get('precio', 0)),
+                stock=int(data.get('stock', 0)),
+                imagen_url=imagen_url or "https://res.cloudinary.com/dp50v0bwj/image/upload/v1704285000/default_product.png",
+                activo=True
+            )
+            db.session.add(nuevo_prod)
+
         db.session.commit()
-
-        return jsonify({
-            "success": True, 
-            "id": nuevo_producto.id_producto, 
-            "url_foto": imagen_url,
-            "message": "Producto guardado con éxito"
-        }), 201
+        return jsonify({"success": True, "message": "Sincronización Neon + Cloudinary exitosa", "url": imagen_url}), 201
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"FALLO CRÍTICO EN GUARDAR PRODUCTO: {traceback.format_exc()}")
-        return jsonify({"success": False, "message": f"Error interno: {str(e)}"}), 500
+        print(f"❌ Error: {traceback.format_exc()}")
+        return jsonify({"success": False, "message": str(e)}), 500
 # --- 3. RUTA ELIMINAR ---
 @catalogo_api_bp.route('/producto/eliminar/<int:id_producto>', methods=['DELETE', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
