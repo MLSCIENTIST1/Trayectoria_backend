@@ -21,26 +21,47 @@ def guardar_operacion():
         return jsonify({"success": False, "message": "Usuario no identificado"}), 401
 
     try:
-        data = request.get_json()
-        negocio_id = int(data.get('negocio_id'))
-        tipo_op = data.get('tipo', 'VENTA') # VENTA o COMPRA o GASTO
+        # DETECCIÓN DE FORMATO: Soporta JSON (POS) y FormData (Interfaz Inventario)
+        is_form = request.content_type and 'multipart/form-data' in request.content_type
+        
+        if is_form:
+            data = request.form
+        else:
+            data = request.get_json()
 
-        # 1. Registrar la Transacción
+        negocio_id = int(data.get('negocio_id'))
+        tipo_op = data.get('tipo', 'VENTA') 
+
+        # 1. Registrar la Transacción en el historial (TransaccionOperativa)
         nueva_t = TransaccionOperativa(
             negocio_id=negocio_id,
             usuario_id=int(user_id),
             sucursal_id=int(data.get('sucursal_id', 1)),
             tipo=tipo_op,
             concepto=data.get('concepto', 'Operación POS'),
-            monto=float(data.get('monto', 0)),
+            monto=float(data.get('monto', 0)) if not is_form else float(data.get('precio', 0)),
             categoria=data.get('categoria', 'General'),
             metodo_pago=data.get('metodo_pago', 'Efectivo'),
             referencia_guia=data.get('referencia_guia', '')
         )
         db.session.add(nueva_t)
 
-        # 2. Lógica de Inventario (Solo para VENTA y COMPRA)
-        if tipo_op in ['VENTA', 'COMPRA', 'GASTO'] and 'items' in data:
+        # 2. Lógica de Inventario (Solo para VENTA, COMPRA, GASTO)
+        # CASO A: Viene del Formulario de Inventario (un solo producto nuevo/existente)
+        if is_form:
+            # Buscamos el producto por nombre si no hay ID disponible en el form
+            nombre_p = data.get('nombre')
+            prod = ProductoCatalogo.query.filter_by(nombre=nombre_p, negocio_id=negocio_id).first()
+            if prod:
+                if data.get('costo'):
+                    prod.costo = float(data.get('costo'))
+                if data.get('precio'):
+                    prod.precio = float(data.get('precio'))
+                if data.get('stock'):
+                    prod.stock = int(data.get('stock'))
+
+        # CASO B: Viene del POS (múltiples items en formato JSON)
+        elif 'items' in data:
             for item in data['items']:
                 prod = ProductoCatalogo.query.filter_by(
                     id_producto=int(item['id']), 
@@ -48,18 +69,26 @@ def guardar_operacion():
                 ).first()
                 
                 if prod:
-                    # Obtenemos cantidad (soportando 'qty' de venta o 'cantidad' de compra)
-                    cant = int(item.get('qty') or item.get('cantidad') or 0)
+                    # 'qty' para ventas, 'cantidad' para compras
+                    cant_operacion = int(item.get('qty') or item.get('cantidad') or 0)
                     
                     if tipo_op == 'VENTA':
-                        prod.stock -= cant
-                    elif tipo_op == 'COMPRA' or (tipo_op == 'GASTO' and cant > 0):
-                        prod.stock += cant # Incremento de inventario
-                        # Opcional: Actualizar costo si viene en el item
-                        if item.get('costo'):
-                            prod.costo = float(item['costo'])
+                        prod.stock -= cant_operacion
+                    elif tipo_op == 'COMPRA' or (tipo_op == 'GASTO' and cant_operacion > 0):
+                        costo_nuevo_unidad = float(item.get('costo', 0))
+                        
+                        # Actualización de Costo Directo o PMP (Promedio Móvil Ponderado)
+                        if prod.stock > 0 and costo_nuevo_unidad > 0:
+                            valor_inventario_actual = prod.stock * (prod.costo or 0)
+                            valor_compra_nueva = cant_operacion * costo_nuevo_unidad
+                            nuevo_stock_total = prod.stock + cant_operacion
+                            prod.costo = (valor_inventario_actual + valor_compra_nueva) / nuevo_stock_total
+                        elif costo_nuevo_unidad > 0:
+                            prod.costo = costo_nuevo_unidad
+                        
+                        prod.stock += cant_operacion
 
-                    # Alerta de stock (Solo si terminó en bajo stock)
+                    # Alerta de stock crítico
                     if prod.stock <= 5:
                         nueva_alerta = AlertaOperativa(
                             negocio_id=negocio_id,
@@ -70,8 +99,9 @@ def guardar_operacion():
                         )
                         db.session.add(nueva_alerta)
 
+        # Guardamos todos los cambios en Neon DB
         db.session.commit()
-        return jsonify({"success": True, "message": "Sincronizado con Neon DB"}), 201
+        return jsonify({"success": True, "message": "Producto y Costo sincronizados en Neon DB"}), 201
 
     except Exception as e:
         db.session.rollback()
@@ -85,14 +115,11 @@ def obtener_reporte(negocio_id):
         return jsonify({"success": True}), 200
         
     try:
-        # 1. Consultamos las transacciones del negocio. 
-        # IMPORTANTE: Se cambió 'fecha_registro' por 'fecha' para coincidir con tu modelo.
+        # 1. Consultamos las transacciones del negocio ordenadas por fecha
         operaciones = TransaccionOperativa.query.filter_by(negocio_id=negocio_id)\
             .order_by(TransaccionOperativa.fecha.desc()).all()
         
-        # 2. Construimos la respuesta. 
-        # Aprovechamos el método 'to_dict' que ya definiste en tu modelo.
-        # Solo ajustamos los nombres de los campos para que tu HTML no sufra cambios.
+        # 2. Construimos la respuesta mapeando al formato del Frontend
         resultado = []
         for op in operaciones:
             data = op.to_dict()
@@ -100,9 +127,9 @@ def obtener_reporte(negocio_id):
                 "fecha": data["fecha"],
                 "concepto": data["concepto"] or "Sin concepto",
                 "categoria": data["categoria"] or "General",
-                "monto": data["monto"], # to_dict ya hace el cast a float
+                "monto": data["monto"],
                 "tipo": data["tipo"],
-                "metodo_pago": data["metodo"] # 'metodo' en el dict -> 'metodo_pago' para el frontend
+                "metodo_pago": data["metodo"]
             })
         
         return jsonify({
@@ -111,7 +138,6 @@ def obtener_reporte(negocio_id):
         }), 200
 
     except Exception as e:
-        # Esto te permitirá ver el error exacto en los logs de Render si algo más falla
         print("❌ Error crítico en obtener_reporte:")
         print(traceback.format_exc())
         return jsonify({
