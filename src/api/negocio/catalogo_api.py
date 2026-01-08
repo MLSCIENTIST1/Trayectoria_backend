@@ -55,18 +55,27 @@ def obtener_mis_productos():
 
     user_id = get_authorized_user_id()
     if not user_id:
-        return jsonify({"success": False, "message": "No autorizado. Falta X-User-ID"}), 401
+        return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
+        # Traemos los productos del usuario
         productos = ProductoCatalogo.query.filter_by(usuario_id=int(user_id)).all()
+        
+        # Formateamos la respuesta asegurando que id_producto esté presente
+        data_final = []
+        for p in productos:
+            d = p.to_dict()
+            # Forzamos que el JSON tenga id_producto para que el POS no se pierda
+            d['id_producto'] = p.id_producto 
+            data_final.append(d)
+
         return jsonify({
             "success": True,
-            "data": [p.to_dict() for p in productos]
+            "data": data_final
         }), 200
     except Exception as e:
         logger.error(f"❌ Error en GET mis-productos: {str(e)}")
-        return jsonify({"success": False, "message": "Error al cargar catálogo"}), 500
-
+        return jsonify({"success": False, "message": str(e)}), 500
 # --- 2. RUTA PARA GUARDAR PRODUCTO (CON CLOUDINARY) ---
 @catalogo_api_bp.route('/catalogo/producto/guardar', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
