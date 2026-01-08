@@ -77,3 +77,28 @@ def guardar_operacion():
         db.session.rollback()
         print(f"❌ ERROR: {traceback.format_exc()}")
         return jsonify({"success": False, "message": str(e)}), 500
+
+@control_api_bp.route('/control/reporte/<int:negocio_id>', methods=['GET', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def obtener_reporte(negocio_id):
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+        
+    try:
+        # Consultamos las transacciones del negocio ordenadas por fecha
+        operaciones = TransaccionOperativa.query.filter_by(negocio_id=negocio_id)\
+            .order_by(TransaccionOperativa.fecha_registro.desc()).all()
+        
+        return jsonify({
+            "success": True,
+            "operaciones": [{
+                "fecha": op.fecha_registro.isoformat(),
+                "concepto": op.concepto,
+                "categoria": op.categoria,
+                "monto": op.monto,
+                "tipo": op.tipo,
+                "metodo_pago": op.metodo_pago
+            } for op in operaciones]
+        }), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
