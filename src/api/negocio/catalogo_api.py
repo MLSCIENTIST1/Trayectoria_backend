@@ -3,12 +3,14 @@ import cloudinary.uploader
 import logging
 import traceback
 import sys
+import re
 from flask import Blueprint, request, jsonify
 from flask_cors import cross_origin
+from flask_login import current_user
+
+# Importaciones de modelos y base de datos
 from src.models.database import db
 from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo, TransaccionOperativa
-
-from flask_login import current_user
 
 # --- CONFIGURACIÓN DE LOGS ---
 logger = logging.getLogger(__name__)
@@ -19,7 +21,7 @@ if not logger.handlers:
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
-# CONFIGURACIÓN DE CLOUDINARY
+# --- CONFIGURACIÓN DE CLOUDINARY ---
 cloudinary.config(
     cloud_name="dp50v0bwj",
     api_key="966788685877863",
@@ -27,14 +29,15 @@ cloudinary.config(
     secure=True
 )
 
-catalogo_api_bp = Blueprint('catalogo_service', __name__)
+catalogo_api_bp = Blueprint('catalogo_api', __name__)
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# FUNCIÓN DE VALIDACIÓN HÍBRIDA (Cookie o Header)
 def get_authorized_user_id():
+    """Valida usuario por sesión o por Header X-User-ID"""
     if current_user.is_authenticated:
         return current_user.id_usuario
     return request.headers.get('X-User-ID')
@@ -56,19 +59,16 @@ def obtener_mis_productos():
 
     logger.info(f"🛰️ Solicitud de catálogo para User-ID: {user_id}")
     try:
-        # Filtramos por el ID obtenido
         productos = ProductoCatalogo.query.filter_by(usuario_id=int(user_id)).all()
-        catalogo_data = [p.to_dict() for p in productos]
-        
         return jsonify({
             "success": True,
-            "data": catalogo_data
+            "data": [p.to_dict() for p in productos]
         }), 200
     except Exception as e:
         logger.error(f"❌ Error en GET mis-productos: {str(e)}")
         return jsonify({"success": False, "message": "Error al cargar catálogo"}), 500
 
-# --- RUTA 2: GUARDAR PRODUCTO (CON CLOUDINARY) ---
+# --- 2. RUTA PARA GUARDAR PRODUCTO (CON CLOUDINARY) ---
 @catalogo_api_bp.route('/catalogo/producto/guardar', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def guardar_producto_catalogo():
@@ -80,45 +80,7 @@ def guardar_producto_catalogo():
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
-        # Detectar si viene como FormData (con imagen) o JSON
-        is_form = 'multipart/form-data' in (request.content_type or '')
-        data = request.form if is_form else (request.get_json(silent=True) or {})
-        
-        # 1. Procesamiento de Imagen en Cloudinary
-        imagen_url = data.get('imagen_url') 
-        file = request.files.get('imagen') # 'imagen' coincide con el append de JS
-        
-        if file and file.filename != '':
-            nombre_prod = data.get('nombre', 'producto')
-            nombre_limpio = re.sub(r'[^a-zA-Z0-9]', '', nombre_prod[:15])
-            p_id = f"inv_{user_id}_{nombre_limpio}"
-            
-            upload_result = cloudinary.uploader.upload(
-                file,
-                folder="productos_bizflow",
-                public_id=p_id,
-                overwrite=True
-            )
-            imagen_url = upload_result.get('secure_url')
-# --- 2. RUTA PARA GUARDAR PRODUCTO ---
-import re
-import traceback
-from flask import request, jsonify
-from flask_cors import cross_origin
-
-@catalogo_api_bp.route('/catalogo/producto/guardar', methods=['POST', 'OPTIONS'])
-@cross_origin(supports_credentials=True)
-def guardar_producto_catalogo():
-    if request.method == 'OPTIONS':
-        return jsonify({"success": True}), 200
-
-    # Identificación de usuario desde el Header X-User-ID
-    user_id = request.headers.get('X-User-ID')
-    if not user_id:
-        return jsonify({"success": False, "message": "No autorizado"}), 401
-
-    try:
-        # Detectar si es formulario (con imagen) o JSON
+        # Detectar tipo de entrada (FormData o JSON)
         is_form = 'multipart/form-data' in (request.content_type or '')
         data = request.form if is_form else (request.get_json(silent=True) or {})
         
@@ -127,8 +89,8 @@ def guardar_producto_catalogo():
         file = request.files.get('imagen') or request.files.get('imagen_file')
         
         if file and file.filename != '':
-            # Generar ID único para la imagen basado en el nombre del producto
             nombre_prod = data.get('nombre', 'producto')
+            # Limpiar nombre para el public_id de Cloudinary
             nombre_limpio = re.sub(r'[^a-zA-Z0-9]', '', nombre_prod[:15])
             p_id = f"inv_{user_id}_{nombre_limpio}"
             
@@ -141,13 +103,13 @@ def guardar_producto_catalogo():
             )
             imagen_url = upload_result.get('secure_url')
 
-        # 2. REGISTRO CONTABLE (Crea una transacción inicial por la creación/ajuste)
+        # 2. REGISTRO CONTABLE (Transacción Operativa)
         monto_f = float(data.get('precio', 0))
         nueva_t = TransaccionOperativa(
             negocio_id=int(data.get('negocio_id', 1)),
             usuario_id=int(user_id),
             sucursal_id=int(data.get('sucursal_id', 1)),
-            tipo='INGRESO', # Se registra como ingreso de inventario
+            tipo='INGRESO', 
             monto=monto_f,
             concepto=f"Registro Catálogo: {data.get('nombre')}",
             categoria=data.get('categoria', 'General'),
@@ -155,21 +117,21 @@ def guardar_producto_catalogo():
         )
         db.session.add(nueva_t)
 
-        # 3. SINCRONIZACIÓN NEON DB (ProductoCatalogo)
+        # 3. SINCRONIZACIÓN NEON DB
         nombre_p = data.get('nombre')
         neg_id = int(data.get('negocio_id', 1))
         
         prod = ProductoCatalogo.query.filter_by(nombre=nombre_p, negocio_id=neg_id).first()
 
         if prod:
-            # Actualizar producto existente
+            # Actualizar
             if imagen_url: prod.imagen_url = imagen_url
             prod.costo = float(data.get('costo', 0))
             prod.precio = float(data.get('precio', 0))
             prod.stock = int(data.get('stock', 0))
             prod.categoria = data.get('categoria', 'General')
         else:
-            # Crear producto nuevo
+            # Crear Nuevo
             nuevo_prod = ProductoCatalogo(
                 nombre=nombre_p,
                 negocio_id=neg_id,
@@ -193,39 +155,41 @@ def guardar_producto_catalogo():
 
     except Exception as e:
         db.session.rollback()
-        print(f"❌ Error en Catálogo: {traceback.format_exc()}")
+        logger.error(f"❌ Error en Catálogo: {traceback.format_exc()}")
         return jsonify({"success": False, "message": str(e)}), 500
+
 # --- 3. RUTA ELIMINAR ---
 @catalogo_api_bp.route('/producto/eliminar/<int:id_producto>', methods=['DELETE', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def eliminar_producto(id_producto):
-    if request.method == 'OPTIONS': return jsonify({"success": True}), 200
+    if request.method == 'OPTIONS': 
+        return jsonify({"success": True}), 200
     
     user_id = get_authorized_user_id()
+    if not user_id:
+        return jsonify({"success": False, "message": "No autorizado"}), 401
+
     try:
-        prod = ProductoCatalogo.query.filter_by(id_producto=id_producto, usuario_id=user_id).first()
+        # Ajustamos el filtro según tu modelo (id_producto)
+        prod = ProductoCatalogo.query.filter_by(id_producto=id_producto, usuario_id=int(user_id)).first()
         if not prod:
-            return jsonify({"success": False, "message": "No encontrado"}), 404
+            return jsonify({"success": False, "message": "Producto no encontrado"}), 404
         
         db.session.delete(prod)
         db.session.commit()
-        return jsonify({"success": True}), 200
+        return jsonify({"success": True, "message": "Producto eliminado"}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": str(e)}), 500
-    
-    # --- 3. RUTA CATÁLOGO PÚBLICO (MODIFICADA) ---
-# Cambiamos '/publico/' por '/productos/publicos/' para que coincida con el JS
+
+# --- 4. RUTA CATÁLOGO PÚBLICO ---
 @catalogo_api_bp.route('/productos/publicos/<int:negocio_id>', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def obtener_catalogo_publico(negocio_id):
     if request.method == 'OPTIONS': 
         return jsonify({"success": True}), 200
     try:
-        # Filtramos por negocio y que el producto esté activo
         productos = ProductoCatalogo.query.filter_by(negocio_id=negocio_id, activo=True).all()
-        
-        # IMPORTANTE: Devolvemos el objeto con success y data para que el JS no falle
         return jsonify({
             "success": True,
             "data": [p.to_dict() for p in productos]
