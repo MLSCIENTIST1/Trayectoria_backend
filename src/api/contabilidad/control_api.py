@@ -9,22 +9,47 @@ import traceback
 
 control_api_bp = Blueprint('control_operativo', __name__)
 
+Aquí tienes el código completo y corregido del backend. He aplicado la doble validación de llaves (qty o cantidad) para que sea compatible tanto con tu módulo de compras como con el POS, y he optimizado la lógica de actualización para asegurar que el cambio se refleje en Neon DB.
+
+Archivo: src/api/contabilidad/control_api.py
+Python
+
+from flask import Blueprint, request, jsonify
+from flask_cors import cross_origin
+from flask_login import current_user
+from src.models.database import db
+from src.models.colombia_data.contabilidad.operaciones import TransaccionOperativa
+from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo
+import traceback
+import logging
+import sys
+
+# Configuración de logs para ver movimientos de stock en consola
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler(sys.stdout)
+logger.addHandler(handler)
+
+control_api_bp = Blueprint('control_api_bp', __name__)
+
 @control_api_bp.route('/control/operacion/registrar', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def registrar_operacion_maestra():
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
 
-    print("🚀 [INICIO] Recibiendo solicitud en /control/operacion/registrar")
+    logger.info("🚀 [INICIO] Procesando operación maestra")
     
-    # Identificación segura del usuario
-    user_id = request.headers.get('X-User-ID') or (current_user.id_usuario if current_user.is_authenticated else None)
+    # 1. Identificación del usuario (Header o Sesión)
+    user_id = request.headers.get('X-User-ID')
+    if not user_id and current_user.is_authenticated:
+        user_id = current_user.id_usuario
+
     if not user_id:
-        print("❌ [ERROR] Usuario no identificado")
         return jsonify({"success": False, "message": "Usuario no identificado"}), 401
 
     try:
-        # 1. DETECCIÓN DE FORMATO (Formulario para inventario manual, JSON para compras/ventas)
+        # 2. Detección de formato (FormData vs JSON)
         content_type = request.content_type or ''
         is_form = 'multipart/form-data' in content_type
         
@@ -34,68 +59,67 @@ def registrar_operacion_maestra():
             data = request.get_json(silent=True) or {}
 
         if not data:
-            return jsonify({"success": False, "message": "Cuerpo de solicitud vacío"}), 400
+            return jsonify({"success": False, "message": "Datos insuficientes"}), 400
 
         negocio_id = int(data.get('negocio_id', 1))
         tipo_op = data.get('tipo', 'VENTA').upper()
         monto_final = float(data.get('precio', 0)) if is_form else float(data.get('monto', 0))
 
-        # 2. REGISTRAR LA TRANSACCIÓN (CONTABILIDAD)
+        # 3. Registrar Transacción Contable
         nueva_t = TransaccionOperativa(
             negocio_id=negocio_id,
             usuario_id=int(user_id),
             sucursal_id=int(data.get('sucursal_id', 1)),
             tipo=tipo_op,
-            concepto=data.get('concepto', f"Inventario: {data.get('nombre')}" if is_form else f"Operación {tipo_op}"),
+            concepto=data.get('concepto', f"Movimiento: {tipo_op}"),
             monto=monto_final,
             categoria=data.get('categoria', 'General'),
-            metodo_pago=data.get('metodo_pago', 'Efectivo'),
-            referencia_guia=data.get('referencia_guia', '')
+            metodo_pago=data.get('metodo_pago', 'Efectivo')
         )
         db.session.add(nueva_t)
 
-        # 3. LÓGICA DE STOCK (CASO A: FORMULARIO - CREAR/ACTUALIZAR UNO SOLO)
+        # 4. Lógica de Stock
+        # CASO A: Formulario Manual (Inventario)
         if is_form:
             nombre_p = data.get('nombre')
             prod = ProductoCatalogo.query.filter_by(nombre=nombre_p, negocio_id=negocio_id).first()
-            
             if prod:
+                if data.get('stock'): prod.stock = int(data.get('stock'))
                 if data.get('costo'): prod.costo = float(data.get('costo'))
                 if data.get('precio'): prod.precio = float(data.get('precio'))
-                if data.get('stock'): prod.stock = int(data.get('stock'))
             else:
                 nuevo_prod = ProductoCatalogo(
-                    negocio_id=negocio_id,
-                    usuario_id=int(user_id),
-                    nombre=nombre_p,
-                    categoria=data.get('categoria', 'General'),
-                    costo=float(data.get('costo', 0)),
-                    precio=float(data.get('precio', 0)),
-                    stock=int(data.get('stock', 0)),
-                    sucursal_id=int(data.get('sucursal_id', 1))
+                    negocio_id=negocio_id, usuario_id=int(user_id),
+                    nombre=nombre_p, stock=int(data.get('stock', 0)),
+                    precio=float(data.get('precio', 0)), sucursal_id=int(data.get('sucursal_id', 1))
                 )
                 db.session.add(nuevo_prod)
 
-        # 4. LÓGICA DE STOCK (CASO B: JSON - ACTUALIZAR MÚLTIPLES PRODUCTOS)
+        # CASO B: Procesamiento masivo (Compras/Ventas POS)
         elif 'items' in data:
             for item in data['items']:
-                prod = ProductoCatalogo.query.get(item.get('id'))
+                prod_id = item.get('id')
+                prod = ProductoCatalogo.query.get(int(prod_id))
+                
                 if prod:
-                    cant = int(item.get('cantidad', 0))
-                    # Sumar si es COMPRA o INGRESO, Restar si es VENTA o GASTO
+                    # BLINDAJE: Buscamos 'cantidad' (Compras) o 'qty' (POS)
+                    cant = int(item.get('cantidad') or item.get('qty') or 0)
+                    stock_anterior = prod.stock or 0
+
                     if tipo_op in ['COMPRA', 'INGRESO']:
-                        prod.stock = (prod.stock or 0) + cant
+                        prod.stock = stock_anterior + cant
                         if item.get('costo'): prod.costo = float(item['costo'])
                     elif tipo_op in ['VENTA', 'GASTO']:
-                        prod.stock = (prod.stock or 0) - cant
+                        prod.stock = stock_anterior - cant
+                    
+                    logger.info(f"📦 Stock Actualizado: {prod.nombre} ({stock_anterior} -> {prod.stock})")
 
         db.session.commit()
-        print(f"🏁 [ÉXITO] Sincronización completa: {tipo_op}")
-        return jsonify({"success": True, "message": "Operación registrada y stock actualizado"}), 201
+        return jsonify({"success": True, "message": "Operación y stock sincronizados"}), 201
 
     except Exception as e:
         db.session.rollback()
-        print(f"❌ [CRÍTICO] Error: {traceback.format_exc()}")
+        logger.error(f"❌ Error Crítico: {traceback.format_exc()}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 @control_api_bp.route('/control/reporte/<int:negocio_id>', methods=['GET', 'OPTIONS'])
