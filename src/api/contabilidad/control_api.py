@@ -15,53 +15,73 @@ def guardar_operacion():
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
 
-    user_id = request.headers.get('X-User-ID') or (current_user.id_usuario if current_user.is_authenticated else None)
+    print("🚀 [INICIO] Recibiendo solicitud en /guardar_operacion")
     
+    # Identificación de Usuario
+    user_id = request.headers.get('X-User-ID') or (current_user.id_usuario if current_user.is_authenticated else None)
     if not user_id:
+        print("❌ [ERROR] Usuario no identificado")
         return jsonify({"success": False, "message": "Usuario no identificado"}), 401
 
     try:
-        # DETECCIÓN DE FORMATO: Soporta JSON (POS) y FormData (Interfaz Inventario)
-        is_form = request.content_type and 'multipart/form-data' in request.content_type
+        # DETECCIÓN DE FORMATO SEGURA (Evita el Error 415)
+        content_type = request.content_type or ''
+        is_form = 'multipart/form-data' in content_type
         
+        print(f"I--- Tipo de Contenido: {content_type}")
+        print(f"I--- ¿Es FormData?: {is_form}")
+
         if is_form:
             data = request.form
+            print(f"I--- Datos recibidos (Form): {data.to_dict()}")
         else:
-            data = request.get_json()
+            # get_json(silent=True) evita que Flask lance error 415 automáticamente
+            data = request.get_json(silent=True) or {}
+            print(f"I--- Datos recibidos (JSON): {data}")
 
-        negocio_id = int(data.get('negocio_id'))
-        tipo_op = data.get('tipo', 'VENTA') 
+        if not data:
+            print("⚠️ [WARN] No se detectaron datos en el cuerpo de la solicitud")
+            return jsonify({"success": False, "message": "Cuerpo de solicitud vacío o inválido"}), 400
+
+        negocio_id = int(data.get('negocio_id', 1))
+        tipo_op = data.get('tipo', 'VENTA')
+        print(f"I--- Operación: {tipo_op} | Negocio: {negocio_id} | Usuario: {user_id}")
 
         # 1. Registrar la Transacción en el historial (TransaccionOperativa)
+        monto_final = float(data.get('precio', 0)) if is_form else float(data.get('monto', 0))
+        
         nueva_t = TransaccionOperativa(
             negocio_id=negocio_id,
             usuario_id=int(user_id),
             sucursal_id=int(data.get('sucursal_id', 1)),
             tipo=tipo_op,
-            concepto=data.get('concepto', 'Operación POS'),
-            monto=float(data.get('monto', 0)) if not is_form else float(data.get('precio', 0)),
+            concepto=data.get('concepto', 'Operación POS' if not is_form else f"Inventario: {data.get('nombre')}"),
+            monto=monto_final,
             categoria=data.get('categoria', 'General'),
             metodo_pago=data.get('metodo_pago', 'Efectivo'),
             referencia_guia=data.get('referencia_guia', '')
         )
         db.session.add(nueva_t)
+        print(f"✅ [DB] Transacción preparada: {monto_final}")
 
-        # 2. Lógica de Inventario (Solo para VENTA, COMPRA, GASTO)
-        # CASO A: Viene del Formulario de Inventario (un solo producto nuevo/existente)
+        # 2. Lógica de Inventario
+        # CASO A: Formulario de Inventario (Un solo producto)
         if is_form:
-            # Buscamos el producto por nombre si no hay ID disponible en el form
             nombre_p = data.get('nombre')
+            print(f"🔍 [BUSCA] Buscando producto por nombre: {nombre_p}")
             prod = ProductoCatalogo.query.filter_by(nombre=nombre_p, negocio_id=negocio_id).first()
+            
             if prod:
-                if data.get('costo'):
-                    prod.costo = float(data.get('costo'))
-                if data.get('precio'):
-                    prod.precio = float(data.get('precio'))
-                if data.get('stock'):
-                    prod.stock = int(data.get('stock'))
+                print(f"✨ [UPDATE] Actualizando producto existente: {prod.nombre}")
+                if data.get('costo'): prod.costo = float(data.get('costo'))
+                if data.get('precio'): prod.precio = float(data.get('precio'))
+                if data.get('stock'): prod.stock = int(data.get('stock'))
+            else:
+                print("ℹ️ [INFO] El producto no existe en el catálogo, solo se registró la transacción.")
 
-        # CASO B: Viene del POS (múltiples items en formato JSON)
+        # CASO B: Viene del POS (Múltiples items)
         elif 'items' in data:
+            print(f"📦 [ITEMS] Procesando {len(data['items'])} artículos del POS")
             for item in data['items']:
                 prod = ProductoCatalogo.query.filter_by(
                     id_producto=int(item['id']), 
@@ -69,20 +89,20 @@ def guardar_operacion():
                 ).first()
                 
                 if prod:
-                    # 'qty' para ventas, 'cantidad' para compras
                     cant_operacion = int(item.get('qty') or item.get('cantidad') or 0)
+                    print(f"   > Item: {prod.nombre} | Cant: {cant_operacion}")
                     
                     if tipo_op == 'VENTA':
                         prod.stock -= cant_operacion
-                    elif tipo_op == 'COMPRA' or (tipo_op == 'GASTO' and cant_operacion > 0):
+                    elif tipo_op in ['COMPRA', 'GASTO'] and cant_operacion > 0:
                         costo_nuevo_unidad = float(item.get('costo', 0))
                         
-                        # Actualización de Costo Directo o PMP (Promedio Móvil Ponderado)
+                        # Promedio Móvil Ponderado
                         if prod.stock > 0 and costo_nuevo_unidad > 0:
-                            valor_inventario_actual = prod.stock * (prod.costo or 0)
-                            valor_compra_nueva = cant_operacion * costo_nuevo_unidad
-                            nuevo_stock_total = prod.stock + cant_operacion
-                            prod.costo = (valor_inventario_actual + valor_compra_nueva) / nuevo_stock_total
+                            valor_actual = prod.stock * (prod.costo or 0)
+                            valor_nuevo = cant_operacion * costo_nuevo_unidad
+                            prod.costo = (valor_actual + valor_nuevo) / (prod.stock + cant_operacion)
+                            print(f"   > Nuevo Costo Ponderado: {prod.costo}")
                         elif costo_nuevo_unidad > 0:
                             prod.costo = costo_nuevo_unidad
                         
@@ -90,6 +110,7 @@ def guardar_operacion():
 
                     # Alerta de stock crítico
                     if prod.stock <= 5:
+                        print(f"🚨 [ALERTA] Stock bajo para {prod.nombre}: {prod.stock}")
                         nueva_alerta = AlertaOperativa(
                             negocio_id=negocio_id,
                             usuario_id=int(user_id),
@@ -99,13 +120,15 @@ def guardar_operacion():
                         )
                         db.session.add(nueva_alerta)
 
-        # Guardamos todos los cambios en Neon DB
+        # 3. Commit Final
         db.session.commit()
+        print("🏁 [ÉXITO] Sincronización completa en Neon DB")
         return jsonify({"success": True, "message": "Producto y Costo sincronizados en Neon DB"}), 201
 
     except Exception as e:
         db.session.rollback()
-        print(f"❌ ERROR: {traceback.format_exc()}")
+        print(f"❌ [CRÍTICO] Error en guardar_operacion: {str(e)}")
+        print(traceback.format_exc())
         return jsonify({"success": False, "message": str(e)}), 500
 
 @control_api_bp.route('/control/reporte/<int:negocio_id>', methods=['GET', 'OPTIONS'])
