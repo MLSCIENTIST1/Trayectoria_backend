@@ -102,4 +102,7 @@ def session_status():
 def logout():
     logout_user()
     session.clear()
-    return jsonify({"message": "Sesión cerrada correctamente"}), 200
+    response = make_response(jsonify({"message": "Sesión cerrada correctamente"}), 200)
+    # Borramos la cookie de sesión de Flask explícitamente
+    response.set_cookie('session', '', expires=0)
+    return response
