@@ -4,9 +4,9 @@ import logging
 import traceback
 import sys
 import re
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session
 from flask_cors import cross_origin
-from flask_login import current_user
+from flask_login import current_user, logout_user
 
 # Importaciones de modelos y base de datos
 from src.models.database import db
@@ -23,7 +23,6 @@ if not logger.handlers:
     logger.addHandler(handler)
 
 # --- CONFIGURACIÓN DE CLOUDINARY ---
-# He verificado estas credenciales con tus mensajes anteriores
 cloudinary.config(
     cloud_name="dp50v0bwj",
     api_key="966788685877863",
@@ -31,22 +30,34 @@ cloudinary.config(
     secure=True
 )
 
-# IMPORTANTE: El nombre de la variable debe ser catalogo_api_bp para register_api
 catalogo_api_bp = Blueprint('catalogo_api_bp', __name__)
 
 def get_authorized_user_id():
-    """Valida usuario por sesión o por Header X-User-ID"""
-    user_id = request.headers.get('X-User-ID')
-    if not user_id and current_user.is_authenticated:
-        user_id = current_user.id_usuario
-    return user_id
+    """
+    VALIDADOR CON ESTEROIDES: Prioridad absoluta al Header para evitar 
+    fugas de datos por cookies viejas de Chrome.
+    """
+    header_id = request.headers.get('X-User-ID')
+    session_id = None
+    
+    if current_user.is_authenticated:
+        session_id = str(getattr(current_user, 'id_usuario', ''))
+
+    # LOG DE SEGURIDAD (Aparecerá en tu consola de Render/Servidor)
+    logger.debug(f"🔍 [IDENTIDAD] Header: {header_id} | Sesión: {session_id}")
+
+    # Si el header dice una cosa y la sesión otra, forzamos el Header
+    if header_id and header_id != session_id:
+        logger.warning(f"⚠️ ¡COLISIÓN DETECTADA! Header {header_id} != Sesión {session_id}. Usando Header.")
+        return header_id
+    
+    return header_id or session_id
 
 @catalogo_api_bp.route('/health', methods=['GET'])
 def health_check():
     return jsonify({"status": "online", "module": "catalogo"}), 200
 
 # --- 1. RUTA PARA OBTENER EL CATÁLOGO PRIVADO ---
-# Removido el prefijo /api/ porque register_api ya lo incluye
 @catalogo_api_bp.route('/mis-productos', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def obtener_mis_productos():
@@ -55,28 +66,30 @@ def obtener_mis_productos():
 
     user_id = get_authorized_user_id()
     if not user_id:
+        logger.error("🚫 Intento de acceso sin ID de usuario.")
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
-        # Traemos los productos del usuario
+        # FILTRO ATÓMICO: Solo productos que coincidan EXACTAMENTE con el ID validado
         productos = ProductoCatalogo.query.filter_by(usuario_id=int(user_id)).all()
         
-        # Formateamos la respuesta asegurando que id_producto esté presente
         data_final = []
         for p in productos:
             d = p.to_dict()
-            # Forzamos que el JSON tenga id_producto para que el POS no se pierda
             d['id_producto'] = p.id_producto 
             data_final.append(d)
 
+        logger.info(f"✅ Catálogo servido para usuario: {user_id} ({len(data_final)} productos)")
         return jsonify({
             "success": True,
-            "data": data_final
+            "data": data_final,
+            "debug_user": user_id # Para verificar en el frontend quién está cargando
         }), 200
     except Exception as e:
         logger.error(f"❌ Error en GET mis-productos: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
-# --- 2. RUTA PARA GUARDAR PRODUCTO (CON CLOUDINARY) ---
+
+# --- 2. RUTA PARA GUARDAR PRODUCTO ---
 @catalogo_api_bp.route('/catalogo/producto/guardar', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def guardar_producto_catalogo():
@@ -88,18 +101,18 @@ def guardar_producto_catalogo():
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
-        # Detectar tipo de entrada
         is_form = 'multipart/form-data' in (request.content_type or '')
         data = request.form if is_form else (request.get_json(silent=True) or {})
         
-        # 1. PROCESAMIENTO DE IMAGEN (CLOUDINARY)
+        # 1. PROCESAMIENTO DE IMAGEN
         imagen_url = data.get('imagen_url') 
         file = request.files.get('imagen') or request.files.get('imagen_file')
         
         if file and file.filename != '':
             nombre_prod = data.get('nombre', 'producto')
             nombre_limpio = re.sub(r'[^a-zA-Z0-9]', '', nombre_prod[:15])
-            p_id = f"inv_{user_id}_{nombre_limpio}"
+            # Incluimos el user_id en el public_id de Cloudinary para evitar colisiones de imágenes
+            p_id = f"user_{user_id}_{nombre_limpio}_{int(db.func.now().cast(db.Integer)) if hasattr(db.func, 'now') else '1'}"
             
             upload_result = cloudinary.uploader.upload(
                 file,
@@ -109,16 +122,14 @@ def guardar_producto_catalogo():
                 resource_type="auto"
             )
             imagen_url = upload_result.get('secure_url')
-            logger.info(f"✅ Imagen cargada a Cloudinary: {imagen_url}")
 
-        # 2. REGISTRO CONTABLE
-        monto_f = float(data.get('precio', 0))
+        # 2. REGISTRO CONTABLE (Sincronizado con user_id validado)
         nueva_t = TransaccionOperativa(
             negocio_id=int(data.get('negocio_id', 1)),
             usuario_id=int(user_id),
             sucursal_id=int(data.get('sucursal_id', 1)),
             tipo='INGRESO', 
-            monto=monto_f,
+            monto=float(data.get('precio', 0)),
             concepto=f"Registro Catálogo: {data.get('nombre')}",
             categoria=data.get('categoria', 'General'),
             metodo_pago='N/A'
@@ -129,7 +140,8 @@ def guardar_producto_catalogo():
         nombre_p = data.get('nombre')
         neg_id = int(data.get('negocio_id', 1))
         
-        prod = ProductoCatalogo.query.filter_by(nombre=nombre_p, negocio_id=neg_id).first()
+        # El filtro debe incluir usuario_id para asegurar que el usuario no edite productos de otros
+        prod = ProductoCatalogo.query.filter_by(nombre=nombre_p, negocio_id=neg_id, usuario_id=int(user_id)).first()
 
         if prod:
             if imagen_url: prod.imagen_url = imagen_url
@@ -157,7 +169,7 @@ def guardar_producto_catalogo():
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"❌ Error en Catálogo: {traceback.format_exc()}")
+        logger.error(f"❌ Error en Guardar: {traceback.format_exc()}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 # --- 3. RUTA ELIMINAR ---
@@ -168,10 +180,14 @@ def eliminar_producto(id_producto):
         return jsonify({"success": True}), 200
     
     user_id = get_authorized_user_id()
+    if not user_id:
+        return jsonify({"success": False, "message": "No autorizado"}), 401
+
     try:
+        # Validación cruzada: id_producto Y usuario_id
         prod = ProductoCatalogo.query.filter_by(id_producto=id_producto, usuario_id=int(user_id)).first()
         if not prod:
-            return jsonify({"success": False, "message": "Producto no encontrado"}), 404
+            return jsonify({"success": False, "message": "Producto no encontrado o no pertenece al usuario"}), 404
         
         db.session.delete(prod)
         db.session.commit()
