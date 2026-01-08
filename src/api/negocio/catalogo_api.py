@@ -6,7 +6,7 @@ import sys
 from flask import Blueprint, request, jsonify
 from flask_cors import cross_origin
 from src.models.database import db
-from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo
+from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo, TransaccionOperativa
 
 from flask_login import current_user
 
