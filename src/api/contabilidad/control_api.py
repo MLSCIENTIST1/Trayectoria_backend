@@ -85,22 +85,24 @@ def obtener_reporte(negocio_id):
         return jsonify({"success": True}), 200
         
     try:
-        # 1. Consultamos las transacciones del negocio ordenadas por fecha descendente
+        # 1. Consultamos las transacciones del negocio. 
+        # IMPORTANTE: Se cambió 'fecha_registro' por 'fecha' para coincidir con tu modelo.
         operaciones = TransaccionOperativa.query.filter_by(negocio_id=negocio_id)\
-            .order_by(TransaccionOperativa.fecha_registro.desc()).all()
+            .order_by(TransaccionOperativa.fecha.desc()).all()
         
-        # 2. Construimos la respuesta asegurando tipos de datos serializables
+        # 2. Construimos la respuesta. 
+        # Aprovechamos el método 'to_dict' que ya definiste en tu modelo.
+        # Solo ajustamos los nombres de los campos para que tu HTML no sufra cambios.
         resultado = []
         for op in operaciones:
+            data = op.to_dict()
             resultado.append({
-                # Convertimos datetime a ISO string legible
-                "fecha": op.fecha_registro.isoformat() if op.fecha_registro else None,
-                "concepto": op.concepto or "Sin concepto",
-                "categoria": op.categoria or "General",
-                # IMPORTANTE: Forzamos float para evitar error 500 con tipos Decimal de Neon DB
-                "monto": float(op.monto) if op.monto else 0.0,
-                "tipo": op.tipo,
-                "metodo_pago": op.metodo_pago or "Efectivo"
+                "fecha": data["fecha"],
+                "concepto": data["concepto"] or "Sin concepto",
+                "categoria": data["categoria"] or "General",
+                "monto": data["monto"], # to_dict ya hace el cast a float
+                "tipo": data["tipo"],
+                "metodo_pago": data["metodo"] # 'metodo' en el dict -> 'metodo_pago' para el frontend
             })
         
         return jsonify({
@@ -109,11 +111,11 @@ def obtener_reporte(negocio_id):
         }), 200
 
     except Exception as e:
-        # Registramos el error exacto en los logs de Render para depuración
-        print("❌ Error en obtener_reporte:")
+        # Esto te permitirá ver el error exacto en los logs de Render si algo más falla
+        print("❌ Error crítico en obtener_reporte:")
         print(traceback.format_exc())
         return jsonify({
             "success": False, 
-            "message": "Error interno al procesar el reporte",
-            "error": str(e)
+            "message": "Error interno del servidor",
+            "error_detail": str(e)
         }), 500
