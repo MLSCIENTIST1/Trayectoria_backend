@@ -7,6 +7,7 @@ from flask import Blueprint, request, jsonify
 from flask_cors import cross_origin
 from src.models.database import db
 from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo
+
 from flask_login import current_user
 
 # --- CONFIGURACIÓN DE LOGS ---
@@ -73,34 +74,28 @@ import traceback
 from flask import request, jsonify
 from flask_cors import cross_origin
 
-@catalogo_api_bp.route('/control/operacion/guardar', methods=['POST', 'OPTIONS'])
+@catalogo_api_bp.route('/catalogo/producto/guardar', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
-def guardar_operacion():
+def guardar_producto_catalogo():
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
 
-    # Identificación de usuario
-    user_id = request.headers.get('X-User-ID') or (current_user.id_usuario if current_user.is_authenticated else None)
+    # Identificación de usuario desde el Header X-User-ID
+    user_id = request.headers.get('X-User-ID')
     if not user_id:
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
-        # LOG DE DEPURACIÓN: Ver qué archivos llegan realmente
-        logger.info(f"📂 Archivos recibidos: {list(request.files.keys())}")
-        
+        # Detectar si es formulario (con imagen) o JSON
         is_form = 'multipart/form-data' in (request.content_type or '')
         data = request.form if is_form else (request.get_json(silent=True) or {})
         
         # 1. PROCESAMIENTO DE IMAGEN (CLOUDINARY)
         imagen_url = data.get('imagen_url') 
-        
-        # Intentamos obtener 'imagen' o 'imagen_file' por si acaso
         file = request.files.get('imagen') or request.files.get('imagen_file')
         
         if file and file.filename != '':
-            logger.info(f"🚀 Subiendo imagen a Cloudinary: {file.filename}")
-            
-            # Nombre limpio para el public_id
+            # Generar ID único para la imagen basado en el nombre del producto
             nombre_prod = data.get('nombre', 'producto')
             nombre_limpio = re.sub(r'[^a-zA-Z0-9]', '', nombre_prod[:15])
             p_id = f"inv_{user_id}_{nombre_limpio}"
@@ -113,21 +108,18 @@ def guardar_operacion():
                 resource_type="auto"
             )
             imagen_url = upload_result.get('secure_url')
-            logger.info(f"✅ Imagen subida con éxito: {imagen_url}")
-        else:
-            logger.warning("⚠️ No se detectó ningún archivo válido en la solicitud.")
 
-        # 2. REGISTRO CONTABLE (TransaccionOperativa)
+        # 2. REGISTRO CONTABLE (Crea una transacción inicial por la creación/ajuste)
         monto_f = float(data.get('precio', 0))
         nueva_t = TransaccionOperativa(
             negocio_id=int(data.get('negocio_id', 1)),
             usuario_id=int(user_id),
             sucursal_id=int(data.get('sucursal_id', 1)),
-            tipo=data.get('tipo', 'COMPRA'),
+            tipo='INGRESO', # Se registra como ingreso de inventario
             monto=monto_f,
-            concepto=f"Inventario: {data.get('nombre', 'Nuevo Producto')}",
+            concepto=f"Registro Catálogo: {data.get('nombre')}",
             categoria=data.get('categoria', 'General'),
-            metodo_pago=data.get('metodo_pago', 'Efectivo')
+            metodo_pago='N/A'
         )
         db.session.add(nueva_t)
 
@@ -135,16 +127,17 @@ def guardar_operacion():
         nombre_p = data.get('nombre')
         neg_id = int(data.get('negocio_id', 1))
         
-        # Buscamos si ya existe para actualizar o crear
         prod = ProductoCatalogo.query.filter_by(nombre=nombre_p, negocio_id=neg_id).first()
 
         if prod:
+            # Actualizar producto existente
             if imagen_url: prod.imagen_url = imagen_url
             prod.costo = float(data.get('costo', 0))
             prod.precio = float(data.get('precio', 0))
             prod.stock = int(data.get('stock', 0))
             prod.categoria = data.get('categoria', 'General')
         else:
+            # Crear producto nuevo
             nuevo_prod = ProductoCatalogo(
                 nombre=nombre_p,
                 negocio_id=neg_id,
@@ -162,13 +155,13 @@ def guardar_operacion():
         db.session.commit()
         return jsonify({
             "success": True, 
-            "message": "Guardado en Neon + Cloudinary", 
+            "message": "Producto guardado con éxito", 
             "url": imagen_url
         }), 201
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"❌ Error crítico: {traceback.format_exc()}")
+        print(f"❌ Error en Catálogo: {traceback.format_exc()}")
         return jsonify({"success": False, "message": str(e)}), 500
 # --- 3. RUTA ELIMINAR ---
 @catalogo_api_bp.route('/producto/eliminar/<int:id_producto>', methods=['DELETE', 'OPTIONS'])
