@@ -85,20 +85,35 @@ def obtener_reporte(negocio_id):
         return jsonify({"success": True}), 200
         
     try:
-        # Consultamos las transacciones del negocio ordenadas por fecha
+        # 1. Consultamos las transacciones del negocio ordenadas por fecha descendente
         operaciones = TransaccionOperativa.query.filter_by(negocio_id=negocio_id)\
             .order_by(TransaccionOperativa.fecha_registro.desc()).all()
         
+        # 2. Construimos la respuesta asegurando tipos de datos serializables
+        resultado = []
+        for op in operaciones:
+            resultado.append({
+                # Convertimos datetime a ISO string legible
+                "fecha": op.fecha_registro.isoformat() if op.fecha_registro else None,
+                "concepto": op.concepto or "Sin concepto",
+                "categoria": op.categoria or "General",
+                # IMPORTANTE: Forzamos float para evitar error 500 con tipos Decimal de Neon DB
+                "monto": float(op.monto) if op.monto else 0.0,
+                "tipo": op.tipo,
+                "metodo_pago": op.metodo_pago or "Efectivo"
+            })
+        
         return jsonify({
             "success": True,
-            "operaciones": [{
-                "fecha": op.fecha_registro.isoformat(),
-                "concepto": op.concepto,
-                "categoria": op.categoria,
-                "monto": op.monto,
-                "tipo": op.tipo,
-                "metodo_pago": op.metodo_pago
-            } for op in operaciones]
+            "operaciones": resultado
         }), 200
+
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        # Registramos el error exacto en los logs de Render para depuración
+        print("❌ Error en obtener_reporte:")
+        print(traceback.format_exc())
+        return jsonify({
+            "success": False, 
+            "message": "Error interno al procesar el reporte",
+            "error": str(e)
+        }), 500
