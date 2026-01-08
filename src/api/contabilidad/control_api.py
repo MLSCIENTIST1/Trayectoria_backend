@@ -78,7 +78,7 @@ def guardar_operacion():
                     costo=float(data.get('costo', 0)),
                     precio=float(data.get('precio', 0)),
                     stock=int(data.get('stock', 0)),
-                    img=None # Se actualiza vía Cloudinary en el otro flujo si es necesario
+                    imagen_url=None # Se actualiza vía Cloudinary en el otro flujo si es necesario
                 )
                 db.session.add(nuevo_prod)
                 print(f"✅ [CATÁLOGO] Producto '{nombre_p}' creado con costo {data.get('costo')}")
