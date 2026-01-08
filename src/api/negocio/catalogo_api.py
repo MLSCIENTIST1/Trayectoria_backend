@@ -56,8 +56,8 @@ def obtener_mis_productos():
 
     logger.info(f"🛰️ Solicitud de catálogo para User-ID: {user_id}")
     try:
-        # Filtramos por el ID obtenido (sea de sesión o header)
-        productos = ProductoCatalogo.query.filter_by(usuario_id=user_id).all()
+        # Filtramos por el ID obtenido
+        productos = ProductoCatalogo.query.filter_by(usuario_id=int(user_id)).all()
         catalogo_data = [p.to_dict() for p in productos]
         
         return jsonify({
@@ -65,9 +65,41 @@ def obtener_mis_productos():
             "data": catalogo_data
         }), 200
     except Exception as e:
-        logger.error(f"❌ Error: {str(e)}")
+        logger.error(f"❌ Error en GET mis-productos: {str(e)}")
         return jsonify({"success": False, "message": "Error al cargar catálogo"}), 500
 
+# --- RUTA 2: GUARDAR PRODUCTO (CON CLOUDINARY) ---
+@catalogo_api_bp.route('/catalogo/producto/guardar', methods=['POST', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def guardar_producto_catalogo():
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    user_id = get_authorized_user_id()
+    if not user_id:
+        return jsonify({"success": False, "message": "No autorizado"}), 401
+
+    try:
+        # Detectar si viene como FormData (con imagen) o JSON
+        is_form = 'multipart/form-data' in (request.content_type or '')
+        data = request.form if is_form else (request.get_json(silent=True) or {})
+        
+        # 1. Procesamiento de Imagen en Cloudinary
+        imagen_url = data.get('imagen_url') 
+        file = request.files.get('imagen') # 'imagen' coincide con el append de JS
+        
+        if file and file.filename != '':
+            nombre_prod = data.get('nombre', 'producto')
+            nombre_limpio = re.sub(r'[^a-zA-Z0-9]', '', nombre_prod[:15])
+            p_id = f"inv_{user_id}_{nombre_limpio}"
+            
+            upload_result = cloudinary.uploader.upload(
+                file,
+                folder="productos_bizflow",
+                public_id=p_id,
+                overwrite=True
+            )
+            imagen_url = upload_result.get('secure_url')
 # --- 2. RUTA PARA GUARDAR PRODUCTO ---
 import re
 import traceback
