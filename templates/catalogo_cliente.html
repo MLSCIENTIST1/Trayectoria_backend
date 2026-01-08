@@ -11,26 +11,22 @@
         :root { --primary: #007bff; --success: #25D366; --dark: #1a1a1a; --light-bg: #f4f7f6; }
         body { background-color: var(--light-bg); font-family: 'Inter', sans-serif; }
         
-        /* Banner Pago Contra Entrega */
-        .trust-banner { background: #fff3cd; color: #856404; text-align: center; padding: 10px; font-weight: bold; border-bottom: 1px solid #ffeeba; }
-        
-        .navbar-custom { background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); sticky: top; }
+        .trust-banner { background: #fff3cd; color: #856404; text-align: center; padding: 10px; font-weight: bold; border-bottom: 1px solid #ffeeba; font-size: 0.9rem; }
+        .navbar-custom { background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .cart-badge { position: absolute; top: -5px; right: -10px; background: #ff4757; color: white; border-radius: 50%; padding: 2px 7px; font-size: 11px; font-weight: bold; }
         
-        /* Sidebar e Items */
         .sidebar { background: white; border-radius: 12px; padding: 20px; position: sticky; top: 90px; }
         .cat-item { cursor: pointer; padding: 10px; border-radius: 8px; margin-bottom: 5px; color: #555; font-size: 0.9rem; transition: 0.3s; }
         .cat-item:hover, .cat-item.active { background: var(--primary); color: white; font-weight: 600; }
 
-        .product-card { border: none; border-radius: 15px; background: white; transition: 0.3s; height: 100%; overflow: hidden; }
+        .product-card { border: none; border-radius: 15px; background: white; transition: 0.3s; height: 100%; overflow: hidden; display: flex; flex-direction: column; }
         .product-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        .img-container { height: 180px; background: #eee; }
-        .img-container img { width: 100%; height: 100%; object-fit: cover; }
+        .img-container { height: 200px; background: #f8f9fa; overflow: hidden; }
+        .img-container img { width: 100%; height: 100%; object-fit: cover; transition: 0.5s; }
         
-        .btn-add-cart { background: var(--dark); color: white; border: none; padding: 10px; border-radius: 8px; width: 100%; font-weight: bold; font-size: 0.85rem; }
+        .btn-add-cart { background: var(--dark); color: white; border: none; padding: 10px; border-radius: 8px; width: 100%; font-weight: bold; font-size: 0.85rem; transition: 0.3s; }
         .btn-add-cart:hover { background: var(--primary); }
 
-        /* Carrito Checkout */
         .cart-sidebar { position: fixed; right: -450px; top: 0; width: 400px; height: 100%; background: white; z-index: 1100; box-shadow: -5px 0 20px rgba(0,0,0,0.2); transition: 0.4s; display: flex; flex-direction: column; }
         .cart-sidebar.open { right: 0; }
         .checkout-form input, .checkout-form select { font-size: 0.85rem; margin-bottom: 10px; border-radius: 6px; }
@@ -41,8 +37,8 @@
 <body>
 
 <div class="trust-banner">
-    <i class="fas fa-shipping-fast mr-2"></i> ¡PAGA AL RECIBIR! Todos nuestros productos cuentan con **PAGO CONTRA ENTREGA**
-    <small>(Costo de envío varía según destino y se sumarà al valor del carrito con previa confirmacion al cliente por WHATSAPP)</small>
+    <i class="fas fa-shipping-fast mr-2"></i> ¡PAGA AL RECIBIR! Todos nuestros productos cuentan con <strong>PAGO CONTRA ENTREGA</strong>
+    <br><small>(Costo de envío varía según destino. Confirmación final por WhatsApp)</small>
 </div>
 
 <nav class="navbar navbar-light navbar-custom sticky-top px-4">
@@ -60,14 +56,13 @@
         <div class="col-lg-2">
             <div class="sidebar shadow-sm">
                 <h6 class="font-weight-bold mb-3"><i class="fas fa-list mr-2"></i>CATEGORÍAS</h6>
-                <div class="cat-item active" onclick="filtrar('Todas')">Todas</div>
-                <div class="cat-item" onclick="filtrar('Ropa')">Ropa</div>
-                <div class="cat-item" onclick="filtrar('Herramientas Eléctricas')">Herramientas Eléctricas</div>
-                <div class="cat-item" onclick="filtrar('Accesorios para Bici')">Accesorios Bici</div>
-                <div class="cat-item" onclick="filtrar('Accesorios para Moto')">Accesorios Moto</div>
-                <div class="cat-item" onclick="filtrar('Accesorios para Carro')">Accesorios Carro</div>
-                <div class="cat-item" onclick="filtrar('Accesorios para Taller')">Accesorios Taller</div>
-                <div class="cat-item" onclick="filtrar('Equipamiento Comercial')">Equipamiento Comercial automotriz</div>
+                <div class="cat-item active" onclick="filtrar('Todas', event)">Todas</div>
+                <div class="cat-item" onclick="filtrar('Ropa', event)">Ropa</div>
+                <div class="cat-item" onclick="filtrar('Herramientas Eléctricas', event)">Herramientas</div>
+                <div class="cat-item" onclick="filtrar('Accesorios para Bici', event)">Accesorios Bici</div>
+                <div class="cat-item" onclick="filtrar('Accesorios para Moto', event)">Accesorios Moto</div>
+                <div class="cat-item" onclick="filtrar('Accesorios para Carro', event)">Accesorios Carro</div>
+                <div class="cat-item" onclick="filtrar('Accesorios para Taller', event)">Accesorios Taller</div>
             </div>
         </div>
 
@@ -75,6 +70,7 @@
             <div class="row" id="productGrid">
                 <div class="col-12 text-center py-5">
                     <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2 text-muted">Sincronizando inventario...</p>
                 </div>
             </div>
         </div>
@@ -95,14 +91,14 @@
         <form id="envioForm">
             <input type="text" id="formNombre" class="form-control" placeholder="Nombre completo" required>
             <input type="text" id="formDireccion" class="form-control" placeholder="Dirección exacta" required>
-            <div class="row px-2">
-                <input type="text" id="formBarrio" class="col-6 form-control" placeholder="Barrio" required>
-                <input type="text" id="formLocalidad" class="col-6 form-control" placeholder="Localidad">
+            <div class="row no-gutters">
+                <div class="col-6 pr-1"><input type="text" id="formBarrio" class="form-control" placeholder="Barrio" required></div>
+                <div class="col-6 pl-1"><input type="text" id="formLocalidad" class="form-control" placeholder="Localidad"></div>
             </div>
             <input type="text" id="formCiudad" class="form-control" placeholder="Ciudad" required>
-            <div class="row px-2">
-                <input type="tel" id="formCel" class="col-6 form-control" placeholder="Celular" required>
-                <input type="tel" id="formTelOp" class="col-6 form-control" placeholder="Tel. Opcional">
+            <div class="row no-gutters">
+                <div class="col-6 pr-1"><input type="tel" id="formCel" class="form-control" placeholder="Celular" required></div>
+                <div class="col-6 pl-1"><input type="tel" id="formTelOp" class="form-control" placeholder="Tel. Opcional"></div>
             </div>
             <label class="small font-weight-bold text-muted mt-2">¿Dónde recibes?</label>
             <select id="formTipoEntrega" class="form-control">
@@ -128,7 +124,7 @@
 
 <script>
     const API_URL = "https://trayectoria-backend.onrender.com/api";
-    const NEGOCIO_ID = "{{ negocio.id_negocio }}";
+    const NEGOCIO_ID = 1; // ID de Rodar
     const WHATSAPP_CLIENTE = "573058916907";
 
     let productosRaw = [];
@@ -140,33 +136,49 @@
             const json = await res.json();
             productosRaw = json.data;
             render(productosRaw);
-        } catch (e) { console.error("Error"); }
+        } catch (e) { 
+            console.error("Error cargando productos:", e);
+            document.getElementById('productGrid').innerHTML = '<div class="col-12 text-center text-danger">Error de conexión con la base de datos.</div>';
+        }
     }
 
     function render(items) {
         const grid = document.getElementById('productGrid');
-        grid.innerHTML = items.map(p => `
-            <div class="col-6 col-md-4 col-lg-3 mb-4">
-                <div class="product-card shadow-sm">
-                    <div class="img-container">
-                        <img src="${p.img || 'https://via.placeholder.com/300'}" alt="${p.nombre}">
-                    </div>
-                    <div class="p-3">
-                        <small class="text-primary font-weight-bold">${p.categoria || 'General'}</small>
-                        <h6 class="text-truncate font-weight-bold mb-1">${p.nombre}</h6>
-                        <p class="mb-2 text-dark font-weight-bold">$ ${p.precio.toLocaleString()}</p>
-                        <button class="btn-add-cart" onclick="addToCart(${p.id})">Añadir al Carrito</button>
+        if(!items || items.length === 0) {
+            grid.innerHTML = '<div class="col-12 text-center py-5"><h6>No se encontraron productos.</h6></div>';
+            return;
+        }
+
+        grid.innerHTML = items.map(p => {
+            // Sincronización con el modelo Python: usa imagen_url y id
+            const img = p.imagen_url || 'https://via.placeholder.com/300?text=Sin+Imagen';
+            const id = p.id; 
+
+            return `
+                <div class="col-6 col-md-4 col-lg-3 mb-4">
+                    <div class="product-card shadow-sm">
+                        <div class="img-container">
+                            <img src="${img}" alt="${p.nombre}" onerror="this.src='https://via.placeholder.com/300?text=Error+de+Carga'">
+                        </div>
+                        <div class="p-3">
+                            <small class="text-primary font-weight-bold">${p.categoria || 'General'}</small>
+                            <h6 class="text-truncate font-weight-bold mb-1" title="${p.nombre}">${p.nombre}</h6>
+                            <p class="mb-2 text-dark font-weight-bold">$ ${p.precio.toLocaleString()}</p>
+                            <button class="btn-add-cart" onclick="addToCart(${id})">Añadir al Carrito</button>
+                        </div>
                     </div>
                 </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     function addToCart(id) {
         const prod = productosRaw.find(p => p.id === id);
-        carrito.push(prod);
-        updateCartUI();
-        toggleCart(true);
+        if(prod) {
+            carrito.push(prod);
+            updateCartUI();
+            toggleCart(true);
+        }
     }
 
     function updateCartUI() {
@@ -179,14 +191,15 @@
 
         container.innerHTML = carrito.map((item, index) => {
             sum += item.precio;
+            const imgThumb = item.imagen_url || 'https://via.placeholder.com/100';
             return `
                 <div class="d-flex align-items-center mb-2 bg-white p-2 rounded border">
-                    <img src="${item.img}" width="40" height="40" class="rounded mr-2">
+                    <img src="${imgThumb}" width="45" height="45" class="rounded mr-2" style="object-fit:cover;">
                     <div style="flex:1; font-size: 0.8rem;">
                         <div class="font-weight-bold text-truncate" style="max-width: 150px;">${item.nombre}</div>
-                        <span class="text-primary">$ ${item.precio.toLocaleString()}</span>
+                        <span class="text-primary font-weight-bold">$ ${item.precio.toLocaleString()}</span>
                     </div>
-                    <button class="btn btn-sm text-danger" onclick="removeFromCart(${index})">&times;</button>
+                    <button class="btn btn-sm text-danger" onclick="removeFromCart(${index})"><i class="fas fa-trash"></i></button>
                 </div>
             `;
         }).join('');
@@ -202,9 +215,9 @@
         document.getElementById('cartSidebar').classList.toggle('open', show);
     }
 
-    function filtrar(cat) {
+    function filtrar(cat, event) {
         document.querySelectorAll('.cat-item').forEach(el => el.classList.remove('active'));
-        if(event) event.target.classList.add('active');
+        event.target.classList.add('active');
         if(cat === 'Todas') render(productosRaw);
         else render(productosRaw.filter(p => p.categoria === cat));
     }
@@ -212,7 +225,6 @@
     function enviarPedido() {
         if(carrito.length === 0) return alert("El carrito está vacío");
 
-        // Capturar datos del formulario
         const nombre = document.getElementById('formNombre').value;
         const direccion = document.getElementById('formDireccion').value;
         const barrio = document.getElementById('formBarrio').value;
@@ -220,10 +232,9 @@
         const cel = document.getElementById('formCel').value;
         const tipo = document.getElementById('formTipoEntrega').value;
 
-        if(!nombre || !direccion || !cel) return alert("Por favor completa los datos de envío.");
+        if(!nombre || !direccion || !cel) return alert("Por favor completa los datos de entrega.");
 
         let msg = `*NUEVO PEDIDO: PAGO CONTRA ENTREGA*%0A`;
-        
         msg += `---------------------------%0A`;
         msg += `*CLIENTE:* ${nombre}%0A`;
         msg += `*TEL:* ${cel}%0A`;
@@ -233,7 +244,7 @@
         msg += `---------------------------%0A`;
         msg += `*PRODUCTOS:*%0A`;
         
-        carrito.forEach((p, i) => {
+        carrito.forEach((p) => {
             msg += `• ${p.nombre} - *$${p.precio.toLocaleString()}*%0A`;
         });
         
