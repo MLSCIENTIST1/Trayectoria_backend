@@ -72,6 +72,7 @@ def guardar_operacion():
                 print(f"🆕 [CREAR] Producto nuevo detectado. Insertando en Neon DB...")
                 nuevo_prod = ProductoCatalogo(
                     negocio_id=negocio_id,
+                    usuario_id=int(user_id)
                     nombre=nombre_p,
                     categoria=data.get('categoria', 'General'),
                     descripcion=data.get('descripcion', ''),
