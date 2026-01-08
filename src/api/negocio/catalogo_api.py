@@ -10,7 +10,8 @@ from flask_login import current_user
 
 # Importaciones de modelos y base de datos
 from src.models.database import db
-from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo, TransaccionOperativa
+from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo
+from src.models.colombia_data.contabilidad.operaciones import TransaccionOperativa
 
 # --- CONFIGURACIÓN DE LOGS ---
 logger = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ if not logger.handlers:
     logger.addHandler(handler)
 
 # --- CONFIGURACIÓN DE CLOUDINARY ---
+# He verificado estas credenciales con tus mensajes anteriores
 cloudinary.config(
     cloud_name="dp50v0bwj",
     api_key="966788685877863",
@@ -29,24 +31,22 @@ cloudinary.config(
     secure=True
 )
 
-catalogo_api_bp = Blueprint('catalogo_api', __name__)
-
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+# IMPORTANTE: El nombre de la variable debe ser catalogo_api_bp para register_api
+catalogo_api_bp = Blueprint('catalogo_api_bp', __name__)
 
 def get_authorized_user_id():
     """Valida usuario por sesión o por Header X-User-ID"""
-    if current_user.is_authenticated:
-        return current_user.id_usuario
-    return request.headers.get('X-User-ID')
+    user_id = request.headers.get('X-User-ID')
+    if not user_id and current_user.is_authenticated:
+        user_id = current_user.id_usuario
+    return user_id
 
 @catalogo_api_bp.route('/health', methods=['GET'])
 def health_check():
     return jsonify({"status": "online", "module": "catalogo"}), 200
 
 # --- 1. RUTA PARA OBTENER EL CATÁLOGO PRIVADO ---
+# Removido el prefijo /api/ porque register_api ya lo incluye
 @catalogo_api_bp.route('/mis-productos', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def obtener_mis_productos():
@@ -57,7 +57,6 @@ def obtener_mis_productos():
     if not user_id:
         return jsonify({"success": False, "message": "No autorizado. Falta X-User-ID"}), 401
 
-    logger.info(f"🛰️ Solicitud de catálogo para User-ID: {user_id}")
     try:
         productos = ProductoCatalogo.query.filter_by(usuario_id=int(user_id)).all()
         return jsonify({
@@ -80,7 +79,7 @@ def guardar_producto_catalogo():
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
-        # Detectar tipo de entrada (FormData o JSON)
+        # Detectar tipo de entrada
         is_form = 'multipart/form-data' in (request.content_type or '')
         data = request.form if is_form else (request.get_json(silent=True) or {})
         
@@ -90,7 +89,6 @@ def guardar_producto_catalogo():
         
         if file and file.filename != '':
             nombre_prod = data.get('nombre', 'producto')
-            # Limpiar nombre para el public_id de Cloudinary
             nombre_limpio = re.sub(r'[^a-zA-Z0-9]', '', nombre_prod[:15])
             p_id = f"inv_{user_id}_{nombre_limpio}"
             
@@ -102,8 +100,9 @@ def guardar_producto_catalogo():
                 resource_type="auto"
             )
             imagen_url = upload_result.get('secure_url')
+            logger.info(f"✅ Imagen cargada a Cloudinary: {imagen_url}")
 
-        # 2. REGISTRO CONTABLE (Transacción Operativa)
+        # 2. REGISTRO CONTABLE
         monto_f = float(data.get('precio', 0))
         nueva_t = TransaccionOperativa(
             negocio_id=int(data.get('negocio_id', 1)),
@@ -124,14 +123,12 @@ def guardar_producto_catalogo():
         prod = ProductoCatalogo.query.filter_by(nombre=nombre_p, negocio_id=neg_id).first()
 
         if prod:
-            # Actualizar
             if imagen_url: prod.imagen_url = imagen_url
             prod.costo = float(data.get('costo', 0))
             prod.precio = float(data.get('precio', 0))
             prod.stock = int(data.get('stock', 0))
             prod.categoria = data.get('categoria', 'General')
         else:
-            # Crear Nuevo
             nuevo_prod = ProductoCatalogo(
                 nombre=nombre_p,
                 negocio_id=neg_id,
@@ -141,17 +138,13 @@ def guardar_producto_catalogo():
                 costo=float(data.get('costo', 0)),
                 precio=float(data.get('precio', 0)),
                 stock=int(data.get('stock', 0)),
-                imagen_url=imagen_url or "https://res.cloudinary.com/dp50v0bwj/image/upload/v1704285000/default_product.png",
+                imagen_url=imagen_url or "https://via.placeholder.com/150?text=No+Image",
                 activo=True
             )
             db.session.add(nuevo_prod)
 
         db.session.commit()
-        return jsonify({
-            "success": True, 
-            "message": "Producto guardado con éxito", 
-            "url": imagen_url
-        }), 201
+        return jsonify({"success": True, "message": "Guardado exitoso", "url": imagen_url}), 201
 
     except Exception as e:
         db.session.rollback()
@@ -166,18 +159,14 @@ def eliminar_producto(id_producto):
         return jsonify({"success": True}), 200
     
     user_id = get_authorized_user_id()
-    if not user_id:
-        return jsonify({"success": False, "message": "No autorizado"}), 401
-
     try:
-        # Ajustamos el filtro según tu modelo (id_producto)
         prod = ProductoCatalogo.query.filter_by(id_producto=id_producto, usuario_id=int(user_id)).first()
         if not prod:
             return jsonify({"success": False, "message": "Producto no encontrado"}), 404
         
         db.session.delete(prod)
         db.session.commit()
-        return jsonify({"success": True, "message": "Producto eliminado"}), 200
+        return jsonify({"success": True}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": str(e)}), 500
@@ -190,10 +179,6 @@ def obtener_catalogo_publico(negocio_id):
         return jsonify({"success": True}), 200
     try:
         productos = ProductoCatalogo.query.filter_by(negocio_id=negocio_id, activo=True).all()
-        return jsonify({
-            "success": True,
-            "data": [p.to_dict() for p in productos]
-        }), 200
+        return jsonify({"success": True, "data": [p.to_dict() for p in productos]}), 200
     except Exception as e:
-        logger.error(f"Error en catálogo público: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
