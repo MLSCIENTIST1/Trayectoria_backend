@@ -9,11 +9,6 @@ import traceback
 
 control_api_bp = Blueprint('control_operativo', __name__)
 
-Aquí tienes el código completo y corregido del backend. He aplicado la doble validación de llaves (qty o cantidad) para que sea compatible tanto con tu módulo de compras como con el POS, y he optimizado la lógica de actualización para asegurar que el cambio se refleje en Neon DB.
-
-Archivo: src/api/contabilidad/control_api.py
-Python
-
 from flask import Blueprint, request, jsonify
 from flask_cors import cross_origin
 from flask_login import current_user
