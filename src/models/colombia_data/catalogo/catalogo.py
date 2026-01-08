@@ -51,7 +51,7 @@ class ProductoCatalogo(db.Model):
             "descripcion": self.descripcion or "",
             "precio": self.precio,
             "costo": self.costo,
-            "img": self.imagen_url,
+            "imagen_url": self.imagen_url,
             "categoria": self.categoria,
             "stock": self.stock,
             "activo": self.activo,
