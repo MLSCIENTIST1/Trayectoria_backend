@@ -802,4 +802,193 @@
                 <div class="col-12 text-center py-5">
                     <i class="fas fa-search" style="font-size: 3rem; color: var(--gray-200);"></i>
                     <h5 class="mt-3" style="color: var(--gray-800);">No se encontraron productos</h5>
-                    <p style="
+                    <p style="color: var(--gray-800);">Intenta con otra categoría o búsqueda</p>
+                </div>
+            `;
+            return;
+        }
+
+        grid.innerHTML = items.map(p => {
+            const img = p.imagen_url || 'https://via.placeholder.com/300?text=Sin+Imagen';
+            const id = p.id;
+
+            return `
+                <div class="col-6 col-md-4 col-lg-3 mb-4">
+                    <div class="product-card">
+                        <div class="img-container">
+                            <img src="${img}" alt="${p.nombre}" onerror="this.src='https://via.placeholder.com/300?text=Error+de+Carga'">
+                            <div class="product-badge">NUEVO</div>
+                        </div>
+                        <div class="product-info">
+                            <div class="product-category">${p.categoria || 'General'}</div>
+                            <h6 class="product-name">${p.nombre}</h6>
+                            <div class="product-price">${p.precio.toLocaleString()}</div>
+                            <button class="btn-add-cart" onclick="addToCart(${id})">
+                                <i class="fas fa-shopping-cart"></i>
+                                Añadir al Carrito
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Add to cart
+    function addToCart(id) {
+        const prod = productosRaw.find(p => p.id === id);
+        if (prod) {
+            carrito.push(prod);
+            updateCartUI();
+            toggleCart(true);
+        }
+    }
+
+    // Update cart UI
+    function updateCartUI() {
+        const container = document.getElementById('cartItems');
+        const count = document.getElementById('cartCount');
+        const total = document.getElementById('cartTotal');
+
+        count.innerText = carrito.length;
+
+        if (carrito.length === 0) {
+            container.innerHTML = `
+                <div class="empty-cart">
+                    <i class="fas fa-shopping-cart"></i>
+                    <h6>Tu carrito está vacío</h6>
+                    <p>Agrega productos para continuar</p>
+                </div>
+            `;
+            total.innerText = '$0';
+            return;
+        }
+
+        let sum = 0;
+        container.innerHTML = carrito.map((item, index) => {
+            sum += item.precio;
+            const imgThumb = item.imagen_url || 'https://via.placeholder.com/100';
+            return `
+                <div class="cart-item">
+                    <img src="${imgThumb}" class="cart-item-img" alt="${item.nombre}">
+                    <div class="cart-item-info">
+                        <div class="cart-item-name">${item.nombre}</div>
+                        <div class="cart-item-price">${item.precio.toLocaleString()}</div>
+                    </div>
+                    <button class="cart-item-remove" onclick="removeFromCart(${index})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+        }).join('');
+        total.innerText = `${sum.toLocaleString()}`;
+    }
+
+    // Remove from cart
+    function removeFromCart(index) {
+        carrito.splice(index, 1);
+        updateCartUI();
+    }
+
+    // Toggle cart
+    function toggleCart(show) {
+        document.getElementById('cartSidebar').classList.toggle('open', show);
+        document.getElementById('cartOverlay').classList.toggle('active', show);
+    }
+
+    // Filter by category
+    function filtrar(cat, event) {
+        document.querySelectorAll('.cat-item').forEach(el => el.classList.remove('active'));
+        event.target.classList.add('active');
+        
+        if (cat === 'Todas') {
+            productosFiltrados = productosRaw;
+        } else {
+            productosFiltrados = productosRaw.filter(p => p.categoria === cat);
+        }
+        render(productosFiltrados);
+    }
+
+    // Search products
+    function buscarProductos() {
+        const query = document.getElementById('searchInput').value.toLowerCase().trim();
+        
+        if (!query) {
+            render(productosFiltrados);
+            return;
+        }
+
+        const resultados = productosFiltrados.filter(p => 
+            p.nombre.toLowerCase().includes(query) || 
+            (p.categoria && p.categoria.toLowerCase().includes(query))
+        );
+        
+        render(resultados);
+    }
+
+    // Search on enter
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('keyup', function(e) {
+                if (e.key === 'Enter') {
+                    buscarProductos();
+                }
+            });
+        }
+
+        // Navbar scroll effect
+        window.addEventListener('scroll', function() {
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                navbar.classList.add('navbar-scrolled');
+            } else {
+                navbar.classList.remove('navbar-scrolled');
+            }
+        });
+    });
+
+    // Send order via WhatsApp
+    function enviarPedido() {
+        if (carrito.length === 0) {
+            alert("El carrito está vacío");
+            return;
+        }
+
+        const nombre = document.getElementById('formNombre').value;
+        const direccion = document.getElementById('formDireccion').value;
+        const barrio = document.getElementById('formBarrio').value;
+        const ciudad = document.getElementById('formCiudad').value;
+        const cel = document.getElementById('formCel').value;
+        const tipo = document.getElementById('formTipoEntrega').value;
+
+        if (!nombre || !direccion || !barrio || !ciudad || !cel) {
+            alert("Por favor completa todos los campos obligatorios");
+            return;
+        }
+
+        let msg = `*NUEVO PEDIDO - PAGO CONTRA ENTREGA*%0A`;
+        msg += `=================================%0A`;
+        msg += `*CLIENTE:* ${nombre}%0A`;
+        msg += `*TELÉFONO:* ${cel}%0A`;
+        msg += `*ENTREGA:* ${tipo}%0A`;
+        msg += `*DIRECCIÓN:* ${direccion}, ${barrio}%0A`;
+        msg += `*CIUDAD:* ${ciudad}%0A`;
+        msg += `=================================%0A`;
+        msg += `*PRODUCTOS:*%0A%0A`;
+        
+        carrito.forEach((p, index) => {
+            msg += `${index + 1}. ${p.nombre}%0A   *${p.precio.toLocaleString()}*%0A%0A`;
+        });
+        
+        let total = carrito.reduce((s, p) => s + p.precio, 0);
+        msg += `=================================%0A`;
+        msg += `*TOTAL A PAGAR: ${total.toLocaleString()}*%0A`;
+        msg += `=================================%0A%0A`;
+        msg += `_Quedo atento a la confirmación del despacho. ¡Gracias!_`;
+        
+        window.open(`https://wa.me/${WHATSAPP_CLIENTE}?text=${msg}`, '_blank');
+    }
+
+    // Initialize app
+    init()
