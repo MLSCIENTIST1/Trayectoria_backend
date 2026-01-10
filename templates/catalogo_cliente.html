@@ -11,6 +11,9 @@
         :root { --primary: #007bff; --success: #25D366; --dark: #1a1a1a; --light-bg: #f4f7f6; }
         body { background-color: var(--light-bg); font-family: 'Inter', sans-serif; }
         
+        /* Ajuste para el logo en el Navbar */
+        .navbar-logo { height: 40px; width: auto; object-fit: contain; }
+
         .trust-banner { background: #fff3cd; color: #856404; text-align: center; padding: 10px; font-weight: bold; border-bottom: 1px solid #ffeeba; font-size: 0.9rem; }
         .navbar-custom { background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .cart-badge { position: absolute; top: -5px; right: -10px; background: #ff4757; color: white; border-radius: 50%; padding: 2px 7px; font-size: 11px; font-weight: bold; }
@@ -43,7 +46,10 @@
 </div>
 
 <nav class="navbar navbar-light navbar-custom sticky-top px-4">
-    <a class="navbar-brand font-weight-bold" href="#">RODAR <span class="text-primary">E-SHOP</span></a>
+    <a class="navbar-brand d-flex align-items-center" href="#">
+        <img src="{{ url_for('static', filename='imgs/Rodar.png') }}" alt="Rodar" class="navbar-logo mr-2">
+        <span class="font-weight-bold">RODAR <span class="text-primary">E-SHOP</span></span>
+    </a>
     <div class="ml-auto d-flex align-items-center">
         <div style="position: relative; cursor: pointer;" onclick="toggleCart(true)">
             <i class="fas fa-shopping-basket fa-lg"></i>
@@ -151,7 +157,6 @@
         }
 
         grid.innerHTML = items.map(p => {
-            // Sincronización con el modelo Python: usa imagen_url y id
             const img = p.imagen_url || 'https://via.placeholder.com/300?text=Sin+Imagen';
             const id = p.id; 
 
