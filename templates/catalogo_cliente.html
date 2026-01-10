@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="{{ url_for('static', filename='imgs/Rodar.png') }}" type="image/png">
+    <link rel="icon" href="https://res.cloudinary.com/dp50v0bwj/image/upload/v1704285000/Rodar_Icon.png" type="image/png">
     <title>Rodar | Soluciones Profesionales para tu Taller</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -316,9 +316,9 @@
         /* Cart Sidebar */
         .cart-sidebar {
             position: fixed;
-            right: -450px;
+            right: -500px;
             top: 0;
-            width: 450px;
+            width: 500px;
             height: 100%;
             background: white;
             z-index: 1100;
@@ -336,18 +336,29 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
         .cart-header h5 {
             margin: 0;
             font-weight: 700;
-            font-size: 1.3rem;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .cart-header-badge {
+            background: rgba(255,255,255,0.3);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
         }
         .cart-close {
             background: rgba(255,255,255,0.2);
             border: none;
             color: white;
-            width: 36px;
-            height: 36px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             font-size: 1.5rem;
             cursor: pointer;
@@ -365,108 +376,210 @@
             flex-grow: 1;
             overflow-y: auto;
             padding: 24px;
+            background: var(--gray-50);
         }
         .cart-section-title {
-            font-size: 1rem;
+            font-size: 0.85rem;
             font-weight: 700;
-            color: var(--dark);
+            color: var(--gray-800);
             margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
             display: flex;
             align-items: center;
             gap: 8px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--gray-200);
+        }
+        .cart-items-container {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
         .cart-item {
             display: flex;
-            gap: 12px;
+            gap: 16px;
             background: var(--gray-50);
-            padding: 12px;
+            padding: 16px;
             border-radius: 12px;
             margin-bottom: 12px;
             transition: all 0.3s;
             border: 2px solid transparent;
+            position: relative;
+        }
+        .cart-item:last-child {
+            margin-bottom: 0;
         }
         .cart-item:hover {
             border-color: var(--primary);
             background: white;
+            transform: translateX(-4px);
         }
         .cart-item-img {
-            width: 60px;
-            height: 60px;
-            border-radius: 8px;
+            width: 80px;
+            height: 80px;
+            border-radius: 10px;
             object-fit: cover;
             background: white;
+            border: 2px solid var(--gray-200);
         }
         .cart-item-info {
             flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
         .cart-item-name {
-            font-weight: 600;
-            font-size: 0.9rem;
-            margin-bottom: 4px;
+            font-weight: 700;
+            font-size: 0.95rem;
             color: var(--dark);
+            line-height: 1.3;
+        }
+        .cart-item-category {
+            font-size: 0.75rem;
+            color: var(--primary);
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
         }
         .cart-item-price {
             color: var(--primary);
+            font-weight: 800;
+            font-size: 1.2rem;
+            margin-top: auto;
+        }
+        .cart-item-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            justify-content: space-between;
+        }
+        .cart-item-quantity {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: white;
+            border-radius: 8px;
+            padding: 4px;
+            border: 2px solid var(--gray-200);
+        }
+        .qty-btn {
+            background: var(--primary);
+            border: none;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .qty-btn:hover {
+            background: var(--primary-dark);
+            transform: scale(1.1);
+        }
+        .qty-btn:disabled {
+            background: var(--gray-200);
+            cursor: not-allowed;
+            transform: scale(1);
+        }
+        .qty-display {
+            min-width: 30px;
+            text-align: center;
             font-weight: 700;
+            color: var(--dark);
         }
         .cart-item-remove {
-            background: #fee;
+            background: #fee2e2;
             border: none;
             color: #dc2626;
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .cart-item-remove:hover {
             background: #dc2626;
             color: white;
+            transform: scale(1.1);
         }
 
         .checkout-form input,
         .checkout-form select {
             border: 2px solid var(--gray-200);
             border-radius: 10px;
-            padding: 12px 16px;
+            padding: 14px 16px;
             font-size: 0.9rem;
             margin-bottom: 12px;
             width: 100%;
             transition: all 0.3s;
+            background: white;
         }
         .checkout-form input:focus,
         .checkout-form select:focus {
             outline: none;
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            background: white;
         }
         .checkout-form label {
-            font-weight: 600;
+            font-weight: 700;
             font-size: 0.85rem;
-            color: var(--gray-800);
+            color: var(--dark);
             margin-bottom: 8px;
             display: block;
+        }
+        .form-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
 
         .cart-footer {
             padding: 24px;
-            background: var(--gray-50);
-            border-top: 2px solid var(--gray-200);
-        }
-        .cart-total-container {
             background: white;
+            border-top: 2px solid var(--gray-200);
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+        }
+        .cart-summary {
+            background: var(--gray-50);
             padding: 20px;
             border-radius: 12px;
             margin-bottom: 16px;
         }
-        .cart-total-row {
+        .cart-summary-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 12px;
+            font-size: 0.95rem;
         }
-        .cart-total-label {
+        .cart-summary-row:last-child {
+            margin-bottom: 0;
+            padding-top: 12px;
+            border-top: 2px dashed var(--gray-200);
+        }
+        .cart-summary-label {
             color: var(--gray-800);
             font-weight: 600;
+        }
+        .cart-summary-value {
+            font-weight: 700;
+            color: var(--dark);
+        }
+        .cart-total-row {
+            font-size: 1.1rem;
         }
         .cart-total-value {
             font-size: 2rem;
@@ -476,12 +589,17 @@
         .cart-payment-info {
             text-align: center;
             color: var(--success);
-            font-weight: 600;
+            font-weight: 700;
             font-size: 0.9rem;
             margin-bottom: 16px;
-            padding: 12px;
-            background: #f0fdf4;
-            border-radius: 8px;
+            padding: 14px;
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border-radius: 10px;
+            border: 2px solid #86efac;
+        }
+        .cart-payment-info i {
+            font-size: 1.1rem;
+            margin-right: 6px;
         }
         .btn-checkout {
             background: linear-gradient(135deg, var(--success) 0%, #22c55e 100%);
@@ -491,25 +609,74 @@
             border-radius: 12px;
             width: 100%;
             font-weight: 700;
-            font-size: 1rem;
+            font-size: 1.05rem;
             cursor: pointer;
             transition: all 0.3s;
             box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
         .btn-checkout:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(37, 211, 102, 0.4);
         }
+        .btn-checkout:active {
+            transform: translateY(0);
+        }
+        .btn-clear-cart {
+            background: white;
+            color: var(--gray-800);
+            border: 2px solid var(--gray-200);
+            padding: 12px;
+            border-radius: 10px;
+            width: 100%;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 12px;
+        }
+        .btn-clear-cart:hover {
+            background: #fee2e2;
+            border-color: #dc2626;
+            color: #dc2626;
+        }
 
         .empty-cart {
             text-align: center;
-            padding: 40px 20px;
+            padding: 60px 20px;
             color: var(--gray-800);
         }
         .empty-cart i {
-            font-size: 4rem;
+            font-size: 5rem;
             color: var(--gray-200);
-            margin-bottom: 16px;
+            margin-bottom: 20px;
+        }
+        .empty-cart h6 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--dark);
+        }
+        .empty-cart p {
+            color: var(--gray-800);
+            margin-bottom: 20px;
+        }
+        .btn-continue-shopping {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-continue-shopping:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
         }
 
         /* Loading */
@@ -536,6 +703,9 @@
             .hero-subtitle { font-size: 1rem; }
             .cart-sidebar { width: 100%; right: -100%; }
             .search-container { margin: 16px 0; }
+            .cart-item { flex-direction: column; }
+            .cart-item-img { width: 100%; height: 150px; }
+            .cart-item-actions { flex-direction: row; justify-content: space-between; }
         }
 
         /* Overlay */
@@ -722,62 +892,95 @@
 <!-- Cart Sidebar -->
 <div id="cartSidebar" class="cart-sidebar">
     <div class="cart-header">
-        <h5><i class="fas fa-shopping-bag mr-2"></i>Tu Pedido</h5>
+        <h5>
+            <i class="fas fa-shopping-bag"></i>
+            Mi Carrito
+            <span class="cart-header-badge" id="cartHeaderCount">0</span>
+        </h5>
         <button class="cart-close" onclick="toggleCart(false)">&times;</button>
     </div>
     
     <div class="cart-content">
         <div class="cart-section-title">
             <i class="fas fa-box-open"></i>
-            Productos
+            Productos Seleccionados
         </div>
-        <div id="cartItems"></div>
+        <div class="cart-items-container">
+            <div id="cartItems"></div>
+        </div>
         
-        <div class="cart-section-title mt-4">
+        <div class="cart-section-title">
             <i class="fas fa-map-marker-alt"></i>
-            Datos de Entrega
+            Información de Entrega
         </div>
-        <form id="envioForm" class="checkout-form">
-            <input type="text" id="formNombre" placeholder="Nombre completo *" required>
-            <input type="text" id="formDireccion" placeholder="Dirección exacta *" required>
-            <div class="row">
-                <div class="col-6">
-                    <input type="text" id="formBarrio" placeholder="Barrio *" required>
+        <div class="form-section">
+            <form id="envioForm" class="checkout-form">
+                <label for="formNombre">Nombre Completo</label>
+                <input type="text" id="formNombre" placeholder="Ej: Juan Pérez" required>
+                
+                <label for="formDireccion">Dirección Completa</label>
+                <input type="text" id="formDireccion" placeholder="Calle, número, apartamento" required>
+                
+                <div class="row">
+                    <div class="col-6">
+                        <label for="formBarrio">Barrio</label>
+                        <input type="text" id="formBarrio" placeholder="Tu barrio" required>
+                    </div>
+                    <div class="col-6">
+                        <label for="formLocalidad">Localidad</label>
+                        <input type="text" id="formLocalidad" placeholder="Opcional">
+                    </div>
                 </div>
-                <div class="col-6">
-                    <input type="text" id="formLocalidad" placeholder="Localidad">
+                
+                <label for="formCiudad">Ciudad</label>
+                <input type="text" id="formCiudad" placeholder="Tu ciudad" required>
+                
+                <div class="row">
+                    <div class="col-6">
+                        <label for="formCel">Celular</label>
+                        <input type="tel" id="formCel" placeholder="3001234567" required>
+                    </div>
+                    <div class="col-6">
+                        <label for="formTelOp">Teléfono (Opcional)</label>
+                        <input type="tel" id="formTelOp" placeholder="6011234567">
+                    </div>
                 </div>
-            </div>
-            <input type="text" id="formCiudad" placeholder="Ciudad *" required>
-            <div class="row">
-                <div class="col-6">
-                    <input type="tel" id="formCel" placeholder="Celular *" required>
-                </div>
-                <div class="col-6">
-                    <input type="tel" id="formTelOp" placeholder="Tel. Opcional">
-                </div>
-            </div>
-            <label>¿Dónde recibes tu pedido?</label>
-            <select id="formTipoEntrega">
-                <option value="Dirección Personal">Entregar en mi dirección</option>
-                <option value="Sucursal Rodar">Recoger en Sucursal Rodar</option>
-            </select>
-        </form>
+                
+                <label for="formTipoEntrega">Tipo de Entrega</label>
+                <select id="formTipoEntrega">
+                    <option value="Dirección Personal">🏠 Entregar en mi dirección</option>
+                    <option value="Sucursal Rodar">🏪 Recoger en Sucursal Rodar</option>
+                </select>
+            </form>
+        </div>
     </div>
 
     <div class="cart-footer">
-        <div class="cart-total-container">
-            <div class="cart-total-row">
-                <span class="cart-total-label">Total a pagar:</span>
+        <div class="cart-summary">
+            <div class="cart-summary-row">
+                <span class="cart-summary-label">Subtotal:</span>
+                <span class="cart-summary-value" id="cartSubtotal">$0</span>
+            </div>
+            <div class="cart-summary-row">
+                <span class="cart-summary-label">Items:</span>
+                <span class="cart-summary-value" id="cartItemCount">0</span>
+            </div>
+            <div class="cart-summary-row cart-total-row">
+                <span class="cart-summary-label">Total:</span>
                 <span class="cart-total-value" id="cartTotal">$0</span>
             </div>
         </div>
         <div class="cart-payment-info">
-            <i class="fas fa-check-circle"></i> Pagarás en efectivo al recibir
+            <i class="fas fa-shield-check"></i>
+            Pago 100% seguro contra entrega
         </div>
         <button class="btn-checkout" onclick="enviarPedido()">
-            <i class="fab fa-whatsapp mr-2" style="font-size: 1.3rem;"></i>
-            ENVIAR PEDIDO POR WHATSAPP
+            <i class="fab fa-whatsapp" style="font-size: 1.4rem;"></i>
+            COMPLETAR PEDIDO
+        </button>
+        <button class="btn-clear-cart" onclick="clearCart()">
+            <i class="fas fa-trash-alt mr-2"></i>
+            Vaciar Carrito
         </button>
     </div>
 </div>
