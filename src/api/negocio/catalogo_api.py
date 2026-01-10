@@ -10,8 +10,8 @@ from flask_login import current_user, logout_user
 
 # Importaciones de modelos y base de datos
 from src.models.database import db
-from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo
-from src.models.colombia_data.contabilidad.operaciones_y_catalogo import TransaccionOperativa
+# CORREGIDO: Import desde la ubicación correcta
+from src.models.colombia_data.contabilidad.operaciones_y_catalogo import ProductoCatalogo, TransaccionOperativa
 
 # --- CONFIGURACIÓN DE LOGS ---
 logger = logging.getLogger(__name__)
@@ -43,10 +43,8 @@ def get_authorized_user_id():
     if current_user.is_authenticated:
         session_id = str(getattr(current_user, 'id_usuario', ''))
 
-    # LOG DE SEGURIDAD (Aparecerá en tu consola de Render/Servidor)
     logger.debug(f"🔍 [IDENTIDAD] Header: {header_id} | Sesión: {session_id}")
 
-    # Si el header dice una cosa y la sesión otra, forzamos el Header
     if header_id and header_id != session_id:
         logger.warning(f"⚠️ ¡COLISIÓN DETECTADA! Header {header_id} != Sesión {session_id}. Usando Header.")
         return header_id
@@ -70,7 +68,6 @@ def obtener_mis_productos():
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
-        # FILTRO ATÓMICO: Solo productos que coincidan EXACTAMENTE con el ID validado
         productos = ProductoCatalogo.query.filter_by(usuario_id=int(user_id)).all()
         
         data_final = []
@@ -83,7 +80,7 @@ def obtener_mis_productos():
         return jsonify({
             "success": True,
             "data": data_final,
-            "debug_user": user_id # Para verificar en el frontend quién está cargando
+            "debug_user": user_id
         }), 200
     except Exception as e:
         logger.error(f"❌ Error en GET mis-productos: {str(e)}")
@@ -111,7 +108,6 @@ def guardar_producto_catalogo():
         if file and file.filename != '':
             nombre_prod = data.get('nombre', 'producto')
             nombre_limpio = re.sub(r'[^a-zA-Z0-9]', '', nombre_prod[:15])
-            # Incluimos el user_id en el public_id de Cloudinary para evitar colisiones de imágenes
             p_id = f"user_{user_id}_{nombre_limpio}_{int(db.func.now().cast(db.Integer)) if hasattr(db.func, 'now') else '1'}"
             
             upload_result = cloudinary.uploader.upload(
@@ -123,7 +119,7 @@ def guardar_producto_catalogo():
             )
             imagen_url = upload_result.get('secure_url')
 
-        # 2. REGISTRO CONTABLE (Sincronizado con user_id validado)
+        # 2. REGISTRO CONTABLE
         nueva_t = TransaccionOperativa(
             negocio_id=int(data.get('negocio_id', 1)),
             usuario_id=int(user_id),
@@ -140,7 +136,6 @@ def guardar_producto_catalogo():
         nombre_p = data.get('nombre')
         neg_id = int(data.get('negocio_id', 1))
         
-        # El filtro debe incluir usuario_id para asegurar que el usuario no edite productos de otros
         prod = ProductoCatalogo.query.filter_by(nombre=nombre_p, negocio_id=neg_id, usuario_id=int(user_id)).first()
 
         if prod:
@@ -184,7 +179,6 @@ def eliminar_producto(id_producto):
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
-        # Validación cruzada: id_producto Y usuario_id
         prod = ProductoCatalogo.query.filter_by(id_producto=id_producto, usuario_id=int(user_id)).first()
         if not prod:
             return jsonify({"success": False, "message": "Producto no encontrado o no pertenece al usuario"}), 404
