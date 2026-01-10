@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_cors import cross_origin
 from flask_login import login_required, current_user
 from src.models.database import db
-from src.models.colombia_data.contabilidad.operaciones import AlertaOperativa
+from src.models.colombia_data.contabilidad.operaciones_y_catalogo import AlertaOperativa
 from datetime import datetime
 import traceback
 

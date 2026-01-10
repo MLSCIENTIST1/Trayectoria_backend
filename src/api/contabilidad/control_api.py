@@ -7,7 +7,7 @@ from flask import Blueprint, request, jsonify
 from flask_cors import cross_origin
 from flask_login import current_user
 from src.models.database import db
-from src.models.colombia_data.contabilidad.operaciones import TransaccionOperativa
+from src.models.colombia_data.contabilidad.operaciones_y_catalogo import TransaccionOperativa
 from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo
 import traceback
 import logging

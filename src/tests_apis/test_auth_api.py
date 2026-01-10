@@ -8,7 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 
 # Importamos la función que queremos probar
 # Aquí mockearemos la parte de la base de datos en login_api()
-from src.api.auth.auth_api import login_api
+from src.api.auth.auth_system_api import login_api
 
 # Configuración básica para simular Flask
 app = Flask(__name__)

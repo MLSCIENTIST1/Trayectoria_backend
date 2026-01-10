@@ -11,7 +11,7 @@ from flask_login import current_user, logout_user
 # Importaciones de modelos y base de datos
 from src.models.database import db
 from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo
-from src.models.colombia_data.contabilidad.operaciones import TransaccionOperativa
+from src.models.colombia_data.contabilidad.operaciones_y_catalogo import TransaccionOperativa
 
 # --- CONFIGURACIÓN DE LOGS ---
 logger = logging.getLogger(__name__)
