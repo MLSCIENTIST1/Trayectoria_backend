@@ -1,10 +1,10 @@
 """
 BizFlow Studio - Inicialización de Aplicación Flask
 Backend: Render | Frontend: Firebase
-Versión Corregida con Gestión de Sesiones Segura
+Versión CORREGIDA - Imports arreglados
 """
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_cors import CORS
@@ -33,7 +33,16 @@ from src.models.colombia_data.ratings.service_qualifiers import ServiceQualifier
 from src.models.colombia_data.ratings.service_ratings import ServiceRatings
 from src.models.colombia_data.negocio import Negocio 
 from src.models.colombia_data.sucursales import Sucursal 
-from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo
+
+# CORREGIDO: Import de Servicio desde ubicación correcta
+from src.models.servicio import Servicio
+
+# CORREGIDO: Import desde contabilidad (NO catalogo)
+from src.models.colombia_data.contabilidad.operaciones_y_catalogo import (
+    ProductoCatalogo,
+    TransaccionOperativa,
+    AlertaOperativa
+)
 
 # Configurar logging
 logger = logging.getLogger(__name__)
@@ -43,13 +52,13 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 
+
 class Config:
     """Configuración centralizada de la aplicación"""
     
     # ==========================================
     # SEGURIDAD
     # ==========================================
-    # CRÍTICO: Usar variable de entorno en producción
     SECRET_KEY = os.environ.get('SECRET_KEY', 'bizflow_studio_2026_key_CAMBIAR_EN_PRODUCCION')
     
     # ==========================================
@@ -73,18 +82,16 @@ class Config:
     # ==========================================
     # SESIONES (CRÍTICO PARA CROSS-DOMAIN)
     # ==========================================
-    # Tipo de sesión: Almacenar en DB para persistencia
     SESSION_TYPE = 'sqlalchemy'
     SESSION_PERMANENT = True
-    PERMANENT_SESSION_LIFETIME = timedelta(days=7)  # 7 días de sesión
+    PERMANENT_SESSION_LIFETIME = timedelta(days=7)
     
     # Configuración de cookies para Firebase (frontend) + Render (backend)
-    # IMPORTANTE: SameSite='None' es OBLIGATORIO para cross-domain
     SESSION_COOKIE_NAME = 'bizflow_session'
-    SESSION_COOKIE_SAMESITE = 'None'  # Permite cookies cross-domain
-    SESSION_COOKIE_SECURE = True      # Solo HTTPS (Render y Firebase son HTTPS)
-    SESSION_COOKIE_HTTPONLY = True    # Protección XSS
-    SESSION_COOKIE_DOMAIN = None      # No restringir dominio
+    SESSION_COOKIE_SAMESITE = 'None'
+    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_DOMAIN = None
     SESSION_COOKIE_PATH = '/'
     
     # Flask-Login cookies
@@ -132,14 +139,13 @@ def create_app():
     # ==========================================
     # CORS (DEBE SER LO PRIMERO)
     # ==========================================
-    # CRÍTICO: supports_credentials=True permite envío de cookies
     CORS(app, 
          resources={r"/*": {
              "origins": Config.CORS_ORIGINS,
              "methods": ["GET", "POST", "OPTIONS", "PUT", "DELETE", "PATCH"],
-             "allow_headers": ["Content-Type", "Authorization", "Accept", "X-User-ID"],
+             "allow_headers": ["Content-Type", "Authorization", "Accept", "X-User-ID", "X-Business-ID"],
              "expose_headers": ["Content-Type", "Set-Cookie"],
-             "supports_credentials": True,  # CRÍTICO para sesiones
+             "supports_credentials": True,
              "max_age": 3600
          }}
     )
@@ -165,12 +171,11 @@ def create_app():
     # ==========================================
     login_manager = LoginManager()
     login_manager.init_app(app)
-    login_manager.session_protection = 'strong'  # Protección contra session hijacking
+    login_manager.session_protection = 'strong'
     login_manager.login_view = 'auth_system.login'
     
     @login_manager.unauthorized_handler
     def unauthorized():
-        """Manejo de accesos no autorizados"""
         logger.warning("❌ Intento de acceso no autorizado")
         return jsonify({
             "error": "unauthorized", 
@@ -180,10 +185,6 @@ def create_app():
     
     @login_manager.user_loader
     def load_user(id_usuario):
-        """
-        Carga el usuario desde la DB en cada request autenticado.
-        CRÍTICO: Este método se ejecuta en CADA request.
-        """
         try:
             user = db.session.get(Usuario, int(id_usuario))
             if user and user.active:
@@ -201,26 +202,19 @@ def create_app():
     # ==========================================
     @app.before_request
     def before_request():
-        """Ejecutado antes de cada request"""
-        from flask import request, session
+        from flask import session
         from flask_login import current_user
         
-        # Renovar sesión en cada request autenticado (importante para cookies)
         if current_user.is_authenticated:
             session.modified = True
     
     @app.after_request
     def after_request(response):
-        """Ejecutado después de cada request - Headers de seguridad"""
-        # CRÍTICO: Asegurar que las cookies se envíen correctamente
         response.headers['Access-Control-Allow-Credentials'] = 'true'
-        
-        # Headers de seguridad adicionales
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['X-XSS-Protection'] = '1; mode=block'
         
-        # Cache control para endpoints de autenticación
         if '/auth/' in request.path or '/ingreso' in request.path or '/logout' in request.path:
             response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
             response.headers['Pragma'] = 'no-cache'
@@ -234,11 +228,9 @@ def create_app():
     # ==========================================
     with app.app_context():
         try:
-            # Crear todas las tablas
             db.create_all()
             logger.info("✅ Estructura de base de datos verificada en Neon")
             
-            # Poblar datos de Colombia si la tabla está vacía
             try:
                 inspector = db.inspect(db.engine)
                 if 'colombia' in inspector.get_table_names():
@@ -266,17 +258,15 @@ def create_app():
         os.makedirs(upload_folder)
         logger.info(f"✅ Directorio de uploads creado: {upload_folder}")
     app.config['UPLOAD_FOLDER'] = upload_folder
-    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB máximo
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
     
     # ==========================================
     # ENDPOINTS DE SALUD Y DIAGNÓSTICO
     # ==========================================
     @app.route('/health', methods=['GET'])
     def health_check():
-        """Endpoint de salud para Render"""
         try:
-            # Verificar conexión a DB
-            db.session.execute('SELECT 1')
+            db.session.execute(db.text('SELECT 1'))
             db_status = "connected"
         except Exception as e:
             logger.error(f"Error en health check DB: {e}")
@@ -285,13 +275,12 @@ def create_app():
         return jsonify({
             "status": "healthy",
             "database": db_status,
-            "version": "2.0.0",
+            "version": "2.1.0",
             "environment": "production" if not app.debug else "development"
         }), 200
     
     @app.route('/api/session-debug', methods=['GET'])
     def session_debug():
-        """Endpoint de diagnóstico de sesiones (solo desarrollo)"""
         from flask import session
         from flask_login import current_user
         
