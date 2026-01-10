@@ -31,7 +31,7 @@ from src.models.colombia_data.colombia_feedbacks import Feedback
 # ==========================================
 from src.models.colombia_data.negocio import Negocio
 from src.models.colombia_data.sucursales import Sucursal
-from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo
+from src.models.colombia_data.contabilidad.operaciones_y_catalogo import ProductoCatalogo
 
 # ==========================================
 # MODELOS DE CALIFICACIONES Y RATINGS
