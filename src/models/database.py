@@ -8,27 +8,31 @@ import sys
 import logging
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from sqlalchemy import text
 
 # Configurar logging
 logger = logging.getLogger(__name__)
 
 # ==========================================
+# CONFIGURACIÓN DE ENGINE OPTIONS
+# ==========================================
+# Definir opciones una sola vez para reutilizar
+ENGINE_OPTIONS = {
+    "pool_pre_ping": True,          # CRÍTICO: Verifica conexión antes de usar
+    "pool_recycle": 280,            # Recicla conexiones antes de timeout de Neon (300s)
+    "pool_size": 10,                # Pool base de conexiones
+    "max_overflow": 20,             # Conexiones extra en picos
+    "pool_timeout": 30,             # Timeout al esperar conexión del pool
+    "connect_args": {
+        "connect_timeout": 10,      # Timeout de conexión inicial
+        "options": "-c statement_timeout=30000"  # 30s timeout para queries
+    }
+}
+
+# ==========================================
 # INSTANCIAS GLOBALES
 # ==========================================
-db = SQLAlchemy(
-    engine_options={
-        "pool_pre_ping": True,      # CRÍTICO: Verifica conexión antes de usar
-        "pool_recycle": 280,         # Recicla conexiones antes de timeout de Neon (300s)
-        "pool_size": 10,             # Pool base de conexiones
-        "max_overflow": 20,          # Conexiones extra en picos
-        "pool_timeout": 30,          # Timeout al esperar conexión del pool
-        "connect_args": {
-            "connect_timeout": 10,   # Timeout de conexión inicial
-            "options": "-c statement_timeout=30000"  # 30s timeout para queries
-        }
-    }
-)
-
+db = SQLAlchemy(engine_options=ENGINE_OPTIONS)
 migrate = Migrate()
 
 # ==========================================
@@ -49,7 +53,8 @@ def get_database_url():
         # Convertir postgres:// a postgresql:// (Render legacy)
         if database_url.startswith("postgres://"):
             database_url = database_url.replace("postgres://", "postgresql://", 1)
-            logger.info("✅ DATABASE_URL obtenida desde variable de entorno")
+        
+        logger.info("✅ DATABASE_URL obtenida desde variable de entorno")
         
         # Asegurar que tenga sslmode=require para Neon
         if 'sslmode' not in database_url:
@@ -103,22 +108,23 @@ def init_app(app):
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_ECHO'] = app.debug  # Solo logs SQL en debug
     
-    # Configuración adicional para sesiones en DB
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = db.engine_options
+    # NOTA: Las engine_options ya se configuraron en el constructor de SQLAlchemy
+    # No es necesario (ni posible) asignarlas de nuevo aquí
     
     # Inicializar extensiones
     db.init_app(app)
     migrate.init_app(app, db)
     
     logger.info("✅ SQLAlchemy inicializado con pool management")
-    logger.info(f"   - Pool size: {db.engine_options['pool_size']}")
-    logger.info(f"   - Max overflow: {db.engine_options['max_overflow']}")
-    logger.info(f"   - Pool pre-ping: {db.engine_options['pool_pre_ping']}")
+    logger.info(f"   - Pool size: {ENGINE_OPTIONS['pool_size']}")
+    logger.info(f"   - Max overflow: {ENGINE_OPTIONS['max_overflow']}")
+    logger.info(f"   - Pool pre-ping: {ENGINE_OPTIONS['pool_pre_ping']}")
     
     # Probar conexión
     with app.app_context():
         try:
-            db.engine.connect()
+            with db.engine.connect() as conn:
+                conn.execute(text('SELECT 1'))
             logger.info("✅ Conexión a base de datos verificada")
         except Exception as e:
             logger.error(f"❌ Error al conectar con la base de datos: {e}")
@@ -186,18 +192,24 @@ def check_database_health():
     """
     try:
         # Ejecutar query simple
-        db.session.execute('SELECT 1')
+        db.session.execute(text('SELECT 1'))
         
-        # Obtener info del pool
-        pool = db.engine.pool
+        # Obtener info del pool (si está disponible)
+        try:
+            pool = db.engine.pool
+            pool_info = {
+                "pool_size": pool.size(),
+                "checked_out": pool.checkedout(),
+                "overflow": pool.overflow(),
+                "checked_in": pool.checkedin()
+            }
+        except Exception:
+            pool_info = {"pool_info": "not available"}
         
         return {
             "status": "healthy",
             "connection": "active",
-            "pool_size": pool.size(),
-            "checked_out": pool.checkedout(),
-            "overflow": pool.overflow(),
-            "checked_in": pool.checkedin()
+            **pool_info
         }
     except Exception as e:
         logger.error(f"❌ Database health check failed: {e}")
