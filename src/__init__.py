@@ -1,14 +1,22 @@
+"""
+BizFlow Studio - Inicialización de Aplicación Flask
+Backend: Render | Frontend: Firebase
+Versión Corregida con Gestión de Sesiones Segura
+"""
+
 from flask import Flask, jsonify
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_cors import CORS
+from flask_session import Session
+from datetime import timedelta
 import os
 import sys
 import logging
 
 # Importaciones internas
 from src.models.database import db, init_app
-from src.api import api_bp, register_api 
+from src.api import register_api 
 from llenar_colombia import poblar_ciudades 
 
 # --- IMPORTACIÓN DE MODELOS (VITAL PARA SQLALCHEMY / NEON) ---
@@ -27,107 +35,293 @@ from src.models.colombia_data.negocio import Negocio
 from src.models.colombia_data.sucursales import Sucursal 
 from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo
 
+# Configurar logging
 logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
 
 class Config:
-    # VITAL: La SECRET_KEY debe ser consistente para que la cookie de sesión sea válida
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'bizflow_studio_2026_key_secure')
+    """Configuración centralizada de la aplicación"""
+    
+    # ==========================================
+    # SEGURIDAD
+    # ==========================================
+    # CRÍTICO: Usar variable de entorno en producción
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'bizflow_studio_2026_key_CAMBIAR_EN_PRODUCCION')
+    
+    # ==========================================
+    # BASE DE DATOS
+    # ==========================================
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_size': 10,
+        'pool_recycle': 3600,
+        'pool_pre_ping': True,
+        'connect_args': {
+            'connect_timeout': 10,
+        }
+    }
     
     # Compatibilidad Neon/Render
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     if SQLALCHEMY_DATABASE_URI and SQLALCHEMY_DATABASE_URI.startswith("postgres://"):
         SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace("postgres://", "postgresql://", 1)
     
-    # Configuración de Cookies para Dominios Diferentes (Firebase + Render)
-    # Estos ajustes permiten que el navegador guarde la sesión aunque los dominios no coincidan
-    SESSION_COOKIE_SAMESITE = 'None'
-    SESSION_COOKIE_SECURE = True
-    SESSION_COOKIE_HTTPONLY = True
+    # ==========================================
+    # SESIONES (CRÍTICO PARA CROSS-DOMAIN)
+    # ==========================================
+    # Tipo de sesión: Almacenar en DB para persistencia
+    SESSION_TYPE = 'sqlalchemy'
+    SESSION_PERMANENT = True
+    PERMANENT_SESSION_LIFETIME = timedelta(days=7)  # 7 días de sesión
+    
+    # Configuración de cookies para Firebase (frontend) + Render (backend)
+    # IMPORTANTE: SameSite='None' es OBLIGATORIO para cross-domain
+    SESSION_COOKIE_NAME = 'bizflow_session'
+    SESSION_COOKIE_SAMESITE = 'None'  # Permite cookies cross-domain
+    SESSION_COOKIE_SECURE = True      # Solo HTTPS (Render y Firebase son HTTPS)
+    SESSION_COOKIE_HTTPONLY = True    # Protección XSS
+    SESSION_COOKIE_DOMAIN = None      # No restringir dominio
+    SESSION_COOKIE_PATH = '/'
+    
+    # Flask-Login cookies
+    REMEMBER_COOKIE_NAME = 'bizflow_remember'
+    REMEMBER_COOKIE_DURATION = timedelta(days=7)
     REMEMBER_COOKIE_SAMESITE = 'None'
     REMEMBER_COOKIE_SECURE = True
     REMEMBER_COOKIE_HTTPONLY = True
-    PERMANENT_SESSION_LIFETIME = 86400 
+    REMEMBER_COOKIE_DOMAIN = None
+    
+    # ==========================================
+    # CORS (CRÍTICO)
+    # ==========================================
+    CORS_ORIGINS = [
+        "https://trayectoria-rxdc1.web.app",
+        "https://mitrayectoria.web.app",
+        "http://localhost:5001",
+        "http://localhost:5173",
+        "http://localhost:3000"
+    ]
+
 
 def create_app():
-    logger.info("🚀 Iniciando la Factoría de la Aplicación")
+    """
+    Factory pattern para crear la aplicación Flask
+    con configuración optimizada para Render + Firebase
+    """
+    logger.info("🚀 Iniciando BizFlow Studio Factory")
     
-    # --- AJUSTE DE RUTAS RAÍZ ---
+    # ==========================================
+    # INICIALIZACIÓN DE FLASK
+    # ==========================================
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     
-    app = Flask(__name__, 
-                instance_relative_config=False,
-                root_path=base_dir, 
-                template_folder='templates',
-                static_folder='static')
-
-    app.config.from_object(Config)
-
-    # 1. Configuración de CORS Globalizada
-    # supports_credentials=True es lo que permite que el 'carlos' de la sesión 
-    # viaje desde Firebase hasta Render.
-    CORS(app, resources={r"/*": {
-        "origins": [
-            "https://trayectoria-rxdc1.web.app",
-            "https://mitrayectoria.web.app",
-            "http://localhost:5001",
-            "http://localhost:5173"
-        ],
-        "methods": ["GET", "POST", "OPTIONS", "PUT", "DELETE"],
-        "allow_headers": ["Content-Type", "Authorization", "Accept"],
-        "expose_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True 
-    }})
+    app = Flask(
+        __name__, 
+        instance_relative_config=False,
+        root_path=base_dir, 
+        template_folder='templates',
+        static_folder='static'
+    )
     
-    # 2. Inicialización de Base de Datos y Migraciones
+    app.config.from_object(Config)
+    
+    # ==========================================
+    # CORS (DEBE SER LO PRIMERO)
+    # ==========================================
+    # CRÍTICO: supports_credentials=True permite envío de cookies
+    CORS(app, 
+         resources={r"/*": {
+             "origins": Config.CORS_ORIGINS,
+             "methods": ["GET", "POST", "OPTIONS", "PUT", "DELETE", "PATCH"],
+             "allow_headers": ["Content-Type", "Authorization", "Accept", "X-User-ID"],
+             "expose_headers": ["Content-Type", "Set-Cookie"],
+             "supports_credentials": True,  # CRÍTICO para sesiones
+             "max_age": 3600
+         }}
+    )
+    logger.info("✅ CORS configurado con soporte de credenciales")
+    
+    # ==========================================
+    # BASE DE DATOS
+    # ==========================================
     init_app(app)
-    Migrate(app, db)
-
-    # 3. Configuración de LoginManager
+    migrate = Migrate(app, db)
+    logger.info("✅ Base de datos inicializada")
+    
+    # ==========================================
+    # SESIONES (CRÍTICO)
+    # ==========================================
+    app.config['SESSION_SQLALCHEMY'] = db
+    session_manager = Session()
+    session_manager.init_app(app)
+    logger.info("✅ Sistema de sesiones configurado")
+    
+    # ==========================================
+    # FLASK-LOGIN
+    # ==========================================
     login_manager = LoginManager()
     login_manager.init_app(app)
+    login_manager.session_protection = 'strong'  # Protección contra session hijacking
+    login_manager.login_view = 'auth_system.login'
     
-    # Asegura que el nombre de la cookie de sesión sea estándar
-    app.config.update(SESSION_COOKIE_NAME='bizflow_session')
-
-    login_manager.login_view = 'api.init_sesion_bp.ingreso'
-
     @login_manager.unauthorized_handler
     def unauthorized():
+        """Manejo de accesos no autorizados"""
+        logger.warning("❌ Intento de acceso no autorizado")
         return jsonify({
             "error": "unauthorized", 
-            "message": "La sesión ha expirado o no has iniciado sesión."
+            "message": "Sesión expirada o no iniciada",
+            "redirect": "/login.html"
         }), 401
-
+    
     @login_manager.user_loader
     def load_user(id_usuario):
-        return db.session.get(Usuario, int(id_usuario))
-
-    # 4. Registro de Rutas y Estructura Neon
+        """
+        Carga el usuario desde la DB en cada request autenticado.
+        CRÍTICO: Este método se ejecuta en CADA request.
+        """
+        try:
+            user = db.session.get(Usuario, int(id_usuario))
+            if user and user.active:
+                return user
+            logger.warning(f"Usuario {id_usuario} no encontrado o inactivo")
+            return None
+        except Exception as e:
+            logger.error(f"Error cargando usuario {id_usuario}: {str(e)}")
+            return None
+    
+    logger.info("✅ Flask-Login configurado")
+    
+    # ==========================================
+    # MIDDLEWARE DE SEGURIDAD
+    # ==========================================
+    @app.before_request
+    def before_request():
+        """Ejecutado antes de cada request"""
+        from flask import request, session
+        from flask_login import current_user
+        
+        # Renovar sesión en cada request autenticado (importante para cookies)
+        if current_user.is_authenticated:
+            session.modified = True
+    
+    @app.after_request
+    def after_request(response):
+        """Ejecutado después de cada request - Headers de seguridad"""
+        # CRÍTICO: Asegurar que las cookies se envíen correctamente
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        
+        # Headers de seguridad adicionales
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        
+        # Cache control para endpoints de autenticación
+        if '/auth/' in request.path or '/ingreso' in request.path or '/logout' in request.path:
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            response.headers['Pragma'] = 'no-cache'
+        
+        return response
+    
+    logger.info("✅ Middleware de seguridad configurado")
+    
+    # ==========================================
+    # INICIALIZACIÓN DE BASE DE DATOS
+    # ==========================================
     with app.app_context():
         try:
+            # Crear todas las tablas
             db.create_all()
-            logger.info("🛠️ Estructura de base de datos verificada en Neon")
+            logger.info("✅ Estructura de base de datos verificada en Neon")
+            
+            # Poblar datos de Colombia si la tabla está vacía
+            try:
+                inspector = db.inspect(db.engine)
+                if 'colombia' in inspector.get_table_names():
+                    if Colombia.query.first() is None:
+                        logger.info("⚠️  Tabla 'colombia' vacía. Poblando...")
+                        poblar_ciudades()
+                        logger.info("✅ Datos de Colombia poblados")
+            except Exception as e:
+                logger.warning(f"⚠️  No se pudo poblar datos de Colombia: {e}")
+                
         except Exception as e:
-            logger.error(f"🔥 Error al crear tablas: {e}")
-
-        # Registro de todos los Blueprints
-        register_api(app) 
-
-        # Poblado automático de ciudades de Colombia
-        try:
-            inspector = db.inspect(db.engine)
-            if 'colombia' in inspector.get_table_names():
-                if Colombia.query.first() is None:
-                    logger.info("⚠️ Tabla 'colombia' vacía. Poblando...")
-                    poblar_ciudades()
-        except Exception as e:
-            logger.error(f"❌ Error en auto-poblado: {e}")
-
-    # 5. Configuración de Directorio de Cargas
+            logger.error(f"❌ Error al crear tablas: {e}")
+    
+    # ==========================================
+    # REGISTRO DE BLUEPRINTS
+    # ==========================================
+    register_api(app)
+    logger.info("✅ Blueprints registrados")
+    
+    # ==========================================
+    # CONFIGURACIÓN DE DIRECTORIO DE UPLOADS
+    # ==========================================
     upload_folder = os.path.join(base_dir, 'static', 'uploads')
     if not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
+        logger.info(f"✅ Directorio de uploads creado: {upload_folder}")
     app.config['UPLOAD_FOLDER'] = upload_folder
-
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB máximo
+    
+    # ==========================================
+    # ENDPOINTS DE SALUD Y DIAGNÓSTICO
+    # ==========================================
+    @app.route('/health', methods=['GET'])
+    def health_check():
+        """Endpoint de salud para Render"""
+        try:
+            # Verificar conexión a DB
+            db.session.execute('SELECT 1')
+            db_status = "connected"
+        except Exception as e:
+            logger.error(f"Error en health check DB: {e}")
+            db_status = "disconnected"
+        
+        return jsonify({
+            "status": "healthy",
+            "database": db_status,
+            "version": "2.0.0",
+            "environment": "production" if not app.debug else "development"
+        }), 200
+    
+    @app.route('/api/session-debug', methods=['GET'])
+    def session_debug():
+        """Endpoint de diagnóstico de sesiones (solo desarrollo)"""
+        from flask import session
+        from flask_login import current_user
+        
+        if app.debug:
+            return jsonify({
+                "session_data": dict(session),
+                "authenticated": current_user.is_authenticated,
+                "user_id": current_user.get_id() if current_user.is_authenticated else None,
+                "cookie_config": {
+                    "SESSION_COOKIE_SAMESITE": app.config.get('SESSION_COOKIE_SAMESITE'),
+                    "SESSION_COOKIE_SECURE": app.config.get('SESSION_COOKIE_SECURE'),
+                    "SESSION_COOKIE_HTTPONLY": app.config.get('SESSION_COOKIE_HTTPONLY')
+                }
+            }), 200
+        else:
+            return jsonify({"error": "Not available in production"}), 403
+    
+    # ==========================================
+    # MANEJO DE ERRORES
+    # ==========================================
+    @app.errorhandler(404)
+    def not_found(error):
+        logger.warning(f"404 Not Found: {request.path}")
+        return jsonify({"error": "Endpoint no encontrado"}), 404
+    
+    @app.errorhandler(500)
+    def internal_error(error):
+        logger.error(f"500 Internal Error: {str(error)}")
+        db.session.rollback()
+        return jsonify({"error": "Error interno del servidor"}), 500
+    
+    logger.info("🎉 BizFlow Studio inicializado correctamente")
     return app

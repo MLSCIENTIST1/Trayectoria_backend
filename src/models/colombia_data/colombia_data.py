@@ -99,7 +99,8 @@ def upgrade():
         sa.Column('servicios_emergentes', sa.Text, nullable=True),
         sa.Column('ratio_contratados_vs_ofrecidos', sa.Float, nullable=True),
         sa.Column('porcentaje_freelancers', sa.Float, nullable=True),
-    )
+        sa.Column('valor_envio', sa.Float, nullable=True)
+                )
 
     
     

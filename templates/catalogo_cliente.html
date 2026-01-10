@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="{{ url_for('static', filename='imgs/Rodar.png') }}" type="image/png">
+    <link rel="icon" href="https://res.cloudinary.com/dp50v0bwj/image/upload/v1704285000/Rodar_Icon.png" type="image/png">
     <title>Rodar | Soluciones Profesionales para tu Taller</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -316,9 +316,9 @@
         /* Cart Sidebar */
         .cart-sidebar {
             position: fixed;
-            right: -500px;
+            right: -420px;
             top: 0;
-            width: 500px;
+            width: 420px;
             height: 100%;
             background: white;
             z-index: 1100;
@@ -330,7 +330,7 @@
         .cart-sidebar.open { right: 0; }
         
         .cart-header {
-            padding: 24px;
+            padding: 16px 20px;
             background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             color: white;
             display: flex;
@@ -341,26 +341,26 @@
         .cart-header h5 {
             margin: 0;
             font-weight: 700;
-            font-size: 1.4rem;
+            font-size: 1.1rem;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
         .cart-header-badge {
             background: rgba(255,255,255,0.3);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.9rem;
+            padding: 2px 10px;
+            border-radius: 15px;
+            font-size: 0.85rem;
             font-weight: 600;
         }
         .cart-close {
             background: rgba(255,255,255,0.2);
             border: none;
             color: white;
-            width: 40px;
-            height: 40px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
-            font-size: 1.5rem;
+            font-size: 1.3rem;
             cursor: pointer;
             transition: all 0.3s;
             display: flex;
@@ -375,36 +375,36 @@
         .cart-content {
             flex-grow: 1;
             overflow-y: auto;
-            padding: 24px;
+            padding: 16px;
             background: var(--gray-50);
         }
         .cart-section-title {
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             font-weight: 700;
             color: var(--gray-800);
-            margin-bottom: 16px;
+            margin-bottom: 12px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding-bottom: 8px;
+            gap: 6px;
+            padding-bottom: 6px;
             border-bottom: 2px solid var(--gray-200);
         }
         .cart-items-container {
             background: white;
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 24px;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 16px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
         .cart-item {
             display: flex;
-            gap: 16px;
+            gap: 12px;
             background: var(--gray-50);
-            padding: 16px;
-            border-radius: 12px;
-            margin-bottom: 12px;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 10px;
             transition: all 0.3s;
             border: 2px solid transparent;
             position: relative;
@@ -415,65 +415,74 @@
         .cart-item:hover {
             border-color: var(--primary);
             background: white;
-            transform: translateX(-4px);
+            transform: translateX(-2px);
         }
         .cart-item-img {
-            width: 80px;
-            height: 80px;
-            border-radius: 10px;
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
             object-fit: cover;
             background: white;
             border: 2px solid var(--gray-200);
+            flex-shrink: 0;
         }
         .cart-item-info {
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 4px;
+            min-width: 0;
         }
         .cart-item-name {
             font-weight: 700;
-            font-size: 0.95rem;
+            font-size: 0.85rem;
             color: var(--dark);
-            line-height: 1.3;
+            line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
         }
         .cart-item-category {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: var(--primary);
             text-transform: uppercase;
             font-weight: 600;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
         }
         .cart-item-price {
             color: var(--primary);
             font-weight: 800;
-            font-size: 1.2rem;
+            font-size: 1rem;
             margin-top: auto;
         }
         .cart-item-actions {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 6px;
             justify-content: space-between;
+            flex-shrink: 0;
         }
         .cart-item-quantity {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             background: white;
-            border-radius: 8px;
-            padding: 4px;
+            border-radius: 6px;
+            padding: 3px;
             border: 2px solid var(--gray-200);
         }
         .qty-btn {
             background: var(--primary);
             border: none;
             color: white;
-            width: 28px;
-            height: 28px;
-            border-radius: 6px;
+            width: 24px;
+            height: 24px;
+            border-radius: 5px;
             cursor: pointer;
             font-weight: bold;
+            font-size: 0.7rem;
             transition: all 0.3s;
             display: flex;
             align-items: center;
@@ -481,7 +490,7 @@
         }
         .qty-btn:hover {
             background: var(--primary-dark);
-            transform: scale(1.1);
+            transform: scale(1.05);
         }
         .qty-btn:disabled {
             background: var(--gray-200);
@@ -489,19 +498,21 @@
             transform: scale(1);
         }
         .qty-display {
-            min-width: 30px;
+            min-width: 24px;
             text-align: center;
             font-weight: 700;
+            font-size: 0.85rem;
             color: var(--dark);
         }
         .cart-item-remove {
             background: #fee2e2;
             border: none;
             color: #dc2626;
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
             cursor: pointer;
+            font-size: 0.8rem;
             transition: all 0.3s;
             display: flex;
             align-items: center;
@@ -510,16 +521,16 @@
         .cart-item-remove:hover {
             background: #dc2626;
             color: white;
-            transform: scale(1.1);
+            transform: scale(1.05);
         }
 
         .checkout-form input,
         .checkout-form select {
             border: 2px solid var(--gray-200);
-            border-radius: 10px;
-            padding: 14px 16px;
-            font-size: 0.9rem;
-            margin-bottom: 12px;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
             width: 100%;
             transition: all 0.3s;
             background: white;
@@ -533,41 +544,41 @@
         }
         .checkout-form label {
             font-weight: 700;
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             color: var(--dark);
-            margin-bottom: 8px;
+            margin-bottom: 4px;
             display: block;
         }
         .form-section {
             background: white;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 16px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
 
         .cart-footer {
-            padding: 24px;
+            padding: 16px;
             background: white;
             border-top: 2px solid var(--gray-200);
             box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
         }
         .cart-summary {
             background: var(--gray-50);
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 16px;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 12px;
         }
         .cart-summary-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
-            font-size: 0.95rem;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
         }
         .cart-summary-row:last-child {
             margin-bottom: 0;
-            padding-top: 12px;
+            padding-top: 8px;
             border-top: 2px dashed var(--gray-200);
         }
         .cart-summary-label {
@@ -579,10 +590,10 @@
             color: var(--dark);
         }
         .cart-total-row {
-            font-size: 1.1rem;
+            font-size: 0.95rem;
         }
         .cart-total-value {
-            font-size: 2rem;
+            font-size: 1.5rem;
             font-weight: 800;
             color: var(--primary);
         }
@@ -590,33 +601,33 @@
             text-align: center;
             color: var(--success);
             font-weight: 700;
-            font-size: 0.9rem;
-            margin-bottom: 16px;
-            padding: 14px;
+            font-size: 0.8rem;
+            margin-bottom: 12px;
+            padding: 10px;
             background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-            border-radius: 10px;
+            border-radius: 8px;
             border: 2px solid #86efac;
         }
         .cart-payment-info i {
-            font-size: 1.1rem;
-            margin-right: 6px;
+            font-size: 1rem;
+            margin-right: 4px;
         }
         .btn-checkout {
             background: linear-gradient(135deg, var(--success) 0%, #22c55e 100%);
             color: white;
             border: none;
-            padding: 18px;
-            border-radius: 12px;
+            padding: 14px;
+            border-radius: 10px;
             width: 100%;
             font-weight: 700;
-            font-size: 1.05rem;
+            font-size: 0.95rem;
             cursor: pointer;
             transition: all 0.3s;
             box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
+            gap: 8px;
         }
         .btn-checkout:hover {
             transform: translateY(-2px);
@@ -629,14 +640,14 @@
             background: white;
             color: var(--gray-800);
             border: 2px solid var(--gray-200);
-            padding: 12px;
-            border-radius: 10px;
+            padding: 10px;
+            border-radius: 8px;
             width: 100%;
             font-weight: 600;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             cursor: pointer;
             transition: all 0.3s;
-            margin-top: 12px;
+            margin-top: 10px;
         }
         .btn-clear-cart:hover {
             background: #fee2e2;
@@ -646,31 +657,33 @@
 
         .empty-cart {
             text-align: center;
-            padding: 60px 20px;
+            padding: 40px 20px;
             color: var(--gray-800);
         }
         .empty-cart i {
-            font-size: 5rem;
+            font-size: 3.5rem;
             color: var(--gray-200);
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
         .empty-cart h6 {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 700;
             margin-bottom: 8px;
             color: var(--dark);
         }
         .empty-cart p {
             color: var(--gray-800);
+            font-size: 0.9rem;
             margin-bottom: 20px;
         }
         .btn-continue-shopping {
             background: var(--primary);
             color: white;
             border: none;
-            padding: 12px 24px;
-            border-radius: 10px;
+            padding: 10px 20px;
+            border-radius: 8px;
             font-weight: 600;
+            font-size: 0.85rem;
             cursor: pointer;
             transition: all 0.3s;
         }
@@ -740,16 +753,13 @@
     <div class="container-fluid px-4">
         <div class="row w-100 align-items-center">
             <div class="col-lg-2 col-6">
-    <a href="#" class="d-flex align-items-center text-decoration-none">
-        <img src="{{ url_for('static', filename='imgs/Rodar.png') }}" 
-             alt="Logo Rodar" 
-             style="height: 40px; width: auto; margin-right: 10px;">
-        
-        <span class="font-weight-bold" style="font-size: 1.3rem; color: var(--dark);">
-            RODAR
-        </span>
-    </a>
-</div>
+                <a href="#" class="d-flex align-items-center text-decoration-none">
+                    <img src="https://res.cloudinary.com/dp50v0bwj/image/upload/v1704285000/Rodar_Icon.png" alt="Rodar" class="navbar-logo mr-2">
+                    <span class="font-weight-bold" style="font-size: 1.3rem; color: var(--dark);">
+                        RODAR
+                    </span>
+                </a>
+            </div>
             <div class="col-lg-8 col-12 mt-3 mt-lg-0">
                 <div class="search-container">
                     <input type="text" class="search-input" id="searchInput" placeholder="Busca herramientas, repuestos, accesorios...">
@@ -868,13 +878,9 @@
                     <i class="fas fa-shield-alt"></i>
                     <span>Seguridad Vial</span>
                 </div>
-                <div class="cat-item" onclick="filtrar('Vestuario', event)">
+                <div class="cat-item" onclick="filtrar('Ropa', event)">
                     <i class="fas fa-tshirt"></i>
-                    <span>Vestuario</span>
-                </div>
-                <div class="cat-item" onclick="filtrar('De todo usados', event)">
-                    <i class="fas fa-tshirt"></i>
-                    <span>De todo usados</span>
+                    <span>Ropa</span>
                 </div>
             </div>
         </div>

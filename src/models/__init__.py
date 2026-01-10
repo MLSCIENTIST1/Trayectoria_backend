@@ -1,50 +1,83 @@
-# Modelos Base
-from .notification import Notification
-from .servicio import Servicio
-from .message import Message
+"""
+BizFlow Studio - Inicialización de Modelos
+Organiza todos los modelos de la aplicación
+"""
+
+# ==========================================
+# CONFIGURACIÓN DE BASE DE DATOS
+# ==========================================
+from src.models.database import db, init_app, DATABASE_URL
+
+# ==========================================
+# MODELOS CORE
+# ==========================================
 from .usuarios import Usuario
+from .servicio import Servicio
+from .notification import Notification
+from .message import Message
 from .etapa import Etapa
 from .foto import Foto
 from .audio import Audio
 from .video import Video
 
-# Importaciones desde la subcarpeta colombia_data
+# ==========================================
+# MODELOS DE COLOMBIA Y LOCALIZACIÓN
+# ==========================================
+from src.models.colombia_data.colombia_data import Colombia
+from src.models.colombia_data.colombia_feedbacks import Feedback
+
+# ==========================================
+# MODELOS DE NEGOCIO
+# ==========================================
+from src.models.colombia_data.negocio import Negocio
+from src.models.colombia_data.sucursales import Sucursal
+from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo
+
+# ==========================================
+# MODELOS DE CALIFICACIONES Y RATINGS
+# ==========================================
 from src.models.colombia_data.ratings.service_ratings import ServiceRatings
 from src.models.colombia_data.ratings.service_overall_scores import ServiceOverallScores
 from src.models.colombia_data.ratings.service_qualifiers import ServiceQualifiers
-from src.models.colombia_data.colombia_data import Colombia
-from src.models.colombia_data.colombia_feedbacks import Feedback
+
+# ==========================================
+# MODELOS DE MONETIZACIÓN
+# ==========================================
 from src.models.colombia_data.monetization_management import MonetizationManagement
-from src.models.colombia_data.sucursales import Sucursal
-from src.models.colombia_data.negocio import Negocio
 
-# --- NUEVOS: Módulos de Catálogo BizFlow ---
-from src.models.colombia_data.catalogo.catalogo import ProductoCatalogo
-
-
-# Configuración de base de datos
-from src.models.database import db, init_app, DATABASE_URL
-
-# Exportar funciones y modelos clave para que Flask-Migrate y la App los vean
+# ==========================================
+# EXPORTACIÓN
+# ==========================================
 __all__ = [
+    # Base de datos
     "db",
     "init_app",
     "DATABASE_URL",
-    "Notification",
-    "Servicio",
-    "Message",
+    
+    # Modelos Core
     "Usuario",
+    "Servicio",
+    "Notification",
+    "Message",
     "Etapa",
     "Foto",
     "Audio",
     "Video",
+    
+    # Colombia
     "Colombia",
+    "Feedback",
+    
+    # Negocio
     "Negocio",
     "Sucursal",
-    "ProductoCatalogo",  # Agregado para persistencia en DB
+    "ProductoCatalogo",
+    
+    # Ratings
     "ServiceRatings",
     "ServiceOverallScores",
     "ServiceQualifiers",
-    "Feedback",
+    
+    # Monetización
     "MonetizationManagement"
 ]

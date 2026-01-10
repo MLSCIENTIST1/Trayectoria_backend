@@ -1,90 +1,229 @@
-import traceback
-from flask import Blueprint, jsonify, request
-from flask_cors import CORS
+"""
+BizFlow Studio - Registro de APIs
+Sistema de carga segura de blueprints con manejo de errores
+"""
 
-# Blueprint principal de la API
+import traceback
+import logging
+from flask import Blueprint, jsonify
+
+logger = logging.getLogger(__name__)
+
+# Blueprint principal (ya no lo usamos directamente, pero lo mantenemos por compatibilidad)
 api_bp = Blueprint('api', __name__)
+
 
 def register_api(app):
     """
     Registra de forma segura todos los Blueprints en la aplicación Flask.
-    Asegura que el Centro de Control Operativo incluya las rutas de Reportes.
+    
+    IMPORTANTE: Este método se ejecuta dentro del contexto de la aplicación,
+    por lo que los blueprints ya tienen acceso a db, login_manager, etc.
     """
-    # Aplica CORS a toda la aplicación, permitiendo credenciales para el frontend en Web.app
-    CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "*"}})
-
-    print("\n🚀 Iniciando registro de rutas API...")
-
-    # Ruta de salud global para monitoreo de Render
+    
+    logger.info("="*70)
+    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS")
+    logger.info("="*70)
+    
+    # ==========================================
+    # RUTA DE SALUD GLOBAL
+    # ==========================================
     @app.route('/api/health', methods=['GET'])
-    def global_health():
+    def api_health():
+        """Endpoint de salud específico de la API"""
         return jsonify({
             "status": "online", 
-            "message": "BizFlow Studio API Core is running",
-            "version": "1.1.0"
+            "message": "BizFlow Studio API operativa",
+            "version": "2.0.0"
         }), 200
-
-    def safe_import_and_register(module_path, bp_name, display_name, prefix='/api'):
+    
+    logger.info("✅ Ruta de salud global registrada: /api/health")
+    
+    # ==========================================
+    # FUNCIÓN DE REGISTRO SEGURO
+    # ==========================================
+    def safe_register(module_path, bp_name, display_name, prefix='/api'):
+        """
+        Intenta importar y registrar un blueprint de manera segura.
+        
+        Args:
+            module_path: Ruta del módulo (ej: 'src.api.auth.auth_system')
+            bp_name: Nombre del blueprint en el módulo (ej: 'auth_bp')
+            display_name: Nombre para mostrar en logs
+            prefix: Prefijo de URL (default: '/api')
+        
+        Returns:
+            bool: True si se registró exitosamente, False si falló
+        """
         try:
-            # Importación dinámica del módulo
+            # Importación dinámica
             module = __import__(module_path, fromlist=[bp_name])
             blueprint = getattr(module, bp_name)
             
-            # Registro en la app de Flask
+            # Registro en Flask
             app.register_blueprint(blueprint, url_prefix=prefix)
-            print(f"✅ [OK] Módulo cargado: {display_name.ljust(20)} -> {prefix if prefix else '/'}")
+            
+            # Log exitoso
+            prefix_display = prefix if prefix else '/'
+            logger.info(f"✅ {display_name:30} → {prefix_display}")
             return True
-        except Exception as e:
-            print(f"❌ [FALLO] No se pudo cargar {display_name}. Error: {e}")
-            # Descomentar para debug profundo en consola de Render
-            # traceback.print_exc() 
+            
+        except ImportError as e:
+            logger.error(f"❌ {display_name:30} → ImportError: {str(e)}")
+            if app.debug:
+                traceback.print_exc()
             return False
-
-    # --- Módulos de Negocio y Catálogo ---
-    print("\n--- Cargando Módulos de Negocio y Catálogo ---")
-    safe_import_and_register('src.api.negocio.negocio_api', 'negocio_api_bp', 'Negocio')
-    safe_import_and_register('src.api.negocio.catalogo_api', 'catalogo_api_bp', 'Catálogo')
+            
+        except AttributeError as e:
+            logger.error(f"❌ {display_name:30} → Blueprint '{bp_name}' no encontrado en módulo")
+            return False
+            
+        except Exception as e:
+            logger.error(f"❌ {display_name:30} → Error: {str(e)}")
+            if app.debug:
+                traceback.print_exc()
+            return False
     
-    # --- Centro de Control Operativo (Contabilidad e Inventario) ---
-    # IMPORTANTE: Aquí reside la ruta /control/reporte/<id> que fallaba
-    print("\n--- Cargando Centro de Control Operativo ---")
-    safe_import_and_register('src.api.contabilidad.control_api', 'control_api_bp', 'Control Operativo')
-    safe_import_and_register('src.api.contabilidad.carga_masiva_api', 'carga_masiva_bp', 'Carga Masiva')
-    safe_import_and_register('src.api.contabilidad.alertas_api', 'alertas_api_bp', 'Alertas Operativas')
-
-    # Registro del Micrositio Público (URL limpia para clientes)
-    safe_import_and_register('src.api.negocio.pagina_api', 'pagina_api_bp', 'Micrositios Públicos', prefix=None)
-
-    # --- Módulos de Autenticación ---
-    print("\n--- Cargando Autenticación ---")
-    auth_modules = {
-        'src.api.auth.auth_api': 'auth_api_bp',
-        'src.api.auth.close_sesion_api': 'close_sesion_bp',
-        'src.api.auth.init_sesion_api': 'init_sesion_bp',
-        'src.api.auth.password_api': 'password_bp',
-    }
-    for path, bp in auth_modules.items():
-        safe_import_and_register(path, bp, path.split('.')[-1])
-
-    # --- Módulos de Perfil y Servicios ---
-    print("\n--- Cargando Módulos de Usuario y Servicios ---")
-    other_modules = {
-        'src.api.calificaciones.calificar_api': 'calificar_bp',
-        'src.api.candidates.details_candidate_api': 'details_candidate_bp',
-        'src.api.contracts.create_contract_api': 'create_contract_bp',
-        'src.api.contracts.contract_vigent_api': 'contract_vigent_bp',
-        'src.api.notifications.notifications_api': 'notifications_bp',
-        'src.api.notifications.chat_api': 'chat_bp',
-        'src.api.profile.view_logged_user_api': 'view_logged_user_bp',
-        'src.api.profile.edit_profile_api': 'edit_profile_bp',
-        'src.api.services.publish_service_api': 'publish_service_bp',
-        'src.api.services.search_service_autocomplete_api': 'search_service_autocomplete_bp',
-        'src.api.services.view_service_page_bp': 'view_service_page_bp',
-        'src.api.utils.register_user_api': 'register_user_bp'
-    }
-    for path, bp in other_modules.items():
-        safe_import_and_register(path, bp, path.split('.')[-1])
-
-    # Imprimir resumen de rutas para verificar en los logs de Render
-    print("\n✨ Registro de API completado.")
-    print("="*60 + "\n")
+    # ==========================================
+    # REGISTRO DE MÓDULOS
+    # ==========================================
+    
+    success_count = 0
+    fail_count = 0
+    
+    # --- AUTENTICACIÓN (CRÍTICO - DEBE SER PRIMERO) ---
+    logger.info("\n🔐 Cargando módulos de autenticación...")
+    
+    auth_modules = [
+        # NUEVO SISTEMA UNIFICADO
+        ('src.api.auth.auth_system', 'auth_bp', 'Sistema de Autenticación Unificado'),
+        
+        # LEGACY (Mantener por compatibilidad, pero comentar si usas el nuevo)
+        # ('src.api.auth.auth_api', 'auth_api_bp', 'Auth API (Legacy)'),
+        # ('src.api.auth.init_sesion_api', 'init_sesion_bp', 'Init Session (Legacy)'),
+        # ('src.api.auth.close_sesion_api', 'close_sesion_bp', 'Close Session (Legacy)'),
+        # ('src.api.auth.password_api', 'password_bp', 'Password API (Legacy)'),
+    ]
+    
+    for module_path, bp_name, display_name in auth_modules:
+        if safe_register(module_path, bp_name, display_name):
+            success_count += 1
+        else:
+            fail_count += 1
+    
+    # --- NEGOCIO Y CATÁLOGO ---
+    logger.info("\n🏢 Cargando módulos de negocio...")
+    
+    business_modules = [
+        ('src.api.negocio.negocio_api', 'negocio_api_bp', 'Gestión de Negocios'),
+        ('src.api.negocio.catalogo_api', 'catalogo_api_bp', 'Catálogo de Productos'),
+        ('src.api.negocio.pagina_api', 'pagina_api_bp', 'Micrositios Públicos', None),  # Sin prefijo
+    ]
+    
+    for item in business_modules:
+        module_path, bp_name, display_name = item[:3]
+        prefix = item[3] if len(item) > 3 else '/api'
+        if safe_register(module_path, bp_name, display_name, prefix):
+            success_count += 1
+        else:
+            fail_count += 1
+    
+    # --- CONTABILIDAD E INVENTARIO ---
+    logger.info("\n💰 Cargando centro de control operativo...")
+    
+    accounting_modules = [
+        ('src.api.contabilidad.control_api', 'control_api_bp', 'Control Operativo'),
+        ('src.api.contabilidad.carga_masiva_api', 'carga_masiva_bp', 'Carga Masiva'),
+        ('src.api.contabilidad.alertas_api', 'alertas_api_bp', 'Sistema de Alertas'),
+    ]
+    
+    for module_path, bp_name, display_name in accounting_modules:
+        if safe_register(module_path, bp_name, display_name):
+            success_count += 1
+        else:
+            fail_count += 1
+    
+    # --- SERVICIOS Y BÚSQUEDA ---
+    logger.info("\n🔍 Cargando módulos de servicios...")
+    
+    service_modules = [
+        ('src.api.services.publish_service_api', 'publish_service_bp', 'Publicación de Servicios'),
+        ('src.api.services.search_service_autocomplete_api', 'search_service_autocomplete_bp', 'Búsqueda Autocomplete'),
+        ('src.api.services.view_service_page_bp', 'view_service_page_bp', 'Vista de Servicios'),
+    ]
+    
+    for module_path, bp_name, display_name in service_modules:
+        if safe_register(module_path, bp_name, display_name):
+            success_count += 1
+        else:
+            fail_count += 1
+    
+    # --- CALIFICACIONES ---
+    logger.info("\n⭐ Cargando módulos de calificaciones...")
+    
+    if safe_register('src.api.calificaciones.calificar_api', 'calificar_bp', 'Sistema de Calificaciones'):
+        success_count += 1
+    else:
+        fail_count += 1
+    
+    # --- PERFIL DE USUARIO ---
+    logger.info("\n👤 Cargando módulos de perfil...")
+    
+    profile_modules = [
+        ('src.api.profile.view_logged_user_api', 'view_logged_user_bp', 'Ver Perfil de Usuario'),
+        ('src.api.profile.edit_profile_api', 'edit_profile_bp', 'Editar Perfil'),
+        ('src.api.utils.register_user_api', 'register_user_bp', 'Registro de Usuarios'),
+    ]
+    
+    for module_path, bp_name, display_name in profile_modules:
+        if safe_register(module_path, bp_name, display_name):
+            success_count += 1
+        else:
+            fail_count += 1
+    
+    # --- NOTIFICACIONES Y CHAT ---
+    logger.info("\n💬 Cargando módulos de comunicación...")
+    
+    communication_modules = [
+        ('src.api.notifications.notifications_api', 'notifications_bp', 'Sistema de Notificaciones'),
+        ('src.api.notifications.chat_api', 'chat_bp', 'Sistema de Chat'),
+    ]
+    
+    for module_path, bp_name, display_name in communication_modules:
+        if safe_register(module_path, bp_name, display_name):
+            success_count += 1
+        else:
+            fail_count += 1
+    
+    # --- CONTRATOS Y CANDIDATOS ---
+    logger.info("\n📋 Cargando módulos de contratos...")
+    
+    contract_modules = [
+        ('src.api.contracts.create_contract_api', 'create_contract_bp', 'Creación de Contratos'),
+        ('src.api.contracts.contract_vigent_api', 'contract_vigent_bp', 'Contratos Vigentes'),
+        ('src.api.candidates.details_candidate_api', 'details_candidate_bp', 'Detalles de Candidatos'),
+    ]
+    
+    for module_path, bp_name, display_name in contract_modules:
+        if safe_register(module_path, bp_name, display_name):
+            success_count += 1
+        else:
+            fail_count += 1
+    
+    # ==========================================
+    # RESUMEN FINAL
+    # ==========================================
+    logger.info("\n" + "="*70)
+    logger.info("📊 RESUMEN DE REGISTRO")
+    logger.info("="*70)
+    logger.info(f"✅ Blueprints exitosos: {success_count}")
+    logger.info(f"❌ Blueprints fallidos: {fail_count}")
+    logger.info(f"📦 Total intentados: {success_count + fail_count}")
+    logger.info("="*70 + "\n")
+    
+    if fail_count > 0:
+        logger.warning(f"⚠️  Algunos módulos no se cargaron. Revisa los logs anteriores.")
+    else:
+        logger.info("🎉 Todos los módulos se cargaron exitosamente")
+    
+    return success_count, fail_count

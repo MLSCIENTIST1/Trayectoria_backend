@@ -1,92 +1,207 @@
-# -*- coding: utf-8 -*-
+"""
+BizFlow Studio - Configuración de Base de Datos
+Optimizado para Neon/Render con gestión de conexiones persistentes
+"""
+
+import os
+import sys
+import logging
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-import psycopg2
-import configparser
-import sys
-import os
 
-# 1. Instancias globales con SOPORTE PARA RECONEXIÓN
-# Añadimos engine_options para evitar el error "SSL connection has been closed unexpectedly"
-db = SQLAlchemy(engine_options={
-    "pool_pre_ping": True,    # Verifica si la conexión está viva antes de cada consulta
-    "pool_recycle": 280,      # Cierra conexiones inactivas antes de que Render/Neon las corte (300s)
-    "pool_size": 10,          # Mantiene un grupo base de conexiones
-    "max_overflow": 20        # Permite conexiones extra en picos de tráfico
-})
+# Configurar logging
+logger = logging.getLogger(__name__)
+
+# ==========================================
+# INSTANCIAS GLOBALES
+# ==========================================
+db = SQLAlchemy(
+    engine_options={
+        "pool_pre_ping": True,      # CRÍTICO: Verifica conexión antes de usar
+        "pool_recycle": 280,         # Recicla conexiones antes de timeout de Neon (300s)
+        "pool_size": 10,             # Pool base de conexiones
+        "max_overflow": 20,          # Conexiones extra en picos
+        "pool_timeout": 30,          # Timeout al esperar conexión del pool
+        "connect_args": {
+            "connect_timeout": 10,   # Timeout de conexión inicial
+            "options": "-c statement_timeout=30000"  # 30s timeout para queries
+        }
+    }
+)
+
 migrate = Migrate()
 
-# 2. Función para leer la configuración
-def read_config(file_path):
-    config = configparser.ConfigParser()
-    if not os.path.exists(file_path):
-        print(f"❌ ERROR: No se encontró el archivo de configuración en: {file_path}")
-        return None
-    config.read(file_path, encoding='utf-8')
-    return config
-
-# 3. DINÁMICO: Obtener la ruta del archivo database.conf
-basedir = os.path.abspath(os.path.dirname(__file__))
-config_path = os.path.join(basedir, 'database.conf')
-
-# 4. Cargar configuración
-config = read_config(config_path)
-
-if config:
-    host = config['database']['host']
-    user = config['database']['user']
-    password = config['database']['password']
-    database = config['database']['database']
+# ==========================================
+# OBTENCIÓN DE DATABASE_URL
+# ==========================================
+def get_database_url():
+    """
+    Obtiene la URL de la base de datos desde múltiples fuentes.
+    Prioridad: ENV > database.conf > Error
     
-    # IMPORTANTE: Aseguramos el esquema postgresql:// y el sslmode=require
-    # Neon Cloud requiere sslmode para mantener la estabilidad
-    DATABASE_URL = f"postgresql://{user}:{password}@{host}/{database}?sslmode=require"
-else:
-    # Fallback para variables de entorno (útil en Render si no encuentra el .conf)
-    DATABASE_URL = os.environ.get("DATABASE_URL")
-    if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
-        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    Returns:
+        str: URL de conexión a PostgreSQL
+    """
+    # 1. PRIMERA PRIORIDAD: Variable de entorno (Render)
+    database_url = os.environ.get('DATABASE_URL')
     
-    if not DATABASE_URL:
-        print("❌ No se pudo cargar la configuración de la base de datos (.conf o ENV).")
-        sys.exit(1)
-
-# 5. Probar conexión inicial
-try:
-    engine_test = psycopg2.connect(DATABASE_URL)
-    print(f"✅ Conexión exitosa a la DB: {host}")
-    engine_test.close()
-except Exception as e:
-    print(f"⚠️ Nota: Prueba de conexión directa falló (pero Flask puede funcionar): {e}")
-
-# 6. Crear la base de datos (Local únicamente)
-def create_database():
-    if 'localhost' not in host and '127.0.0.1' not in host:
-        return
-
-    print("🏠 [LOCAL]: Verificando base de datos local...")
+    if database_url:
+        # Convertir postgres:// a postgresql:// (Render legacy)
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql://", 1)
+            logger.info("✅ DATABASE_URL obtenida desde variable de entorno")
+        
+        # Asegurar que tenga sslmode=require para Neon
+        if 'sslmode' not in database_url:
+            separator = '&' if '?' in database_url else '?'
+            database_url += f'{separator}sslmode=require'
+        
+        return database_url
+    
+    # 2. SEGUNDA PRIORIDAD: Archivo database.conf (desarrollo local)
     try:
-        conn = psycopg2.connect(
-            dbname='postgres', user=user, password=password, host=host
-        )
-        conn.autocommit = True
-        cur = conn.cursor()
-        cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", [database])
-        if not cur.fetchone():
-            cur.execute(f"CREATE DATABASE {database}")
-            print(f"✅ Base de datos '{database}' creada.")
-        cur.close()
-        conn.close()
+        import configparser
+        basedir = os.path.abspath(os.path.dirname(__file__))
+        config_path = os.path.join(basedir, 'database.conf')
+        
+        if os.path.exists(config_path):
+            config = configparser.ConfigParser()
+            config.read(config_path, encoding='utf-8')
+            
+            host = config['database']['host']
+            user = config['database']['user']
+            password = config['database']['password']
+            database = config['database']['database']
+            
+            database_url = f"postgresql://{user}:{password}@{host}/{database}?sslmode=require"
+            logger.info(f"✅ DATABASE_URL obtenida desde database.conf: {host}")
+            return database_url
+    
     except Exception as e:
-        print(f"❌ Error en creación local: {e}")
+        logger.warning(f"⚠️ No se pudo leer database.conf: {e}")
+    
+    # 3. ERROR: No se encontró configuración
+    logger.error("❌ No se pudo obtener DATABASE_URL desde ENV ni database.conf")
+    logger.error("   Asegúrate de tener la variable DATABASE_URL configurada en Render")
+    sys.exit(1)
 
-# 7. Inicializar Flask
+# Obtener URL una sola vez al importar
+DATABASE_URL = get_database_url()
+
+# ==========================================
+# INICIALIZACIÓN DE FLASK
+# ==========================================
 def init_app(app):
+    """
+    Inicializa SQLAlchemy y Flask-Migrate en la aplicación.
+    
+    Args:
+        app: Instancia de Flask
+    """
+    # Configurar URI de base de datos
     app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SQLALCHEMY_ECHO'] = app.debug  # Solo logs SQL en debug
     
-    # Vinculación de instancias
+    # Configuración adicional para sesiones en DB
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = db.engine_options
+    
+    # Inicializar extensiones
     db.init_app(app)
     migrate.init_app(app, db)
     
-    print("🚀 Base de datos inicializada con Pool Management (Pre-Ping habilitado).")
+    logger.info("✅ SQLAlchemy inicializado con pool management")
+    logger.info(f"   - Pool size: {db.engine_options['pool_size']}")
+    logger.info(f"   - Max overflow: {db.engine_options['max_overflow']}")
+    logger.info(f"   - Pool pre-ping: {db.engine_options['pool_pre_ping']}")
+    
+    # Probar conexión
+    with app.app_context():
+        try:
+            db.engine.connect()
+            logger.info("✅ Conexión a base de datos verificada")
+        except Exception as e:
+            logger.error(f"❌ Error al conectar con la base de datos: {e}")
+            raise
+
+# ==========================================
+# UTILIDADES DE BASE DE DATOS
+# ==========================================
+def create_tables(app):
+    """
+    Crea todas las tablas definidas en los modelos.
+    Solo usar en desarrollo o primera inicialización.
+    
+    Args:
+        app: Instancia de Flask
+    """
+    with app.app_context():
+        try:
+            db.create_all()
+            logger.info("✅ Tablas creadas/verificadas en la base de datos")
+        except Exception as e:
+            logger.error(f"❌ Error al crear tablas: {e}")
+            raise
+
+def drop_all_tables(app):
+    """
+    PELIGRO: Elimina todas las tablas.
+    Solo usar en desarrollo.
+    
+    Args:
+        app: Instancia de Flask
+    """
+    if not app.debug:
+        raise RuntimeError("⛔ drop_all_tables solo puede ejecutarse en modo DEBUG")
+    
+    with app.app_context():
+        logger.warning("⚠️ ELIMINANDO TODAS LAS TABLAS...")
+        db.drop_all()
+        logger.warning("✅ Todas las tablas eliminadas")
+
+def reset_database(app):
+    """
+    PELIGRO: Elimina y recrea todas las tablas.
+    Solo usar en desarrollo.
+    
+    Args:
+        app: Instancia de Flask
+    """
+    if not app.debug:
+        raise RuntimeError("⛔ reset_database solo puede ejecutarse en modo DEBUG")
+    
+    drop_all_tables(app)
+    create_tables(app)
+    logger.info("✅ Base de datos reiniciada")
+
+# ==========================================
+# HEALTH CHECK
+# ==========================================
+def check_database_health():
+    """
+    Verifica el estado de la conexión a la base de datos.
+    
+    Returns:
+        dict: Estado de la conexión
+    """
+    try:
+        # Ejecutar query simple
+        db.session.execute('SELECT 1')
+        
+        # Obtener info del pool
+        pool = db.engine.pool
+        
+        return {
+            "status": "healthy",
+            "connection": "active",
+            "pool_size": pool.size(),
+            "checked_out": pool.checkedout(),
+            "overflow": pool.overflow(),
+            "checked_in": pool.checkedin()
+        }
+    except Exception as e:
+        logger.error(f"❌ Database health check failed: {e}")
+        return {
+            "status": "unhealthy",
+            "error": str(e)
+        }
