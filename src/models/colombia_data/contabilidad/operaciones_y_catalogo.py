@@ -35,7 +35,12 @@ class TransaccionOperativa(db.Model):
         nullable=False,
         index=True
     )
-    sucursal_id = sa.Column(sa.Integer, nullable=True, default=1)
+    sucursal_id = sa.Column(
+        sa.Integer,
+        sa.ForeignKey('sucursales.id_sucursal', ondelete='SET NULL'),
+        nullable=True,
+        default=1
+    )
 
     # Detalles de la operación
     tipo = sa.Column(
@@ -55,28 +60,16 @@ class TransaccionOperativa(db.Model):
     notas = sa.Column(sa.Text, nullable=True)
 
     # Relaciones
-    negocio = relationship("Negocio", foreign_keys=[negocio_id], back_populates="transacciones")
+    negocio = relationship("Negocio", foreign_keys=[negocio_id])
     usuario = relationship("Usuario", foreign_keys=[usuario_id])
+    sucursal = relationship("Sucursal", foreign_keys=[sucursal_id])
 
     def __init__(self, negocio_id, usuario_id, tipo, concepto, monto, **kwargs):
-        """
-        Constructor de transacción.
-        
-        Args:
-            negocio_id (int): ID del negocio
-            usuario_id (int): ID del usuario que registra
-            tipo (str): Tipo de operación
-            concepto (str): Descripción
-            monto (float): Monto de la operación
-            **kwargs: Campos opcionales
-        """
         self.negocio_id = negocio_id
         self.usuario_id = usuario_id
         self.tipo = tipo.upper()
         self.concepto = concepto
         self.monto = monto
-        
-        # Opcionales
         self.sucursal_id = kwargs.get('sucursal_id', 1)
         self.categoria = kwargs.get('categoria', 'General')
         self.metodo_pago = kwargs.get('metodo_pago', 'Efectivo')
@@ -84,12 +77,6 @@ class TransaccionOperativa(db.Model):
         self.notas = kwargs.get('notas')
 
     def to_dict(self):
-        """
-        Convierte la transacción a diccionario.
-        
-        Returns:
-            dict: Datos de la transacción
-        """
         return {
             "id": self.id_transaccion,
             "id_transaccion": self.id_transaccion,
@@ -109,7 +96,6 @@ class TransaccionOperativa(db.Model):
         }
     
     def serialize(self):
-        """Alias para compatibilidad."""
         return self.to_dict()
 
     def __repr__(self):
@@ -158,12 +144,10 @@ class AlertaOperativa(db.Model):
     usuario = relationship("Usuario", foreign_keys=[usuario_id])
     
     def marcar_completada(self):
-        """Marca la alerta como completada."""
         self.completada = True
         self.fecha_completada = datetime.utcnow()
     
     def to_dict(self):
-        """Convierte la alerta a diccionario."""
         return {
             "id": self.id_alerta,
             "tarea": self.tarea,
@@ -209,7 +193,7 @@ class ProductoCatalogo(db.Model):
     # Categorización y estado
     categoria = sa.Column(sa.String(100), default='General', index=True)
     stock = sa.Column(sa.Integer, default=0, nullable=False)
-    stock_minimo = sa.Column(sa.Integer, default=5)  # Para alertas
+    stock_minimo = sa.Column(sa.Integer, default=5)
     activo = sa.Column(sa.Boolean, default=True, nullable=False)
     estado_publicacion = sa.Column(sa.Boolean, default=True, nullable=False)
     
@@ -229,29 +213,25 @@ class ProductoCatalogo(db.Model):
         sa.ForeignKey('usuarios.id_usuario', ondelete='CASCADE'),
         nullable=False
     )
-    sucursal_id = sa.Column(sa.Integer, nullable=False, default=1, index=True)
+    # CORREGIDO: Agregado ForeignKey para la relación con Sucursal
+    sucursal_id = sa.Column(
+        sa.Integer,
+        sa.ForeignKey('sucursales.id_sucursal', ondelete='SET NULL'),
+        nullable=True,
+        default=1,
+        index=True
+    )
 
     # Relaciones ORM
     negocio = relationship("Negocio", foreign_keys=[negocio_id], back_populates="productos")
     usuario = relationship("Usuario", foreign_keys=[usuario_id])
+    sucursal = relationship("Sucursal", foreign_keys=[sucursal_id], back_populates="productos")
 
     def __init__(self, nombre, precio, negocio_id, usuario_id, **kwargs):
-        """
-        Constructor de producto.
-        
-        Args:
-            nombre (str): Nombre del producto
-            precio (float): Precio de venta
-            negocio_id (int): ID del negocio
-            usuario_id (int): ID del usuario
-            **kwargs: Campos opcionales
-        """
         self.nombre = nombre
         self.precio = precio
         self.negocio_id = negocio_id
         self.usuario_id = usuario_id
-        
-        # Opcionales
         self.descripcion = kwargs.get('descripcion')
         self.costo = kwargs.get('costo', 0.0)
         self.stock = kwargs.get('stock', 0)
@@ -263,45 +243,20 @@ class ProductoCatalogo(db.Model):
         self.sucursal_id = kwargs.get('sucursal_id', 1)
     
     def ajustar_stock(self, cantidad, tipo='SUMA'):
-        """
-        Ajusta el stock del producto.
-        
-        Args:
-            cantidad (int): Cantidad a ajustar
-            tipo (str): 'SUMA' o 'RESTA'
-        """
         if tipo == 'SUMA':
             self.stock += cantidad
         elif tipo == 'RESTA':
-            self.stock = max(0, self.stock - cantidad)  # No permitir negativos
+            self.stock = max(0, self.stock - cantidad)
     
     def necesita_reabastecimiento(self):
-        """
-        Verifica si el producto necesita reabastecimiento.
-        
-        Returns:
-            bool: True si stock <= stock_minimo
-        """
         return self.stock <= self.stock_minimo
     
     def get_margen_utilidad(self):
-        """
-        Calcula el margen de utilidad.
-        
-        Returns:
-            float: Porcentaje de utilidad
-        """
         if self.costo == 0:
             return 0.0
         return ((self.precio - self.costo) / self.costo) * 100
     
     def to_dict(self):
-        """
-        Convierte el producto a diccionario.
-        
-        Returns:
-            dict: Datos del producto
-        """
         return {
             "id": self.id_producto,
             "id_producto": self.id_producto,
@@ -328,7 +283,6 @@ class ProductoCatalogo(db.Model):
         }
 
     def serialize(self):
-        """Alias para compatibilidad."""
         return self.to_dict()
 
     def __repr__(self):

@@ -49,7 +49,6 @@ class Sucursal(db.Model):
     # ==========================================
     # PERSONAL (JSON)
     # ==========================================
-    # Almacena arrays de objetos: [{"nombre": "Ana", "identificacion": "123", "rol": "cajero"}]
     cajeros = sa.Column(
         sa.JSON,
         nullable=False,
@@ -80,14 +79,14 @@ class Sucursal(db.Model):
     )
     
     # ==========================================
-    # RELACIÓN
+    # RELACIONES
     # ==========================================
     negocio = relationship("Negocio", back_populates="sucursales")
     
-    # Productos de esta sucursal
+    # CORREGIDO: Relación con productos usando back_populates
     productos = relationship(
         "ProductoCatalogo",
-        foreign_keys="[ProductoCatalogo.sucursal_id]",
+        back_populates="sucursal",
         lazy='dynamic'
     )
 
@@ -96,18 +95,8 @@ class Sucursal(db.Model):
     # ==========================================
     
     def __init__(self, nombre_sucursal, negocio_id, **kwargs):
-        """
-        Constructor de sucursal.
-        
-        Args:
-            nombre_sucursal (str): Nombre de la sucursal
-            negocio_id (int): ID del negocio al que pertenece
-            **kwargs: Campos adicionales
-        """
         self.nombre_sucursal = nombre_sucursal
         self.negocio_id = negocio_id
-        
-        # Campos opcionales
         self.direccion = kwargs.get('direccion')
         self.ciudad = kwargs.get('ciudad')
         self.departamento = kwargs.get('departamento')
@@ -116,20 +105,10 @@ class Sucursal(db.Model):
         self.email = kwargs.get('email')
         self.activo = kwargs.get('activo', True)
         self.es_principal = kwargs.get('es_principal', False)
-        
-        # Personal
         self.cajeros = kwargs.get('cajeros', [])
         self.administradores = kwargs.get('administradores', [])
     
     def agregar_cajero(self, nombre, identificacion, **extra):
-        """
-        Agrega un cajero a la sucursal.
-        
-        Args:
-            nombre (str): Nombre del cajero
-            identificacion (str): Documento de identidad
-            **extra: Datos adicionales (teléfono, email, etc.)
-        """
         if self.cajeros is None:
             self.cajeros = []
         
@@ -139,32 +118,16 @@ class Sucursal(db.Model):
             **extra
         }
         
-        # Evitar duplicados por identificación
         if not any(c.get('identificacion') == identificacion for c in self.cajeros):
             self.cajeros.append(cajero)
-            # IMPORTANTE: Marcar como modificado para que SQLAlchemy detecte el cambio en JSON
             sa.orm.attributes.flag_modified(self, 'cajeros')
     
     def remover_cajero(self, identificacion):
-        """
-        Remueve un cajero de la sucursal.
-        
-        Args:
-            identificacion (str): Documento del cajero a remover
-        """
         if self.cajeros:
             self.cajeros = [c for c in self.cajeros if c.get('identificacion') != identificacion]
             sa.orm.attributes.flag_modified(self, 'cajeros')
     
     def agregar_administrador(self, nombre, identificacion, **extra):
-        """
-        Agrega un administrador a la sucursal.
-        
-        Args:
-            nombre (str): Nombre del administrador
-            identificacion (str): Documento de identidad
-            **extra: Datos adicionales
-        """
         if self.administradores is None:
             self.administradores = []
         
@@ -179,37 +142,16 @@ class Sucursal(db.Model):
             sa.orm.attributes.flag_modified(self, 'administradores')
     
     def remover_administrador(self, identificacion):
-        """
-        Remueve un administrador de la sucursal.
-        
-        Args:
-            identificacion (str): Documento del administrador a remover
-        """
         if self.administradores:
             self.administradores = [a for a in self.administradores if a.get('identificacion') != identificacion]
             sa.orm.attributes.flag_modified(self, 'administradores')
     
     def get_total_personal(self):
-        """
-        Obtiene el total de personal de la sucursal.
-        
-        Returns:
-            int: Total de cajeros + administradores
-        """
         cajeros_count = len(self.cajeros) if self.cajeros else 0
         admins_count = len(self.administradores) if self.administradores else 0
         return cajeros_count + admins_count
     
     def to_dict(self, include_products=False):
-        """
-        Convierte la sucursal a diccionario.
-        
-        Args:
-            include_products (bool): Si incluir conteo de productos
-            
-        Returns:
-            dict: Datos de la sucursal
-        """
         data = {
             "id": self.id_sucursal,
             "id_sucursal": self.id_sucursal,
@@ -222,16 +164,10 @@ class Sucursal(db.Model):
             "email": self.email,
             "activo": self.activo,
             "es_principal": self.es_principal,
-            
-            # Personal
             "cajeros": self.cajeros if self.cajeros is not None else [],
             "administradores": self.administradores if self.administradores is not None else [],
             "total_personal": self.get_total_personal(),
-            
-            # Relaciones
             "negocio_id": self.negocio_id,
-            
-            # Metadata
             "fecha_registro": self.fecha_registro.isoformat() if self.fecha_registro else None,
             "fecha_actualizacion": self.fecha_actualizacion.isoformat() if self.fecha_actualizacion else None
         }
@@ -242,7 +178,6 @@ class Sucursal(db.Model):
         return data
     
     def serialize(self):
-        """Alias de to_dict() para compatibilidad."""
         return self.to_dict()
     
     def __repr__(self):
