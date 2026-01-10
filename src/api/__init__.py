@@ -1,316 +1,229 @@
 """
-BizFlow Studio - Inicialización de Aplicación Flask
-Backend: Render | Frontend: Firebase
-Versión CORREGIDA - Imports arreglados
+BizFlow Studio - Registro de APIs v2.1
+Sistema de carga segura de blueprints
+Actualizado: Auth unificado en auth_system.py
 """
 
-from flask import Flask, jsonify, request
-from flask_login import LoginManager
-from flask_migrate import Migrate
-from flask_cors import CORS
-from flask_session import Session
-from datetime import timedelta
-import os
-import sys
+import traceback
 import logging
+from flask import jsonify
 
-# Importaciones internas
-from src.models.database import db, init_app
-from src.api import register_api 
-from llenar_colombia import poblar_ciudades 
-
-# --- IMPORTACIÓN DE MODELOS (VITAL PARA SQLALCHEMY / NEON) ---
-from src.models.usuarios import Usuario
-from src.models.etapa import Etapa
-from src.models.foto import Foto
-from src.models.audio import Audio
-from src.models.video import Video
-from src.models.colombia_data.colombia_data import Colombia
-from src.models.colombia_data.colombia_feedbacks import Feedback
-from src.models.colombia_data.monetization_management import MonetizationManagement
-from src.models.colombia_data.ratings.service_overall_scores import ServiceOverallScores
-from src.models.colombia_data.ratings.service_qualifiers import ServiceQualifiers
-from src.models.colombia_data.ratings.service_ratings import ServiceRatings
-from src.models.colombia_data.negocio import Negocio 
-from src.models.colombia_data.sucursales import Sucursal 
-
-# CORREGIDO: Import de Servicio desde ubicación correcta
-from src.models.servicio import Servicio
-
-# CORREGIDO: Import desde contabilidad (NO catalogo)
-from src.models.colombia_data.contabilidad.operaciones_y_catalogo import (
-    ProductoCatalogo,
-    TransaccionOperativa,
-    AlertaOperativa
-)
-
-# Configurar logging
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
-)
 
 
-class Config:
-    """Configuración centralizada de la aplicación"""
-    
-    # ==========================================
-    # SEGURIDAD
-    # ==========================================
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'bizflow_studio_2026_key_CAMBIAR_EN_PRODUCCION')
-    
-    # ==========================================
-    # BASE DE DATOS
-    # ==========================================
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_size': 10,
-        'pool_recycle': 3600,
-        'pool_pre_ping': True,
-        'connect_args': {
-            'connect_timeout': 10,
-        }
-    }
-    
-    # Compatibilidad Neon/Render
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
-    if SQLALCHEMY_DATABASE_URI and SQLALCHEMY_DATABASE_URI.startswith("postgres://"):
-        SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace("postgres://", "postgresql://", 1)
-    
-    # ==========================================
-    # SESIONES (CRÍTICO PARA CROSS-DOMAIN)
-    # ==========================================
-    SESSION_TYPE = 'sqlalchemy'
-    SESSION_PERMANENT = True
-    PERMANENT_SESSION_LIFETIME = timedelta(days=7)
-    
-    # Configuración de cookies para Firebase (frontend) + Render (backend)
-    SESSION_COOKIE_NAME = 'bizflow_session'
-    SESSION_COOKIE_SAMESITE = 'None'
-    SESSION_COOKIE_SECURE = True
-    SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_DOMAIN = None
-    SESSION_COOKIE_PATH = '/'
-    
-    # Flask-Login cookies
-    REMEMBER_COOKIE_NAME = 'bizflow_remember'
-    REMEMBER_COOKIE_DURATION = timedelta(days=7)
-    REMEMBER_COOKIE_SAMESITE = 'None'
-    REMEMBER_COOKIE_SECURE = True
-    REMEMBER_COOKIE_HTTPONLY = True
-    REMEMBER_COOKIE_DOMAIN = None
-    
-    # ==========================================
-    # CORS (CRÍTICO)
-    # ==========================================
-    CORS_ORIGINS = [
-        "https://trayectoria-rxdc1.web.app",
-        "https://mitrayectoria.web.app",
-        "http://localhost:5001",
-        "http://localhost:5173",
-        "http://localhost:3000"
-    ]
-
-
-def create_app():
+def register_api(app):
     """
-    Factory pattern para crear la aplicación Flask
-    con configuración optimizada para Render + Firebase
+    Registra de forma segura todos los Blueprints en la aplicación Flask.
     """
-    logger.info("🚀 Iniciando BizFlow Studio Factory")
+    
+    logger.info("="*70)
+    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.1")
+    logger.info("="*70)
     
     # ==========================================
-    # INICIALIZACIÓN DE FLASK
+    # RUTA DE SALUD GLOBAL
     # ==========================================
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    
-    app = Flask(
-        __name__, 
-        instance_relative_config=False,
-        root_path=base_dir, 
-        template_folder='templates',
-        static_folder='static'
-    )
-    
-    app.config.from_object(Config)
-    
-    # ==========================================
-    # CORS (DEBE SER LO PRIMERO)
-    # ==========================================
-    CORS(app, 
-         resources={r"/*": {
-             "origins": Config.CORS_ORIGINS,
-             "methods": ["GET", "POST", "OPTIONS", "PUT", "DELETE", "PATCH"],
-             "allow_headers": ["Content-Type", "Authorization", "Accept", "X-User-ID", "X-Business-ID"],
-             "expose_headers": ["Content-Type", "Set-Cookie"],
-             "supports_credentials": True,
-             "max_age": 3600
-         }}
-    )
-    logger.info("✅ CORS configurado con soporte de credenciales")
-    
-    # ==========================================
-    # BASE DE DATOS
-    # ==========================================
-    init_app(app)
-    migrate = Migrate(app, db)
-    logger.info("✅ Base de datos inicializada")
-    
-    # ==========================================
-    # SESIONES (CRÍTICO)
-    # ==========================================
-    app.config['SESSION_SQLALCHEMY'] = db
-    session_manager = Session()
-    session_manager.init_app(app)
-    logger.info("✅ Sistema de sesiones configurado")
-    
-    # ==========================================
-    # FLASK-LOGIN
-    # ==========================================
-    login_manager = LoginManager()
-    login_manager.init_app(app)
-    login_manager.session_protection = 'strong'
-    login_manager.login_view = 'auth_system.login'
-    
-    @login_manager.unauthorized_handler
-    def unauthorized():
-        logger.warning("❌ Intento de acceso no autorizado")
+    @app.route('/api/health', methods=['GET'])
+    def api_health():
+        """Endpoint de salud específico de la API"""
         return jsonify({
-            "error": "unauthorized", 
-            "message": "Sesión expirada o no iniciada",
-            "redirect": "/login.html"
-        }), 401
-    
-    @login_manager.user_loader
-    def load_user(id_usuario):
-        try:
-            user = db.session.get(Usuario, int(id_usuario))
-            if user and user.active:
-                return user
-            logger.warning(f"Usuario {id_usuario} no encontrado o inactivo")
-            return None
-        except Exception as e:
-            logger.error(f"Error cargando usuario {id_usuario}: {str(e)}")
-            return None
-    
-    logger.info("✅ Flask-Login configurado")
-    
-    # ==========================================
-    # MIDDLEWARE DE SEGURIDAD
-    # ==========================================
-    @app.before_request
-    def before_request():
-        from flask import session
-        from flask_login import current_user
-        
-        if current_user.is_authenticated:
-            session.modified = True
-    
-    @app.after_request
-    def after_request(response):
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
-        response.headers['X-Content-Type-Options'] = 'nosniff'
-        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
-        response.headers['X-XSS-Protection'] = '1; mode=block'
-        
-        if '/auth/' in request.path or '/ingreso' in request.path or '/logout' in request.path:
-            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-            response.headers['Pragma'] = 'no-cache'
-        
-        return response
-    
-    logger.info("✅ Middleware de seguridad configurado")
-    
-    # ==========================================
-    # INICIALIZACIÓN DE BASE DE DATOS
-    # ==========================================
-    with app.app_context():
-        try:
-            db.create_all()
-            logger.info("✅ Estructura de base de datos verificada en Neon")
-            
-            try:
-                inspector = db.inspect(db.engine)
-                if 'colombia' in inspector.get_table_names():
-                    if Colombia.query.first() is None:
-                        logger.info("⚠️  Tabla 'colombia' vacía. Poblando...")
-                        poblar_ciudades()
-                        logger.info("✅ Datos de Colombia poblados")
-            except Exception as e:
-                logger.warning(f"⚠️  No se pudo poblar datos de Colombia: {e}")
-                
-        except Exception as e:
-            logger.error(f"❌ Error al crear tablas: {e}")
-    
-    # ==========================================
-    # REGISTRO DE BLUEPRINTS
-    # ==========================================
-    register_api(app)
-    logger.info("✅ Blueprints registrados")
-    
-    # ==========================================
-    # CONFIGURACIÓN DE DIRECTORIO DE UPLOADS
-    # ==========================================
-    upload_folder = os.path.join(base_dir, 'static', 'uploads')
-    if not os.path.exists(upload_folder):
-        os.makedirs(upload_folder)
-        logger.info(f"✅ Directorio de uploads creado: {upload_folder}")
-    app.config['UPLOAD_FOLDER'] = upload_folder
-    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
-    
-    # ==========================================
-    # ENDPOINTS DE SALUD Y DIAGNÓSTICO
-    # ==========================================
-    @app.route('/health', methods=['GET'])
-    def health_check():
-        try:
-            db.session.execute(db.text('SELECT 1'))
-            db_status = "connected"
-        except Exception as e:
-            logger.error(f"Error en health check DB: {e}")
-            db_status = "disconnected"
-        
-        return jsonify({
-            "status": "healthy",
-            "database": db_status,
-            "version": "2.1.0",
-            "environment": "production" if not app.debug else "development"
+            "status": "online", 
+            "message": "BizFlow Studio API operativa",
+            "version": "2.1.0"
         }), 200
     
-    @app.route('/api/session-debug', methods=['GET'])
-    def session_debug():
-        from flask import session
-        from flask_login import current_user
-        
-        if app.debug:
-            return jsonify({
-                "session_data": dict(session),
-                "authenticated": current_user.is_authenticated,
-                "user_id": current_user.get_id() if current_user.is_authenticated else None,
-                "cookie_config": {
-                    "SESSION_COOKIE_SAMESITE": app.config.get('SESSION_COOKIE_SAMESITE'),
-                    "SESSION_COOKIE_SECURE": app.config.get('SESSION_COOKIE_SECURE'),
-                    "SESSION_COOKIE_HTTPONLY": app.config.get('SESSION_COOKIE_HTTPONLY')
-                }
-            }), 200
+    logger.info("✅ Ruta de salud global registrada: /api/health")
+    
+    # ==========================================
+    # FUNCIÓN DE REGISTRO SEGURO
+    # ==========================================
+    def safe_register(module_path, bp_name, display_name, prefix='/api'):
+        """
+        Intenta importar y registrar un blueprint de manera segura.
+        """
+        try:
+            module = __import__(module_path, fromlist=[bp_name])
+            blueprint = getattr(module, bp_name)
+            
+            if prefix:
+                app.register_blueprint(blueprint, url_prefix=prefix)
+            else:
+                app.register_blueprint(blueprint)
+            
+            prefix_display = prefix if prefix else '/'
+            logger.info(f"✅ {display_name:35} → {prefix_display}")
+            return True
+            
+        except ImportError as e:
+            logger.error(f"❌ {display_name:35} → ImportError: {str(e)}")
+            if app.debug:
+                traceback.print_exc()
+            return False
+            
+        except AttributeError as e:
+            logger.error(f"❌ {display_name:35} → Blueprint '{bp_name}' no encontrado")
+            return False
+            
+        except Exception as e:
+            logger.error(f"❌ {display_name:35} → Error: {str(e)}")
+            if app.debug:
+                traceback.print_exc()
+            return False
+    
+    # ==========================================
+    # CONTADORES
+    # ==========================================
+    success_count = 0
+    fail_count = 0
+    
+    # ==========================================
+    # 🔐 AUTENTICACIÓN (CRÍTICO - PRIMERO)
+    # ==========================================
+    logger.info("\n🔐 Cargando sistema de autenticación UNIFICADO...")
+    
+    # Intentar primero en src.api.auth, luego en src.routes
+    auth_loaded = False
+    
+    # Opción 1: src.api.auth.auth_system
+    if safe_register('src.api.auth.auth_system', 'auth_bp', 'Auth System (api/auth)', prefix=None):
+        success_count += 1
+        auth_loaded = True
+    # Opción 2: src.routes.auth_system_api
+    elif safe_register('src.routes.auth_system_api', 'auth_bp', 'Auth System (routes)', prefix=None):
+        success_count += 1
+        auth_loaded = True
+    else:
+        fail_count += 1
+        logger.error("❌ CRÍTICO: No se pudo cargar el sistema de autenticación")
+    
+    # ==========================================
+    # 🏢 NEGOCIO Y CATÁLOGO
+    # ==========================================
+    logger.info("\n🏢 Cargando módulos de negocio...")
+    
+    business_modules = [
+        ('src.api.negocio.negocio_api', 'negocio_api_bp', 'Gestión de Negocios', '/api'),
+        ('src.api.negocio.catalogo_api', 'catalogo_api_bp', 'Catálogo de Productos', '/api'),
+        ('src.api.negocio.pagina_api', 'pagina_api_bp', 'Micrositios Públicos', None),
+    ]
+    
+    for item in business_modules:
+        module_path, bp_name, display_name, prefix = item
+        if safe_register(module_path, bp_name, display_name, prefix):
+            success_count += 1
         else:
-            return jsonify({"error": "Not available in production"}), 403
+            fail_count += 1
     
     # ==========================================
-    # MANEJO DE ERRORES
+    # 💰 CONTABILIDAD E INVENTARIO
     # ==========================================
-    @app.errorhandler(404)
-    def not_found(error):
-        logger.warning(f"404 Not Found: {request.path}")
-        return jsonify({"error": "Endpoint no encontrado"}), 404
+    logger.info("\n💰 Cargando centro de control operativo...")
     
-    @app.errorhandler(500)
-    def internal_error(error):
-        logger.error(f"500 Internal Error: {str(error)}")
-        db.session.rollback()
-        return jsonify({"error": "Error interno del servidor"}), 500
+    accounting_modules = [
+        ('src.api.contabilidad.control_api', 'control_api_bp', 'Control Operativo'),
+        ('src.api.contabilidad.carga_masiva_api', 'carga_masiva_bp', 'Carga Masiva CSV'),
+        ('src.api.contabilidad.alertas_api', 'alertas_api_bp', 'Sistema de Alertas'),
+    ]
     
-    logger.info("🎉 BizFlow Studio inicializado correctamente")
-    return app
+    for module_path, bp_name, display_name in accounting_modules:
+        if safe_register(module_path, bp_name, display_name):
+            success_count += 1
+        else:
+            fail_count += 1
+    
+    # ==========================================
+    # 🔍 SERVICIOS Y BÚSQUEDA
+    # ==========================================
+    logger.info("\n🔍 Cargando módulos de servicios...")
+    
+    service_modules = [
+        ('src.api.services.publish_service_api', 'publish_service_bp', 'Publicación de Servicios'),
+        ('src.api.services.search_service_autocomplete_api', 'search_service_autocomplete_bp', 'Búsqueda Autocomplete'),
+        ('src.api.services.view_service_page_bp', 'view_service_page_bp', 'Vista de Servicios'),
+    ]
+    
+    for module_path, bp_name, display_name in service_modules:
+        if safe_register(module_path, bp_name, display_name):
+            success_count += 1
+        else:
+            fail_count += 1
+    
+    # ==========================================
+    # ⭐ CALIFICACIONES
+    # ==========================================
+    logger.info("\n⭐ Cargando módulos de calificaciones...")
+    
+    if safe_register('src.api.calificaciones.calificar_api', 'calificar_bp', 'Sistema de Calificaciones'):
+        success_count += 1
+    else:
+        fail_count += 1
+    
+    # ==========================================
+    # 👤 PERFIL DE USUARIO
+    # ==========================================
+    logger.info("\n👤 Cargando módulos de perfil...")
+    
+    profile_modules = [
+        ('src.api.profile.view_logged_user_api', 'view_logged_user_bp', 'Ver Perfil de Usuario'),
+        ('src.api.profile.edit_profile_api', 'edit_profile_bp', 'Editar Perfil'),
+        ('src.api.utils.register_user_api', 'register_user_bp', 'Registro de Usuarios'),
+    ]
+    
+    for module_path, bp_name, display_name in profile_modules:
+        if safe_register(module_path, bp_name, display_name):
+            success_count += 1
+        else:
+            fail_count += 1
+    
+    # ==========================================
+    # 💬 NOTIFICACIONES Y CHAT
+    # ==========================================
+    logger.info("\n💬 Cargando módulos de comunicación...")
+    
+    communication_modules = [
+        ('src.api.notifications.notifications_api', 'notifications_bp', 'Sistema de Notificaciones'),
+        ('src.api.notifications.chat_api', 'chat_bp', 'Sistema de Chat'),
+    ]
+    
+    for module_path, bp_name, display_name in communication_modules:
+        if safe_register(module_path, bp_name, display_name):
+            success_count += 1
+        else:
+            fail_count += 1
+    
+    # ==========================================
+    # 📋 CONTRATOS Y CANDIDATOS
+    # ==========================================
+    logger.info("\n📋 Cargando módulos de contratos...")
+    
+    contract_modules = [
+        ('src.api.contracts.create_contract_api', 'create_contract_bp', 'Creación de Contratos'),
+        ('src.api.contracts.contract_vigent_api', 'contract_vigent_bp', 'Contratos Vigentes'),
+        ('src.api.candidates.details_candidate_api', 'details_candidate_bp', 'Detalles de Candidatos'),
+    ]
+    
+    for module_path, bp_name, display_name in contract_modules:
+        if safe_register(module_path, bp_name, display_name):
+            success_count += 1
+        else:
+            fail_count += 1
+    
+    # ==========================================
+    # 📊 RESUMEN FINAL
+    # ==========================================
+    logger.info("\n" + "="*70)
+    logger.info("📊 RESUMEN DE REGISTRO DE BLUEPRINTS")
+    logger.info("="*70)
+    logger.info(f"   ✅ Exitosos:  {success_count}")
+    logger.info(f"   ❌ Fallidos:  {fail_count}")
+    logger.info(f"   📦 Total:     {success_count + fail_count}")
+    logger.info("="*70)
+    
+    if fail_count > 0:
+        logger.warning(f"⚠️  {fail_count} módulo(s) no se cargaron. Revisa los logs.")
+    else:
+        logger.info("🎉 Todos los módulos cargados exitosamente")
+    
+    logger.info("")
+    
+    return success_count, fail_count
