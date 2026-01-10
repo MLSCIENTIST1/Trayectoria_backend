@@ -740,13 +740,16 @@
     <div class="container-fluid px-4">
         <div class="row w-100 align-items-center">
             <div class="col-lg-2 col-6">
-                <a href="#" class="d-flex align-items-center text-decoration-none">
-                    <link rel="icon" href="{{ url_for('static', filename='imgs/Rodar.png') }}" type="image/png">
-                    <span class="font-weight-bold" style="font-size: 1.3rem; color: var(--dark);">
-                        RODAR
-                    </span>
-                </a>
-            </div>
+    <a href="#" class="d-flex align-items-center text-decoration-none">
+        <img src="{{ url_for('static', filename='imgs/Rodar.png') }}" 
+             alt="Logo Rodar" 
+             style="height: 40px; width: auto; margin-right: 10px;">
+        
+        <span class="font-weight-bold" style="font-size: 1.3rem; color: var(--dark);">
+            RODAR
+        </span>
+    </a>
+</div>
             <div class="col-lg-8 col-12 mt-3 mt-lg-0">
                 <div class="search-container">
                     <input type="text" class="search-input" id="searchInput" placeholder="Busca herramientas, repuestos, accesorios...">
