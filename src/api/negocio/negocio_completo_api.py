@@ -1,6 +1,9 @@
 """
 BizFlow Studio - API de Gestión de Negocios y Sucursales
 Sistema completo para multi-tenancy (múltiples negocios por usuario)
+
+VERSIÓN PARCHADA - Incluye soporte para:
+- tiene_pagina, slug, whatsapp, tipo_pagina, logo_url
 """
 
 import logging
@@ -36,6 +39,22 @@ def normalizar_texto(texto):
     texto = ''.join(c for c in texto if unicodedata.category(c) != 'Mn')
     texto = re.sub(r'[^a-z0-9\s]', '', texto)
     return texto
+
+
+def generar_slug(texto):
+    """Genera un slug URL-friendly desde un texto."""
+    if not texto:
+        return ""
+    
+    # Normalizar y limpiar
+    slug = texto.lower().strip()
+    slug = unicodedata.normalize('NFD', slug)
+    slug = ''.join(c for c in slug if unicodedata.category(c) != 'Mn')  # Quitar acentos
+    slug = re.sub(r'[^a-z0-9]+', '-', slug)  # Reemplazar caracteres especiales
+    slug = re.sub(r'-+', '-', slug)  # Eliminar guiones múltiples
+    slug = slug.strip('-')  # Quitar guiones al inicio/final
+    
+    return slug[:50]  # Limitar longitud
 
 
 def buscar_ciudad_flexible(nombre_ciudad):
@@ -99,6 +118,9 @@ def serialize_negocio(negocio, include_sucursales=False):
         "tiene_pagina": negocio.tiene_pagina,
         "slug": negocio.slug,
         "color_tema": negocio.color_tema,
+        "whatsapp": getattr(negocio, 'whatsapp', None),
+        "tipo_pagina": getattr(negocio, 'tipo_pagina', None),
+        "logo_url": getattr(negocio, 'logo_url', None),
         "fecha_registro": negocio.fecha_registro.isoformat() if negocio.fecha_registro else None,
         "url_sitio": f"/sitio/{negocio.slug}" if negocio.tiene_pagina and negocio.slug else None
     }
@@ -148,7 +170,7 @@ def negocio_health():
     return jsonify({
         "status": "online",
         "module": "negocios_sucursales",
-        "version": "2.0.0"
+        "version": "2.1.0"  # Versión actualizada con parche
     }), 200
 
 
@@ -368,6 +390,19 @@ def registrar_negocio():
 def actualizar_negocio(negocio_id):
     """
     Actualiza un negocio existente.
+    
+    Campos soportados:
+        - nombre_negocio
+        - descripcion
+        - direccion
+        - telefono
+        - categoria
+        - color_tema
+        - tiene_pagina (NUEVO)
+        - slug (NUEVO)
+        - whatsapp (NUEVO)
+        - tipo_pagina (NUEVO)
+        - logo_url (NUEVO)
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -387,7 +422,9 @@ def actualizar_negocio(negocio_id):
         
         data = request.get_json()
         
-        # Actualizar campos
+        # ==========================================
+        # CAMPOS BÁSICOS
+        # ==========================================
         if 'nombre_negocio' in data:
             negocio.nombre_negocio = data['nombre_negocio']
         if 'descripcion' in data:
@@ -401,9 +438,58 @@ def actualizar_negocio(negocio_id):
         if 'color_tema' in data:
             negocio.color_tema = data['color_tema']
         
+        # ==========================================
+        # CAMPOS PARA MICROSITIO / TIENDA ONLINE
+        # ==========================================
+        if 'tiene_pagina' in data:
+            negocio.tiene_pagina = data['tiene_pagina']
+        
+        if 'slug' in data:
+            # Verificar que el slug no esté en uso por otro negocio
+            slug_existente = Negocio.query.filter(
+                Negocio.slug == data['slug'],
+                Negocio.id_negocio != negocio_id
+            ).first()
+            
+            if slug_existente:
+                return jsonify({
+                    "success": False, 
+                    "error": f"El slug '{data['slug']}' ya está en uso"
+                }), 409
+            
+            negocio.slug = data['slug']
+        
+        if 'whatsapp' in data:
+            negocio.whatsapp = data['whatsapp']
+        
+        if 'tipo_pagina' in data:
+            negocio.tipo_pagina = data['tipo_pagina']
+        
+        if 'logo_url' in data:
+            negocio.logo_url = data['logo_url']
+        
+        # ==========================================
+        # GENERAR SLUG AUTOMÁTICO SI SE ACTIVA PÁGINA
+        # ==========================================
+        if data.get('tiene_pagina') and not negocio.slug:
+            # Generar slug desde el nombre
+            base_slug = generar_slug(negocio.nombre_negocio)
+            
+            # Verificar unicidad
+            slug_final = base_slug
+            contador = 1
+            while Negocio.query.filter(
+                Negocio.slug == slug_final,
+                Negocio.id_negocio != negocio_id
+            ).first():
+                slug_final = f"{base_slug}-{contador}"
+                contador += 1
+            
+            negocio.slug = slug_final
+        
         db.session.commit()
         
-        logger.info(f"✅ Negocio actualizado: {negocio.nombre_negocio}")
+        logger.info(f"✅ Negocio actualizado: {negocio.nombre_negocio} (tiene_pagina={negocio.tiene_pagina}, slug={negocio.slug})")
         
         return jsonify({
             "success": True,
@@ -1168,6 +1254,9 @@ def obtener_configuracion_pagina(negocio_id):
                 "plantilla_id": negocio.plantilla_id,
                 "slug": negocio.slug,
                 "color_tema": negocio.color_tema,
+                "whatsapp": getattr(negocio, 'whatsapp', None),
+                "tipo_pagina": getattr(negocio, 'tipo_pagina', None),
+                "logo_url": getattr(negocio, 'logo_url', None),
                 "url": f"/sitio/{negocio.slug}" if negocio.slug else None
             }
         }), 200
@@ -1223,7 +1312,16 @@ def publicar_pagina():
         
         # Generar slug si no existe
         if not negocio.slug:
-            negocio.slug = negocio._generar_slug(negocio.nombre_negocio)
+            base_slug = generar_slug(negocio.nombre_negocio)
+            slug_final = base_slug
+            contador = 1
+            while Negocio.query.filter(
+                Negocio.slug == slug_final,
+                Negocio.id_negocio != negocio_id
+            ).first():
+                slug_final = f"{base_slug}-{contador}"
+                contador += 1
+            negocio.slug = slug_final
         
         db.session.commit()
         
