@@ -1,6 +1,9 @@
 """
 BizFlow Studio - Modelo de Negocio
 Gestión de negocios con soporte para micrositios
+
+VERSIÓN PARCHADA - Incluye:
+- whatsapp, tipo_pagina, logo_url
 """
 
 import sqlalchemy as sa
@@ -33,6 +36,13 @@ class Negocio(db.Model):
     plantilla_id = sa.Column(sa.String(50), nullable=True)  # 'p1', 'p2', 'p3', etc.
     slug = sa.Column(sa.String(100), unique=True, nullable=True, index=True)  # URL amigable
     color_tema = sa.Column(sa.String(20), default="#4cd137")
+    
+    # ==========================================
+    # NUEVOS CAMPOS - MICROSITIO EXTENDIDO
+    # ==========================================
+    whatsapp = sa.Column(sa.String(20), nullable=True)  # Número de WhatsApp para contacto
+    tipo_pagina = sa.Column(sa.String(50), default='landing', nullable=True)  # 'landing', 'catalogo', 'tienda'
+    logo_url = sa.Column(sa.Text, nullable=True)  # URL del logo del negocio
     
     # ==========================================
     # METADATA
@@ -102,12 +112,20 @@ class Negocio(db.Model):
         self.nombre_negocio = nombre_negocio
         self.usuario_id = usuario_id
         
-        # Campos opcionales
+        # Campos opcionales básicos
         self.descripcion = kwargs.get('descripcion')
         self.direccion = kwargs.get('direccion')
         self.telefono = kwargs.get('telefono')
         self.categoria = kwargs.get('categoria', 'General')
         self.ciudad_id = kwargs.get('ciudad_id')
+        
+        # Campos de micrositio
+        self.whatsapp = kwargs.get('whatsapp')
+        self.tipo_pagina = kwargs.get('tipo_pagina', 'landing')
+        self.logo_url = kwargs.get('logo_url')
+        self.color_tema = kwargs.get('color_tema', '#4cd137')
+        self.plantilla_id = kwargs.get('plantilla_id')
+        self.tiene_pagina = kwargs.get('tiene_pagina', False)
         
         # Generar slug si no se proporciona
         if not kwargs.get('slug'):
@@ -150,15 +168,17 @@ class Negocio(db.Model):
         
         return slug[:100]  # Limitar longitud
     
-    def activar_pagina(self, plantilla_id='p1'):
+    def activar_pagina(self, plantilla_id='p1', tipo_pagina='landing'):
         """
         Activa el micrositio del negocio.
         
         Args:
             plantilla_id (str): ID de la plantilla a usar
+            tipo_pagina (str): Tipo de página ('landing', 'catalogo', 'tienda')
         """
         self.tiene_pagina = True
         self.plantilla_id = plantilla_id
+        self.tipo_pagina = tipo_pagina
         
         if not self.slug:
             self.slug = self._generar_slug(self.nombre_negocio)
@@ -177,6 +197,34 @@ class Negocio(db.Model):
         if self.tiene_pagina and self.slug:
             return f"/sitio/{self.slug}"
         return None
+    
+    def get_whatsapp_link(self, mensaje=None):
+        """
+        Genera el link de WhatsApp para contacto.
+        
+        Args:
+            mensaje (str): Mensaje predeterminado (opcional)
+            
+        Returns:
+            str or None: URL de WhatsApp o None si no tiene número
+        """
+        if not self.whatsapp:
+            return None
+        
+        # Limpiar número (solo dígitos)
+        numero = ''.join(filter(str.isdigit, self.whatsapp))
+        
+        # Agregar código de país si no lo tiene (Colombia = 57)
+        if len(numero) == 10:
+            numero = f"57{numero}"
+        
+        url = f"https://wa.me/{numero}"
+        
+        if mensaje:
+            from urllib.parse import quote
+            url += f"?text={quote(mensaje)}"
+        
+        return url
     
     def to_dict(self, include_relations=False):
         """
@@ -206,6 +254,12 @@ class Negocio(db.Model):
             "slug": self.slug,
             "color_tema": self.color_tema,
             "url_sitio": self.get_url_sitio(),
+            
+            # Nuevos campos de micrositio
+            "whatsapp": self.whatsapp,
+            "tipo_pagina": self.tipo_pagina,
+            "logo_url": self.logo_url,
+            "whatsapp_link": self.get_whatsapp_link(),
             
             # Metadata
             "fecha_registro": self.fecha_registro.isoformat() if self.fecha_registro else None,
