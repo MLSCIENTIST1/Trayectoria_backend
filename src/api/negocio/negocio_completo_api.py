@@ -1,9 +1,7 @@
 """
 BizFlow Studio - API de Gestión de Negocios y Sucursales
 Sistema completo para multi-tenancy (múltiples negocios por usuario)
-
-VERSIÓN PARCHADA - Incluye soporte para:
-- tiene_pagina, slug, whatsapp, tipo_pagina, logo_url
+ACTUALIZADO: Soporte para tienda online / micrositios
 """
 
 import logging
@@ -46,7 +44,6 @@ def generar_slug(texto):
     if not texto:
         return ""
     
-    # Normalizar y limpiar
     slug = texto.lower().strip()
     slug = unicodedata.normalize('NFD', slug)
     slug = ''.join(c for c in slug if unicodedata.category(c) != 'Mn')  # Quitar acentos
@@ -115,14 +112,16 @@ def serialize_negocio(negocio, include_sucursales=False):
         "categoria": negocio.categoria,
         "ciudad_id": negocio.ciudad_id,
         "activo": negocio.activo,
-        "tiene_pagina": negocio.tiene_pagina,
-        "slug": negocio.slug,
-        "color_tema": negocio.color_tema,
+        "fecha_registro": negocio.fecha_registro.isoformat() if negocio.fecha_registro else None,
+        
+        # Campos para micrositio/tienda online
+        "tiene_pagina": getattr(negocio, 'tiene_pagina', False),
+        "slug": getattr(negocio, 'slug', None),
+        "color_tema": getattr(negocio, 'color_tema', '#4cd137'),
         "whatsapp": getattr(negocio, 'whatsapp', None),
         "tipo_pagina": getattr(negocio, 'tipo_pagina', None),
         "logo_url": getattr(negocio, 'logo_url', None),
-        "fecha_registro": negocio.fecha_registro.isoformat() if negocio.fecha_registro else None,
-        "url_sitio": f"/sitio/{negocio.slug}" if negocio.tiene_pagina and negocio.slug else None
+        "url_sitio": f"/tienda/{negocio.slug}" if getattr(negocio, 'tiene_pagina', False) and getattr(negocio, 'slug', None) else None
     }
     
     # Agregar nombre de ciudad si existe
@@ -170,7 +169,8 @@ def negocio_health():
     return jsonify({
         "status": "online",
         "module": "negocios_sucursales",
-        "version": "2.1.0"  # Versión actualizada con parche
+        "version": "2.1.0",
+        "features": ["micrositios", "tienda_online"]
     }), 200
 
 
@@ -179,13 +179,6 @@ def negocio_health():
 def obtener_mis_negocios():
     """
     Obtiene todos los negocios del usuario autenticado.
-    
-    Query params:
-        include_sucursales (bool): Si incluir las sucursales de cada negocio
-    
-    Returns:
-        200: Lista de negocios
-        401: No autenticado
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -228,10 +221,6 @@ def obtener_mis_negocios():
 def obtener_negocio(negocio_id):
     """
     Obtiene un negocio específico por ID.
-    
-    Returns:
-        200: Datos del negocio
-        404: Negocio no encontrado
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -262,27 +251,55 @@ def obtener_negocio(negocio_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@negocio_api_bp.route('/negocio/slug/<string:slug>', methods=['GET', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def obtener_negocio_por_slug(slug):
+    """
+    Obtiene un negocio por su slug (público, para tiendas).
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+    
+    try:
+        negocio = Negocio.query.filter_by(
+            slug=slug,
+            activo=True,
+            tiene_pagina=True
+        ).first()
+        
+        if not negocio:
+            return jsonify({
+                "success": False,
+                "error": "Tienda no encontrada"
+            }), 404
+        
+        # Devolver solo datos públicos
+        return jsonify({
+            "success": True,
+            "data": {
+                "id_negocio": negocio.id_negocio,
+                "nombre_negocio": negocio.nombre_negocio,
+                "descripcion": negocio.descripcion,
+                "slug": negocio.slug,
+                "color_tema": getattr(negocio, 'color_tema', '#4cd137'),
+                "whatsapp": getattr(negocio, 'whatsapp', None),
+                "telefono": negocio.telefono,
+                "tipo_pagina": getattr(negocio, 'tipo_pagina', 'landing'),
+                "logo_url": getattr(negocio, 'logo_url', None)
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Error obteniendo negocio por slug: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @negocio_api_bp.route('/registrar_negocio', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def registrar_negocio():
     """
     Registra un nuevo negocio para el usuario autenticado.
     También crea automáticamente una sucursal principal.
-    
-    Request body:
-        {
-            "nombre_negocio": "Mi Tienda",
-            "descripcion": "Descripción...",
-            "direccion": "Calle 123",
-            "telefono": "3001234567",
-            "categoria": "tienda_ropa",
-            "ciudad": "Bogotá" o ciudad_id: 37
-        }
-    
-    Returns:
-        201: Negocio creado exitosamente
-        400: Datos inválidos
-        401: No autenticado
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -337,6 +354,14 @@ def registrar_negocio():
                 "error": "La ciudad es requerida"
             }), 400
         
+        # Generar slug único
+        base_slug = generar_slug(nombre_negocio)
+        slug_final = base_slug
+        contador = 1
+        while Negocio.query.filter_by(slug=slug_final).first():
+            slug_final = f"{base_slug}-{contador}"
+            contador += 1
+        
         # Crear el negocio
         nuevo_negocio = Negocio(
             nombre_negocio=nombre_negocio,
@@ -345,7 +370,8 @@ def registrar_negocio():
             direccion=data.get('direccion', ''),
             telefono=data.get('telefono', ''),
             categoria=data.get('categoria') or data.get('tipoNegocio', 'General'),
-            ciudad_id=ciudad_id
+            ciudad_id=ciudad_id,
+            slug=slug_final  # Asignar slug desde el inicio
         )
         
         db.session.add(nuevo_negocio)
@@ -365,7 +391,7 @@ def registrar_negocio():
         db.session.add(sucursal_principal)
         db.session.commit()
         
-        logger.info(f"✅ Negocio creado: {nombre_negocio} (ID: {nuevo_negocio.id_negocio}) por usuario {user_id}")
+        logger.info(f"✅ Negocio creado: {nombre_negocio} (ID: {nuevo_negocio.id_negocio}, slug: {slug_final}) por usuario {user_id}")
         
         return jsonify({
             "success": True,
@@ -398,11 +424,11 @@ def actualizar_negocio(negocio_id):
         - telefono
         - categoria
         - color_tema
-        - tiene_pagina (NUEVO)
-        - slug (NUEVO)
-        - whatsapp (NUEVO)
-        - tipo_pagina (NUEVO)
-        - logo_url (NUEVO)
+        - tiene_pagina (para micrositio/tienda)
+        - slug
+        - whatsapp
+        - tipo_pagina ('landing', 'ecommerce', 'portfolio', etc.)
+        - logo_url
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -422,6 +448,8 @@ def actualizar_negocio(negocio_id):
         
         data = request.get_json()
         
+        logger.info(f"📝 Actualizando negocio {negocio_id} con datos: {data}")
+        
         # ==========================================
         # CAMPOS BÁSICOS
         # ==========================================
@@ -435,16 +463,17 @@ def actualizar_negocio(negocio_id):
             negocio.telefono = data['telefono']
         if 'categoria' in data:
             negocio.categoria = data['categoria']
-        if 'color_tema' in data:
-            negocio.color_tema = data['color_tema']
         
         # ==========================================
         # CAMPOS PARA MICROSITIO / TIENDA ONLINE
         # ==========================================
+        if 'color_tema' in data:
+            negocio.color_tema = data['color_tema']
+        
         if 'tiene_pagina' in data:
             negocio.tiene_pagina = data['tiene_pagina']
         
-        if 'slug' in data:
+        if 'slug' in data and data['slug']:
             # Verificar que el slug no esté en uso por otro negocio
             slug_existente = Negocio.query.filter(
                 Negocio.slug == data['slug'],
@@ -454,7 +483,7 @@ def actualizar_negocio(negocio_id):
             if slug_existente:
                 return jsonify({
                     "success": False, 
-                    "error": f"El slug '{data['slug']}' ya está en uso"
+                    "error": f"El slug '{data['slug']}' ya está en uso por otro negocio"
                 }), 409
             
             negocio.slug = data['slug']
@@ -469,15 +498,13 @@ def actualizar_negocio(negocio_id):
             negocio.logo_url = data['logo_url']
         
         # ==========================================
-        # GENERAR SLUG AUTOMÁTICO SI SE ACTIVA PÁGINA
+        # GENERAR SLUG AUTOMÁTICO SI SE ACTIVA PÁGINA Y NO TIENE
         # ==========================================
         if data.get('tiene_pagina') and not negocio.slug:
-            # Generar slug desde el nombre
             base_slug = generar_slug(negocio.nombre_negocio)
-            
-            # Verificar unicidad
             slug_final = base_slug
             contador = 1
+            
             while Negocio.query.filter(
                 Negocio.slug == slug_final,
                 Negocio.id_negocio != negocio_id
@@ -486,6 +513,7 @@ def actualizar_negocio(negocio_id):
                 contador += 1
             
             negocio.slug = slug_final
+            logger.info(f"🔗 Slug generado automáticamente: {slug_final}")
         
         db.session.commit()
         
@@ -493,13 +521,13 @@ def actualizar_negocio(negocio_id):
         
         return jsonify({
             "success": True,
-            "message": "Negocio actualizado",
+            "message": "Negocio actualizado exitosamente",
             "data": serialize_negocio(negocio)
         }), 200
         
     except Exception as e:
         db.session.rollback()
-        logger.error(f"❌ Error actualizando negocio: {e}")
+        logger.error(f"❌ Error actualizando negocio: {e}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -564,7 +592,6 @@ def obtener_sucursales(negocio_id):
         return jsonify({"success": False, "error": "No autenticado"}), 401
     
     try:
-        # Verificar que el negocio pertenece al usuario
         negocio = Negocio.query.filter_by(
             id_negocio=negocio_id,
             usuario_id=user_id
@@ -598,17 +625,6 @@ def obtener_sucursales(negocio_id):
 def registrar_sucursal():
     """
     Registra una nueva sucursal para un negocio.
-    
-    Request body:
-        {
-            "negocio_id": 1,
-            "nombre_sucursal": "Sucursal Norte",
-            "direccion": "Calle 100 #15-20",
-            "ciudad": "Bogotá",
-            "departamento": "Cundinamarca",
-            "telefono": "3001234567",
-            "email": "norte@minegocio.com"
-        }
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -631,7 +647,6 @@ def registrar_sucursal():
         if not nombre_sucursal:
             return jsonify({"success": False, "error": "nombre_sucursal es requerido"}), 400
         
-        # Verificar que el negocio pertenece al usuario
         negocio = Negocio.query.filter_by(
             id_negocio=negocio_id,
             usuario_id=user_id
@@ -640,7 +655,6 @@ def registrar_sucursal():
         if not negocio:
             return jsonify({"success": False, "error": "Negocio no encontrado"}), 404
         
-        # Verificar que no existe una sucursal con ese nombre en el mismo negocio
         existe = Sucursal.query.filter_by(
             negocio_id=negocio_id,
             nombre_sucursal=nombre_sucursal
@@ -652,10 +666,8 @@ def registrar_sucursal():
                 "error": f"Ya existe una sucursal llamada '{nombre_sucursal}' en este negocio"
             }), 409
         
-        # Verificar si es la primera sucursal (será principal)
         es_primera = Sucursal.query.filter_by(negocio_id=negocio_id).count() == 0
         
-        # Crear sucursal
         nueva_sucursal = Sucursal(
             nombre_sucursal=nombre_sucursal,
             negocio_id=negocio_id,
@@ -704,7 +716,6 @@ def obtener_sucursal(sucursal_id):
         if not sucursal:
             return jsonify({"success": False, "error": "Sucursal no encontrada"}), 404
         
-        # Verificar que el negocio pertenece al usuario
         negocio = Negocio.query.filter_by(
             id_negocio=sucursal.negocio_id,
             usuario_id=user_id
@@ -742,7 +753,6 @@ def actualizar_sucursal(sucursal_id):
         if not sucursal:
             return jsonify({"success": False, "error": "Sucursal no encontrada"}), 404
         
-        # Verificar permisos
         negocio = Negocio.query.filter_by(
             id_negocio=sucursal.negocio_id,
             usuario_id=user_id
@@ -753,7 +763,6 @@ def actualizar_sucursal(sucursal_id):
         
         data = request.get_json()
         
-        # Actualizar campos
         if 'nombre_sucursal' in data:
             sucursal.nombre_sucursal = data['nombre_sucursal']
         if 'direccion' in data:
@@ -792,7 +801,6 @@ def actualizar_sucursal(sucursal_id):
 def eliminar_sucursal(sucursal_id):
     """
     Desactiva una sucursal (soft delete).
-    No se puede eliminar la sucursal principal si es la única.
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -807,7 +815,6 @@ def eliminar_sucursal(sucursal_id):
         if not sucursal:
             return jsonify({"success": False, "error": "Sucursal no encontrada"}), 404
         
-        # Verificar permisos
         negocio = Negocio.query.filter_by(
             id_negocio=sucursal.negocio_id,
             usuario_id=user_id
@@ -816,7 +823,6 @@ def eliminar_sucursal(sucursal_id):
         if not negocio:
             return jsonify({"success": False, "error": "Acceso denegado"}), 403
         
-        # No permitir eliminar la única sucursal
         total_sucursales = Sucursal.query.filter_by(
             negocio_id=sucursal.negocio_id,
             activo=True
@@ -828,10 +834,8 @@ def eliminar_sucursal(sucursal_id):
                 "error": "No puedes eliminar la única sucursal del negocio"
             }), 400
         
-        # Soft delete
         sucursal.activo = False
         
-        # Si era la principal, asignar otra como principal
         if sucursal.es_principal:
             otra_sucursal = Sucursal.query.filter(
                 Sucursal.negocio_id == sucursal.negocio_id,
@@ -876,7 +880,6 @@ def establecer_sucursal_principal(sucursal_id):
         if not sucursal:
             return jsonify({"success": False, "error": "Sucursal no encontrada"}), 404
         
-        # Verificar permisos
         negocio = Negocio.query.filter_by(
             id_negocio=sucursal.negocio_id,
             usuario_id=user_id
@@ -885,10 +888,7 @@ def establecer_sucursal_principal(sucursal_id):
         if not negocio:
             return jsonify({"success": False, "error": "Acceso denegado"}), 403
         
-        # Quitar principal de todas las sucursales del negocio
         Sucursal.query.filter_by(negocio_id=sucursal.negocio_id).update({"es_principal": False})
-        
-        # Establecer esta como principal
         sucursal.es_principal = True
         
         db.session.commit()
@@ -913,15 +913,6 @@ def establecer_sucursal_principal(sucursal_id):
 def agregar_personal(sucursal_id):
     """
     Agrega personal (cajero o administrador) a una sucursal.
-    
-    Request body:
-        {
-            "tipo": "cajero" | "administrador",
-            "nombre": "Juan Pérez",
-            "identificacion": "123456789",
-            "telefono": "3001234567",
-            "email": "juan@email.com"
-        }
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -936,7 +927,6 @@ def agregar_personal(sucursal_id):
         if not sucursal:
             return jsonify({"success": False, "error": "Sucursal no encontrada"}), 404
         
-        # Verificar permisos
         negocio = Negocio.query.filter_by(
             id_negocio=sucursal.negocio_id,
             usuario_id=user_id
@@ -987,9 +977,6 @@ def agregar_personal(sucursal_id):
 def eliminar_personal(sucursal_id, identificacion):
     """
     Elimina personal de una sucursal.
-    
-    Query params:
-        tipo: "cajero" | "administrador"
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -1004,7 +991,6 @@ def eliminar_personal(sucursal_id, identificacion):
         if not sucursal:
             return jsonify({"success": False, "error": "Sucursal no encontrada"}), 404
         
-        # Verificar permisos
         negocio = Negocio.query.filter_by(
             id_negocio=sucursal.negocio_id,
             usuario_id=user_id
@@ -1042,11 +1028,6 @@ def eliminar_personal(sucursal_id, identificacion):
 def get_ciudades():
     """
     Obtiene lista de ciudades para autocomplete.
-    
-    Query params:
-        q: Término de búsqueda
-        id: ID específico de ciudad
-        limit: Límite de resultados (default: 50)
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -1056,7 +1037,6 @@ def get_ciudades():
         id_param = request.args.get('id', '').strip()
         limite = int(request.args.get('limit', 50))
         
-        # Búsqueda por ID
         if id_param and id_param.isdigit():
             ciudad = Colombia.query.filter_by(ciudad_id=int(id_param)).first()
             if ciudad:
@@ -1066,7 +1046,6 @@ def get_ciudades():
                 }), 200
             return jsonify({"error": "Ciudad no encontrada"}), 404
         
-        # Búsqueda por término
         query = Colombia.query
         
         if termino:
@@ -1085,7 +1064,7 @@ def get_ciudades():
 
 
 # ==========================================
-# ENDPOINTS DE CONTEXTO (NEGOCIO/SUCURSAL ACTIVA)
+# ENDPOINTS DE CONTEXTO
 # ==========================================
 
 @negocio_api_bp.route('/contexto/establecer', methods=['POST', 'OPTIONS'])
@@ -1093,13 +1072,6 @@ def get_ciudades():
 def establecer_contexto():
     """
     Establece el negocio y sucursal activa para la sesión.
-    Esto afecta qué datos se muestran en el dashboard.
-    
-    Request body:
-        {
-            "negocio_id": 1,
-            "sucursal_id": 1  // opcional
-        }
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -1116,7 +1088,6 @@ def establecer_contexto():
         if not negocio_id:
             return jsonify({"success": False, "error": "negocio_id es requerido"}), 400
         
-        # Verificar que el negocio pertenece al usuario
         negocio = Negocio.query.filter_by(
             id_negocio=negocio_id,
             usuario_id=user_id,
@@ -1126,7 +1097,6 @@ def establecer_contexto():
         if not negocio:
             return jsonify({"success": False, "error": "Negocio no encontrado"}), 404
         
-        # Si no se especifica sucursal, usar la principal
         if not sucursal_id:
             sucursal = Sucursal.query.filter_by(
                 negocio_id=negocio_id,
@@ -1137,7 +1107,6 @@ def establecer_contexto():
             if sucursal:
                 sucursal_id = sucursal.id_sucursal
         else:
-            # Verificar que la sucursal pertenece al negocio
             sucursal = Sucursal.query.filter_by(
                 id_sucursal=sucursal_id,
                 negocio_id=negocio_id,
@@ -1167,8 +1136,7 @@ def establecer_contexto():
 @cross_origin(supports_credentials=True)
 def obtener_contexto_actual():
     """
-    Obtiene el contexto actual basado en localStorage del frontend.
-    El frontend debe enviar negocio_id y sucursal_id como query params o headers.
+    Obtiene el contexto actual.
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -1182,7 +1150,6 @@ def obtener_contexto_actual():
         sucursal_id = request.args.get('sucursal_id') or request.headers.get('X-Branch-ID')
         
         if not negocio_id:
-            # Devolver el primer negocio del usuario
             negocio = Negocio.query.filter_by(
                 usuario_id=user_id,
                 activo=True
@@ -1201,7 +1168,6 @@ def obtener_contexto_actual():
                 "message": "No hay negocios registrados"
             }), 200
         
-        # Obtener sucursal
         if sucursal_id:
             sucursal = Sucursal.query.filter_by(
                 id_sucursal=int(sucursal_id),
@@ -1225,113 +1191,4 @@ def obtener_contexto_actual():
         
     except Exception as e:
         logger.error(f"❌ Error obteniendo contexto: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-# ==========================================
-# ENDPOINTS DE CONFIGURACIÓN DE PÁGINA/MICROSITIO
-# ==========================================
-
-@negocio_api_bp.route('/configuracion-pagina/<int:negocio_id>', methods=['GET', 'OPTIONS'])
-@cross_origin(supports_credentials=True)
-def obtener_configuracion_pagina(negocio_id):
-    """
-    Obtiene la configuración del micrositio de un negocio.
-    """
-    if request.method == 'OPTIONS':
-        return jsonify({"success": True}), 200
-    
-    try:
-        negocio = Negocio.query.filter_by(id_negocio=negocio_id).first()
-        
-        if not negocio:
-            return jsonify({"success": False, "error": "Negocio no encontrado"}), 404
-        
-        return jsonify({
-            "success": True,
-            "data": {
-                "tiene_pagina": negocio.tiene_pagina,
-                "plantilla_id": negocio.plantilla_id,
-                "slug": negocio.slug,
-                "color_tema": negocio.color_tema,
-                "whatsapp": getattr(negocio, 'whatsapp', None),
-                "tipo_pagina": getattr(negocio, 'tipo_pagina', None),
-                "logo_url": getattr(negocio, 'logo_url', None),
-                "url": f"/sitio/{negocio.slug}" if negocio.slug else None
-            }
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"❌ Error obteniendo configuración: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@negocio_api_bp.route('/publicar-pagina', methods=['POST', 'OPTIONS'])
-@cross_origin(supports_credentials=True)
-def publicar_pagina():
-    """
-    Activa o actualiza el micrositio de un negocio.
-    
-    Request body:
-        {
-            "negocio_id": 1,
-            "plantilla_id": "p1",
-            "color_tema": "#4cd137"
-        }
-    """
-    if request.method == 'OPTIONS':
-        return jsonify({"success": True}), 200
-    
-    user_id = get_current_user_id()
-    if not user_id:
-        return jsonify({"success": False, "error": "No autenticado"}), 401
-    
-    try:
-        data = request.get_json()
-        negocio_id = data.get('negocio_id')
-        
-        if not negocio_id:
-            return jsonify({"success": False, "error": "negocio_id es requerido"}), 400
-        
-        negocio = Negocio.query.filter_by(
-            id_negocio=negocio_id,
-            usuario_id=user_id
-        ).first()
-        
-        if not negocio:
-            return jsonify({"success": False, "error": "Negocio no encontrado"}), 404
-        
-        # Activar página
-        negocio.tiene_pagina = True
-        
-        if 'plantilla_id' in data:
-            negocio.plantilla_id = data['plantilla_id']
-        
-        if 'color_tema' in data:
-            negocio.color_tema = data['color_tema']
-        
-        # Generar slug si no existe
-        if not negocio.slug:
-            base_slug = generar_slug(negocio.nombre_negocio)
-            slug_final = base_slug
-            contador = 1
-            while Negocio.query.filter(
-                Negocio.slug == slug_final,
-                Negocio.id_negocio != negocio_id
-            ).first():
-                slug_final = f"{base_slug}-{contador}"
-                contador += 1
-            negocio.slug = slug_final
-        
-        db.session.commit()
-        
-        return jsonify({
-            "success": True,
-            "message": "Página publicada exitosamente",
-            "url": f"/sitio/{negocio.slug}"
-        }), 200
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"❌ Error publicando página: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
