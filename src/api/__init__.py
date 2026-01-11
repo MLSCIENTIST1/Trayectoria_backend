@@ -1,7 +1,7 @@
 """
-BizFlow Studio - Registro de APIs v2.1
+BizFlow Studio - Registro de APIs v2.3
 Sistema de carga segura de blueprints
-Actualizado: Auth unificado en auth_system.py
+Actualizado: Corregido registro de negocios/sucursales
 """
 
 import traceback
@@ -17,7 +17,7 @@ def register_api(app):
     """
     
     logger.info("="*70)
-    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.1")
+    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.3")
     logger.info("="*70)
     
     # ==========================================
@@ -29,7 +29,7 @@ def register_api(app):
         return jsonify({
             "status": "online", 
             "message": "BizFlow Studio API operativa",
-            "version": "2.1.0"
+            "version": "2.3.0"
         }), 200
     
     logger.info("✅ Ruta de salud global registrada: /api/health")
@@ -42,9 +42,11 @@ def register_api(app):
         Intenta importar y registrar un blueprint de manera segura.
         """
         try:
+            # Importar el módulo
             module = __import__(module_path, fromlist=[bp_name])
             blueprint = getattr(module, bp_name)
             
+            # Registrar el blueprint
             if prefix:
                 app.register_blueprint(blueprint, url_prefix=prefix)
             else:
@@ -56,18 +58,17 @@ def register_api(app):
             
         except ImportError as e:
             logger.error(f"❌ {display_name:35} → ImportError: {str(e)}")
-            if app.debug:
-                traceback.print_exc()
+            traceback.print_exc()
             return False
             
         except AttributeError as e:
-            logger.error(f"❌ {display_name:35} → Blueprint '{bp_name}' no encontrado")
+            logger.error(f"❌ {display_name:35} → Blueprint '{bp_name}' no encontrado: {str(e)}")
+            traceback.print_exc()
             return False
             
         except Exception as e:
             logger.error(f"❌ {display_name:35} → Error: {str(e)}")
-            if app.debug:
-                traceback.print_exc()
+            traceback.print_exc()
             return False
     
     # ==========================================
@@ -79,9 +80,8 @@ def register_api(app):
     # ==========================================
     # 🔐 AUTENTICACIÓN (CRÍTICO - PRIMERO)
     # ==========================================
-    logger.info("\n🔐 Cargando sistema de autenticación UNIFICADO...")
+    logger.info("\n🔐 Cargando sistema de autenticación...")
     
-    # Intentar primero en src.api.auth, luego en src.routes
     auth_loaded = False
     
     # Opción 1: src.api.auth.auth_system
@@ -97,22 +97,49 @@ def register_api(app):
         logger.error("❌ CRÍTICO: No se pudo cargar el sistema de autenticación")
     
     # ==========================================
-    # 🏢 NEGOCIO Y CATÁLOGO
+    # 🏢 NEGOCIO Y SUCURSALES (CRÍTICO)
     # ==========================================
-    logger.info("\n🏢 Cargando módulos de negocio...")
+    logger.info("\n🏢 Cargando módulos de negocio y sucursales...")
     
-    business_modules = [
-        ('src.api.negocio.negocio_api', 'negocio_api_bp', 'Gestión de Negocios', '/api'),
-        ('src.api.negocio.catalogo_api', 'catalogo_api_bp', 'Catálogo de Productos', '/api'),
-        ('src.api.negocio.pagina_api', 'pagina_api_bp', 'Micrositios Públicos', None),
-    ]
+    negocio_loaded = False
     
-    for item in business_modules:
-        module_path, bp_name, display_name, prefix = item
-        if safe_register(module_path, bp_name, display_name, prefix):
+    # Intentar cargar negocio_completo_api.py
+    try:
+        from src.api.negocio.negocio_completo_api import negocio_api_bp
+        app.register_blueprint(negocio_api_bp, url_prefix='/api')
+        logger.info(f"✅ {'Gestión Negocios/Sucursales':35} → /api")
+        success_count += 1
+        negocio_loaded = True
+    except ImportError as e:
+        logger.error(f"❌ Error importando negocio_completo_api: {e}")
+        traceback.print_exc()
+        
+        # Fallback: intentar negocio_api.py
+        try:
+            from src.api.negocio.negocio_completo_api import negocio_api_bp
+            app.register_blueprint(negocio_api_bp, url_prefix='/api')
+            logger.info(f"✅ {'Gestión Negocios (legacy)':35} → /api")
             success_count += 1
-        else:
+            negocio_loaded = True
+        except ImportError as e2:
+            logger.error(f"❌ Error importando negocio_api (fallback): {e2}")
             fail_count += 1
+    except Exception as e:
+        logger.error(f"❌ Error general cargando negocios: {e}")
+        traceback.print_exc()
+        fail_count += 1
+    
+    # Catálogo de productos
+    if safe_register('src.api.negocio.catalogo_api', 'catalogo_api_bp', 'Catálogo de Productos', '/api'):
+        success_count += 1
+    else:
+        fail_count += 1
+    
+    # Micrositios públicos
+    if safe_register('src.api.negocio.pagina_api', 'pagina_api_bp', 'Micrositios Públicos', None):
+        success_count += 1
+    else:
+        fail_count += 1
     
     # ==========================================
     # 💰 CONTABILIDAD E INVENTARIO
@@ -218,6 +245,12 @@ def register_api(app):
     logger.info(f"   ❌ Fallidos:  {fail_count}")
     logger.info(f"   📦 Total:     {success_count + fail_count}")
     logger.info("="*70)
+    
+    # Listar rutas registradas para negocios
+    logger.info("\n📍 Rutas de negocios registradas:")
+    for rule in app.url_map.iter_rules():
+        if 'negocio' in rule.rule or 'sucursal' in rule.rule or 'mis_negocios' in rule.rule:
+            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     
     if fail_count > 0:
         logger.warning(f"⚠️  {fail_count} módulo(s) no se cargaron. Revisa los logs.")
