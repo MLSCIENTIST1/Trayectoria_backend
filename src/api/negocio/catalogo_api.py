@@ -4,6 +4,7 @@ import logging
 import traceback
 import sys
 import re
+import time
 from flask import Blueprint, request, jsonify, session
 from flask_cors import cross_origin
 from flask_login import current_user, logout_user
@@ -108,7 +109,8 @@ def guardar_producto_catalogo():
         if file and file.filename != '':
             nombre_prod = data.get('nombre', 'producto')
             nombre_limpio = re.sub(r'[^a-zA-Z0-9]', '', nombre_prod[:15])
-            p_id = f"user_{user_id}_{nombre_limpio}_{int(db.func.now().cast(db.Integer)) if hasattr(db.func, 'now') else '1'}"
+            # CORREGIDO: Usar time.time() en lugar de db.func.now().cast()
+            p_id = f"user_{user_id}_{nombre_limpio}_{int(time.time())}"
             
             upload_result = cloudinary.uploader.upload(
                 file,
