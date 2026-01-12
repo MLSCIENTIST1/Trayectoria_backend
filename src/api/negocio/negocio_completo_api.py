@@ -2,7 +2,7 @@
 BizFlow Studio - API de Gestión de Negocios y Sucursales
 Sistema completo para multi-tenancy (múltiples negocios por usuario)
 ACTUALIZADO: Soporte para tienda online / micrositios
-PARCHADO: config_tienda para Store Designer
+ACTUALIZADO: Soporte JWT para autenticación desde iframes
 """
 
 import logging
@@ -47,12 +47,12 @@ def generar_slug(texto):
     
     slug = texto.lower().strip()
     slug = unicodedata.normalize('NFD', slug)
-    slug = ''.join(c for c in slug if unicodedata.category(c) != 'Mn')  # Quitar acentos
-    slug = re.sub(r'[^a-z0-9]+', '-', slug)  # Reemplazar caracteres especiales
-    slug = re.sub(r'-+', '-', slug)  # Eliminar guiones múltiples
-    slug = slug.strip('-')  # Quitar guiones al inicio/final
+    slug = ''.join(c for c in slug if unicodedata.category(c) != 'Mn')
+    slug = re.sub(r'[^a-z0-9]+', '-', slug)
+    slug = re.sub(r'-+', '-', slug)
+    slug = slug.strip('-')
     
-    return slug[:50]  # Limitar longitud
+    return slug[:50]
 
 
 def buscar_ciudad_flexible(nombre_ciudad):
@@ -62,7 +62,6 @@ def buscar_ciudad_flexible(nombre_ciudad):
     
     nombre_normalizado = normalizar_texto(nombre_ciudad)
     
-    # Búsqueda exacta case-insensitive
     ciudad = Colombia.query.filter(
         func.lower(Colombia.ciudad_nombre) == nombre_ciudad.strip().lower()
     ).first()
@@ -70,7 +69,6 @@ def buscar_ciudad_flexible(nombre_ciudad):
     if ciudad:
         return ciudad
     
-    # Búsqueda parcial
     ciudad = Colombia.query.filter(
         Colombia.ciudad_nombre.ilike(f"%{nombre_ciudad.strip()}%")
     ).first()
@@ -78,7 +76,6 @@ def buscar_ciudad_flexible(nombre_ciudad):
     if ciudad:
         return ciudad
     
-    # Búsqueda normalizada
     todas_ciudades = Colombia.query.all()
     for c in todas_ciudades:
         if normalizar_texto(c.ciudad_nombre) == nombre_normalizado:
@@ -88,15 +85,44 @@ def buscar_ciudad_flexible(nombre_ciudad):
 
 
 def get_current_user_id():
-    """Obtiene el ID del usuario actual de forma segura."""
+    """
+    🔐 Obtiene el ID del usuario actual de forma segura.
+    
+    ORDEN DE PRIORIDAD:
+    1. JWT Token (Authorization: Bearer xxx) - Para iframes
+    2. Flask-Login (current_user) - Cookies de sesión
+    3. Header X-User-ID (fallback legacy)
+    """
+    # ==========================================
+    # 1. INTENTAR JWT PRIMERO (para iframes/Designer)
+    # ==========================================
+    try:
+        from src.auth_jwt import get_user_id_from_jwt
+        jwt_user_id = get_user_id_from_jwt()
+        if jwt_user_id:
+            logger.debug(f"✅ Usuario autenticado via JWT: {jwt_user_id}")
+            return jwt_user_id
+    except ImportError:
+        logger.debug("⚠️ Módulo auth_jwt no disponible")
+    except Exception as e:
+        logger.debug(f"⚠️ Error verificando JWT: {e}")
+    
+    # ==========================================
+    # 2. FLASK-LOGIN (cookies de sesión)
+    # ==========================================
     if current_user.is_authenticated:
+        logger.debug(f"✅ Usuario autenticado via Flask-Login: {current_user.id_usuario}")
         return current_user.id_usuario
     
-    # Fallback: Header (para compatibilidad)
+    # ==========================================
+    # 3. HEADER X-User-ID (fallback legacy)
+    # ==========================================
     user_id = request.headers.get('X-User-ID')
     if user_id and user_id.isdigit():
+        logger.debug(f"✅ Usuario via X-User-ID header: {user_id}")
         return int(user_id)
     
+    logger.debug("❌ No se encontró usuario autenticado")
     return None
 
 
@@ -128,11 +154,9 @@ def serialize_negocio(negocio, include_sucursales=False):
         "config_tienda": getattr(negocio, 'config_tienda', {}) or {}
     }
     
-    # Agregar nombre de ciudad si existe
     if negocio.ciudad:
         data["ciudad_nombre"] = negocio.ciudad.ciudad_nombre
     
-    # Agregar sucursales si se solicita
     if include_sucursales:
         sucursales = Sucursal.query.filter_by(negocio_id=negocio.id_negocio, activo=True).all()
         data["sucursales"] = [serialize_sucursal(s) for s in sucursales]
@@ -173,26 +197,21 @@ def negocio_health():
     return jsonify({
         "status": "online",
         "module": "negocios_sucursales",
-        "version": "2.1.0",
-        "features": ["micrositios", "tienda_online", "config_tienda"]
+        "version": "2.2.0",
+        "features": ["micrositios", "tienda_online", "config_tienda", "jwt_auth"]
     }), 200
 
 
 @negocio_api_bp.route('/mis_negocios', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def obtener_mis_negocios():
-    """
-    Obtiene todos los negocios del usuario autenticado.
-    """
+    """Obtiene todos los negocios del usuario autenticado."""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     
     user_id = get_current_user_id()
     if not user_id:
-        return jsonify({
-            "success": False,
-            "error": "No autenticado"
-        }), 401
+        return jsonify({"success": False, "error": "No autenticado"}), 401
     
     try:
         include_sucursales = request.args.get('include_sucursales', 'false').lower() == 'true'
@@ -214,18 +233,13 @@ def obtener_mis_negocios():
         
     except Exception as e:
         logger.error(f"❌ Error obteniendo negocios: {e}")
-        return jsonify({
-            "success": False,
-            "error": "Error al obtener negocios"
-        }), 500
+        return jsonify({"success": False, "error": "Error al obtener negocios"}), 500
 
 
 @negocio_api_bp.route('/negocio/<int:negocio_id>', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def obtener_negocio(negocio_id):
-    """
-    Obtiene un negocio específico por ID.
-    """
+    """Obtiene un negocio específico por ID."""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     
@@ -240,10 +254,7 @@ def obtener_negocio(negocio_id):
         ).first()
         
         if not negocio:
-            return jsonify({
-                "success": False,
-                "error": "Negocio no encontrado"
-            }), 404
+            return jsonify({"success": False, "error": "Negocio no encontrado"}), 404
         
         return jsonify({
             "success": True,
@@ -258,9 +269,7 @@ def obtener_negocio(negocio_id):
 @negocio_api_bp.route('/negocio/slug/<string:slug>', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def obtener_negocio_por_slug(slug):
-    """
-    Obtiene un negocio por su slug (público, para tiendas).
-    """
+    """Obtiene un negocio por su slug (público, para tiendas)."""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     
@@ -272,12 +281,8 @@ def obtener_negocio_por_slug(slug):
         ).first()
         
         if not negocio:
-            return jsonify({
-                "success": False,
-                "error": "Tienda no encontrada"
-            }), 404
+            return jsonify({"success": False, "error": "Tienda no encontrada"}), 404
         
-        # Devolver solo datos públicos
         return jsonify({
             "success": True,
             "data": {
@@ -290,7 +295,7 @@ def obtener_negocio_por_slug(slug):
                 "telefono": negocio.telefono,
                 "tipo_pagina": getattr(negocio, 'tipo_pagina', 'landing'),
                 "logo_url": getattr(negocio, 'logo_url', None),
-                "config_tienda": getattr(negocio, 'config_tienda', {}) or {}  # 🎨 Store Designer
+                "config_tienda": getattr(negocio, 'config_tienda', {}) or {}
             }
         }), 200
         
@@ -302,64 +307,42 @@ def obtener_negocio_por_slug(slug):
 @negocio_api_bp.route('/registrar_negocio', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def registrar_negocio():
-    """
-    Registra un nuevo negocio para el usuario autenticado.
-    También crea automáticamente una sucursal principal.
-    """
+    """Registra un nuevo negocio para el usuario autenticado."""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     
     user_id = get_current_user_id()
     if not user_id:
-        return jsonify({
-            "success": False,
-            "error": "Debes iniciar sesión para registrar un negocio"
-        }), 401
+        return jsonify({"success": False, "error": "Debes iniciar sesión para registrar un negocio"}), 401
     
     try:
         data = request.get_json()
         if not data:
             return jsonify({"success": False, "error": "No se recibieron datos"}), 400
         
-        # Validar nombre del negocio
         nombre_negocio = data.get('nombre_negocio', '').strip()
         if not nombre_negocio:
-            return jsonify({
-                "success": False,
-                "error": "El nombre del negocio es requerido"
-            }), 400
+            return jsonify({"success": False, "error": "El nombre del negocio es requerido"}), 400
         
-        # Verificar si ya existe un negocio con ese nombre para este usuario
         existe = Negocio.query.filter_by(
             nombre_negocio=nombre_negocio,
             usuario_id=user_id
         ).first()
         
         if existe:
-            return jsonify({
-                "success": False,
-                "error": f"Ya tienes un negocio llamado '{nombre_negocio}'"
-            }), 409
+            return jsonify({"success": False, "error": f"Ya tienes un negocio llamado '{nombre_negocio}'"}), 409
         
-        # Buscar ciudad
         ciudad_id = data.get('ciudad_id')
         if not ciudad_id and data.get('ciudad'):
             ciudad_obj = buscar_ciudad_flexible(data['ciudad'])
             if ciudad_obj:
                 ciudad_id = ciudad_obj.ciudad_id
             else:
-                return jsonify({
-                    "success": False,
-                    "error": f"Ciudad '{data['ciudad']}' no encontrada"
-                }), 400
+                return jsonify({"success": False, "error": f"Ciudad '{data['ciudad']}' no encontrada"}), 400
         
         if not ciudad_id:
-            return jsonify({
-                "success": False,
-                "error": "La ciudad es requerida"
-            }), 400
+            return jsonify({"success": False, "error": "La ciudad es requerida"}), 400
         
-        # Generar slug único
         base_slug = generar_slug(nombre_negocio)
         slug_final = base_slug
         contador = 1
@@ -367,7 +350,6 @@ def registrar_negocio():
             slug_final = f"{base_slug}-{contador}"
             contador += 1
         
-        # Crear el negocio
         nuevo_negocio = Negocio(
             nombre_negocio=nombre_negocio,
             usuario_id=user_id,
@@ -376,14 +358,13 @@ def registrar_negocio():
             telefono=data.get('telefono', ''),
             categoria=data.get('categoria') or data.get('tipoNegocio', 'General'),
             ciudad_id=ciudad_id,
-            slug=slug_final,  # Asignar slug desde el inicio
-            config_tienda=data.get('config_tienda', {})  # 🎨 Store Designer inicial
+            slug=slug_final,
+            config_tienda=data.get('config_tienda', {})
         )
         
         db.session.add(nuevo_negocio)
-        db.session.flush()  # Para obtener el ID del negocio
+        db.session.flush()
         
-        # Crear sucursal principal automáticamente
         sucursal_principal = Sucursal(
             nombre_sucursal="Principal",
             negocio_id=nuevo_negocio.id_negocio,
@@ -411,10 +392,7 @@ def registrar_negocio():
     except Exception as e:
         db.session.rollback()
         logger.error(f"❌ Error registrando negocio: {e}", exc_info=True)
-        return jsonify({
-            "success": False,
-            "error": "Error al registrar el negocio"
-        }), 500
+        return jsonify({"success": False, "error": "Error al registrar el negocio"}), 500
 
 
 @negocio_api_bp.route('/negocio/<int:negocio_id>', methods=['PUT', 'OPTIONS'])
@@ -422,26 +400,14 @@ def registrar_negocio():
 def actualizar_negocio(negocio_id):
     """
     Actualiza un negocio existente.
-    
-    Campos soportados:
-        - nombre_negocio
-        - descripcion
-        - direccion
-        - telefono
-        - categoria
-        - color_tema
-        - tiene_pagina (para micrositio/tienda)
-        - slug
-        - whatsapp
-        - tipo_pagina ('landing', 'ecommerce', 'portfolio', etc.)
-        - logo_url
-        - config_tienda (JSON para Store Designer)
+    🔐 Soporta autenticación via JWT (para Store Designer en iframe)
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     
     user_id = get_current_user_id()
     if not user_id:
+        logger.warning(f"❌ PUT /negocio/{negocio_id} - No autenticado")
         return jsonify({"success": False, "error": "No autenticado"}), 401
     
     try:
@@ -455,11 +421,9 @@ def actualizar_negocio(negocio_id):
         
         data = request.get_json()
         
-        logger.info(f"📝 Actualizando negocio {negocio_id} con datos: {data}")
+        logger.info(f"📝 Actualizando negocio {negocio_id} por usuario {user_id}")
         
-        # ==========================================
-        # CAMPOS BÁSICOS
-        # ==========================================
+        # Campos básicos
         if 'nombre_negocio' in data:
             negocio.nombre_negocio = data['nombre_negocio']
         if 'descripcion' in data:
@@ -471,9 +435,7 @@ def actualizar_negocio(negocio_id):
         if 'categoria' in data:
             negocio.categoria = data['categoria']
         
-        # ==========================================
-        # CAMPOS PARA MICROSITIO / TIENDA ONLINE
-        # ==========================================
+        # Campos para micrositio / tienda online
         if 'color_tema' in data:
             negocio.color_tema = data['color_tema']
         
@@ -481,7 +443,6 @@ def actualizar_negocio(negocio_id):
             negocio.tiene_pagina = data['tiene_pagina']
         
         if 'slug' in data and data['slug']:
-            # Verificar que el slug no esté en uso por otro negocio
             slug_existente = Negocio.query.filter(
                 Negocio.slug == data['slug'],
                 Negocio.id_negocio != negocio_id
@@ -490,7 +451,7 @@ def actualizar_negocio(negocio_id):
             if slug_existente:
                 return jsonify({
                     "success": False, 
-                    "error": f"El slug '{data['slug']}' ya está en uso por otro negocio"
+                    "error": f"El slug '{data['slug']}' ya está en uso"
                 }), 409
             
             negocio.slug = data['slug']
@@ -504,29 +465,12 @@ def actualizar_negocio(negocio_id):
         if 'logo_url' in data:
             negocio.logo_url = data['logo_url']
         
-        # ==========================================
         # 🎨 CONFIG_TIENDA - STORE DESIGNER
-        # ==========================================
         if 'config_tienda' in data:
-            # config_tienda es un JSON con toda la personalización
-            # Estructura esperada:
-            # {
-            #   "banner": {"enabled": true, "text": "...", "color": "#..."},
-            #   "promoBanner": {"enabled": true, "text": "...", "bgColor": "#...", "textColor": "#..."},
-            #   "categories": [{"id": 1, "name": "...", "icon": "...", "featured": true}],
-            #   "slider": {"enabled": true, "images": [...], "speed": 5000},
-            #   "styles": {"primaryColor": "#...", "buttonStyle": "...", "cardStyle": "...", "sidebarWidth": 260},
-            #   "shipping": {"freeEnabled": true, "freeMinimum": 150000, "baseCost": 8000},
-            #   "payments": {"cash": true, "nequi": true, "transfer": true},
-            #   "whatsapp": {"enabled": true, "message": "..."},
-            #   "logo": "base64 or url"
-            # }
             negocio.config_tienda = data['config_tienda']
             logger.info(f"🎨 Config tienda actualizada para negocio {negocio_id}")
         
-        # ==========================================
-        # GENERAR SLUG AUTOMÁTICO SI SE ACTIVA PÁGINA Y NO TIENE
-        # ==========================================
+        # Generar slug automático si se activa página
         if data.get('tiene_pagina') and not negocio.slug:
             base_slug = generar_slug(negocio.nombre_negocio)
             slug_final = base_slug
@@ -540,11 +484,10 @@ def actualizar_negocio(negocio_id):
                 contador += 1
             
             negocio.slug = slug_final
-            logger.info(f"🔗 Slug generado automáticamente: {slug_final}")
         
         db.session.commit()
         
-        logger.info(f"✅ Negocio actualizado: {negocio.nombre_negocio} (tiene_pagina={negocio.tiene_pagina}, slug={negocio.slug})")
+        logger.info(f"✅ Negocio actualizado: {negocio.nombre_negocio}")
         
         return jsonify({
             "success": True,
@@ -561,9 +504,7 @@ def actualizar_negocio(negocio_id):
 @negocio_api_bp.route('/negocio/<int:negocio_id>', methods=['DELETE', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def eliminar_negocio(negocio_id):
-    """
-    Desactiva un negocio (soft delete).
-    """
+    """Desactiva un negocio (soft delete)."""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     
@@ -580,20 +521,14 @@ def eliminar_negocio(negocio_id):
         if not negocio:
             return jsonify({"success": False, "error": "Negocio no encontrado"}), 404
         
-        # Soft delete
         negocio.activo = False
-        
-        # También desactivar sucursales
         Sucursal.query.filter_by(negocio_id=negocio_id).update({"activo": False})
         
         db.session.commit()
         
         logger.info(f"✅ Negocio desactivado: {negocio.nombre_negocio}")
         
-        return jsonify({
-            "success": True,
-            "message": "Negocio eliminado"
-        }), 200
+        return jsonify({"success": True, "message": "Negocio eliminado"}), 200
         
     except Exception as e:
         db.session.rollback()
@@ -602,7 +537,7 @@ def eliminar_negocio(negocio_id):
 
 
 # ==========================================
-# 🎨 ENDPOINTS ESPECÍFICOS PARA STORE DESIGNER
+# ENDPOINTS ESPECÍFICOS PARA STORE DESIGNER
 # ==========================================
 
 @negocio_api_bp.route('/negocio/<int:negocio_id>/config-tienda', methods=['GET', 'OPTIONS'])
@@ -642,12 +577,7 @@ def obtener_config_tienda(negocio_id):
 @negocio_api_bp.route('/negocio/<int:negocio_id>/config-tienda', methods=['PUT', 'PATCH', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def actualizar_config_tienda(negocio_id):
-    """
-    Actualiza la configuración del Store Designer.
-    
-    PUT: Reemplaza toda la configuración
-    PATCH: Merge con la configuración existente
-    """
+    """Actualiza la configuración del Store Designer."""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     
@@ -667,10 +597,8 @@ def actualizar_config_tienda(negocio_id):
         data = request.get_json()
         
         if request.method == 'PUT':
-            # Reemplazar toda la configuración
             negocio.config_tienda = data
         else:
-            # PATCH: Merge con existente
             current_config = getattr(negocio, 'config_tienda', {}) or {}
             
             def deep_merge(base, updates):
@@ -685,7 +613,7 @@ def actualizar_config_tienda(negocio_id):
         
         db.session.commit()
         
-        logger.info(f"🎨 Config tienda actualizada para negocio {negocio_id} ({request.method})")
+        logger.info(f"🎨 Config tienda actualizada para negocio {negocio_id}")
         
         return jsonify({
             "success": True,
@@ -709,9 +637,7 @@ def actualizar_config_tienda(negocio_id):
 @negocio_api_bp.route('/negocios/<int:negocio_id>/sucursales', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def obtener_sucursales(negocio_id):
-    """
-    Obtiene todas las sucursales de un negocio.
-    """
+    """Obtiene todas las sucursales de un negocio."""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     
@@ -751,9 +677,7 @@ def obtener_sucursales(negocio_id):
 @negocio_api_bp.route('/registrar_sucursal', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def registrar_sucursal():
-    """
-    Registra una nueva sucursal para un negocio.
-    """
+    """Registra una nueva sucursal para un negocio."""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     
@@ -791,7 +715,7 @@ def registrar_sucursal():
         if existe:
             return jsonify({
                 "success": False,
-                "error": f"Ya existe una sucursal llamada '{nombre_sucursal}' en este negocio"
+                "error": f"Ya existe una sucursal llamada '{nombre_sucursal}'"
             }), 409
         
         es_primera = Sucursal.query.filter_by(negocio_id=negocio_id).count() == 0
@@ -811,7 +735,7 @@ def registrar_sucursal():
         db.session.add(nueva_sucursal)
         db.session.commit()
         
-        logger.info(f"✅ Sucursal creada: {nombre_sucursal} para negocio {negocio.nombre_negocio}")
+        logger.info(f"✅ Sucursal creada: {nombre_sucursal}")
         
         return jsonify({
             "success": True,
@@ -828,9 +752,7 @@ def registrar_sucursal():
 @negocio_api_bp.route('/sucursal/<int:sucursal_id>', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def obtener_sucursal(sucursal_id):
-    """
-    Obtiene una sucursal específica.
-    """
+    """Obtiene una sucursal específica."""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     
@@ -865,9 +787,7 @@ def obtener_sucursal(sucursal_id):
 @negocio_api_bp.route('/sucursal/<int:sucursal_id>', methods=['PUT', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def actualizar_sucursal(sucursal_id):
-    """
-    Actualiza una sucursal existente.
-    """
+    """Actualiza una sucursal existente."""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     
@@ -910,8 +830,6 @@ def actualizar_sucursal(sucursal_id):
         
         db.session.commit()
         
-        logger.info(f"✅ Sucursal actualizada: {sucursal.nombre_sucursal}")
-        
         return jsonify({
             "success": True,
             "message": "Sucursal actualizada",
@@ -927,9 +845,7 @@ def actualizar_sucursal(sucursal_id):
 @negocio_api_bp.route('/sucursal/<int:sucursal_id>', methods=['DELETE', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def eliminar_sucursal(sucursal_id):
-    """
-    Desactiva una sucursal (soft delete).
-    """
+    """Desactiva una sucursal (soft delete)."""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     
@@ -959,7 +875,7 @@ def eliminar_sucursal(sucursal_id):
         if total_sucursales <= 1:
             return jsonify({
                 "success": False,
-                "error": "No puedes eliminar la única sucursal del negocio"
+                "error": "No puedes eliminar la única sucursal"
             }), 400
         
         sucursal.activo = False
@@ -976,12 +892,7 @@ def eliminar_sucursal(sucursal_id):
         
         db.session.commit()
         
-        logger.info(f"✅ Sucursal desactivada: {sucursal.nombre_sucursal}")
-        
-        return jsonify({
-            "success": True,
-            "message": "Sucursal eliminada"
-        }), 200
+        return jsonify({"success": True, "message": "Sucursal eliminada"}), 200
         
     except Exception as e:
         db.session.rollback()
@@ -992,9 +903,7 @@ def eliminar_sucursal(sucursal_id):
 @negocio_api_bp.route('/sucursal/<int:sucursal_id>/set_principal', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def establecer_sucursal_principal(sucursal_id):
-    """
-    Establece una sucursal como la principal del negocio.
-    """
+    """Establece una sucursal como la principal."""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     
@@ -1039,9 +948,7 @@ def establecer_sucursal_principal(sucursal_id):
 @negocio_api_bp.route('/sucursal/<int:sucursal_id>/personal', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def agregar_personal(sucursal_id):
-    """
-    Agrega personal (cajero o administrador) a una sucursal.
-    """
+    """Agrega personal a una sucursal."""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     
@@ -1103,9 +1010,7 @@ def agregar_personal(sucursal_id):
 @negocio_api_bp.route('/sucursal/<int:sucursal_id>/personal/<identificacion>', methods=['DELETE', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def eliminar_personal(sucursal_id, identificacion):
-    """
-    Elimina personal de una sucursal.
-    """
+    """Elimina personal de una sucursal."""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     
@@ -1136,10 +1041,7 @@ def eliminar_personal(sucursal_id, identificacion):
         
         db.session.commit()
         
-        return jsonify({
-            "success": True,
-            "message": "Personal eliminado"
-        }), 200
+        return jsonify({"success": True, "message": "Personal eliminado"}), 200
         
     except Exception as e:
         db.session.rollback()
@@ -1154,9 +1056,7 @@ def eliminar_personal(sucursal_id, identificacion):
 @negocio_api_bp.route('/ciudades', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def get_ciudades():
-    """
-    Obtiene lista de ciudades para autocomplete.
-    """
+    """Obtiene lista de ciudades para autocomplete."""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     
@@ -1198,9 +1098,7 @@ def get_ciudades():
 @negocio_api_bp.route('/contexto/establecer', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def establecer_contexto():
-    """
-    Establece el negocio y sucursal activa para la sesión.
-    """
+    """Establece el negocio y sucursal activa."""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     
@@ -1244,8 +1142,6 @@ def establecer_contexto():
             if not sucursal:
                 return jsonify({"success": False, "error": "Sucursal no encontrada"}), 404
         
-        logger.info(f"✅ Contexto establecido: Negocio {negocio_id}, Sucursal {sucursal_id}")
-        
         return jsonify({
             "success": True,
             "message": "Contexto establecido",
@@ -1263,9 +1159,7 @@ def establecer_contexto():
 @negocio_api_bp.route('/contexto/actual', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def obtener_contexto_actual():
-    """
-    Obtiene el contexto actual.
-    """
+    """Obtiene el contexto actual."""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     
