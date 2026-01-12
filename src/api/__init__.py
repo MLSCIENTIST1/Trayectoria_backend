@@ -1,7 +1,7 @@
 """
-BizFlow Studio - Registro de APIs v2.3
+BizFlow Studio - Registro de APIs v2.4
 Sistema de carga segura de blueprints
-Actualizado: Corregido registro de negocios/sucursales
+Actualizado: Agregado módulo de compradores y pedidos
 """
 
 import traceback
@@ -17,7 +17,7 @@ def register_api(app):
     """
     
     logger.info("="*70)
-    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.3")
+    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.4")
     logger.info("="*70)
     
     # ==========================================
@@ -29,7 +29,7 @@ def register_api(app):
         return jsonify({
             "status": "online", 
             "message": "BizFlow Studio API operativa",
-            "version": "2.3.0"
+            "version": "2.4.0"
         }), 200
     
     logger.info("✅ Ruta de salud global registrada: /api/health")
@@ -142,6 +142,22 @@ def register_api(app):
         fail_count += 1
     
     # ==========================================
+    # 🛒 COMPRADORES Y PEDIDOS (ECOSISTEMA TRAYECTORIA)
+    # ==========================================
+    logger.info("\n🛒 Cargando módulos de compradores y pedidos...")
+    
+    compradores_modules = [
+        ('src.api.compradores.compradores_api', 'compradores_api_bp', 'Gestión de Compradores'),
+        ('src.api.compradores.pedidos_api', 'pedidos_api_bp', 'Gestión de Pedidos'),
+    ]
+    
+    for module_path, bp_name, display_name in compradores_modules:
+        if safe_register(module_path, bp_name, display_name):
+            success_count += 1
+        else:
+            fail_count += 1
+    
+    # ==========================================
     # 💰 CONTABILIDAD E INVENTARIO
     # ==========================================
     logger.info("\n💰 Cargando centro de control operativo...")
@@ -250,6 +266,12 @@ def register_api(app):
     logger.info("\n📍 Rutas de negocios registradas:")
     for rule in app.url_map.iter_rules():
         if 'negocio' in rule.rule or 'sucursal' in rule.rule or 'mis_negocios' in rule.rule:
+            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
+    
+    # Listar rutas de compradores y pedidos
+    logger.info("\n🛒 Rutas de compradores y pedidos registradas:")
+    for rule in app.url_map.iter_rules():
+        if 'comprador' in rule.rule or 'pedido' in rule.rule:
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     
     if fail_count > 0:

@@ -2,7 +2,6 @@
 BizFlow Studio - Inicialización de Modelos
 Organiza todos los modelos de la aplicación
 """
-
 # ==========================================
 # CONFIGURACIÓN DE BASE DE DATOS
 # ==========================================
@@ -46,6 +45,13 @@ from src.models.colombia_data.ratings.service_qualifiers import ServiceQualifier
 from src.models.colombia_data.monetization_management import MonetizationManagement
 
 # ==========================================
+# MODELOS DE COMPRADORES (ECOSISTEMA GLOBAL)
+# ==========================================
+from src.models.compradores.comprador import Comprador
+from src.models.compradores.direccion import DireccionComprador
+from src.models.compradores.pedido import Pedido, PedidoHistorial
+
+# ==========================================
 # EXPORTACIÓN
 # ==========================================
 __all__ = [
@@ -79,5 +85,11 @@ __all__ = [
     "ServiceQualifiers",
     
     # Monetización
-    "MonetizationManagement"
+    "MonetizationManagement",
+    
+    # Compradores (Ecosistema Global)
+    "Comprador",
+    "DireccionComprador",
+    "Pedido",
+    "PedidoHistorial"
 ]
