@@ -2,6 +2,7 @@
 BizFlow Studio - API de Gestión de Negocios y Sucursales
 Sistema completo para multi-tenancy (múltiples negocios por usuario)
 ACTUALIZADO: Soporte para tienda online / micrositios
+PARCHADO: config_tienda para Store Designer
 """
 
 import logging
@@ -121,7 +122,10 @@ def serialize_negocio(negocio, include_sucursales=False):
         "whatsapp": getattr(negocio, 'whatsapp', None),
         "tipo_pagina": getattr(negocio, 'tipo_pagina', None),
         "logo_url": getattr(negocio, 'logo_url', None),
-        "url_sitio": f"/tienda/{negocio.slug}" if getattr(negocio, 'tiene_pagina', False) and getattr(negocio, 'slug', None) else None
+        "url_sitio": f"/tienda/{negocio.slug}" if getattr(negocio, 'tiene_pagina', False) and getattr(negocio, 'slug', None) else None,
+        
+        # 🎨 Store Designer
+        "config_tienda": getattr(negocio, 'config_tienda', {}) or {}
     }
     
     # Agregar nombre de ciudad si existe
@@ -170,7 +174,7 @@ def negocio_health():
         "status": "online",
         "module": "negocios_sucursales",
         "version": "2.1.0",
-        "features": ["micrositios", "tienda_online"]
+        "features": ["micrositios", "tienda_online", "config_tienda"]
     }), 200
 
 
@@ -285,7 +289,8 @@ def obtener_negocio_por_slug(slug):
                 "whatsapp": getattr(negocio, 'whatsapp', None),
                 "telefono": negocio.telefono,
                 "tipo_pagina": getattr(negocio, 'tipo_pagina', 'landing'),
-                "logo_url": getattr(negocio, 'logo_url', None)
+                "logo_url": getattr(negocio, 'logo_url', None),
+                "config_tienda": getattr(negocio, 'config_tienda', {}) or {}  # 🎨 Store Designer
             }
         }), 200
         
@@ -371,7 +376,8 @@ def registrar_negocio():
             telefono=data.get('telefono', ''),
             categoria=data.get('categoria') or data.get('tipoNegocio', 'General'),
             ciudad_id=ciudad_id,
-            slug=slug_final  # Asignar slug desde el inicio
+            slug=slug_final,  # Asignar slug desde el inicio
+            config_tienda=data.get('config_tienda', {})  # 🎨 Store Designer inicial
         )
         
         db.session.add(nuevo_negocio)
@@ -429,6 +435,7 @@ def actualizar_negocio(negocio_id):
         - whatsapp
         - tipo_pagina ('landing', 'ecommerce', 'portfolio', etc.)
         - logo_url
+        - config_tienda (JSON para Store Designer)
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -496,6 +503,26 @@ def actualizar_negocio(negocio_id):
         
         if 'logo_url' in data:
             negocio.logo_url = data['logo_url']
+        
+        # ==========================================
+        # 🎨 CONFIG_TIENDA - STORE DESIGNER
+        # ==========================================
+        if 'config_tienda' in data:
+            # config_tienda es un JSON con toda la personalización
+            # Estructura esperada:
+            # {
+            #   "banner": {"enabled": true, "text": "...", "color": "#..."},
+            #   "promoBanner": {"enabled": true, "text": "...", "bgColor": "#...", "textColor": "#..."},
+            #   "categories": [{"id": 1, "name": "...", "icon": "...", "featured": true}],
+            #   "slider": {"enabled": true, "images": [...], "speed": 5000},
+            #   "styles": {"primaryColor": "#...", "buttonStyle": "...", "cardStyle": "...", "sidebarWidth": 260},
+            #   "shipping": {"freeEnabled": true, "freeMinimum": 150000, "baseCost": 8000},
+            #   "payments": {"cash": true, "nequi": true, "transfer": true},
+            #   "whatsapp": {"enabled": true, "message": "..."},
+            #   "logo": "base64 or url"
+            # }
+            negocio.config_tienda = data['config_tienda']
+            logger.info(f"🎨 Config tienda actualizada para negocio {negocio_id}")
         
         # ==========================================
         # GENERAR SLUG AUTOMÁTICO SI SE ACTIVA PÁGINA Y NO TIENE
@@ -571,6 +598,107 @@ def eliminar_negocio(negocio_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f"❌ Error eliminando negocio: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==========================================
+# 🎨 ENDPOINTS ESPECÍFICOS PARA STORE DESIGNER
+# ==========================================
+
+@negocio_api_bp.route('/negocio/<int:negocio_id>/config-tienda', methods=['GET', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def obtener_config_tienda(negocio_id):
+    """Obtiene solo la configuración del Store Designer."""
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+    
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({"success": False, "error": "No autenticado"}), 401
+    
+    try:
+        negocio = Negocio.query.filter_by(
+            id_negocio=negocio_id,
+            usuario_id=user_id
+        ).first()
+        
+        if not negocio:
+            return jsonify({"success": False, "error": "Negocio no encontrado"}), 404
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "negocio_id": negocio.id_negocio,
+                "nombre_negocio": negocio.nombre_negocio,
+                "config_tienda": getattr(negocio, 'config_tienda', {}) or {}
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Error obteniendo config_tienda: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@negocio_api_bp.route('/negocio/<int:negocio_id>/config-tienda', methods=['PUT', 'PATCH', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def actualizar_config_tienda(negocio_id):
+    """
+    Actualiza la configuración del Store Designer.
+    
+    PUT: Reemplaza toda la configuración
+    PATCH: Merge con la configuración existente
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+    
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({"success": False, "error": "No autenticado"}), 401
+    
+    try:
+        negocio = Negocio.query.filter_by(
+            id_negocio=negocio_id,
+            usuario_id=user_id
+        ).first()
+        
+        if not negocio:
+            return jsonify({"success": False, "error": "Negocio no encontrado"}), 404
+        
+        data = request.get_json()
+        
+        if request.method == 'PUT':
+            # Reemplazar toda la configuración
+            negocio.config_tienda = data
+        else:
+            # PATCH: Merge con existente
+            current_config = getattr(negocio, 'config_tienda', {}) or {}
+            
+            def deep_merge(base, updates):
+                for key, value in updates.items():
+                    if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+                        deep_merge(base[key], value)
+                    else:
+                        base[key] = value
+                return base
+            
+            negocio.config_tienda = deep_merge(current_config, data)
+        
+        db.session.commit()
+        
+        logger.info(f"🎨 Config tienda actualizada para negocio {negocio_id} ({request.method})")
+        
+        return jsonify({
+            "success": True,
+            "message": "Configuración actualizada",
+            "data": {
+                "negocio_id": negocio.id_negocio,
+                "config_tienda": negocio.config_tienda
+            }
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error actualizando config_tienda: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 

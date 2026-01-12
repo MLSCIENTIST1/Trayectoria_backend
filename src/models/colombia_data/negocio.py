@@ -4,10 +4,12 @@ Gestión de negocios con soporte para micrositios
 
 VERSIÓN PARCHADA - Incluye:
 - whatsapp, tipo_pagina, logo_url
+- config_tienda (JSONB) para Store Designer
 """
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import JSONB  # 🎨 NUEVO: Para config_tienda
 from src.models.database import db
 from datetime import datetime
 
@@ -43,6 +45,11 @@ class Negocio(db.Model):
     whatsapp = sa.Column(sa.String(20), nullable=True)  # Número de WhatsApp para contacto
     tipo_pagina = sa.Column(sa.String(50), default='landing', nullable=True)  # 'landing', 'catalogo', 'tienda'
     logo_url = sa.Column(sa.Text, nullable=True)  # URL del logo del negocio
+    
+    # ==========================================
+    # 🎨 STORE DESIGNER - Configuración JSON
+    # ==========================================
+    config_tienda = sa.Column(JSONB, default={}, nullable=True)
     
     # ==========================================
     # METADATA
@@ -126,6 +133,9 @@ class Negocio(db.Model):
         self.color_tema = kwargs.get('color_tema', '#4cd137')
         self.plantilla_id = kwargs.get('plantilla_id')
         self.tiene_pagina = kwargs.get('tiene_pagina', False)
+        
+        # 🎨 Store Designer
+        self.config_tienda = kwargs.get('config_tienda', {})
         
         # Generar slug si no se proporciona
         if not kwargs.get('slug'):
@@ -260,6 +270,9 @@ class Negocio(db.Model):
             "tipo_pagina": self.tipo_pagina,
             "logo_url": self.logo_url,
             "whatsapp_link": self.get_whatsapp_link(),
+            
+            # 🎨 Store Designer
+            "config_tienda": self.config_tienda or {},
             
             # Metadata
             "fecha_registro": self.fecha_registro.isoformat() if self.fecha_registro else None,
