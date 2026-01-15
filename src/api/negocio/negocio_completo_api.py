@@ -1,8 +1,7 @@
 """
 BizFlow Studio - API de Gestión de Negocios y Sucursales
 Sistema completo para multi-tenancy (múltiples negocios por usuario)
-ACTUALIZADO: Soporte para tienda online / micrositios
-ACTUALIZADO: Soporte JWT para autenticación desde iframes
+ACTUALIZADO v2.3: Detección de colisiones de sesión (igual que catalogo_api)
 """
 
 import logging
@@ -86,13 +85,17 @@ def buscar_ciudad_flexible(nombre_ciudad):
 
 def get_current_user_id():
     """
-    🔐 Obtiene el ID del usuario actual de forma segura.
+    🔐 ACTUALIZADO v2.3: Obtiene el ID del usuario con DETECCIÓN DE COLISIONES.
+    
+    Igual que catalogo_api.py - Prioriza el header X-User-ID cuando hay
+    discrepancia para evitar fugas de datos por cookies viejas.
     
     ORDEN DE PRIORIDAD:
     1. JWT Token (Authorization: Bearer xxx) - Para iframes
-    2. Flask-Login (current_user) - Cookies de sesión
-    3. Header X-User-ID (fallback legacy)
+    2. Header X-User-ID vs Flask-Login - CON DETECCIÓN DE COLISIÓN
+    3. Flask-Login solo si no hay header
     """
+    
     # ==========================================
     # 1. INTENTAR JWT PRIMERO (para iframes/Designer)
     # ==========================================
@@ -103,26 +106,45 @@ def get_current_user_id():
             logger.debug(f"✅ Usuario autenticado via JWT: {jwt_user_id}")
             return jwt_user_id
     except ImportError:
-        logger.debug("⚠️ Módulo auth_jwt no disponible")
+        pass
     except Exception as e:
         logger.debug(f"⚠️ Error verificando JWT: {e}")
     
     # ==========================================
-    # 2. FLASK-LOGIN (cookies de sesión)
+    # 2. OBTENER IDs DE AMBAS FUENTES
     # ==========================================
+    header_id = request.headers.get('X-User-ID')
+    session_id = None
+    
     if current_user.is_authenticated:
-        logger.debug(f"✅ Usuario autenticado via Flask-Login: {current_user.id_usuario}")
-        return current_user.id_usuario
+        session_id = str(getattr(current_user, 'id_usuario', ''))
+    
+    logger.debug(f"🔍 [IDENTIDAD] Header X-User-ID: {header_id} | Sesión Flask: {session_id}")
     
     # ==========================================
-    # 3. HEADER X-User-ID (fallback legacy)
+    # 3. 🚨 DETECCIÓN DE COLISIÓN (CRÍTICO PARA SEGURIDAD)
     # ==========================================
-    user_id = request.headers.get('X-User-ID')
-    if user_id and user_id.isdigit():
-        logger.debug(f"✅ Usuario via X-User-ID header: {user_id}")
-        return int(user_id)
+    if header_id and session_id and header_id != session_id:
+        logger.warning(f"⚠️ ¡COLISIÓN DE SESIÓN DETECTADA!")
+        logger.warning(f"   Header X-User-ID: {header_id}")
+        logger.warning(f"   Sesión Flask: {session_id}")
+        logger.warning(f"   → Usando Header (más reciente del frontend)")
+        # Priorizar el header porque viene del frontend actualizado
+        # La cookie puede estar desactualizada
+        return int(header_id)
     
-    logger.debug("❌ No se encontró usuario autenticado")
+    # ==========================================
+    # 4. RETORNAR EL QUE EXISTA
+    # ==========================================
+    if header_id and header_id.isdigit():
+        logger.debug(f"✅ Usuario via X-User-ID header: {header_id}")
+        return int(header_id)
+    
+    if session_id:
+        logger.debug(f"✅ Usuario via Flask-Login: {session_id}")
+        return int(session_id)
+    
+    logger.warning("❌ No se encontró usuario autenticado en ninguna fuente")
     return None
 
 
@@ -197,8 +219,8 @@ def negocio_health():
     return jsonify({
         "status": "online",
         "module": "negocios_sucursales",
-        "version": "2.2.0",
-        "features": ["micrositios", "tienda_online", "config_tienda", "jwt_auth"]
+        "version": "2.3.0",  # Actualizado
+        "features": ["micrositios", "tienda_online", "config_tienda", "jwt_auth", "collision_detection"]
     }), 200
 
 
@@ -210,8 +232,21 @@ def obtener_mis_negocios():
         return jsonify({"success": True}), 200
     
     user_id = get_current_user_id()
+    
+    # Log detallado para debugging
+    logger.info(f"📋 GET /mis_negocios - user_id resuelto: {user_id}")
+    logger.info(f"   Headers: X-User-ID={request.headers.get('X-User-ID')}")
+    logger.info(f"   Flask current_user.is_authenticated: {current_user.is_authenticated}")
+    
     if not user_id:
-        return jsonify({"success": False, "error": "No autenticado"}), 401
+        return jsonify({
+            "success": False, 
+            "error": "No autenticado",
+            "debug": {
+                "header_user_id": request.headers.get('X-User-ID'),
+                "flask_authenticated": current_user.is_authenticated
+            }
+        }), 401
     
     try:
         include_sucursales = request.args.get('include_sucursales', 'false').lower() == 'true'
@@ -225,10 +260,20 @@ def obtener_mis_negocios():
         
         logger.info(f"✅ Negocios obtenidos para usuario {user_id}: {len(data)}")
         
+        # Debug: mostrar IDs de negocios encontrados
+        if data:
+            logger.info(f"   IDs: {[n['id_negocio'] for n in data]}")
+        else:
+            logger.warning(f"⚠️ Usuario {user_id} no tiene negocios registrados")
+            # Verificar si el usuario existe en la BD
+            all_negocios = Negocio.query.filter_by(activo=True).limit(5).all()
+            logger.info(f"   Muestra de negocios en BD: {[(n.id_negocio, n.usuario_id) for n in all_negocios]}")
+        
         return jsonify({
             "success": True,
             "data": data,
-            "total": len(data)
+            "total": len(data),
+            "debug_user_id": user_id  # Para debugging en frontend
         }), 200
         
     except Exception as e:
@@ -254,6 +299,12 @@ def obtener_negocio(negocio_id):
         ).first()
         
         if not negocio:
+            # Log para debugging
+            logger.warning(f"⚠️ Negocio {negocio_id} no encontrado para usuario {user_id}")
+            # Verificar si existe pero pertenece a otro usuario
+            otro = Negocio.query.filter_by(id_negocio=negocio_id).first()
+            if otro:
+                logger.warning(f"   Negocio existe pero pertenece a usuario {otro.usuario_id}")
             return jsonify({"success": False, "error": "Negocio no encontrado"}), 404
         
         return jsonify({
@@ -1214,3 +1265,46 @@ def obtener_contexto_actual():
     except Exception as e:
         logger.error(f"❌ Error obteniendo contexto: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==========================================
+# 🔍 ENDPOINT DE DEBUG (solo en desarrollo)
+# ==========================================
+
+@negocio_api_bp.route('/debug/session', methods=['GET', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def debug_session():
+    """
+    🔍 ENDPOINT DE DEBUG - Muestra información de la sesión actual.
+    NOTA: Desactivar en producción o agregar protección.
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+    
+    header_user_id = request.headers.get('X-User-ID')
+    header_business_id = request.headers.get('X-Business-ID')
+    
+    flask_authenticated = current_user.is_authenticated
+    flask_user_id = None
+    if flask_authenticated:
+        flask_user_id = str(getattr(current_user, 'id_usuario', ''))
+    
+    resolved_user_id = get_current_user_id()
+    
+    # Detectar colisión
+    collision_detected = False
+    if header_user_id and flask_user_id and header_user_id != flask_user_id:
+        collision_detected = True
+    
+    return jsonify({
+        "success": True,
+        "debug": {
+            "header_x_user_id": header_user_id,
+            "header_x_business_id": header_business_id,
+            "flask_authenticated": flask_authenticated,
+            "flask_user_id": flask_user_id,
+            "resolved_user_id": resolved_user_id,
+            "collision_detected": collision_detected,
+            "priority": "header" if collision_detected else ("flask" if flask_authenticated else "header")
+        }
+    }), 200
