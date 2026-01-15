@@ -52,6 +52,11 @@ from src.models.compradores.direccion import DireccionComprador
 from src.models.compradores.pedido import Pedido, PedidoHistorial
 
 # ==========================================
+# NUEVO: MODELO DE RECUPERACIÓN DE CONTRASEÑA
+# ==========================================
+from .password_reset_token import PasswordResetToken
+
+# ==========================================
 # EXPORTACIÓN
 # ==========================================
 __all__ = [
@@ -91,5 +96,8 @@ __all__ = [
     "Comprador",
     "DireccionComprador",
     "Pedido",
-    "PedidoHistorial"
+    "PedidoHistorial",
+    
+    # NUEVO: Password Reset
+    "PasswordResetToken"
 ]

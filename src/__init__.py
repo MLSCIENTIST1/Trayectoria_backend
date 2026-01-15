@@ -2,6 +2,7 @@
 BizFlow Studio - Inicialización de Aplicación Flask
 Backend: Render | Frontend: Firebase
 Versión CORREGIDA - Imports arreglados
++ AGREGADO: Sistema de recuperación de contraseñas con Flask-Mail
 """
 
 from flask import Flask, jsonify, request
@@ -43,6 +44,11 @@ from src.models.colombia_data.contabilidad.operaciones_y_catalogo import (
     TransaccionOperativa,
     AlertaOperativa
 )
+
+# ==========================================
+# NUEVO: Import del modelo de Password Reset
+# ==========================================
+from src.models.password_reset_token import PasswordResetToken
 
 # Configurar logging
 logger = logging.getLogger(__name__)
@@ -112,6 +118,20 @@ class Config:
         "http://localhost:5173",
         "http://localhost:3000"
     ]
+    
+    # ==========================================
+    # NUEVO: CONFIGURACIÓN DE EMAIL (FLASK-MAIL)
+    # ==========================================
+    MAIL_SERVER = os.environ.get('MAIL_SERVER', 'mail.privateemail.com')
+    MAIL_PORT = int(os.environ.get('MAIL_PORT', 587))
+    MAIL_USE_TLS = True
+    MAIL_USE_SSL = False
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME', 'noreply@tukomercio.store')
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_FROM', 'noreply@tukomercio.store')
+    
+    # URL del frontend para links en emails
+    FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://trayectoriaa.web.app')
 
 
 def create_app():
@@ -157,6 +177,13 @@ def create_app():
     init_app(app)
     migrate = Migrate(app, db)
     logger.info("✅ Base de datos inicializada")
+    
+    # ==========================================
+    # NUEVO: FLASK-MAIL (PARA RESET DE PASSWORD)
+    # ==========================================
+    from src.api.auth.password_reset_api import init_mail
+    init_mail(app)
+    logger.info("✅ Flask-Mail inicializado para recuperación de contraseñas")
     
     # ==========================================
     # SESIONES (CRÍTICO)
