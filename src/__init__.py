@@ -3,6 +3,7 @@ BizFlow Studio - Inicialización de Aplicación Flask
 Backend: Render | Frontend: Firebase
 Versión CORREGIDA - Imports arreglados
 + AGREGADO: Sistema de recuperación de contraseñas con Flask-Mail
++ CORREGIDO: Configuración SMTP para Namecheap Private Email
 """
 
 from flask import Flask, jsonify, request
@@ -120,18 +121,19 @@ class Config:
     ]
     
     # ==========================================
-    # NUEVO: CONFIGURACIÓN DE EMAIL (FLASK-MAIL)
+    # CONFIGURACIÓN DE EMAIL (NAMECHEAP PRIVATE EMAIL)
     # ==========================================
     MAIL_SERVER = os.environ.get('MAIL_SERVER', 'mail.privateemail.com')
-    MAIL_PORT = int(os.environ.get('MAIL_PORT', 587))
-    MAIL_USE_TLS = True
-    MAIL_USE_SSL = False
+    MAIL_PORT = int(os.environ.get('MAIL_PORT', 465))
+    MAIL_USE_TLS = False
+    MAIL_USE_SSL = True
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME', 'noreply@tukomercio.store')
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
-    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_FROM', 'noreply@tukomercio.store')
+    MAIL_DEFAULT_SENDER = ('TuKomercio', os.environ.get('MAIL_FROM', 'noreply@tukomercio.store'))
+    MAIL_TIMEOUT = 10
     
     # URL del frontend para links en emails
-    FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://trayectoriaa.web.app')
+    FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://trayectoria-rxdc1.web.app')
 
 
 def create_app():
@@ -179,11 +181,11 @@ def create_app():
     logger.info("✅ Base de datos inicializada")
     
     # ==========================================
-    # NUEVO: FLASK-MAIL (PARA RESET DE PASSWORD)
+    # FLASK-MAIL (PARA RESET DE PASSWORD)
     # ==========================================
     from src.api.auth.password_reset_api import init_mail
     init_mail(app)
-    logger.info("✅ Flask-Mail inicializado para recuperación de contraseñas")
+    logger.info("✅ Flask-Mail inicializado para Namecheap Private Email")
     
     # ==========================================
     # SESIONES (CRÍTICO)
