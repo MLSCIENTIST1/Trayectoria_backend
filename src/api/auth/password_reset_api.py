@@ -1,12 +1,14 @@
 """
 BizFlow Studio - API de Recuperación de Contraseña
 Endpoints para solicitar y procesar reset de password
+CORREGIDO: SSL puerto 465 + envío asíncrono
 """
 
 import os
 import logging
-from flask import Blueprint, request, jsonify, render_template_string
+from flask import Blueprint, request, jsonify, render_template_string, current_app
 from flask_mail import Mail, Message
+from threading import Thread
 from src.models.database import db
 from src.models.usuarios import Usuario
 from src.models.password_reset_token import PasswordResetToken
@@ -28,25 +30,51 @@ def init_mail(app):
     """
     Inicializa Flask-Mail con la aplicación.
     Llamar desde create_app() en __init__.py
+    CORREGIDO: Configuración para Namecheap Private Email (SSL 465)
     """
     global mail
     
-    # Configuración desde variables de entorno
+    # ==========================================
+    # CONFIGURACIÓN CORREGIDA PARA NAMECHEAP
+    # ==========================================
     app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'mail.privateemail.com')
-    app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
-    app.config['MAIL_USE_TLS'] = True
-    app.config['MAIL_USE_SSL'] = False
+    app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 465))  # ← CORREGIDO: 465
+    app.config['MAIL_USE_TLS'] = False  # ← CORREGIDO: False
+    app.config['MAIL_USE_SSL'] = True   # ← CORREGIDO: True
     app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'noreply@tukomercio.store')
     app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-    app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_FROM', 'noreply@tukomercio.store')
+    app.config['MAIL_DEFAULT_SENDER'] = ('TuKomercio', os.environ.get('MAIL_FROM', 'noreply@tukomercio.store'))
+    app.config['MAIL_TIMEOUT'] = 10
     
     # URL del frontend para el link de reset
-    app.config['FRONTEND_URL'] = os.environ.get('FRONTEND_URL', 'https://trayectoriaa.web.app')
+    app.config['FRONTEND_URL'] = os.environ.get('FRONTEND_URL', 'https://trayectoria-rxdc1.web.app')
     
     mail = Mail(app)
-    logger.info("✅ Flask-Mail inicializado correctamente")
+    logger.info(f"✅ Flask-Mail inicializado: {app.config['MAIL_SERVER']}:{app.config['MAIL_PORT']} SSL=True")
     
     return mail
+
+
+# ==========================================
+# ENVÍO ASÍNCRONO (CRÍTICO PARA EVITAR TIMEOUT)
+# ==========================================
+def send_async_email(app, msg):
+    """Envía email en un thread separado para no bloquear el worker de Gunicorn"""
+    with app.app_context():
+        try:
+            mail.send(msg)
+            logger.info(f"✅ Email enviado exitosamente a: {msg.recipients}")
+        except Exception as e:
+            logger.error(f"❌ Error enviando email: {str(e)}")
+
+
+def send_email_async(msg):
+    """Wrapper para enviar email de forma asíncrono"""
+    app = current_app._get_current_object()
+    thread = Thread(target=send_async_email, args=(app, msg))
+    thread.daemon = True
+    thread.start()
+    return thread
 
 
 # ==========================================
@@ -68,7 +96,7 @@ EMAIL_TEMPLATE = """
                     <!-- Header -->
                     <tr>
                         <td style="padding: 40px 40px 20px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px 8px 0 0;">
-                            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">🔐 BizFlow Studio</h1>
+                            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">🔐 TuKomercio</h1>
                             <p style="color: #e0e0e0; margin: 10px 0 0; font-size: 14px;">Sistema de Recuperación de Contraseña</p>
                         </td>
                     </tr>
@@ -118,7 +146,7 @@ EMAIL_TEMPLATE = """
                     <tr>
                         <td style="padding: 30px 40px; background-color: #f8f9fa; border-radius: 0 0 8px 8px; text-align: center;">
                             <p style="color: #888; font-size: 12px; margin: 0;">
-                                © 2024 BizFlow Studio - Todos los derechos reservados<br>
+                                © 2026 TuKomercio - Todos los derechos reservados<br>
                                 Este correo fue enviado automáticamente, por favor no respondas.
                             </p>
                         </td>
@@ -160,6 +188,7 @@ def forgot_password():
             }), 400
         
         correo = data['correo'].lower().strip()
+        logger.info(f"📧 Solicitud de reset para: {correo}")
         
         # Buscar usuario
         usuario = Usuario.query.filter_by(correo=correo).first()
@@ -184,13 +213,13 @@ def forgot_password():
         token = PasswordResetToken.create_for_user(usuario.id_usuario)
         
         # Construir URL de reset
-        frontend_url = os.environ.get('FRONTEND_URL', 'https://trayectoriaa.web.app')
+        frontend_url = os.environ.get('FRONTEND_URL', 'https://trayectoria-rxdc1.web.app')
         reset_url = f"{frontend_url}/reset-password.html?token={token.token}"
         
         # Renderizar email
         html_content = render_template_string(
             EMAIL_TEMPLATE,
-            nombre=usuario.nombre,
+            nombre=usuario.nombre or correo.split('@')[0],
             correo=usuario.correo,
             reset_url=reset_url
         )
@@ -199,19 +228,21 @@ def forgot_password():
         if mail:
             try:
                 msg = Message(
-                    subject="🔐 Restablecer tu contraseña - BizFlow Studio",
+                    subject="🔐 Restablecer tu contraseña - TuKomercio",
                     recipients=[usuario.correo],
                     html=html_content
                 )
-                mail.send(msg)
-                logger.info(f"✅ Email de reset enviado a: {correo}")
+                
+                # ✅ ENVÍO ASÍNCRONO - NO BLOQUEA EL WORKER
+                send_email_async(msg)
+                logger.info(f"✅ Email de reset encolado para: {correo}")
                 
             except Exception as email_error:
-                logger.error(f"❌ Error enviando email a {correo}: {email_error}")
+                logger.error(f"❌ Error preparando email para {correo}: {email_error}")
                 # No revelar el error al usuario
                 return jsonify({
                     "success": False,
-                    "message": "Error al enviar el correo. Intenta nuevamente."
+                    "message": "Error al procesar la solicitud. Intenta nuevamente."
                 }), 500
         else:
             logger.error("❌ Flask-Mail no está inicializado")
@@ -220,6 +251,7 @@ def forgot_password():
                 "message": "Servicio de correo no disponible temporalmente."
             }), 503
         
+        # Respuesta inmediata (no espera el envío del email)
         return jsonify({
             "success": True,
             "message": "Si el correo existe en nuestro sistema, recibirás un enlace de recuperación."
