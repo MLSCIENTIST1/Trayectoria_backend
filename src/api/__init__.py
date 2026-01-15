@@ -1,7 +1,7 @@
 """
-BizFlow Studio - Registro de APIs v2.4
+BizFlow Studio - Registro de APIs v2.5
 Sistema de carga segura de blueprints
-Actualizado: Agregado módulo de compradores y pedidos
+Actualizado: Agregado módulo de recuperación de contraseñas
 """
 
 import traceback
@@ -17,7 +17,7 @@ def register_api(app):
     """
     
     logger.info("="*70)
-    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.4")
+    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.5")
     logger.info("="*70)
     
     # ==========================================
@@ -29,7 +29,7 @@ def register_api(app):
         return jsonify({
             "status": "online", 
             "message": "BizFlow Studio API operativa",
-            "version": "2.4.0"
+            "version": "2.5.0"
         }), 200
     
     logger.info("✅ Ruta de salud global registrada: /api/health")
@@ -95,6 +95,17 @@ def register_api(app):
     else:
         fail_count += 1
         logger.error("❌ CRÍTICO: No se pudo cargar el sistema de autenticación")
+    
+    # ==========================================
+    # 🔑 RECUPERACIÓN DE CONTRASEÑA (NUEVO)
+    # ==========================================
+    logger.info("\n🔑 Cargando módulo de recuperación de contraseña...")
+    
+    if safe_register('src.api.auth.password_reset_api', 'password_reset_bp', 'Password Reset API', prefix=None):
+        success_count += 1
+    else:
+        fail_count += 1
+        logger.warning("⚠️  Módulo de recuperación de contraseña no cargado")
     
     # ==========================================
     # 🏢 NEGOCIO Y SUCURSALES (CRÍTICO)
@@ -272,6 +283,12 @@ def register_api(app):
     logger.info("\n🛒 Rutas de compradores y pedidos registradas:")
     for rule in app.url_map.iter_rules():
         if 'comprador' in rule.rule or 'pedido' in rule.rule:
+            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
+    
+    # Listar rutas de recuperación de contraseña
+    logger.info("\n🔑 Rutas de recuperación de contraseña registradas:")
+    for rule in app.url_map.iter_rules():
+        if 'reset' in rule.rule or 'forgot' in rule.rule:
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     
     if fail_count > 0:
