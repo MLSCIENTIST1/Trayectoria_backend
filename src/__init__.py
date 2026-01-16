@@ -265,11 +265,32 @@ def create_app():
     # ==========================================
     # INICIALIZACIÓN DE BASE DE DATOS
     # ==========================================
+    # INICIALIZACIÓN DE BASE DE DATOS
+    # ==========================================
     with app.app_context():
         try:
             db.create_all()
             logger.info("✅ Estructura de base de datos verificada en Neon")
             
+            # ==========================================
+            # INICIALIZAR BADGES DE TRAYECTORIA (AUTOMÁTICO)
+            # ==========================================
+            try:
+                from src.models.trayectoria.badge import Badge
+                
+                # Verificar si ya existen badges
+                if Badge.query.count() == 0:
+                    logger.info("🏆 Inicializando catálogo de badges de trayectoria...")
+                    badges_creados = Badge.inicializar_badges_sistema()
+                    logger.info(f"✅ {badges_creados} badges de trayectoria creados")
+                else:
+                    logger.info(f"ℹ️  Badges de trayectoria ya inicializados ({Badge.query.count()} badges)")
+            except Exception as e:
+                logger.warning(f"⚠️  Error inicializando badges de trayectoria: {e}")
+            
+            # ==========================================
+            # POBLAR DATOS DE COLOMBIA
+            # ==========================================
             try:
                 inspector = db.inspect(db.engine)
                 if 'colombia' in inspector.get_table_names():
