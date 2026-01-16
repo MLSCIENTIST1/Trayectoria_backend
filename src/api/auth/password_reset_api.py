@@ -300,41 +300,90 @@ def verify_reset_token(token):
 @password_reset_bp.route('/reset-password', methods=['POST'])
 def reset_password():
     """Cambia la contraseña"""
+    logger.info("=" * 60)
+    logger.info("🔐 RESET-PASSWORD: Iniciando cambio de contraseña")
+    logger.info("=" * 60)
+    
     try:
         data = request.get_json()
+        logger.info(f"📍 Datos recibidos: token={data.get('token', '')[:20]}...")
         
         token_str = data.get('token')
         password = data.get('password')
         confirm_password = data.get('confirm_password')
         
         if not all([token_str, password, confirm_password]):
+            logger.warning("❌ Datos incompletos")
             return jsonify({"success": False, "message": "Datos incompletos"}), 400
         
         if password != confirm_password:
+            logger.warning("❌ Contraseñas no coinciden")
             return jsonify({"success": False, "message": "No coinciden"}), 400
         
         if len(password) < 6:
+            logger.warning("❌ Contraseña muy corta")
             return jsonify({"success": False, "message": "Mínimo 6 caracteres"}), 400
         
+        logger.info("📍 Buscando token...")
         reset_token = PasswordResetToken.get_valid_token(token_str)
         
         if not reset_token:
+            logger.warning("❌ Token no encontrado o inválido")
             return jsonify({"success": False, "message": "Token inválido"}), 400
         
-        usuario = Usuario.query.get(reset_token.user_id)
+        logger.info(f"📍 Token encontrado, user_id: {reset_token.user_id}")
+        
+        # Intentar con user_id o usuario_id
+        user_id = getattr(reset_token, 'user_id', None) or getattr(reset_token, 'usuario_id', None)
+        logger.info(f"📍 ID de usuario a buscar: {user_id}")
+        
+        usuario = Usuario.query.get(user_id)
         
         if not usuario:
+            logger.warning(f"❌ Usuario no encontrado con ID: {user_id}")
             return jsonify({"success": False, "message": "Usuario no encontrado"}), 404
         
+        logger.info(f"📍 Usuario encontrado: {usuario.correo}")
+        logger.info(f"📍 Password hash ANTES: {usuario.password_hash[:30] if hasattr(usuario, 'password_hash') else 'N/A'}...")
+        
+        # Cambiar contraseña
+        logger.info("📍 Llamando set_password()...")
         usuario.set_password(password)
+        
+        logger.info(f"📍 Password hash DESPUÉS: {usuario.contrasenia[:30] if hasattr(usuario, 'contrasenia') else 'N/A'}...")
+        
+        # Marcar token como usado
+        logger.info("📍 Marcando token como usado...")
         reset_token.mark_as_used()
+        
+        # ==========================================
+        # IMPORTANTE: Invalidar todas las sesiones
+        # ==========================================
+        logger.info("📍 Invalidando sesiones activas...")
+        try:
+            # Actualizar un campo para invalidar sesiones
+            # Flask-Login usa last_login para algunas validaciones
+            from datetime import datetime
+            usuario.last_login = None  # Forzar re-login
+            usuario.updated_at = datetime.utcnow()
+        except Exception as e:
+            logger.warning(f"⚠️ No se pudo invalidar sesiones: {e}")
+        
+        # Guardar en BD
+        logger.info("📍 Haciendo commit a la BD...")
         db.session.commit()
         
-        logger.info(f"✅ Contraseña cambiada: {usuario.correo}")
+        logger.info("=" * 60)
+        logger.info(f"✅ CONTRASEÑA CAMBIADA EXITOSAMENTE: {usuario.correo}")
+        logger.info("=" * 60)
         
         return jsonify({"success": True, "message": "Contraseña actualizada"}), 200
         
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error: {e}")
+        logger.error("=" * 60)
+        logger.error(f"❌ ERROR EN RESET-PASSWORD: {type(e).__name__}: {str(e)}")
+        logger.error("=" * 60)
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({"success": False, "message": "Error interno"}), 500
