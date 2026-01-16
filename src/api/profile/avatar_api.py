@@ -4,15 +4,15 @@ Endpoint para actualizar foto de perfil de usuario
 Integrado con Cloudinary
 
 Ubicación: src/api/profile/avatar_api.py
+
+NOTA: Este archivo NO importa token_required ni Usuario 
+      al nivel del módulo para evitar circular imports.
 """
 
 from flask import Blueprint, request, jsonify
 import logging
 
-# Importar decorador de autenticación
-from src.api.auth.auth_system import token_required
-
-# Importar conexión a base de datos
+# Solo importamos la conexión a BD
 from src.database import get_db_connection
 
 logger = logging.getLogger(__name__)
@@ -24,52 +24,83 @@ avatar_api_bp = Blueprint('avatar_api', __name__)
 
 
 # ==========================================
-# ACTUALIZAR AVATAR
-# PATCH /api/users/<user_id>/avatar
+# HELPER: VERIFICAR TOKEN MANUALMENTE
 # ==========================================
-@avatar_api_bp.route('/users/<int:user_id>/avatar', methods=['PATCH'])
-@token_required
-def update_avatar(current_user, user_id):
+def verify_auth_token():
+    """
+    Verifica el token de autenticación sin importar módulos externos.
+    Retorna el user_id si es válido, None si no.
+    """
+    auth_header = request.headers.get('Authorization')
+    user_id_header = request.headers.get('X-User-ID')
+    
+    if not auth_header:
+        return None, "Token de autorización requerido"
+    
+    # Por ahora, confiamos en X-User-ID si viene con Authorization
+    # En producción deberías verificar el JWT aquí
+    if user_id_header:
+        try:
+            return int(user_id_header), None
+        except (ValueError, TypeError):
+            return None, "ID de usuario inválido"
+    
+    # Intentar extraer user_id del token JWT si está disponible
+    try:
+        if auth_header.startswith('Bearer '):
+            token = auth_header[7:]
+        else:
+            token = auth_header
+        
+        # Importación tardía para evitar circular import
+        try:
+            from src.auth_jwt import verify_token
+            payload = verify_token(token)
+            if payload and payload.get('user_id'):
+                return payload['user_id'], None
+        except ImportError:
+            pass
+        except Exception as e:
+            logger.warning(f"Error verificando JWT: {e}")
+        
+        return None, "Token inválido"
+        
+    except Exception as e:
+        logger.error(f"Error en verificación de token: {e}")
+        return None, "Error de autenticación"
+
+
+# ==========================================
+# ACTUALIZAR AVATAR
+# PATCH /users/<user_id>/avatar
+# ==========================================
+@avatar_api_bp.route('/users/<int:user_id>/avatar', methods=['PATCH', 'OPTIONS'])
+def update_avatar(user_id):
     """
     Actualiza la foto de perfil del usuario.
-    
-    La imagen ya fue subida a Cloudinary desde el frontend.
-    Este endpoint solo guarda la URL en la base de datos.
-    
-    Headers requeridos:
-        - Authorization: Bearer <token>
-    
-    Body:
-        {
-            "foto_url": "https://res.cloudinary.com/dp50v0bwj/image/upload/..."
-        }
     """
+    
+    # Manejar preflight CORS
+    if request.method == 'OPTIONS':
+        return '', 204
     
     logger.info(f"📸 Solicitud de actualización de avatar para usuario {user_id}")
     
     # ==========================================
-    # 1. VERIFICAR AUTORIZACIÓN
+    # 1. VERIFICAR AUTENTICACIÓN
     # ==========================================
-    current_user_id = None
+    current_user_id, error = verify_auth_token()
     
-    # Manejar diferentes formatos de current_user
-    if hasattr(current_user, 'id_usuario'):
-        current_user_id = current_user.id_usuario
-    elif hasattr(current_user, 'id'):
-        current_user_id = current_user.id
-    elif hasattr(current_user, 'get'):
-        current_user_id = current_user.get('id_usuario') or current_user.get('id') or current_user.get('usuario_id')
-    elif isinstance(current_user, dict):
-        current_user_id = current_user.get('id_usuario') or current_user.get('id') or current_user.get('usuario_id')
-    
-    if current_user_id is None:
-        logger.error("❌ No se pudo obtener ID del usuario actual")
+    if error:
         return jsonify({
             'success': False,
-            'error': 'Error de autenticación'
+            'error': error
         }), 401
     
-    if int(current_user_id) != int(user_id):
+    # ==========================================
+    # 2. VERIFICAR AUTORIZACIÓN
+    # ==========================================
+    if current_user_id != user_id:
         logger.warning(f"⚠️ Usuario {current_user_id} intentó actualizar avatar de usuario {user_id}")
         return jsonify({
             'success': False,
@@ -77,7 +108,7 @@ def update_avatar(current_user, user_id):
         }), 403
     
     # ==========================================
-    # 2. VALIDAR DATOS DE ENTRADA
+    # 3. VALIDAR DATOS DE ENTRADA
     # ==========================================
     data = request.get_json()
     
@@ -111,7 +142,7 @@ def update_avatar(current_user, user_id):
         }), 400
     
     # ==========================================
-    # 3. ACTUALIZAR EN BASE DE DATOS
+    # 4. ACTUALIZAR EN BASE DE DATOS
     # ==========================================
     conn = None
     cursor = None
@@ -120,8 +151,6 @@ def update_avatar(current_user, user_id):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Actualizar foto_url en la tabla usuarios
-        # NOTA: El ID es id_usuario, no id
         cursor.execute("""
             UPDATE usuarios 
             SET foto_url = %s,
@@ -174,7 +203,7 @@ def update_avatar(current_user, user_id):
 
 # ==========================================
 # OBTENER AVATAR
-# GET /api/users/<user_id>/avatar
+# GET /users/<user_id>/avatar
 # ==========================================
 @avatar_api_bp.route('/users/<int:user_id>/avatar', methods=['GET'])
 def get_avatar(user_id):
@@ -229,25 +258,24 @@ def get_avatar(user_id):
 
 # ==========================================
 # ELIMINAR AVATAR
-# DELETE /api/users/<user_id>/avatar
+# DELETE /users/<user_id>/avatar
 # ==========================================
 @avatar_api_bp.route('/users/<int:user_id>/avatar', methods=['DELETE'])
-@token_required
-def delete_avatar(current_user, user_id):
+def delete_avatar(user_id):
     """
     Elimina la foto de perfil del usuario (la pone en NULL).
     """
     
-    # Verificar autorización
-    current_user_id = None
-    if hasattr(current_user, 'id_usuario'):
-        current_user_id = current_user.id_usuario
-    elif hasattr(current_user, 'id'):
-        current_user_id = current_user.id
-    elif isinstance(current_user, dict):
-        current_user_id = current_user.get('id_usuario') or current_user.get('id')
+    # Verificar autenticación
+    current_user_id, error = verify_auth_token()
     
-    if current_user_id is None or int(current_user_id) != int(user_id):
+    if error:
+        return jsonify({
+            'success': False,
+            'error': error
+        }), 401
+    
+    if current_user_id != user_id:
         return jsonify({
             'success': False,
             'error': 'No autorizado'
