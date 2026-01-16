@@ -59,9 +59,10 @@ def build_cors_response(data=None, status=200):
 
 # ==========================================
 # ACTUALIZAR AVATAR
-# PATCH /api/users/<user_id>/avatar
+# PATCH /users/<user_id>/avatar
+# (el prefijo /api se agrega automáticamente en register_api.py)
 # ==========================================
-@avatar_api_bp.route('/api/users/<int:user_id>/avatar', methods=['PATCH', 'OPTIONS'])
+@avatar_api_bp.route('/users/<int:user_id>/avatar', methods=['PATCH', 'OPTIONS'])
 def update_avatar(user_id):
     """
     Actualiza la foto de perfil del usuario.
@@ -154,9 +155,9 @@ def update_avatar(user_id):
 
 # ==========================================
 # OBTENER AVATAR
-# GET /api/users/<user_id>/avatar
+# GET /users/<user_id>/avatar
 # ==========================================
-@avatar_api_bp.route('/api/users/<int:user_id>/avatar', methods=['GET'])
+@avatar_api_bp.route('/users/<int:user_id>/avatar', methods=['GET'])
 def get_avatar(user_id):
     """
     Obtiene la URL del avatar del usuario.
@@ -195,7 +196,7 @@ def get_avatar(user_id):
 # ==========================================
 # HEALTH CHECK
 # ==========================================
-@avatar_api_bp.route('/api/avatar/health', methods=['GET'])
+@avatar_api_bp.route('/avatar/health', methods=['GET'])
 def avatar_health():
     """Health check del módulo avatar"""
     return jsonify({
