@@ -263,6 +263,25 @@ def register_api(app):
             fail_count += 1
     
     # ==========================================
+    # 🎯 TRAYECTORIA (SCORES, BADGES, MÉTRICAS, PORTFOLIO)
+    # ==========================================
+    logger.info("\n🎯 Cargando módulos de trayectoria...")
+    
+    trayectoria_modules = [
+        ('src.api.trayectoria.scores_api', 'scores_bp', 'Scores de Usuario'),
+        ('src.api.trayectoria.stages_api', 'stages_bp', 'Etapas de Trayectoria'),
+        ('src.api.trayectoria.badges_api', 'badges_bp', 'Sistema de Badges'),
+        ('src.api.trayectoria.metrics_api', 'metrics_bp', 'Métricas de Usuario'),
+        ('src.api.trayectoria.portfolio_api', 'portfolio_bp', 'Portfolio de Videos'),
+    ]
+    
+    for module_path, bp_name, display_name in trayectoria_modules:
+        if safe_register(module_path, bp_name, display_name):
+            success_count += 1
+        else:
+            fail_count += 1
+    
+    # ==========================================
     # 📊 RESUMEN FINAL
     # ==========================================
     logger.info("\n" + "="*70)
@@ -291,11 +310,16 @@ def register_api(app):
         if 'reset' in rule.rule or 'forgot' in rule.rule:
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     
+
     if fail_count > 0:
         logger.warning(f"⚠️  {fail_count} módulo(s) no se cargaron. Revisa los logs.")
     else:
         logger.info("🎉 Todos los módulos cargados exitosamente")
-    
+    # Listar rutas de trayectoria
+    logger.info("\n🎯 Rutas de trayectoria registradas:")
+    for rule in app.url_map.iter_rules():
+        if 'scores' in rule.rule or 'stages' in rule.rule or 'badges' in rule.rule or 'metrics' in rule.rule or 'portfolio' in rule.rule or '/videos' in rule.rule:
+            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     logger.info("")
     
     return success_count, fail_count
