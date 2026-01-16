@@ -27,7 +27,7 @@ avatar_api_bp = Blueprint('avatar_api', __name__)
 # ACTUALIZAR AVATAR
 # PATCH /api/users/<user_id>/avatar
 # ==========================================
-@avatar_api_bp.route('/api/users/<int:user_id>/avatar', methods=['PATCH'])
+@avatar_api_bp.route('/users/<int:user_id>/avatar', methods=['PATCH'])
 @token_required
 def update_avatar(current_user, user_id):
     """
@@ -176,7 +176,7 @@ def update_avatar(current_user, user_id):
 # OBTENER AVATAR
 # GET /api/users/<user_id>/avatar
 # ==========================================
-@avatar_api_bp.route('/api/users/<int:user_id>/avatar', methods=['GET'])
+@avatar_api_bp.route('/users/<int:user_id>/avatar', methods=['GET'])
 def get_avatar(user_id):
     """
     Obtiene la URL del avatar de un usuario.
@@ -231,7 +231,7 @@ def get_avatar(user_id):
 # ELIMINAR AVATAR
 # DELETE /api/users/<user_id>/avatar
 # ==========================================
-@avatar_api_bp.route('/api/users/<int:user_id>/avatar', methods=['DELETE'])
+@avatar_api_bp.route('/users/<int:user_id>/avatar', methods=['DELETE'])
 @token_required
 def delete_avatar(current_user, user_id):
     """
