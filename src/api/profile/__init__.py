@@ -1,5 +1,19 @@
 # src/api/profile/__init__.py
+# NO importar nada aquí para evitar circular imports
+# Los blueprints se importan directamente en register_api.py
 
-from .avatar_api import avatar_api_bp
 
-__all__ = ['avatar_api_bp']
+
+
+
+
+
+
+
+
+
+
+
+
+
+
