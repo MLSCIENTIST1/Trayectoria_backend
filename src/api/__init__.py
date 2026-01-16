@@ -1,7 +1,7 @@
 """
-BizFlow Studio - Registro de APIs v2.5
+BizFlow Studio - Registro de APIs v2.6
 Sistema de carga segura de blueprints
-Actualizado: Agregado módulo de recuperación de contraseñas
+Actualizado: Agregado módulo de Avatar (Cloudinary)
 """
 
 import traceback
@@ -17,7 +17,7 @@ def register_api(app):
     """
     
     logger.info("="*70)
-    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.5")
+    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.6")
     logger.info("="*70)
     
     # ==========================================
@@ -29,7 +29,7 @@ def register_api(app):
         return jsonify({
             "status": "online", 
             "message": "BizFlow Studio API operativa",
-            "version": "2.5.0"
+            "version": "2.6.0"
         }), 200
     
     logger.info("✅ Ruta de salud global registrada: /api/health")
@@ -97,7 +97,7 @@ def register_api(app):
         logger.error("❌ CRÍTICO: No se pudo cargar el sistema de autenticación")
     
     # ==========================================
-    # 🔑 RECUPERACIÓN DE CONTRASEÑA (NUEVO)
+    # 🔑 RECUPERACIÓN DE CONTRASEÑA
     # ==========================================
     logger.info("\n🔑 Cargando módulo de recuperación de contraseña...")
     
@@ -220,6 +220,7 @@ def register_api(app):
     profile_modules = [
         ('src.api.profile.view_logged_user_api', 'view_logged_user_bp', 'Ver Perfil de Usuario'),
         ('src.api.profile.edit_profile_api', 'edit_profile_bp', 'Editar Perfil'),
+        ('src.api.profile.avatar_api', 'avatar_api_bp', 'Avatar/Foto de Perfil'),  # ← NUEVO
         ('src.api.utils.register_user_api', 'register_user_bp', 'Registro de Usuarios'),
     ]
     
@@ -310,11 +311,17 @@ def register_api(app):
         if 'reset' in rule.rule or 'forgot' in rule.rule:
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     
+    # Listar rutas de avatar/perfil
+    logger.info("\n📸 Rutas de avatar registradas:")
+    for rule in app.url_map.iter_rules():
+        if 'avatar' in rule.rule:
+            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
 
     if fail_count > 0:
         logger.warning(f"⚠️  {fail_count} módulo(s) no se cargaron. Revisa los logs.")
     else:
         logger.info("🎉 Todos los módulos cargados exitosamente")
+    
     # Listar rutas de trayectoria
     logger.info("\n🎯 Rutas de trayectoria registradas:")
     for rule in app.url_map.iter_rules():

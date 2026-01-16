@@ -1,280 +1,217 @@
 """
-BizFlow Studio - Modelo de Usuario
-Optimizado para Flask-Login y autenticación segura
+BizFlow Studio - Avatar API
+Endpoint para actualizar foto de perfil de usuario
+Versión: 1.0
 """
 
-import bcrypt
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, BigInteger, Boolean, ForeignKey, DateTime
-from sqlalchemy.orm import relationship
-from src.models.database import db
-from flask_login import UserMixin
+from flask import Blueprint, request, jsonify
+import logging
 
-# Importar tabla de asociación (debe existir en usuario_servicio.py)
-from src.models.usuario_servicio import usuario_servicio
+# Importar el decorador de autenticación y el modelo
+from src.api.auth.auth_system import token_required
+from src.database import db
+from src.usuarios import Usuario  # Ajusta si el modelo está en otro lugar
+
+logger = logging.getLogger(__name__)
+
+# ==========================================
+# BLUEPRINT
+# ==========================================
+avatar_api_bp = Blueprint('avatar_api', __name__)
 
 
-class Usuario(db.Model, UserMixin):
+# ==========================================
+# ACTUALIZAR AVATAR
+# ==========================================
+@avatar_api_bp.route('/api/users/<int:user_id>/avatar', methods=['PATCH'])
+@token_required
+def update_avatar(current_user, user_id):
     """
-    Modelo de Usuario con soporte completo para Flask-Login
-    y gestión de sesiones seguras.
-    """
-    __tablename__ = "usuarios"
-
-    # ==========================================
-    # COLUMNAS PRINCIPALES
-    # ==========================================
-    id_usuario = Column(Integer, primary_key=True)
-    nombre = Column(String(100), nullable=False)
-    apellidos = Column(String(100), nullable=False)
-    correo = Column(String(100), nullable=False, unique=True, index=True)
-    contrasenia = Column(String(255), nullable=False)  # Hash bcrypt
-    confirmacion_contrasenia = Column(String(255), nullable=False)
-    profesion = Column(String(100), nullable=False)
-    cedula = Column(BigInteger, nullable=False, unique=True, index=True)
-    celular = Column(BigInteger, nullable=False)
+    Actualiza la foto de perfil del usuario
     
-    # ==========================================
-    # ESTADO Y VALIDACIÓN
-    # ==========================================
-    active = Column(Boolean, default=True, nullable=False)
-    validate = Column(Boolean, default=False, nullable=False)
-    black_list = Column(Boolean, default=False, nullable=False)
+    Headers requeridos:
+        - Authorization: Bearer <token>
     
-    # ==========================================
-    # UBICACIÓN
-    # ==========================================
-    pais_id = Column(Integer, nullable=True)
-    ciudad_id = Column(Integer, ForeignKey('colombia.ciudad_id'), nullable=True)
-    
-    # ==========================================
-    # METADATA (IMPORTANTE PARA SESIONES)
-    # ==========================================
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_login = Column(DateTime, nullable=True)  # CRÍTICO para tracking de sesiones
-    
-    # ==========================================
-    # RELACIONES
-    # ==========================================
-    
-    # Ciudad
-    ciudad_rel = relationship("Colombia", backref="usuarios_en_ciudad")
-    
-    # Notificaciones
-    received_notifications = relationship(
-        "Notification", 
-        foreign_keys='Notification.user_id', 
-        back_populates='receiver',
-        cascade="all, delete-orphan"
-    )
-    sent_notifications = relationship(
-        "Notification", 
-        foreign_keys='Notification.sender_id', 
-        back_populates='sender',
-        cascade="all, delete-orphan"
-    )
-    
-    # Servicios (muchos a muchos)
-    servicios = relationship(
-        "Servicio", 
-        secondary=usuario_servicio, 
-        back_populates="usuarios", 
-        lazy='select'
-    )
-    
-    # Servicios como contratante/contratado
-    servicios_como_contratante = relationship(
-        "Servicio", 
-        foreign_keys="[Servicio.id_contratante]", 
-        back_populates="contratante"
-    )
-    servicios_como_contratado = relationship(
-        "Servicio", 
-        foreign_keys="[Servicio.id_contratado]", 
-        back_populates="contratado"
-    )
-    
-    # Monetización
-    monetizaciones = relationship(
-        "MonetizationManagement", 
-        back_populates="usuario", 
-        cascade="all, delete-orphan"
-    )
-    
-    # Calificaciones
-    calificaciones = relationship(
-        'ServiceRatings', 
-        back_populates='usuario',
-        cascade="all, delete-orphan"
-    )
-    
-    # Feedbacks
-    feedbacks = relationship(
-        "Feedback", 
-        back_populates="usuario", 
-        cascade="all, delete-orphan"
-    )
-
-    # ==========================================
-    # CONSTRUCTOR
-    # ==========================================
-    def __init__(self, nombre, apellidos, correo, profesion, cedula, celular, 
-                 ciudad=None, validate=False, black_list=False):
-        self.nombre = nombre
-        self.apellidos = apellidos
-        self.correo = correo.lower().strip()  # Normalizar correo
-        self.profesion = profesion
-        self.cedula = cedula
-        self.celular = celular
-        self.ciudad_id = ciudad
-        self.validate = validate
-        self.black_list = black_list
-        self.active = True
-        self.created_at = datetime.utcnow()
-
-    # ==========================================
-    # MÉTODOS DE AUTENTICACIÓN (CRÍTICOS)
-    # ==========================================
-    
-    def set_password(self, password):
-        """
-        Genera un hash bcrypt y lo asigna a las columnas de contraseña.
-        
-        Args:
-            password (str): Contraseña en texto plano
-        """
-        if not password or len(password) < 6:
-            raise ValueError("La contraseña debe tener al menos 6 caracteres")
-        
-        salt = bcrypt.gensalt(rounds=12)  # 12 rounds es un buen balance
-        hashed = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
-        
-        self.contrasenia = hashed
-        self.confirmacion_contrasenia = hashed
-
-    def check_password(self, password):
-        """
-        Compara una contraseña en texto plano contra el hash almacenado.
-        CRÍTICO para el login.
-        
-        Args:
-            password (str): Contraseña en texto plano
-            
-        Returns:
-            bool: True si coincide, False si no
-        """
-        if not password or not self.contrasenia:
-            return False
-        
-        try:
-            return bcrypt.checkpw(
-                password.encode('utf-8'), 
-                self.contrasenia.encode('utf-8')
-            )
-        except Exception as e:
-            # Log del error pero no revelar detalles al usuario
-            import logging
-            logging.error(f"Error verificando password para {self.correo}: {e}")
-            return False
-
-    # ==========================================
-    # MÉTODOS DE FLASK-LOGIN (REQUERIDOS)
-    # ==========================================
-    
-    def get_id(self):
-        """
-        CRÍTICO: Flask-Login usa este método para obtener el ID del usuario.
-        DEBE retornar un string.
-        
-        Returns:
-            str: ID del usuario como string
-        """
-        return str(self.id_usuario)
-    
-    @property
-    def is_active(self):
-        """
-        CRÍTICO: Flask-Login verifica este método para saber si el usuario
-        puede autenticarse.
-        
-        Returns:
-            bool: True si el usuario está activo
-        """
-        return self.active and not self.black_list
-    
-    @property
-    def is_authenticated(self):
-        """
-        CRÍTICO: Flask-Login verifica si el usuario está autenticado.
-        
-        Returns:
-            bool: Siempre True para usuarios reales
-        """
-        return True
-    
-    @property
-    def is_anonymous(self):
-        """
-        CRÍTICO: Flask-Login verifica si es un usuario anónimo.
-        
-        Returns:
-            bool: Siempre False para usuarios reales
-        """
-        return False
-
-    # ==========================================
-    # MÉTODOS DE UTILIDAD
-    # ==========================================
-    
-    def update_last_login(self):
-        """
-        Actualiza el timestamp de último login.
-        Llamar después de un login exitoso.
-        """
-        self.last_login = datetime.utcnow()
-    
-    def to_dict(self, include_sensitive=False):
-        """
-        Serializa el usuario a un diccionario.
-        
-        Args:
-            include_sensitive (bool): Si True, incluye información sensible
-            
-        Returns:
-            dict: Datos del usuario
-        """
-        data = {
-            "id": self.id_usuario,
-            "id_usuario": self.id_usuario,
-            "nombre": self.nombre,
-            "apellidos": self.apellidos,
-            "correo": self.correo,
-            "telefono": self.celular,
-            "profesion": self.profesion,
-            "activo": self.active,
-            "validado": self.validate,
-            "ciudad_id": self.ciudad_id,
-            "created_at": self.created_at.isoformat() if self.created_at else None
+    Body:
+        {
+            "foto_url": "https://res.cloudinary.com/dp50v0bwj/image/upload/..."
         }
-        
-        if include_sensitive:
-            data["cedula"] = self.cedula
-            data["last_login"] = self.last_login.isoformat() if self.last_login else None
-            data["updated_at"] = self.updated_at.isoformat() if self.updated_at else None
-        
-        return data
     
-    def serialize(self):
-        """Alias de to_dict() para compatibilidad"""
-        return self.to_dict()
+    Returns:
+        - 200: Avatar actualizado correctamente
+        - 400: Datos inválidos
+        - 403: No autorizado
+        - 404: Usuario no encontrado
+        - 500: Error interno
+    """
+    
+    logger.info(f"📸 Actualizando avatar para usuario {user_id}")
+    
+    # Verificar que el usuario solo pueda actualizar su propio avatar
+    if current_user.id != user_id:
+        logger.warning(f"⚠️ Usuario {current_user.id} intentó modificar avatar de {user_id}")
+        return jsonify({
+            'success': False,
+            'error': 'No autorizado para modificar este perfil'
+        }), 403
+    
+    # Obtener datos del request
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({
+            'success': False,
+            'error': 'No se recibieron datos'
+        }), 400
+    
+    foto_url = data.get('foto_url')
+    
+    if not foto_url:
+        return jsonify({
+            'success': False,
+            'error': 'foto_url es requerido'
+        }), 400
+    
+    # Validar que sea una URL de Cloudinary válida
+    if not foto_url.startswith('https://res.cloudinary.com/'):
+        logger.warning(f"⚠️ URL inválida recibida: {foto_url[:50]}...")
+        return jsonify({
+            'success': False,
+            'error': 'URL de imagen no válida. Debe ser de Cloudinary.'
+        }), 400
+    
+    # Validar longitud máxima
+    if len(foto_url) > 500:
+        return jsonify({
+            'success': False,
+            'error': 'URL demasiado larga'
+        }), 400
+    
+    try:
+        # Buscar el usuario en la base de datos
+        usuario = Usuario.query.get(user_id)
+        
+        if not usuario:
+            return jsonify({
+                'success': False,
+                'error': 'Usuario no encontrado'
+            }), 404
+        
+        # Guardar URL anterior (por si necesitas eliminar la imagen vieja de Cloudinary)
+        old_foto_url = usuario.foto_url
+        
+        # Actualizar el campo foto_url
+        usuario.foto_url = foto_url
+        
+        # Guardar en base de datos
+        db.session.commit()
+        
+        logger.info(f"✅ Avatar actualizado para usuario {user_id}")
+        logger.info(f"   URL anterior: {old_foto_url}")
+        logger.info(f"   URL nueva: {foto_url}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Avatar actualizado correctamente',
+            'data': {
+                'user_id': user_id,
+                'foto_url': foto_url
+            }
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error actualizando avatar: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Error interno del servidor'
+        }), 500
 
-    # ==========================================
-    # REPRESENTACIÓN
-    # ==========================================
+
+# ==========================================
+# OBTENER AVATAR (OPCIONAL)
+# ==========================================
+@avatar_api_bp.route('/api/users/<int:user_id>/avatar', methods=['GET'])
+@token_required
+def get_avatar(current_user, user_id):
+    """
+    Obtiene la URL del avatar de un usuario
+    """
     
-    def __repr__(self):
-        return f"<Usuario {self.correo} (ID: {self.id_usuario})>"
+    try:
+        usuario = Usuario.query.get(user_id)
+        
+        if not usuario:
+            return jsonify({
+                'success': False,
+                'error': 'Usuario no encontrado'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'user_id': user_id,
+                'foto_url': usuario.foto_url,
+                'tiene_foto': usuario.foto_url is not None
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Error obteniendo avatar: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Error interno del servidor'
+        }), 500
+
+
+# ==========================================
+# ELIMINAR AVATAR
+# ==========================================
+@avatar_api_bp.route('/api/users/<int:user_id>/avatar', methods=['DELETE'])
+@token_required
+def delete_avatar(current_user, user_id):
+    """
+    Elimina la foto de perfil del usuario (la pone en NULL)
+    """
     
-    def __str__(self):
-        return f"{self.nombre} {self.apellidos}"
+    # Verificar autorización
+    if current_user.id != user_id:
+        return jsonify({
+            'success': False,
+            'error': 'No autorizado'
+        }), 403
+    
+    try:
+        usuario = Usuario.query.get(user_id)
+        
+        if not usuario:
+            return jsonify({
+                'success': False,
+                'error': 'Usuario no encontrado'
+            }), 404
+        
+        # Guardar URL para posible eliminación en Cloudinary
+        old_url = usuario.foto_url
+        
+        # Eliminar referencia
+        usuario.foto_url = None
+        db.session.commit()
+        
+        logger.info(f"✅ Avatar eliminado para usuario {user_id}")
+        
+        # TODO: Opcional - Eliminar imagen de Cloudinary usando su API
+        # if old_url:
+        #     delete_from_cloudinary(old_url)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Avatar eliminado correctamente'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error eliminando avatar: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Error interno del servidor'
+        }), 500
