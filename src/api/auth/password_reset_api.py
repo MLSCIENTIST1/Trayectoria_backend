@@ -256,7 +256,7 @@ def forgot_password():
         
         # URL correcta
         frontend_url = os.environ.get('FRONTEND_URL', 'https://trayectoria-rxdc1.web.app')
-        reset_url = f"{frontend_url}/reset-password.html?token={token.token}"
+        reset_url = f"{frontend_url}/reset_password.html?token={token.token}"
         logger.info(f"📍 URL: {reset_url}")
         
         # Email
