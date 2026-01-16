@@ -4,16 +4,15 @@ Endpoint para actualizar foto de perfil de usuario
 Integrado con Cloudinary
 
 Ubicación: src/api/profile/avatar_api.py
-
-NOTA: Este archivo NO importa token_required ni Usuario 
-      al nivel del módulo para evitar circular imports.
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, make_response
+from flask_login import current_user
 import logging
 
-# Solo importamos la conexión a BD
-from src.database import get_db_connection
+# Importar base de datos y modelo (igual que auth_system.py)
+from src.models.database import db
+from src.models.usuarios import Usuario
 
 logger = logging.getLogger(__name__)
 
@@ -24,297 +23,186 @@ avatar_api_bp = Blueprint('avatar_api', __name__)
 
 
 # ==========================================
-# HELPER: VERIFICAR TOKEN MANUALMENTE
+# CONFIGURACIÓN DE CORS ORIGINS
 # ==========================================
-def verify_auth_token():
-    """
-    Verifica el token de autenticación sin importar módulos externos.
-    Retorna el user_id si es válido, None si no.
-    """
-    auth_header = request.headers.get('Authorization')
-    user_id_header = request.headers.get('X-User-ID')
+ALLOWED_ORIGINS = [
+    "https://trayectoria-rxdc1.web.app",
+    "https://mitrayectoria.web.app",
+    "http://localhost:5001",
+    "http://localhost:5173",
+    "http://localhost:3000"
+]
+
+
+# ==========================================
+# HELPER: CONSTRUIR RESPUESTA CORS
+# ==========================================
+def build_cors_response(data=None, status=200):
+    """Construye respuesta con headers CORS correctos."""
+    if data is None:
+        response = make_response('', 204)
+    else:
+        response = make_response(jsonify(data), status)
     
-    if not auth_header:
-        return None, "Token de autorización requerido"
+    origin = request.headers.get('Origin', '')
     
-    # Por ahora, confiamos en X-User-ID si viene con Authorization
-    # En producción deberías verificar el JWT aquí
-    if user_id_header:
-        try:
-            return int(user_id_header), None
-        except (ValueError, TypeError):
-            return None, "ID de usuario inválido"
+    if origin in ALLOWED_ORIGINS:
+        response.headers['Access-Control-Allow-Origin'] = origin
     
-    # Intentar extraer user_id del token JWT si está disponible
-    try:
-        if auth_header.startswith('Bearer '):
-            token = auth_header[7:]
-        else:
-            token = auth_header
-        
-        # Importación tardía para evitar circular import
-        try:
-            from src.auth_jwt import verify_token
-            payload = verify_token(token)
-            if payload and payload.get('user_id'):
-                return payload['user_id'], None
-        except ImportError:
-            pass
-        except Exception as e:
-            logger.warning(f"Error verificando JWT: {e}")
-        
-        return None, "Token inválido"
-        
-    except Exception as e:
-        logger.error(f"Error en verificación de token: {e}")
-        return None, "Error de autenticación"
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, PUT, DELETE, PATCH'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-User-ID, X-Business-ID, Accept, Cache-Control'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    response.headers['Access-Control-Max-Age'] = '3600'
+    
+    return response
 
 
 # ==========================================
 # ACTUALIZAR AVATAR
-# PATCH /users/<user_id>/avatar
+# PATCH /api/users/<user_id>/avatar
 # ==========================================
-@avatar_api_bp.route('/users/<int:user_id>/avatar', methods=['PATCH', 'OPTIONS'])
+@avatar_api_bp.route('/api/users/<int:user_id>/avatar', methods=['PATCH', 'OPTIONS'])
 def update_avatar(user_id):
     """
     Actualiza la foto de perfil del usuario.
+    
+    La imagen ya fue subida a Cloudinary desde el frontend.
+    Este endpoint solo guarda la URL en la base de datos.
+    
+    Body:
+        {
+            "foto_url": "https://res.cloudinary.com/..."
+        }
+    
+    Returns:
+        200: Avatar actualizado correctamente
+        400: foto_url es requerido
+        404: Usuario no encontrado
+        500: Error interno
     """
     
     # Manejar preflight CORS
     if request.method == 'OPTIONS':
-        return '', 204
+        return build_cors_response()
     
     logger.info(f"📸 Solicitud de actualización de avatar para usuario {user_id}")
     
-    # ==========================================
-    # 1. VERIFICAR AUTENTICACIÓN
-    # ==========================================
-    current_user_id, error = verify_auth_token()
-    
-    if error:
-        return jsonify({
-            'success': False,
-            'error': error
-        }), 401
-    
-    # ==========================================
-    # 2. VERIFICAR AUTORIZACIÓN
-    # ==========================================
-    if current_user_id != user_id:
-        logger.warning(f"⚠️ Usuario {current_user_id} intentó actualizar avatar de usuario {user_id}")
-        return jsonify({
-            'success': False,
-            'error': 'No autorizado para actualizar este perfil'
-        }), 403
-    
-    # ==========================================
-    # 3. VALIDAR DATOS DE ENTRADA
-    # ==========================================
-    data = request.get_json()
-    
-    if not data:
-        return jsonify({
-            'success': False,
-            'error': 'Se requiere un cuerpo JSON'
-        }), 400
-    
-    foto_url = data.get('foto_url')
-    
-    if not foto_url:
-        return jsonify({
-            'success': False,
-            'error': 'foto_url es requerido'
-        }), 400
-    
-    # Validar que sea una URL de Cloudinary válida
-    if not foto_url.startswith('https://res.cloudinary.com/'):
-        logger.warning(f"⚠️ URL de imagen no válida: {foto_url[:50]}...")
-        return jsonify({
-            'success': False,
-            'error': 'URL de imagen no válida. Debe ser una URL de Cloudinary.'
-        }), 400
-    
-    # Validar longitud máxima
-    if len(foto_url) > 500:
-        return jsonify({
-            'success': False,
-            'error': 'URL demasiado larga (máximo 500 caracteres)'
-        }), 400
-    
-    # ==========================================
-    # 4. ACTUALIZAR EN BASE DE DATOS
-    # ==========================================
-    conn = None
-    cursor = None
-    
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        # Obtener datos del request
+        data = request.get_json()
         
-        cursor.execute("""
-            UPDATE usuarios 
-            SET foto_url = %s,
-                updated_at = NOW()
-            WHERE id_usuario = %s
-            RETURNING id_usuario, nombre, correo, foto_url
-        """, (foto_url, user_id))
+        if not data:
+            logger.warning("📸 No se recibieron datos JSON")
+            return build_cors_response({
+                'success': False,
+                'error': 'No se recibieron datos'
+            }, 400)
         
-        result = cursor.fetchone()
+        foto_url = data.get('foto_url')
         
-        if not result:
-            logger.error(f"❌ Usuario {user_id} no encontrado en base de datos")
-            return jsonify({
+        if not foto_url:
+            logger.warning("📸 foto_url no proporcionada")
+            return build_cors_response({
+                'success': False,
+                'error': 'foto_url es requerido'
+            }, 400)
+        
+        # Validar que sea URL de Cloudinary
+        if 'cloudinary.com' not in foto_url and 'res.cloudinary.com' not in foto_url:
+            logger.warning(f"📸 URL no es de Cloudinary: {foto_url}")
+            return build_cors_response({
+                'success': False,
+                'error': 'URL debe ser de Cloudinary'
+            }, 400)
+        
+        logger.info(f"📸 Actualizando avatar de usuario {user_id} con URL: {foto_url[:50]}...")
+        
+        # Buscar usuario en base de datos (usando SQLAlchemy)
+        usuario = Usuario.query.get(user_id)
+        
+        if not usuario:
+            logger.warning(f"📸 Usuario {user_id} no encontrado")
+            return build_cors_response({
                 'success': False,
                 'error': 'Usuario no encontrado'
-            }), 404
+            }, 404)
         
-        conn.commit()
+        # Actualizar foto_url
+        usuario.foto_url = foto_url
         
-        logger.info(f"✅ Avatar actualizado para usuario {user_id}: {foto_url[:60]}...")
+        # Guardar cambios
+        db.session.commit()
         
-        return jsonify({
+        logger.info(f"✅ Avatar actualizado para usuario {user_id}")
+        
+        return build_cors_response({
             'success': True,
             'message': 'Avatar actualizado correctamente',
-            'data': {
-                'id': result[0],
-                'nombre': result[1],
-                'email': result[2],
-                'foto_url': result[3]
-            }
-        }), 200
-        
+            'foto_url': foto_url
+        }, 200)
+            
     except Exception as e:
         logger.error(f"❌ Error actualizando avatar: {str(e)}")
+        db.session.rollback()
         import traceback
         traceback.print_exc()
-        if conn:
-            conn.rollback()
-        return jsonify({
+        return build_cors_response({
             'success': False,
-            'error': 'Error interno del servidor'
-        }), 500
-        
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+            'error': f'Error interno: {str(e)}'
+        }, 500)
 
 
 # ==========================================
 # OBTENER AVATAR
-# GET /users/<user_id>/avatar
+# GET /api/users/<user_id>/avatar
 # ==========================================
-@avatar_api_bp.route('/users/<int:user_id>/avatar', methods=['GET'])
+@avatar_api_bp.route('/api/users/<int:user_id>/avatar', methods=['GET'])
 def get_avatar(user_id):
     """
-    Obtiene la URL del avatar de un usuario.
-    No requiere autenticación (es información pública).
+    Obtiene la URL del avatar del usuario.
+    
+    Returns:
+        200: foto_url del usuario
+        404: Usuario no encontrado
     """
     
-    conn = None
-    cursor = None
+    logger.info(f"📸 Solicitud de avatar para usuario {user_id}")
     
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        usuario = Usuario.query.get(user_id)
         
-        cursor.execute("""
-            SELECT foto_url, nombre 
-            FROM usuarios 
-            WHERE id_usuario = %s
-        """, (user_id,))
-        
-        result = cursor.fetchone()
-        
-        if not result:
-            return jsonify({
+        if not usuario:
+            return build_cors_response({
                 'success': False,
                 'error': 'Usuario no encontrado'
-            }), 404
+            }, 404)
         
-        return jsonify({
+        foto_url = getattr(usuario, 'foto_url', None)
+        
+        return build_cors_response({
             'success': True,
-            'data': {
-                'foto_url': result[0],
-                'nombre': result[1],
-                'tiene_foto': result[0] is not None
-            }
-        }), 200
+            'foto_url': foto_url
+        }, 200)
         
     except Exception as e:
         logger.error(f"❌ Error obteniendo avatar: {str(e)}")
-        return jsonify({
+        return build_cors_response({
             'success': False,
-            'error': 'Error interno del servidor'
-        }), 500
-        
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+            'error': f'Error interno: {str(e)}'
+        }, 500)
 
 
 # ==========================================
-# ELIMINAR AVATAR
-# DELETE /users/<user_id>/avatar
+# HEALTH CHECK
 # ==========================================
-@avatar_api_bp.route('/users/<int:user_id>/avatar', methods=['DELETE'])
-def delete_avatar(user_id):
-    """
-    Elimina la foto de perfil del usuario (la pone en NULL).
-    """
-    
-    # Verificar autenticación
-    current_user_id, error = verify_auth_token()
-    
-    if error:
-        return jsonify({
-            'success': False,
-            'error': error
-        }), 401
-    
-    if current_user_id != user_id:
-        return jsonify({
-            'success': False,
-            'error': 'No autorizado'
-        }), 403
-    
-    conn = None
-    cursor = None
-    
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            UPDATE usuarios 
-            SET foto_url = NULL,
-                updated_at = NOW()
-            WHERE id_usuario = %s
-        """, (user_id,))
-        
-        conn.commit()
-        
-        logger.info(f"✅ Avatar eliminado para usuario {user_id}")
-        
-        return jsonify({
-            'success': True,
-            'message': 'Avatar eliminado correctamente'
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"❌ Error eliminando avatar: {str(e)}")
-        if conn:
-            conn.rollback()
-        return jsonify({
-            'success': False,
-            'error': 'Error interno del servidor'
-        }), 500
-        
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+@avatar_api_bp.route('/api/avatar/health', methods=['GET'])
+def avatar_health():
+    """Health check del módulo avatar"""
+    return jsonify({
+        'status': 'ok',
+        'module': 'avatar_api',
+        'endpoints': [
+            'PATCH /api/users/<user_id>/avatar',
+            'GET /api/users/<user_id>/avatar'
+        ]
+    }), 200
