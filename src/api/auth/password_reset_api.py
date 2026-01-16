@@ -1,23 +1,23 @@
 """
 BizFlow Studio - API de Recuperación de Contraseña
-VERSIÓN CON LOGS SUPER DETALLADOS PARA DIAGNÓSTICO
+SOLUCIÓN: Usa Resend API (HTTP) en lugar de SMTP (bloqueado en Render)
+
+Instalar: pip install resend
+Variable de entorno: RESEND_API_KEY=re_xxxxxxxxx
 """
 
 import os
-import smtplib
 import logging
 import traceback
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import requests
 from flask import Blueprint, request, jsonify, render_template_string, current_app
-from flask_mail import Mail, Message
 from threading import Thread
 from src.models.database import db
 from src.models.usuarios import Usuario
 from src.models.password_reset_token import PasswordResetToken
 
 # ==========================================
-# LOGGING SUPER DETALLADO
+# LOGGING
 # ==========================================
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -27,195 +27,96 @@ logger.setLevel(logging.DEBUG)
 # ==========================================
 password_reset_bp = Blueprint('password_reset', __name__, url_prefix='/api/auth')
 
-# ==========================================
-# CONFIGURACIÓN DE MAIL
-# ==========================================
-mail = None
-
 
 def init_mail(app):
-    """Inicializa Flask-Mail"""
-    global mail
+    """
+    Inicializa la configuración de email.
+    Ya no usa Flask-Mail, usa Resend API.
+    """
+    resend_key = os.environ.get('RESEND_API_KEY', '')
     
     logger.info("=" * 60)
-    logger.info("🚀 INICIANDO CONFIGURACIÓN DE FLASK-MAIL")
+    logger.info("🚀 CONFIGURACIÓN DE EMAIL (RESEND API)")
+    logger.info("=" * 60)
+    logger.info(f"📧 RESEND_API_KEY configurada: {'✅ SÍ' if resend_key else '❌ NO'}")
+    logger.info(f"📧 FRONTEND_URL: {os.environ.get('FRONTEND_URL', 'https://trayectoria-rxdc1.web.app')}")
     logger.info("=" * 60)
     
-    # Leer variables de entorno
-    mail_server = os.environ.get('MAIL_SERVER', 'mail.privateemail.com')
-    mail_port = int(os.environ.get('MAIL_PORT', 465))
-    mail_username = os.environ.get('MAIL_USERNAME', 'noreply@tukomercio.store')
-    mail_password = os.environ.get('MAIL_PASSWORD', '')
-    mail_from = os.environ.get('MAIL_FROM', 'noreply@tukomercio.store')
-    
-    logger.info(f"📧 MAIL_SERVER: {mail_server}")
-    logger.info(f"📧 MAIL_PORT: {mail_port}")
-    logger.info(f"📧 MAIL_USERNAME: {mail_username}")
-    logger.info(f"📧 MAIL_PASSWORD configurada: {'✅ SÍ' if mail_password else '❌ NO'}")
-    logger.info(f"📧 MAIL_PASSWORD longitud: {len(mail_password)} caracteres")
-    logger.info(f"📧 MAIL_FROM: {mail_from}")
-    
-    # Configurar Flask
-    app.config['MAIL_SERVER'] = mail_server
-    app.config['MAIL_PORT'] = mail_port
-    app.config['MAIL_USE_TLS'] = False
-    app.config['MAIL_USE_SSL'] = True
-    app.config['MAIL_USERNAME'] = mail_username
-    app.config['MAIL_PASSWORD'] = mail_password
-    app.config['MAIL_DEFAULT_SENDER'] = ('TuKomercio', mail_from)
-    app.config['MAIL_TIMEOUT'] = 15
-    app.config['MAIL_DEBUG'] = True
-    
-    # URL del frontend
-    app.config['FRONTEND_URL'] = os.environ.get('FRONTEND_URL', 'https://trayectoria-rxdc1.web.app')
-    logger.info(f"📧 FRONTEND_URL: {app.config['FRONTEND_URL']}")
-    
-    mail = Mail(app)
-    logger.info("✅ Flask-Mail objeto creado")
-    logger.info("=" * 60)
-    
-    return mail
+    return None  # No necesitamos objeto mail
 
 
 # ==========================================
-# ENVÍO DIRECTO CON SMTPLIB (MÁS CONTROL)
+# ENVÍO DE EMAIL CON RESEND (HTTP API)
 # ==========================================
-def send_email_direct(to_email, subject, html_content):
+def send_email_resend(to_email, subject, html_content):
     """
-    Envía email directamente con smtplib para tener control total y logs detallados
+    Envía email usando Resend API (HTTP - no bloqueado)
     """
-    logger.info("=" * 60)
-    logger.info("📤 INICIANDO ENVÍO DIRECTO DE EMAIL")
-    logger.info("=" * 60)
-    
-    # Obtener configuración
-    server = os.environ.get('MAIL_SERVER', 'mail.privateemail.com')
-    port = int(os.environ.get('MAIL_PORT', 465))
-    username = os.environ.get('MAIL_USERNAME', 'noreply@tukomercio.store')
-    password = os.environ.get('MAIL_PASSWORD', '')
+    api_key = os.environ.get('RESEND_API_KEY', '')
     from_email = os.environ.get('MAIL_FROM', 'noreply@tukomercio.store')
     
-    logger.info(f"📍 Paso 1: Configuración cargada")
-    logger.info(f"   - Server: {server}")
-    logger.info(f"   - Port: {port}")
-    logger.info(f"   - Username: {username}")
-    logger.info(f"   - Password length: {len(password)}")
-    logger.info(f"   - From: {from_email}")
-    logger.info(f"   - To: {to_email}")
+    logger.info("=" * 60)
+    logger.info(f"📤 ENVIANDO EMAIL VÍA RESEND API")
+    logger.info("=" * 60)
+    logger.info(f"   To: {to_email}")
+    logger.info(f"   From: {from_email}")
+    logger.info(f"   Subject: {subject}")
+    logger.info(f"   API Key presente: {'✅' if api_key else '❌'}")
     
-    if not password:
-        logger.error("❌ ERROR: MAIL_PASSWORD está vacío!")
-        return False, "MAIL_PASSWORD no configurado"
+    if not api_key:
+        logger.error("❌ RESEND_API_KEY no está configurada!")
+        return False, "RESEND_API_KEY no configurada"
     
     try:
-        # Crear mensaje
-        logger.info(f"📍 Paso 2: Creando mensaje MIME...")
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = subject
-        msg['From'] = f"TuKomercio <{from_email}>"
-        msg['To'] = to_email
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "from": f"TuKomercio <{from_email}>",
+                "to": [to_email],
+                "subject": subject,
+                "html": html_content
+            },
+            timeout=30
+        )
         
-        html_part = MIMEText(html_content, 'html', 'utf-8')
-        msg.attach(html_part)
-        logger.info(f"   ✅ Mensaje creado correctamente")
+        logger.info(f"📍 Response status: {response.status_code}")
+        logger.info(f"📍 Response body: {response.text}")
         
-        # Conectar al servidor
-        logger.info(f"📍 Paso 3: Conectando a {server}:{port} con SSL...")
-        smtp = smtplib.SMTP_SSL(server, port, timeout=15)
-        logger.info(f"   ✅ Conexión SSL establecida")
-        
-        # Debug SMTP
-        logger.info(f"📍 Paso 4: Habilitando debug SMTP...")
-        smtp.set_debuglevel(1)
-        
-        # EHLO
-        logger.info(f"📍 Paso 5: Enviando EHLO...")
-        smtp.ehlo()
-        logger.info(f"   ✅ EHLO exitoso")
-        
-        # Login
-        logger.info(f"📍 Paso 6: Autenticando como {username}...")
-        smtp.login(username, password)
-        logger.info(f"   ✅ Autenticación exitosa!")
-        
-        # Enviar
-        logger.info(f"📍 Paso 7: Enviando email a {to_email}...")
-        result = smtp.sendmail(from_email, [to_email], msg.as_string())
-        logger.info(f"   ✅ Email enviado! Resultado: {result}")
-        
-        # Cerrar
-        logger.info(f"📍 Paso 8: Cerrando conexión...")
-        smtp.quit()
-        logger.info(f"   ✅ Conexión cerrada")
-        
-        logger.info("=" * 60)
-        logger.info("🎉 EMAIL ENVIADO EXITOSAMENTE")
-        logger.info("=" * 60)
-        return True, "OK"
-        
-    except smtplib.SMTPAuthenticationError as e:
-        logger.error("=" * 60)
-        logger.error("❌ ERROR DE AUTENTICACIÓN SMTP")
-        logger.error(f"   Código: {e.smtp_code}")
-        logger.error(f"   Mensaje: {e.smtp_error}")
-        logger.error("   → Verifica usuario y contraseña en Namecheap")
-        logger.error("=" * 60)
-        return False, f"Auth error: {e.smtp_error}"
-        
-    except smtplib.SMTPConnectError as e:
-        logger.error("=" * 60)
-        logger.error("❌ ERROR DE CONEXIÓN SMTP")
-        logger.error(f"   Error: {str(e)}")
-        logger.error("   → El servidor no responde o el puerto está bloqueado")
-        logger.error("=" * 60)
-        return False, f"Connection error: {str(e)}"
-        
-    except smtplib.SMTPRecipientsRefused as e:
-        logger.error("=" * 60)
-        logger.error("❌ DESTINATARIO RECHAZADO")
-        logger.error(f"   Error: {str(e)}")
-        logger.error("=" * 60)
-        return False, f"Recipient refused: {str(e)}"
-        
-    except smtplib.SMTPException as e:
-        logger.error("=" * 60)
-        logger.error("❌ ERROR SMTP GENERAL")
-        logger.error(f"   Tipo: {type(e).__name__}")
-        logger.error(f"   Error: {str(e)}")
-        logger.error("=" * 60)
-        return False, f"SMTP error: {str(e)}"
-        
+        if response.status_code == 200:
+            logger.info("✅ Email enviado exitosamente!")
+            return True, "OK"
+        else:
+            error_msg = response.json().get('message', response.text)
+            logger.error(f"❌ Error de Resend: {error_msg}")
+            return False, error_msg
+            
+    except requests.exceptions.Timeout:
+        logger.error("❌ Timeout conectando a Resend API")
+        return False, "Timeout"
     except Exception as e:
-        logger.error("=" * 60)
-        logger.error("❌ ERROR INESPERADO")
-        logger.error(f"   Tipo: {type(e).__name__}")
-        logger.error(f"   Error: {str(e)}")
-        logger.error(f"   Traceback:")
+        logger.error(f"❌ Error: {type(e).__name__}: {str(e)}")
         logger.error(traceback.format_exc())
-        logger.error("=" * 60)
-        return False, f"Error: {str(e)}"
+        return False, str(e)
 
 
-# ==========================================
-# ENVÍO ASÍNCRONO CON LOGS
-# ==========================================
-def send_async_email_direct(to_email, subject, html_content):
-    """Envía email en un thread separado con logs detallados"""
-    logger.info(f"🧵 Creando thread para envío a {to_email}...")
-    
+def send_email_async(to_email, subject, html_content):
+    """Envía email en background thread"""
     def _send():
         logger.info(f"🧵 Thread iniciado para {to_email}")
-        success, message = send_email_direct(to_email, subject, html_content)
+        success, msg = send_email_resend(to_email, subject, html_content)
         if success:
-            logger.info(f"🧵 Thread completado exitosamente para {to_email}")
+            logger.info(f"🧵 ✅ Email enviado a {to_email}")
         else:
-            logger.error(f"🧵 Thread falló para {to_email}: {message}")
+            logger.error(f"🧵 ❌ Falló envío a {to_email}: {msg}")
     
     thread = Thread(target=_send)
     thread.daemon = True
     thread.start()
-    logger.info(f"🧵 Thread lanzado (daemon=True)")
-    return thread
+    logger.info(f"🧵 Thread lanzado para {to_email}")
 
 
 # ==========================================
@@ -258,9 +159,7 @@ EMAIL_TEMPLATE = """
         </tr>
         <tr>
             <td style="padding: 20px; background-color: #f8f9fa; text-align: center;">
-                <p style="color: #888; font-size: 12px; margin: 0;">
-                    © 2026 TuKomercio
-                </p>
+                <p style="color: #888; font-size: 12px; margin: 0;">© 2026 TuKomercio</p>
             </td>
         </tr>
     </table>
@@ -274,137 +173,55 @@ EMAIL_TEMPLATE = """
 # ==========================================
 @password_reset_bp.route('/test-smtp', methods=['GET'])
 def test_smtp():
-    """Diagnóstico completo de SMTP"""
-    logger.info("=" * 60)
-    logger.info("🔧 TEST-SMTP: Iniciando diagnóstico")
-    logger.info("=" * 60)
-    
-    server = os.environ.get('MAIL_SERVER', 'mail.privateemail.com')
-    port = int(os.environ.get('MAIL_PORT', 465))
-    username = os.environ.get('MAIL_USERNAME', 'noreply@tukomercio.store')
-    password = os.environ.get('MAIL_PASSWORD', '')
+    """Verifica configuración de Resend"""
+    api_key = os.environ.get('RESEND_API_KEY', '')
+    from_email = os.environ.get('MAIL_FROM', 'noreply@tukomercio.store')
+    frontend_url = os.environ.get('FRONTEND_URL', '')
     
     result = {
+        "service": "Resend API (HTTP)",
         "config": {
-            "server": server,
-            "port": port,
-            "username": username,
-            "password_set": bool(password),
-            "password_length": len(password),
-            "password_preview": f"{password[:3]}***{password[-2:]}" if len(password) > 5 else "***"
+            "RESEND_API_KEY": "✅ Configurada" if api_key else "❌ NO CONFIGURADA",
+            "api_key_preview": f"{api_key[:10]}..." if len(api_key) > 10 else "N/A",
+            "MAIL_FROM": from_email,
+            "FRONTEND_URL": frontend_url
         },
-        "tests": []
+        "status": "✅ Listo para enviar" if api_key else "❌ Falta RESEND_API_KEY"
     }
-    
-    # Test 1: Variables de entorno
-    result["tests"].append({
-        "step": "1. Variables de entorno",
-        "status": "✅ OK" if password else "❌ MAIL_PASSWORD vacío"
-    })
-    
-    if not password:
-        result["status"] = "❌ FALLO: MAIL_PASSWORD no está configurado en Render"
-        return jsonify(result), 200
-    
-    # Test 2: Conexión
-    try:
-        logger.info(f"🔌 Conectando a {server}:{port}...")
-        smtp = smtplib.SMTP_SSL(server, port, timeout=15)
-        result["tests"].append({
-            "step": "2. Conexión SSL",
-            "status": "✅ OK"
-        })
-        logger.info("✅ Conexión exitosa")
-    except Exception as e:
-        result["tests"].append({
-            "step": "2. Conexión SSL",
-            "status": f"❌ FALLO: {str(e)}"
-        })
-        result["status"] = f"❌ FALLO en conexión: {str(e)}"
-        return jsonify(result), 200
-    
-    # Test 3: Autenticación
-    try:
-        logger.info(f"🔑 Autenticando como {username}...")
-        smtp.login(username, password)
-        result["tests"].append({
-            "step": "3. Autenticación",
-            "status": "✅ OK"
-        })
-        logger.info("✅ Autenticación exitosa")
-    except smtplib.SMTPAuthenticationError as e:
-        result["tests"].append({
-            "step": "3. Autenticación",
-            "status": f"❌ FALLO: {e.smtp_error.decode() if isinstance(e.smtp_error, bytes) else e.smtp_error}"
-        })
-        result["status"] = "❌ FALLO: Credenciales incorrectas"
-        smtp.quit()
-        return jsonify(result), 200
-    except Exception as e:
-        result["tests"].append({
-            "step": "3. Autenticación",
-            "status": f"❌ FALLO: {str(e)}"
-        })
-        result["status"] = f"❌ FALLO en auth: {str(e)}"
-        smtp.quit()
-        return jsonify(result), 200
-    
-    # Test 4: Cerrar
-    smtp.quit()
-    result["tests"].append({
-        "step": "4. Cerrar conexión",
-        "status": "✅ OK"
-    })
-    
-    result["status"] = "✅ TODO OK - SMTP listo para enviar emails"
-    
-    logger.info("=" * 60)
-    logger.info("✅ TEST-SMTP: Diagnóstico completado exitosamente")
-    logger.info("=" * 60)
     
     return jsonify(result), 200
 
 
-# ==========================================
-# ENDPOINT DE PRUEBA DE ENVÍO REAL
-# ==========================================
 @password_reset_bp.route('/test-send/<email>', methods=['GET'])
 def test_send(email):
-    """
-    Envía un email de prueba real.
-    Uso: /api/auth/test-send/tu@email.com
-    """
-    logger.info("=" * 60)
-    logger.info(f"📧 TEST-SEND: Enviando email de prueba a {email}")
-    logger.info("=" * 60)
+    """Envía email de prueba"""
+    logger.info(f"📧 Test de envío a: {email}")
     
-    html_content = f"""
+    html = f"""
     <html>
     <body style="font-family: Arial; padding: 20px;">
         <h1>🧪 Email de Prueba</h1>
-        <p>Si ves este email, la configuración SMTP está funcionando correctamente.</p>
+        <p>¡La configuración de email está funcionando!</p>
         <p>Enviado a: <strong>{email}</strong></p>
-        <p>Fecha: <strong>{__import__('datetime').datetime.now()}</strong></p>
         <hr>
-        <p style="color: #888;">TuKomercio - Sistema de emails</p>
+        <p style="color: #888;">TuKomercio</p>
     </body>
     </html>
     """
     
-    # Enviar de forma SÍNCRONA para ver el resultado inmediato
-    success, message = send_email_direct(email, "🧪 Test de Email - TuKomercio", html_content)
+    success, message = send_email_resend(email, "🧪 Test - TuKomercio", html)
     
     if success:
         return jsonify({
             "success": True,
             "message": f"✅ Email enviado a {email}",
-            "check": "Revisa tu bandeja de entrada y spam"
+            "hint": "Revisa tu bandeja de entrada y spam"
         }), 200
     else:
         return jsonify({
             "success": False,
-            "message": f"❌ Error: {message}",
-            "hint": "Revisa los logs de Render para más detalles"
+            "error": message,
+            "hint": "Verifica RESEND_API_KEY y que el dominio esté verificado en Resend"
         }), 500
 
 
@@ -420,20 +237,17 @@ def forgot_password():
     
     try:
         data = request.get_json()
-        logger.info(f"📍 Datos recibidos: {data}")
         
         if not data or 'correo' not in data:
-            logger.warning("❌ Correo no proporcionado")
             return jsonify({
                 "success": False,
                 "message": "El correo electrónico es requerido"
             }), 400
         
         correo = data['correo'].lower().strip()
-        logger.info(f"📍 Correo solicitado: {correo}")
+        logger.info(f"📍 Correo: {correo}")
         
         # Buscar usuario
-        logger.info(f"📍 Buscando usuario en BD...")
         usuario = Usuario.query.filter_by(correo=correo).first()
         
         if not usuario:
@@ -443,43 +257,31 @@ def forgot_password():
                 "message": "Si el correo existe, recibirás un enlace."
             }), 200
         
-        logger.info(f"📍 Usuario encontrado: ID={usuario.id_usuario}, Nombre={usuario.nombre}")
+        logger.info(f"📍 Usuario encontrado: {usuario.nombre}")
         
-        # Verificar estado
         if not usuario.active or usuario.black_list:
-            logger.warning(f"⚠️ Usuario inactivo/bloqueado: {correo}")
             return jsonify({
                 "success": True,
                 "message": "Si el correo existe, recibirás un enlace."
             }), 200
         
         # Crear token
-        logger.info(f"📍 Creando token de reset...")
         token = PasswordResetToken.create_for_user(usuario.id_usuario)
-        logger.info(f"📍 Token creado: {token.token[:20]}...")
+        logger.info(f"📍 Token creado")
         
         # URL de reset
         frontend_url = os.environ.get('FRONTEND_URL', 'https://trayectoria-rxdc1.web.app')
         reset_url = f"{frontend_url}/reset-password.html?token={token.token}"
-        logger.info(f"📍 Reset URL: {reset_url}")
         
-        # Preparar email
-        logger.info(f"📍 Renderizando template de email...")
+        # Preparar y enviar email
         html_content = render_template_string(
             EMAIL_TEMPLATE,
             nombre=usuario.nombre or correo.split('@')[0],
             correo=usuario.correo,
             reset_url=reset_url
         )
-        logger.info(f"📍 Template renderizado ({len(html_content)} caracteres)")
         
-        # Enviar email de forma asíncrona
-        logger.info(f"📍 Enviando email asíncrono a {correo}...")
-        send_async_email_direct(
-            to_email=correo,
-            subject="🔐 Restablecer tu contraseña - TuKomercio",
-            html_content=html_content
-        )
+        send_email_async(correo, "🔐 Restablecer tu contraseña - TuKomercio", html_content)
         
         logger.info(f"✅ Solicitud procesada para: {correo}")
         
@@ -489,7 +291,7 @@ def forgot_password():
         }), 200
         
     except Exception as e:
-        logger.error(f"❌ Error en forgot_password: {str(e)}")
+        logger.error(f"❌ Error: {str(e)}")
         logger.error(traceback.format_exc())
         return jsonify({
             "success": False,
@@ -498,7 +300,7 @@ def forgot_password():
 
 
 # ==========================================
-# OTROS ENDPOINTS (verify, reset)
+# OTROS ENDPOINTS
 # ==========================================
 @password_reset_bp.route('/verify-reset-token/<token>', methods=['GET'])
 def verify_reset_token(token):
@@ -507,7 +309,7 @@ def verify_reset_token(token):
         reset_token = PasswordResetToken.get_valid_token(token)
         
         if not reset_token:
-            return jsonify({"valid": False, "message": "Token inválido o expirado"}), 400
+            return jsonify({"valid": False, "message": "Token inválido"}), 400
         
         usuario = Usuario.query.get(reset_token.user_id)
         
@@ -517,8 +319,8 @@ def verify_reset_token(token):
         }), 200
         
     except Exception as e:
-        logger.error(f"Error verificando token: {e}")
-        return jsonify({"valid": False, "message": "Error"}), 500
+        logger.error(f"Error: {e}")
+        return jsonify({"valid": False}), 500
 
 
 @password_reset_bp.route('/reset-password', methods=['POST'])
@@ -543,7 +345,7 @@ def reset_password():
         reset_token = PasswordResetToken.get_valid_token(token_str)
         
         if not reset_token:
-            return jsonify({"success": False, "message": "Token inválido o expirado"}), 400
+            return jsonify({"success": False, "message": "Token inválido"}), 400
         
         usuario = Usuario.query.get(reset_token.user_id)
         
@@ -554,14 +356,14 @@ def reset_password():
         reset_token.mark_as_used()
         db.session.commit()
         
-        logger.info(f"✅ Contraseña actualizada para: {usuario.correo}")
+        logger.info(f"✅ Contraseña actualizada: {usuario.correo}")
         
         return jsonify({
             "success": True,
-            "message": "Contraseña actualizada exitosamente"
+            "message": "Contraseña actualizada"
         }), 200
         
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error en reset_password: {e}")
+        logger.error(f"Error: {e}")
         return jsonify({"success": False, "message": "Error interno"}), 500
