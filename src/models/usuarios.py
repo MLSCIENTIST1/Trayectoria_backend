@@ -33,6 +33,7 @@ class Usuario(db.Model, UserMixin):
     profesion = Column(String(100), nullable=False)
     cedula = Column(BigInteger, nullable=False, unique=True, index=True)
     celular = Column(BigInteger, nullable=False)
+    foto_url = Column(String(500), nullable=True)  # ← NUEVO: URL de foto de perfil (Cloudinary)
     
     # ==========================================
     # ESTADO Y VALIDACIÓN
@@ -255,6 +256,7 @@ class Usuario(db.Model, UserMixin):
             "activo": self.active,
             "validado": self.validate,
             "ciudad_id": self.ciudad_id,
+            "foto_url": self.foto_url,  # ← NUEVO: incluir foto_url en serialización
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
         
