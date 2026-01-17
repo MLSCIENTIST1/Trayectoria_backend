@@ -1,7 +1,7 @@
 """
-BizFlow Studio - Registro de APIs v2.6
+BizFlow Studio - Registro de APIs v2.7
 Sistema de carga segura de blueprints
-Actualizado: Agregado módulo de Avatar (Cloudinary)
+Actualizado: Agregado módulo de Checkout API (Tiendas Online)
 """
 
 import traceback
@@ -17,7 +17,7 @@ def register_api(app):
     """
     
     logger.info("="*70)
-    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.6")
+    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.7")
     logger.info("="*70)
     
     # ==========================================
@@ -29,7 +29,7 @@ def register_api(app):
         return jsonify({
             "status": "online", 
             "message": "BizFlow Studio API operativa",
-            "version": "2.6.0"
+            "version": "2.7.0"
         }), 200
     
     logger.info("✅ Ruta de salud global registrada: /api/health")
@@ -169,6 +169,17 @@ def register_api(app):
             fail_count += 1
     
     # ==========================================
+    # 🏪 CHECKOUT API (Tiendas Online) ← NUEVO
+    # ==========================================
+    logger.info("\n🏪 Cargando módulo de checkout para tiendas online...")
+    
+    if safe_register('src.api.tiendas.checkout_api', 'checkout_api_bp', 'Checkout Tiendas Online'):
+        success_count += 1
+    else:
+        fail_count += 1
+        logger.warning("⚠️  Módulo de checkout no cargado - Las tiendas no podrán procesar pedidos")
+    
+    # ==========================================
     # 💰 CONTABILIDAD E INVENTARIO
     # ==========================================
     logger.info("\n💰 Cargando centro de control operativo...")
@@ -220,7 +231,7 @@ def register_api(app):
     profile_modules = [
         ('src.api.profile.view_logged_user_api', 'view_logged_user_bp', 'Ver Perfil de Usuario'),
         ('src.api.profile.edit_profile_api', 'edit_profile_bp', 'Editar Perfil'),
-        ('src.api.profile.avatar_api', 'avatar_api_bp', 'Avatar/Foto de Perfil'),  # ← NUEVO
+        ('src.api.profile.avatar_api', 'avatar_api_bp', 'Avatar/Foto de Perfil'),
         ('src.api.utils.register_user_api', 'register_user_bp', 'Registro de Usuarios'),
     ]
     
@@ -303,6 +314,12 @@ def register_api(app):
     logger.info("\n🛒 Rutas de compradores y pedidos registradas:")
     for rule in app.url_map.iter_rules():
         if 'comprador' in rule.rule or 'pedido' in rule.rule:
+            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
+    
+    # Listar rutas de checkout/tiendas ← NUEVO
+    logger.info("\n🏪 Rutas de checkout/tiendas registradas:")
+    for rule in app.url_map.iter_rules():
+        if 'tienda' in rule.rule or 'checkout' in rule.rule:
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     
     # Listar rutas de recuperación de contraseña
