@@ -2,6 +2,7 @@
 TRAYECTORIA ECOSISTEMA
 Modelo: DireccionComprador
 Descripción: Direcciones de envío de los compradores
+Versión: 2.0 - Optimizado para checkout
 """
 
 from datetime import datetime
@@ -102,12 +103,41 @@ class DireccionComprador(db.Model):
     fecha_actualizacion = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # ==========================================
-    # MÉTODOS
+    # ★ NUEVO: CONSTRUCTOR MEJORADO
+    # ==========================================
+    def __init__(self, **kwargs):
+        """
+        Constructor que facilita la creación desde el checkout.
+        
+        Permite usar tanto 'tipo_direccion' como 'tipo' (alias).
+        """
+        # Si se pasa 'tipo' en lugar de 'tipo_direccion', usarlo
+        if 'tipo' in kwargs and 'tipo_direccion' not in kwargs:
+            kwargs['tipo_direccion'] = kwargs.pop('tipo')
+        
+        # Si no hay tipo_direccion, usar residencia por defecto
+        if 'tipo_direccion' not in kwargs:
+            kwargs['tipo_direccion'] = 'residencia'
+        
+        # Validar tipo_direccion
+        if kwargs['tipo_direccion'] not in self.TIPOS_DIRECCION:
+            kwargs['tipo_direccion'] = 'residencia'
+        
+        super(DireccionComprador, self).__init__(**kwargs)
+    
+    # ==========================================
+    # PROPIEDADES
     # ==========================================
     @property
     def tipo_info(self):
         """Retorna información del tipo de dirección."""
         return self.TIPOS_DIRECCION.get(self.tipo_direccion, self.TIPOS_DIRECCION['otro'])
+    
+    # ★ NUEVO: Alias para compatibilidad
+    @property
+    def tipo(self):
+        """Alias de tipo_direccion para compatibilidad."""
+        return self.tipo_direccion
     
     @property
     def direccion_completa(self):
@@ -149,6 +179,9 @@ class DireccionComprador(db.Model):
             return f"{self.alias} - {self.ciudad}"
         return f"{self.direccion[:30]}... - {self.ciudad}"
     
+    # ==========================================
+    # MÉTODOS
+    # ==========================================
     def set_como_principal(self):
         """Establece esta dirección como principal."""
         # Quitar principal de las otras direcciones del mismo comprador
@@ -168,10 +201,12 @@ class DireccionComprador(db.Model):
         
         return {
             'id_direccion': self.id_direccion,
+            'id': self.id_direccion,  # ★ NUEVO: Alias para compatibilidad
             'comprador_id': self.comprador_id,
             
             # Tipo
             'tipo_direccion': self.tipo_direccion,
+            'tipo': self.tipo_direccion,  # ★ NUEVO: Alias
             'tipo_label': tipo_info['label'],
             'tipo_icon': tipo_info['icon'],
             'alias': self.alias,
@@ -226,6 +261,70 @@ class DireccionComprador(db.Model):
             'direccion_completa': self.direccion_completa
         }
     
+    # ==========================================
+    # ★ NUEVO: MÉTODOS DE CLASE
+    # ==========================================
+    @classmethod
+    def crear_desde_checkout(cls, comprador_id, direccion_data):
+        """
+        Crea una dirección desde los datos del checkout.
+        
+        Args:
+            comprador_id (int): ID del comprador
+            direccion_data (dict): Datos de dirección del checkout
+            
+        Returns:
+            DireccionComprador: Nueva dirección
+        
+        Ejemplo:
+            direccion_data = {
+                'direccion_completa': 'Calle 123 #45-67, Chapinero, Bogotá, Cundinamarca',
+                'ciudad': 'Bogotá',
+                'departamento': 'Cundinamarca',
+                'tipo': 'residencia'
+            }
+        """
+        # Parsear dirección completa si viene todo junto
+        direccion_texto = direccion_data.get('direccion_completa', '')
+        
+        # Si viene dirección completa pero no los campos individuales,
+        # intentar extraer ciudad y departamento del final
+        if direccion_texto and not direccion_data.get('ciudad'):
+            partes = direccion_texto.split(',')
+            if len(partes) >= 2:
+                # Última parte es departamento, penúltima es ciudad
+                direccion_data['departamento'] = partes[-1].strip()
+                direccion_data['ciudad'] = partes[-2].strip()
+                # El resto es la dirección
+                direccion_texto = ', '.join(partes[:-2])
+        
+        # Determinar si es primera dirección (para hacerla principal)
+        es_primera = cls.query.filter_by(
+            comprador_id=comprador_id,
+            activo=True
+        ).count() == 0
+        
+        direccion = cls(
+            comprador_id=comprador_id,
+            tipo_direccion=direccion_data.get('tipo', 'residencia'),
+            direccion=direccion_texto or direccion_data.get('direccion', ''),
+            ciudad=direccion_data.get('ciudad', ''),
+            departamento=direccion_data.get('departamento', ''),
+            barrio=direccion_data.get('barrio'),
+            localidad=direccion_data.get('localidad'),
+            complemento=direccion_data.get('complemento'),
+            referencias=direccion_data.get('referencias'),
+            codigo_postal=direccion_data.get('codigo_postal'),
+            alias=direccion_data.get('alias'),
+            nombre_establecimiento=direccion_data.get('nombre_establecimiento'),
+            datos_especiales=direccion_data.get('datos_especiales', {}),
+            latitud=direccion_data.get('latitud'),
+            longitud=direccion_data.get('longitud'),
+            es_principal=es_primera
+        )
+        
+        return direccion
+    
     @classmethod
     def get_tipos_direccion(cls):
         """Retorna los tipos de dirección disponibles."""
@@ -234,5 +333,54 @@ class DireccionComprador(db.Model):
             for k, v in cls.TIPOS_DIRECCION.items()
         ]
     
+    @classmethod
+    def validar_tipo(cls, tipo):
+        """
+        Valida que el tipo de dirección sea válido.
+        
+        Args:
+            tipo (str): Tipo a validar
+            
+        Returns:
+            bool: True si es válido
+        """
+        return tipo in cls.TIPOS_DIRECCION
+    
     def __repr__(self):
         return f'<DireccionComprador {self.id_direccion}: {self.direccion_corta}>'
+
+
+# ==========================================
+# NOTAS DE USO
+# ==========================================
+"""
+EJEMPLO DE USO EN CHECKOUT:
+
+# Opción 1: Crear directamente
+direccion = DireccionComprador(
+    comprador_id=comprador.id,
+    tipo='residencia',  # ← Acepta 'tipo' o 'tipo_direccion'
+    direccion='Calle 123 #45-67',
+    ciudad='Bogotá',
+    departamento='Cundinamarca',
+    barrio='Chapinero'
+)
+
+# Opción 2: Usar factory method (recomendado)
+direccion = DireccionComprador.crear_desde_checkout(
+    comprador_id=comprador.id,
+    direccion_data={
+        'direccion_completa': 'Calle 123 #45-67, Chapinero, Bogotá, Cundinamarca',
+        'ciudad': 'Bogotá',
+        'departamento': 'Cundinamarca',
+        'tipo': 'residencia'
+    }
+)
+
+db.session.add(direccion)
+db.session.commit()
+
+# Acceder al tipo
+print(direccion.tipo)  # 'residencia' (funciona como alias)
+print(direccion.tipo_direccion)  # 'residencia' (nombre real del campo)
+"""

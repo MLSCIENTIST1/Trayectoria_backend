@@ -2,6 +2,7 @@
 TRAYECTORIA ECOSISTEMA
 Modelo: Pedido
 Descripción: Pedidos realizados en las tiendas del ecosistema
+Versión: 2.0 - Actualizado para checkout con WhatsApp
 """
 
 from datetime import datetime
@@ -103,6 +104,13 @@ class Pedido(db.Model):
     referencia_pago = db.Column(db.String(100))  # ID de transacción
     
     # ==========================================
+    # ★ NUEVO: MÉTODO DE CONTACTO
+    # ==========================================
+    metodo_contacto = db.Column(db.String(20), default='whatsapp')
+    # Valores: whatsapp, app, email
+    # Indica cómo se contactó/confirmará con el cliente
+    
+    # ==========================================
     # ESTADO DEL PEDIDO
     # ==========================================
     estado = db.Column(db.String(50), default='pendiente', index=True)
@@ -191,6 +199,12 @@ class Pedido(db.Model):
         """Ciudad de envío desde el snapshot."""
         return self.datos_envio.get('ciudad', '')
     
+    # ★ NUEVO: Propiedades para compatibilidad
+    @property
+    def numero_pedido(self):
+        """Alias de codigo_pedido."""
+        return self.codigo_pedido
+    
     # ==========================================
     # MÉTODOS DE ESTADO
     # ==========================================
@@ -249,6 +263,7 @@ class Pedido(db.Model):
         data = {
             'id_pedido': self.id_pedido,
             'codigo_pedido': self.codigo_pedido,
+            'numero_pedido': self.codigo_pedido,  # ★ NUEVO: Alias
             
             # Relaciones
             'comprador_id': self.comprador_id,
@@ -277,6 +292,9 @@ class Pedido(db.Model):
             'estado_pago': self.estado_pago,
             'estado_pago_info': self.estado_pago_info,
             'referencia_pago': self.referencia_pago,
+            
+            # ★ NUEVO: Método de contacto
+            'metodo_contacto': self.metodo_contacto,
             
             # Estado
             'estado': self.estado,
@@ -312,6 +330,7 @@ class Pedido(db.Model):
         return {
             'id_pedido': self.id_pedido,
             'codigo_pedido': self.codigo_pedido,
+            'numero_pedido': self.codigo_pedido,  # ★ NUEVO: Alias
             'cliente_nombre': self.cliente_nombre,
             'cliente_telefono': self.cliente_telefono,
             'ciudad_envio': self.ciudad_envio,
@@ -340,10 +359,16 @@ class Pedido(db.Model):
         secuencial = count + 1
         return f"{prefijo}-{año}-{secuencial:04d}"
     
+    # ★ NUEVO: Alias para compatibilidad
+    @classmethod
+    def generar_numero_pedido(cls, negocio_id, prefijo='PED'):
+        """Alias de generar_codigo() para compatibilidad."""
+        return cls.generar_codigo(negocio_id, prefijo)
+    
     @classmethod
     def crear_pedido(cls, comprador, direccion, negocio_data, productos, 
                      subtotal, costo_envio, total, metodo_pago, 
-                     notas_cliente=None, origen='web'):
+                     notas_cliente=None, metodo_contacto='whatsapp', origen='web'):  # ★ NUEVO parámetro
         """Crea un nuevo pedido."""
         
         # Generar código
@@ -365,6 +390,7 @@ class Pedido(db.Model):
             costo_envio=costo_envio,
             total=total,
             metodo_pago=metodo_pago,
+            metodo_contacto=metodo_contacto,  # ★ NUEVO
             notas_cliente=notas_cliente,
             origen=origen
         )
