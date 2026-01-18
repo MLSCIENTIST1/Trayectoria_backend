@@ -1,6 +1,7 @@
 """
 BizFlow Studio - Modelos de Contabilidad y Catálogo
 Operaciones financieras y gestión de productos
+ACTUALIZADO: Inventario PRO v2.0 - Soporte para galería, videos y planes
 """
 
 import sqlalchemy as sa
@@ -163,11 +164,12 @@ class AlertaOperativa(db.Model):
 
 
 # ==========================================
-# MODELO: PRODUCTO CATÁLOGO
+# MODELO: PRODUCTO CATÁLOGO (INVENTARIO PRO v2.0)
 # ==========================================
 class ProductoCatalogo(db.Model):
     """
     Modelo para gestión de productos en el catálogo/inventario.
+    ACTUALIZADO: Soporte para galería de imágenes, videos y sistema de planes.
     """
     __tablename__ = 'productos_catalogo'
     __table_args__ = {'extend_existing': True}
@@ -187,13 +189,23 @@ class ProductoCatalogo(db.Model):
     referencia_sku = sa.Column(sa.String(100), nullable=True, default="SIN_SKU")
     codigo_barras = sa.Column(sa.String(100), nullable=True)
     
-    # Imagen
-    imagen_url = sa.Column(sa.String(500), nullable=True)
+    # Multimedia (INVENTARIO PRO v2.0)
+    imagen_url = sa.Column(sa.String(500), nullable=True)  # Imagen principal
+    imagenes = sa.Column(sa.JSON, nullable=True)  # Array de URLs de galería
+    videos = sa.Column(sa.JSON, nullable=True)  # Array de URLs de videos (YouTube/Vimeo)
     
     # Categorización y estado
     categoria = sa.Column(sa.String(100), default='General', index=True)
+    plan = sa.Column(sa.String(20), default='basic', nullable=False)  # basic, pro, premium, deluxe
+    etiquetas = sa.Column(sa.JSON, nullable=True)  # Array de tags personalizados
+    
+    # Inventario
     stock = sa.Column(sa.Integer, default=0, nullable=False)
     stock_minimo = sa.Column(sa.Integer, default=5)
+    stock_critico = sa.Column(sa.Integer, default=5)  # Nivel crítico personalizable
+    stock_bajo = sa.Column(sa.Integer, default=20)  # Nivel bajo personalizable
+    
+    # Estado y publicación
     activo = sa.Column(sa.Boolean, default=True, nullable=False)
     estado_publicacion = sa.Column(sa.Boolean, default=True, nullable=False)
     
@@ -213,7 +225,6 @@ class ProductoCatalogo(db.Model):
         sa.ForeignKey('usuarios.id_usuario', ondelete='CASCADE'),
         nullable=False
     )
-    # CORREGIDO: Agregado ForeignKey para la relación con Sucursal
     sucursal_id = sa.Column(
         sa.Integer,
         sa.ForeignKey('sucursales.id_sucursal', ondelete='SET NULL'),
@@ -236,57 +247,110 @@ class ProductoCatalogo(db.Model):
         self.costo = kwargs.get('costo', 0.0)
         self.stock = kwargs.get('stock', 0)
         self.stock_minimo = kwargs.get('stock_minimo', 5)
+        self.stock_critico = kwargs.get('stock_critico', 5)
+        self.stock_bajo = kwargs.get('stock_bajo', 20)
         self.categoria = kwargs.get('categoria', 'General')
         self.referencia_sku = kwargs.get('referencia_sku', 'SIN_SKU')
         self.codigo_barras = kwargs.get('codigo_barras')
         self.imagen_url = kwargs.get('imagen_url')
+        self.imagenes = kwargs.get('imagenes')  # NUEVO
+        self.videos = kwargs.get('videos')  # NUEVO
+        self.plan = kwargs.get('plan', 'basic')  # NUEVO
+        self.etiquetas = kwargs.get('etiquetas')  # NUEVO
         self.sucursal_id = kwargs.get('sucursal_id', 1)
+        self.activo = kwargs.get('activo', True)
+        self.estado_publicacion = kwargs.get('estado_publicacion', True)
     
     def ajustar_stock(self, cantidad, tipo='SUMA'):
+        """Ajusta el stock del producto"""
         if tipo == 'SUMA':
             self.stock += cantidad
         elif tipo == 'RESTA':
             self.stock = max(0, self.stock - cantidad)
     
     def necesita_reabastecimiento(self):
+        """Verifica si el stock está bajo el mínimo"""
         return self.stock <= self.stock_minimo
     
+    def nivel_stock(self):
+        """Retorna el nivel de stock: 'critico', 'bajo', 'ok'"""
+        if self.stock < self.stock_critico:
+            return 'critico'
+        elif self.stock < self.stock_bajo:
+            return 'bajo'
+        return 'ok'
+    
     def get_margen_utilidad(self):
+        """Calcula el margen de utilidad en porcentaje"""
         if self.costo == 0:
             return 0.0
-        return ((self.precio - self.costo) / self.costo) * 100
+        return round(((self.precio - self.costo) / self.costo) * 100, 2)
+    
+    def get_ganancia_unitaria(self):
+        """Calcula la ganancia por unidad"""
+        return round(self.precio - self.costo, 2)
     
     def to_dict(self):
+        """Serializa el producto a diccionario (compatible con inventario PRO)"""
         return {
+            # Identificadores
             "id": self.id_producto,
             "id_producto": self.id_producto,
-            "sku": self.referencia_sku,
-            "referencia_sku": self.referencia_sku,
-            "codigo_barras": self.codigo_barras,
+            
+            # Información básica
             "nombre": self.nombre,
             "descripcion": self.descripcion or "",
+            
+            # Precios y costos
             "precio": self.precio,
             "costo": self.costo,
             "margen_utilidad": self.get_margen_utilidad(),
+            "ganancia_unitaria": self.get_ganancia_unitaria(),
+            
+            # Identificación técnica
+            "sku": self.referencia_sku,
+            "referencia_sku": self.referencia_sku,
+            "codigo_barras": self.codigo_barras,
+            
+            # Multimedia
             "imagen_url": self.imagen_url,
+            "imagenes": self.imagenes if self.imagenes else [],  # NUEVO
+            "videos": self.videos if self.videos else [],  # NUEVO
+            
+            # Categorización
             "categoria": self.categoria,
+            "plan": self.plan,  # NUEVO
+            "etiquetas": self.etiquetas if self.etiquetas else [],  # NUEVO
+            
+            # Inventario
             "stock": self.stock,
             "stock_minimo": self.stock_minimo,
+            "stock_critico": self.stock_critico,  # NUEVO
+            "stock_bajo": self.stock_bajo,  # NUEVO
             "necesita_reabastecimiento": self.necesita_reabastecimiento(),
+            "nivel_stock": self.nivel_stock(),  # NUEVO
+            
+            # Estado
             "activo": self.activo,
             "estado_publicacion": self.estado_publicacion,
+            
+            # Relaciones
             "negocio_id": self.negocio_id,
             "sucursal_id": self.sucursal_id,
             "usuario_id": self.usuario_id,
+            
+            # Fechas
             "fecha": self.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S') if self.fecha_creacion else None,
+            "fecha_creacion": self.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S') if self.fecha_creacion else None,
             "fecha_actualizacion": self.fecha_actualizacion.strftime('%Y-%m-%d %H:%M:%S') if self.fecha_actualizacion else None
         }
 
     def serialize(self):
+        """Alias de to_dict() para compatibilidad"""
         return self.to_dict()
 
     def __repr__(self):
-        return f'<Producto {self.nombre} - Stock: {self.stock}>'
+        return f'<Producto {self.nombre} - Stock: {self.stock} ({self.nivel_stock()})>'
     
     def __str__(self):
         return f"{self.nombre} (${self.precio})"
