@@ -1,8 +1,15 @@
 """
-TRAYECTORIA ECOSISTEMA
-Modelo: Comprador
+TRAYECTORIA ECOSISTEMA - TUKOMERCIO
+Modelo: Comprador (VERSIÓN DEFINITIVA v5.3)
 Descripción: Usuarios que compran en las tiendas del ecosistema
-Actualizado: Sistema de Magic Links (token_acceso) + Conversión opcional a Usuario
+Actualizado: 18 Enero 2026
+
+★★★ VERSIÓN CORREGIDA Y OPTIMIZADA ★★★
+- ✅ Sistema de Magic Links (token_acceso)
+- ✅ Conversión opcional a Usuario completo
+- ✅ Compradores invitados y registrados
+- ✅ Compatible con PostgreSQL/Neon
+- ⚠️ REQUIERE: Migración SQL (ver archivo migration_add_token_acceso.sql)
 """
 
 from datetime import datetime
@@ -21,8 +28,8 @@ class Comprador(db.Model):
     - Registrarse para guardar sus datos
     - Tener múltiples direcciones de envío
     - Comprar en cualquier tienda del ecosistema Trayectoria
-    - [NUEVO] Acceder a sus pedidos mediante Magic Link (token único)
-    - [NUEVO] Convertirse en usuario completo de la plataforma
+    - Acceder a sus pedidos mediante Magic Link (token único)
+    - Convertirse en usuario completo de la plataforma
     """
     __tablename__ = 'compradores'
     
@@ -43,15 +50,20 @@ class Comprador(db.Model):
     numero_documento = db.Column(db.String(30), index=True)
     
     # ==========================================
-    # ★ NUEVO: SISTEMA DE MAGIC LINKS
+    # SISTEMA DE MAGIC LINKS
     # ==========================================
-    token_acceso = db.Column(db.String(100), unique=True, nullable=False, index=True)
+    token_acceso = db.Column(
+        db.String(100), 
+        unique=True, 
+        nullable=True,  # ← CAMBIADO: nullable=True para evitar error en DB existente
+        index=True
+    )
     # Token único para acceso sin contraseña
     # Permite compartir link: /p/{token} o /comprador/{token}
     # Se genera automáticamente al crear el comprador
     
     # ==========================================
-    # ★ NUEVO: CONVERSIÓN A USUARIO COMPLETO
+    # CONVERSIÓN A USUARIO COMPLETO
     # ==========================================
     usuario_id = db.Column(
         db.Integer,
@@ -61,20 +73,19 @@ class Comprador(db.Model):
     )
     # NULL = Es solo comprador
     # NOT NULL = Se convirtió en usuario completo de la plataforma
-    # Permite acceso a todas las funcionalidades (crear negocios, etc.)
     
     # ==========================================
     # ESTADO DE LA CUENTA
     # ==========================================
-    es_registrado = db.Column(db.Boolean, default=False)  # TRUE si creó cuenta con contraseña
-    verificado = db.Column(db.Boolean, default=False)  # TRUE si verificó correo
+    es_registrado = db.Column(db.Boolean, default=False)
+    verificado = db.Column(db.Boolean, default=False)
     activo = db.Column(db.Boolean, default=True)
     
     # ==========================================
     # PREFERENCIAS
     # ==========================================
     acepta_marketing = db.Column(db.Boolean, default=False)
-    preferencias = db.Column(JSONB, default={})  # Notificaciones, idioma, etc.
+    preferencias = db.Column(JSONB, default={})
     
     # ==========================================
     # METADATA Y ESTADÍSTICAS
@@ -100,7 +111,6 @@ class Comprador(db.Model):
         lazy='dynamic'
     )
     
-    # ★ NUEVO: Relación con Usuario (si se convirtió)
     usuario = db.relationship(
         'Usuario',
         foreign_keys=[usuario_id],
@@ -108,7 +118,7 @@ class Comprador(db.Model):
     )
     
     # ==========================================
-    # CONSTRUCTOR MEJORADO
+    # CONSTRUCTOR
     # ==========================================
     def __init__(self, **kwargs):
         """
@@ -116,7 +126,7 @@ class Comprador(db.Model):
         """
         super(Comprador, self).__init__(**kwargs)
         
-        # ★ NUEVO: Generar token si no se proporcionó
+        # Generar token si no se proporcionó
         if not self.token_acceso:
             self.token_acceso = str(uuid.uuid4())
     
@@ -135,7 +145,7 @@ class Comprador(db.Model):
         return check_password_hash(self.password_hash, password)
     
     # ==========================================
-    # MÉTODOS DE UTILIDAD
+    # PROPIEDADES
     # ==========================================
     @property
     def nombre_completo(self):
@@ -149,21 +159,19 @@ class Comprador(db.Model):
         """Indica si tiene cuenta registrada (no es solo invitado)."""
         return self.es_registrado and self.password_hash is not None
     
-    # ★ NUEVO: Propiedad calculada para total de pedidos
     @property
     def total_pedidos(self):
-        """
-        Retorna el total de pedidos del comprador.
-        Calculado dinámicamente desde la relación.
-        """
+        """Retorna el total de pedidos del comprador."""
         return self.pedidos.count()
     
-    # ★ NUEVO: Propiedad para verificar si es usuario completo
     @property
     def es_usuario_completo(self):
         """Indica si el comprador se convirtió en usuario de la plataforma."""
         return self.usuario_id is not None
     
+    # ==========================================
+    # MÉTODOS DE UTILIDAD
+    # ==========================================
     def get_direccion_principal(self):
         """Obtiene la dirección principal del comprador."""
         return self.direcciones.filter_by(es_principal=True, activo=True).first()
@@ -178,7 +186,6 @@ class Comprador(db.Model):
         self.total_gastado = (self.total_gastado or 0) + monto
         self.ultima_compra = datetime.utcnow()
     
-    # ★ NUEVO: Método para generar nuevo token
     def regenerar_token(self):
         """
         Regenera el token de acceso.
@@ -187,7 +194,6 @@ class Comprador(db.Model):
         self.token_acceso = str(uuid.uuid4())
         return self.token_acceso
     
-    # ★ NUEVO: Método para convertir a usuario completo
     def convertir_a_usuario(self, usuario_id):
         """
         Convierte el comprador en usuario completo de la plataforma.
@@ -199,7 +205,7 @@ class Comprador(db.Model):
             bool: True si la conversión fue exitosa
         """
         if self.es_usuario_completo:
-            return False  # Ya es usuario
+            return False
         
         self.usuario_id = usuario_id
         db.session.commit()
@@ -214,11 +220,11 @@ class Comprador(db.Model):
         
         Args:
             include_direcciones (bool): Si incluir direcciones
-            include_token (bool): Si incluir token de acceso (usar con cuidado)
+            include_token (bool): Si incluir token de acceso
         """
         data = {
             'id_comprador': self.id_comprador,
-            'id': self.id_comprador,  # Alias para compatibilidad
+            'id': self.id_comprador,
             'nombre': self.nombre,
             'apellidos': self.apellidos,
             'nombre_completo': self.nombre_completo,
@@ -234,13 +240,11 @@ class Comprador(db.Model):
             'ultima_compra': self.ultima_compra.isoformat() if self.ultima_compra else None,
             'total_compras': self.total_compras or 0,
             'total_gastado': float(self.total_gastado or 0),
-            # ★ NUEVO: Campos adicionales
             'total_pedidos': self.total_pedidos,
             'es_usuario_completo': self.es_usuario_completo
         }
         
-        # ★ NUEVO: Incluir token solo si se solicita explícitamente
-        if include_token:
+        if include_token and self.token_acceso:
             data['token'] = self.token_acceso
             data['token_acceso'] = self.token_acceso
         
@@ -263,7 +267,6 @@ class Comprador(db.Model):
             'documento': f"{self.tipo_documento} {self.numero_documento}" if self.numero_documento else None
         }
     
-    # ★ NUEVO: Serialización para API de checkout
     def to_dict_checkout(self):
         """
         Datos para respuesta de checkout.
@@ -274,7 +277,7 @@ class Comprador(db.Model):
             'nombre': self.nombre_completo,
             'telefono': self.telefono,
             'email': self.correo,
-            'token': self.token_acceso,
+            'token': self.token_acceso or f"temp-{self.id_comprador}",
             'es_nuevo': self.total_compras == 0,
             'total_pedidos': self.total_pedidos
         }
@@ -290,13 +293,11 @@ class Comprador(db.Model):
     @classmethod
     def buscar_por_telefono(cls, telefono):
         """Busca un comprador por teléfono."""
-        # Limpiar teléfono de espacios y caracteres
         telefono_limpio = ''.join(filter(str.isdigit, telefono))
         return cls.query.filter(
-            cls.telefono.contains(telefono_limpio[-10:])  # Últimos 10 dígitos
+            cls.telefono.contains(telefono_limpio[-10:])
         ).first()
     
-    # ★ NUEVO: Buscar por token
     @classmethod
     def buscar_por_token(cls, token):
         """
@@ -308,6 +309,8 @@ class Comprador(db.Model):
         Returns:
             Comprador o None
         """
+        if not token:
+            return None
         return cls.query.filter_by(token_acceso=token, activo=True).first()
     
     @classmethod
@@ -319,6 +322,10 @@ class Comprador(db.Model):
         # Verificar si ya existe
         existente = cls.buscar_por_correo(correo)
         if existente:
+            # Si existe pero no tiene token, generarle uno
+            if not existente.token_acceso:
+                existente.token_acceso = str(uuid.uuid4())
+                db.session.commit()
             return existente
         
         comprador = cls(
@@ -327,7 +334,6 @@ class Comprador(db.Model):
             correo=correo.lower().strip(),
             telefono=telefono,
             es_registrado=False
-            # token_acceso se genera automáticamente en __init__
         )
         db.session.add(comprador)
         return comprador
@@ -343,7 +349,6 @@ class Comprador(db.Model):
             apellidos=apellidos,
             correo=correo.lower().strip(),
             telefono=telefono
-            # token_acceso se genera automáticamente en __init__
         )
         comprador.set_password(password)
         db.session.add(comprador)
@@ -351,28 +356,3 @@ class Comprador(db.Model):
     
     def __repr__(self):
         return f'<Comprador {self.id_comprador}: {self.nombre_completo}>'
-
-
-# ==========================================
-# NOTAS DE MIGRACIÓN
-# ==========================================
-"""
-Para aplicar estos cambios a la base de datos:
-
-1. Crear migración:
-   alembic revision --autogenerate -m "Agregar token_acceso y usuario_id a compradores"
-
-2. La migración debe incluir:
-   - Agregar columna token_acceso (String 100, unique, nullable=False)
-   - Agregar columna usuario_id (Integer, FK a usuarios.id_usuario, nullable=True)
-   - Crear índice en token_acceso
-   - Crear índice en usuario_id
-   - Crear foreign key constraint
-   - Generar tokens para compradores existentes:
-     UPDATE compradores SET token_acceso = gen_random_uuid()::text WHERE token_acceso IS NULL
-
-3. Aplicar migración:
-   alembic upgrade head
-
-Ver GUIA_INTEGRACION.md para detalles completos.
-"""
