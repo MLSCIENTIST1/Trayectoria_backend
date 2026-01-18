@@ -356,3 +356,4 @@ class Comprador(db.Model):
     
     def __repr__(self):
         return f'<Comprador {self.id_comprador}: {self.nombre_completo}>'
+    "pendiente de documentar"
