@@ -9,9 +9,9 @@ from flask_cors import cross_origin
 import datetime
 
 # Importar modelos existentes
-from src.models.comprador import Comprador
-from src.models.direccion_comprador import DireccionComprador
-from src.models.pedido import Pedido
+from src.models import Comprador
+from src.models import  DireccionComprador
+from src.models import Pedido 
 from src.models.database import db
 
 checkout_api_bp = Blueprint('checkout_api', __name__)
