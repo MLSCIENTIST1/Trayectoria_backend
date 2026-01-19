@@ -162,7 +162,89 @@ class AlertaOperativa(db.Model):
             "usuario_id": self.usuario_id
         }
 
+class MovimientoStock(db.Model):
+    """
+    Historial de movimientos de inventario por producto.
+    Tipos: entrada, salida, ajuste, inicial
+    """
+    __tablename__ = 'movimientos_stock'
+    
+    id_movimiento = sa.Column(sa.Integer, primary_key=True)
+    
+    # Relación con producto
+    producto_id = sa.Column(
+        sa.Integer,
+        sa.ForeignKey('productos_catalogo.id_producto', ondelete='CASCADE'),
+        nullable=False,
+        index=True
+    )
+    
+    # Relaciones de contexto
+    usuario_id = sa.Column(sa.Integer, sa.ForeignKey('usuarios.id_usuario'), nullable=False)
+    negocio_id = sa.Column(sa.Integer, sa.ForeignKey('negocios.id_negocio'), nullable=False)
+    sucursal_id = sa.Column(sa.Integer, sa.ForeignKey('sucursales.id_sucursal'), nullable=True)
+    
+    # Datos del movimiento
+    tipo = sa.Column(sa.String(20), nullable=False)  # 'entrada', 'salida', 'ajuste', 'inicial'
+    cantidad = sa.Column(sa.Integer, nullable=False)  # Puede ser negativo en salidas
+    stock_anterior = sa.Column(sa.Integer, nullable=False)
+    stock_nuevo = sa.Column(sa.Integer, nullable=False)
+    nota = sa.Column(sa.String(255), nullable=True)
+    
+    # Metadata
+    fecha = sa.Column(sa.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    
+    # Relaciones
+    producto = relationship("ProductoCatalogo", backref="movimientos")
+    
+    def to_dict(self):
+        return {
+            "id": self.id_movimiento,
+            "producto_id": self.producto_id,
+            "tipo": self.tipo,
+            "quantity": self.cantidad,
+            "cantidad": self.cantidad,
+            "previousStock": self.stock_anterior,
+            "stock_anterior": self.stock_anterior,
+            "newStock": self.stock_nuevo,
+            "stock_nuevo": self.stock_nuevo,
+            "note": self.nota,
+            "nota": self.nota,
+            "date": self.fecha.isoformat() if self.fecha else None,
+            "fecha": self.fecha.isoformat() if self.fecha else None
+        }
 
+
+class CategoriaProducto(db.Model):
+    """
+    Categorías personalizadas para productos.
+    """
+    __tablename__ = 'categorias_producto'
+    
+    id_categoria = sa.Column(sa.Integer, primary_key=True)
+    
+    # Relaciones
+    usuario_id = sa.Column(sa.Integer, sa.ForeignKey('usuarios.id_usuario'), nullable=False)
+    negocio_id = sa.Column(sa.Integer, sa.ForeignKey('negocios.id_negocio'), nullable=False)
+    
+    # Datos
+    nombre = sa.Column(sa.String(100), nullable=False)
+    icono = sa.Column(sa.String(10), default='📦')  # Emoji
+    color = sa.Column(sa.String(20), default='#6366f1')  # Hex color
+    
+    # Metadata
+    fecha_creacion = sa.Column(sa.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            "id": self.id_categoria,
+            "name": self.nombre,
+            "nombre": self.nombre,
+            "icon": self.icono,
+            "icono": self.icono,
+            "color": self.color,
+            "negocio_id": self.negocio_id
+        }
 # ==========================================
 # MODELO: PRODUCTO CATÁLOGO (INVENTARIO PRO v2.0)
 # ==========================================
@@ -344,6 +426,7 @@ class ProductoCatalogo(db.Model):
             "fecha_creacion": self.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S') if self.fecha_creacion else None,
             "fecha_actualizacion": self.fecha_actualizacion.strftime('%Y-%m-%d %H:%M:%S') if self.fecha_actualizacion else None
         }
+    
 
     def serialize(self):
         """Alias de to_dict() para compatibilidad"""
