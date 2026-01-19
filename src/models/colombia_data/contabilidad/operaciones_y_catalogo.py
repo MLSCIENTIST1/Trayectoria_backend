@@ -162,6 +162,10 @@ class AlertaOperativa(db.Model):
             "usuario_id": self.usuario_id
         }
 
+
+# ==========================================
+# MODELO: MOVIMIENTO DE STOCK
+# ==========================================
 class MovimientoStock(db.Model):
     """
     Historial de movimientos de inventario por producto.
@@ -215,6 +219,9 @@ class MovimientoStock(db.Model):
         }
 
 
+# ==========================================
+# MODELO: CATEGORÍA DE PRODUCTO
+# ==========================================
 class CategoriaProducto(db.Model):
     """
     Categorías personalizadas para productos.
@@ -245,6 +252,8 @@ class CategoriaProducto(db.Model):
             "color": self.color,
             "negocio_id": self.negocio_id
         }
+
+
 # ==========================================
 # MODELO: PRODUCTO CATÁLOGO (INVENTARIO PRO v2.0)
 # ==========================================
@@ -271,21 +280,21 @@ class ProductoCatalogo(db.Model):
     referencia_sku = sa.Column(sa.String(100), nullable=True, default="SIN_SKU")
     codigo_barras = sa.Column(sa.String(100), nullable=True)
     
-    # Multimedia (INVENTARIO PRO v2.0)
-    imagen_url = sa.Column(sa.String(500), nullable=True)  # Imagen principal
-    imagenes = sa.Column(sa.JSON, nullable=True)  # Array de URLs de galería
-    videos = sa.Column(sa.JSON, nullable=True)  # Array de URLs de videos (YouTube/Vimeo)
+    # Multimedia (INVENTARIO PRO v2.0) - Usando TEXT para coincidir con SQL
+    imagen_url = sa.Column(sa.String(500), nullable=True)
+    imagenes = sa.Column(sa.Text, nullable=True, default='[]')
+    videos = sa.Column(sa.Text, nullable=True, default='[]')
     
     # Categorización y estado
     categoria = sa.Column(sa.String(100), default='General', index=True)
-    plan = sa.Column(sa.String(20), default='basic', nullable=False)  # basic, pro, premium, deluxe
-    etiquetas = sa.Column(sa.JSON, nullable=True)  # Array de tags personalizados
+    plan = sa.Column(sa.String(20), default='basic', nullable=False)
+    etiquetas = sa.Column(sa.Text, nullable=True, default='[]')
     
     # Inventario
     stock = sa.Column(sa.Integer, default=0, nullable=False)
     stock_minimo = sa.Column(sa.Integer, default=5)
-    stock_critico = sa.Column(sa.Integer, default=5)  # Nivel crítico personalizable
-    stock_bajo = sa.Column(sa.Integer, default=20)  # Nivel bajo personalizable
+    stock_critico = sa.Column(sa.Integer, default=2)
+    stock_bajo = sa.Column(sa.Integer, default=10)
     
     # Estado y publicación
     activo = sa.Column(sa.Boolean, default=True, nullable=False)
@@ -329,16 +338,16 @@ class ProductoCatalogo(db.Model):
         self.costo = kwargs.get('costo', 0.0)
         self.stock = kwargs.get('stock', 0)
         self.stock_minimo = kwargs.get('stock_minimo', 5)
-        self.stock_critico = kwargs.get('stock_critico', 5)
-        self.stock_bajo = kwargs.get('stock_bajo', 20)
+        self.stock_critico = kwargs.get('stock_critico', 2)
+        self.stock_bajo = kwargs.get('stock_bajo', 10)
         self.categoria = kwargs.get('categoria', 'General')
         self.referencia_sku = kwargs.get('referencia_sku', 'SIN_SKU')
         self.codigo_barras = kwargs.get('codigo_barras')
         self.imagen_url = kwargs.get('imagen_url')
-        self.imagenes = kwargs.get('imagenes')  # NUEVO
-        self.videos = kwargs.get('videos')  # NUEVO
-        self.plan = kwargs.get('plan', 'basic')  # NUEVO
-        self.etiquetas = kwargs.get('etiquetas')  # NUEVO
+        self.imagenes = kwargs.get('imagenes', '[]')
+        self.videos = kwargs.get('videos', '[]')
+        self.plan = kwargs.get('plan', 'basic')
+        self.etiquetas = kwargs.get('etiquetas', '[]')
         self.sucursal_id = kwargs.get('sucursal_id', 1)
         self.activo = kwargs.get('activo', True)
         self.estado_publicacion = kwargs.get('estado_publicacion', True)
@@ -356,9 +365,9 @@ class ProductoCatalogo(db.Model):
     
     def nivel_stock(self):
         """Retorna el nivel de stock: 'critico', 'bajo', 'ok'"""
-        if self.stock < self.stock_critico:
+        if self.stock <= self.stock_critico:
             return 'critico'
-        elif self.stock < self.stock_bajo:
+        elif self.stock <= self.stock_bajo:
             return 'bajo'
         return 'ok'
     
@@ -371,6 +380,20 @@ class ProductoCatalogo(db.Model):
     def get_ganancia_unitaria(self):
         """Calcula la ganancia por unidad"""
         return round(self.precio - self.costo, 2)
+    
+    def _parse_json_field(self, field_value):
+        """Helper para parsear campos JSON almacenados como TEXT"""
+        import json
+        if field_value is None:
+            return []
+        if isinstance(field_value, list):
+            return field_value
+        if isinstance(field_value, str):
+            try:
+                return json.loads(field_value)
+            except:
+                return []
+        return []
     
     def to_dict(self):
         """Serializa el producto a diccionario (compatible con inventario PRO)"""
@@ -396,21 +419,21 @@ class ProductoCatalogo(db.Model):
             
             # Multimedia
             "imagen_url": self.imagen_url,
-            "imagenes": self.imagenes if self.imagenes else [],  # NUEVO
-            "videos": self.videos if self.videos else [],  # NUEVO
+            "imagenes": self._parse_json_field(self.imagenes),
+            "videos": self._parse_json_field(self.videos),
             
             # Categorización
             "categoria": self.categoria,
-            "plan": self.plan,  # NUEVO
-            "etiquetas": self.etiquetas if self.etiquetas else [],  # NUEVO
+            "plan": self.plan,
+            "etiquetas": self._parse_json_field(self.etiquetas),
             
             # Inventario
             "stock": self.stock,
             "stock_minimo": self.stock_minimo,
-            "stock_critico": self.stock_critico,  # NUEVO
-            "stock_bajo": self.stock_bajo,  # NUEVO
+            "stock_critico": self.stock_critico,
+            "stock_bajo": self.stock_bajo,
             "necesita_reabastecimiento": self.necesita_reabastecimiento(),
-            "nivel_stock": self.nivel_stock(),  # NUEVO
+            "nivel_stock": self.nivel_stock(),
             
             # Estado
             "activo": self.activo,
@@ -426,7 +449,6 @@ class ProductoCatalogo(db.Model):
             "fecha_creacion": self.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S') if self.fecha_creacion else None,
             "fecha_actualizacion": self.fecha_actualizacion.strftime('%Y-%m-%d %H:%M:%S') if self.fecha_actualizacion else None
         }
-    
 
     def serialize(self):
         """Alias de to_dict() para compatibilidad"""
