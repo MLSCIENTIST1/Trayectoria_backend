@@ -417,7 +417,7 @@ def guardar_producto_catalogo():
         # ========================================
         # 5. CREAR PRODUCTO
         # ========================================
-        nuevo_prod = ProductoCatalogo(
+        nuevo_producto = ProductoCatalogo(
             nombre=nombre,
             precio=float(data.get('precio') or 0),
             negocio_id=negocio_id,
@@ -441,7 +441,7 @@ def guardar_producto_catalogo():
             estado_publicacion=True
         )
         
-        db.session.add(nuevo_prod)
+        db.session.add(nuevo_producto)
         db.session.commit()
 
         # ========================================
@@ -455,7 +455,7 @@ def guardar_producto_catalogo():
         
         logger.info(f"✅ ═══════════════════════════════════════")
         logger.info(f"✅ PRODUCTO CREADO: {nombre}")
-        logger.info(f"✅ ID: {nuevo_prod.id_producto}")
+        logger.info(f"✅ ID: {nuevo_producto.id_producto}")
         logger.info(f"✅ Imágenes: {len(galeria_urls)}")
         logger.info(f"✅ Videos: {len(videos)}")
         logger.info(f"✅ ═══════════════════════════════════════")
@@ -629,12 +629,12 @@ def actualizar_producto(id_producto):
 # ============================================
 
         # ★ Badges manuales al crear
-        nuevo_prod.badge_destacado = data.get('destacado', False) in [True, 'true', '1', 1]
-        nuevo_prod.badge_mas_vendido = data.get('mas_vendido', False) in [True, 'true', '1', 1]
-        nuevo_prod.badge_envio_gratis = data.get('envio_gratis', False) in [True, 'true', '1', 1]
+        nuevo_producto.badge_destacado = data.get('destacado', False) in [True, 'true', '1', 1]
+        nuevo_producto.badge_mas_vendido = data.get('mas_vendido', False) in [True, 'true', '1', 1]
+        nuevo_producto.badge_envio_gratis = data.get('envio_gratis', False) in [True, 'true', '1', 1]
         
         if data.get('precio_original'):
-            nuevo_prod.precio_original = float(data['precio_original'])
+            nuevo_producto.precio_original = float(data['precio_original'])
 
 
         # ========================================
