@@ -1,7 +1,7 @@
 # ============================================
-# catalogo_api.py - VERSIÓN CORREGIDA v3.1
+# catalogo_api.py - VERSIÓN CORREGIDA v3.2
 # Conectado con Inventario PRO + BizContext
-# CORREGIDO: Múltiples imágenes + YouTube videos
+# CORREGIDO: Error nuevo_prod not defined
 # ============================================
 
 import cloudinary
@@ -155,7 +155,7 @@ def health_check():
     return jsonify({
         "status": "online", 
         "module": "catalogo",
-        "version": "3.1",
+        "version": "3.2",
         "cloudinary": "configured"
     }), 200
 
@@ -283,7 +283,7 @@ def obtener_mis_productos():
 
 
 # ============================================
-# 2. GUARDAR PRODUCTO (Crear nuevo) - CORREGIDO
+# 2. GUARDAR PRODUCTO (Crear nuevo) - CORREGIDO v3.2
 # ============================================
 
 @catalogo_api_bp.route('/catalogo/producto/guardar', methods=['POST', 'OPTIONS'])
@@ -441,6 +441,14 @@ def guardar_producto_catalogo():
             estado_publicacion=True
         )
         
+        # ★ Badges manuales al crear (v3.2)
+        nuevo_prod.badge_destacado = data.get('destacado', False) in [True, 'true', '1', 1]
+        nuevo_prod.badge_mas_vendido = data.get('mas_vendido', False) in [True, 'true', '1', 1]
+        nuevo_prod.badge_envio_gratis = data.get('envio_gratis', False) in [True, 'true', '1', 1]
+        
+        if data.get('precio_original'):
+            nuevo_prod.precio_original = float(data['precio_original'])
+        
         db.session.add(nuevo_prod)
         db.session.commit()
 
@@ -476,7 +484,7 @@ def guardar_producto_catalogo():
 
 
 # ============================================
-# 3. ACTUALIZAR PRODUCTO (Edición completa) - CORREGIDO
+# 3. ACTUALIZAR PRODUCTO (Edición completa) - CORREGIDO v3.2
 # ============================================
 
 @catalogo_api_bp.route('/producto/actualizar/<int:id_producto>', methods=['PUT', 'PATCH', 'OPTIONS'])
@@ -559,19 +567,9 @@ def actualizar_producto(id_producto):
         
         if 'stock_bajo' in data:
             producto.stock_bajo = int(data['stock_bajo'])
-        
-        # ============================================
-# FIX PARA: catalogo_api.py
-# AGREGAR en el endpoint actualizar_producto()
-# Buscar la función actualizar_producto y agregar estas líneas
-# ============================================
-
-# DESPUÉS DE LA SECCIÓN "ACTUALIZAR CAMPOS BÁSICOS"
-# Y ANTES DE "PROCESAR VIDEOS/YOUTUBE"
-# AGREGAR ESTE BLOQUE:
 
         # ========================================
-        # ★ ACTUALIZAR BADGES MANUALES (v2.2)
+        # ★ ACTUALIZAR BADGES MANUALES (v3.2)
         # ========================================
         if 'destacado' in data or 'badge_destacado' in data:
             val = data.get('destacado') or data.get('badge_destacado')
@@ -621,21 +619,6 @@ def actualizar_producto(id_producto):
         
         if 'promo_badge_texto' in data:
             producto.promo_badge_texto = data.get('promo_badge_texto')
-
-
-# ============================================
-# TAMBIÉN EN guardar_producto_catalogo()
-# Después de crear el producto, agregar:
-# ============================================
-
-        # ★ Badges manuales al crear
-        nuevo_prod.badge_destacado = data.get('destacado', False) in [True, 'true', '1', 1]
-        nuevo_prod.badge_mas_vendido = data.get('mas_vendido', False) in [True, 'true', '1', 1]
-        nuevo_prod.badge_envio_gratis = data.get('envio_gratis', False) in [True, 'true', '1', 1]
-        
-        if data.get('precio_original'):
-            nuevo_prod.precio_original = float(data['precio_original'])
-
 
         # ========================================
         # PROCESAR VIDEOS/YOUTUBE
@@ -2129,18 +2112,8 @@ def exportar_productos():
 
 
 # ============================================
-# 25. CATÁLOGO PÚBLICO (Sin auth)
+# 25. CATÁLOGO PÚBLICO (Sin auth) - v3.2
 # ============================================
-
-# ============================================
-# FIX PARA: catalogo_api.py
-# REEMPLAZAR el endpoint /productos/publicos/{negocio_id}
-# ============================================
-
-# BUSCAR ESTA FUNCIÓN (aproximadamente línea 900+):
-# @catalogo_api_bp.route('/productos/publicos/<int:negocio_id>', methods=['GET', 'OPTIONS'])
-
-# REEMPLAZAR TODA LA FUNCIÓN POR ESTA:
 
 @catalogo_api_bp.route('/productos/publicos/<int:negocio_id>', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
@@ -2148,7 +2121,7 @@ def catalogo_publico(negocio_id):
     """
     GET /api/productos/publicos/{negocio_id}
     
-    Catálogo público con BADGES CALCULADOS (v2.2)
+    Catálogo público con BADGES CALCULADOS (v3.2)
     Los badges vienen del método to_dict() del modelo ProductoCatalogo
     """
     if request.method == 'OPTIONS':
@@ -2262,12 +2235,10 @@ def catalogo_publico(negocio_id):
         logger.error(f"❌ Error catálogo público: {traceback.format_exc()}")
         return jsonify({"success": False, "message": str(e)}), 500
 
-# ============================================
-# AGREGAR A: catalogo_api.py
-# NUEVO ENDPOINT: Actualizar Badges Manuales
-# ============================================
 
-# AGREGAR ESTE ENDPOINT AL FINAL DEL ARCHIVO (antes del comentario de cierre)
+# ============================================
+# 26. ACTUALIZAR BADGES DE PRODUCTO
+# ============================================
 
 @catalogo_api_bp.route('/producto/<int:id_producto>/badges', methods=['PATCH', 'PUT', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
@@ -2283,9 +2254,9 @@ def actualizar_badges_producto(id_producto):
         "destacado": true/false,
         "mas_vendido": true/false,
         "envio_gratis": true/false,
-        "promo_inicio": "2026-01-20T00:00:00Z",  // opcional
-        "promo_fin": "2026-01-25T23:59:59Z",     // opcional
-        "promo_badge_texto": "🎉 50% OFF"        // opcional
+        "promo_inicio": "2026-01-20T00:00:00Z",
+        "promo_fin": "2026-01-25T23:59:59Z",
+        "promo_badge_texto": "🎉 50% OFF"
     }
     """
     if request.method == 'OPTIONS':
@@ -2383,6 +2354,10 @@ def actualizar_badges_producto(id_producto):
         return jsonify({"success": False, "message": str(e)}), 500
 
 
+# ============================================
+# 27. ACTUALIZAR BADGES MASIVO
+# ============================================
+
 @catalogo_api_bp.route('/productos/badges/masivo', methods=['PATCH', 'PUT', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def actualizar_badges_masivo():
@@ -2393,7 +2368,7 @@ def actualizar_badges_masivo():
     
     Body JSON:
     {
-        "productos": [1, 2, 3, 4],  // IDs de productos
+        "productos": [1, 2, 3, 4],
         "badges": {
             "destacado": true,
             "envio_gratis": true
@@ -2456,6 +2431,8 @@ def actualizar_badges_masivo():
         db.session.rollback()
         logger.error(f"❌ Error actualización masiva: {traceback.format_exc()}")
         return jsonify({"success": False, "message": str(e)}), 500
+
+
 # ============================================
-# FIN DEL ARCHIVO - catalogo_api.py v3.1
+# FIN DEL ARCHIVO - catalogo_api.py v3.2
 # ============================================
