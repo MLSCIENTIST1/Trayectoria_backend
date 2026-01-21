@@ -559,6 +559,83 @@ def actualizar_producto(id_producto):
         
         if 'stock_bajo' in data:
             producto.stock_bajo = int(data['stock_bajo'])
+        
+        # ============================================
+# FIX PARA: catalogo_api.py
+# AGREGAR en el endpoint actualizar_producto()
+# Buscar la función actualizar_producto y agregar estas líneas
+# ============================================
+
+# DESPUÉS DE LA SECCIÓN "ACTUALIZAR CAMPOS BÁSICOS"
+# Y ANTES DE "PROCESAR VIDEOS/YOUTUBE"
+# AGREGAR ESTE BLOQUE:
+
+        # ========================================
+        # ★ ACTUALIZAR BADGES MANUALES (v2.2)
+        # ========================================
+        if 'destacado' in data or 'badge_destacado' in data:
+            val = data.get('destacado') or data.get('badge_destacado')
+            producto.badge_destacado = val in [True, 'true', '1', 1]
+            logger.info(f"   ⭐ Badge destacado: {producto.badge_destacado}")
+        
+        if 'mas_vendido' in data or 'badge_mas_vendido' in data:
+            val = data.get('mas_vendido') or data.get('badge_mas_vendido')
+            producto.badge_mas_vendido = val in [True, 'true', '1', 1]
+            logger.info(f"   🔥 Badge más vendido: {producto.badge_mas_vendido}")
+        
+        if 'envio_gratis' in data or 'badge_envio_gratis' in data:
+            val = data.get('envio_gratis') or data.get('badge_envio_gratis')
+            producto.badge_envio_gratis = val in [True, 'true', '1', 1]
+            logger.info(f"   🚚 Badge envío gratis: {producto.badge_envio_gratis}")
+        
+        # Precio original (para calcular descuento)
+        if 'precio_original' in data:
+            if data['precio_original']:
+                producto.precio_original = float(data['precio_original'])
+            else:
+                producto.precio_original = None
+            logger.info(f"   💰 Precio original: {producto.precio_original}")
+        
+        # Promoción programada
+        if 'promo_inicio' in data:
+            if data['promo_inicio']:
+                try:
+                    producto.promo_inicio = datetime.fromisoformat(
+                        str(data['promo_inicio']).replace('Z', '+00:00')
+                    )
+                except:
+                    producto.promo_inicio = None
+            else:
+                producto.promo_inicio = None
+        
+        if 'promo_fin' in data:
+            if data['promo_fin']:
+                try:
+                    producto.promo_fin = datetime.fromisoformat(
+                        str(data['promo_fin']).replace('Z', '+00:00')
+                    )
+                except:
+                    producto.promo_fin = None
+            else:
+                producto.promo_fin = None
+        
+        if 'promo_badge_texto' in data:
+            producto.promo_badge_texto = data.get('promo_badge_texto')
+
+
+# ============================================
+# TAMBIÉN EN guardar_producto_catalogo()
+# Después de crear el producto, agregar:
+# ============================================
+
+        # ★ Badges manuales al crear
+        nuevo_prod.badge_destacado = data.get('destacado', False) in [True, 'true', '1', 1]
+        nuevo_prod.badge_mas_vendido = data.get('mas_vendido', False) in [True, 'true', '1', 1]
+        nuevo_prod.badge_envio_gratis = data.get('envio_gratis', False) in [True, 'true', '1', 1]
+        
+        if data.get('precio_original'):
+            nuevo_prod.precio_original = float(data['precio_original'])
+
 
         # ========================================
         # PROCESAR VIDEOS/YOUTUBE
@@ -2055,64 +2132,330 @@ def exportar_productos():
 # 25. CATÁLOGO PÚBLICO (Sin auth)
 # ============================================
 
+# ============================================
+# FIX PARA: catalogo_api.py
+# REEMPLAZAR el endpoint /productos/publicos/{negocio_id}
+# ============================================
+
+# BUSCAR ESTA FUNCIÓN (aproximadamente línea 900+):
+# @catalogo_api_bp.route('/productos/publicos/<int:negocio_id>', methods=['GET', 'OPTIONS'])
+
+# REEMPLAZAR TODA LA FUNCIÓN POR ESTA:
+
 @catalogo_api_bp.route('/productos/publicos/<int:negocio_id>', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def catalogo_publico(negocio_id):
-    """GET /api/productos/publicos/{negocio_id}"""
+    """
+    GET /api/productos/publicos/{negocio_id}
+    
+    Catálogo público con BADGES CALCULADOS (v2.2)
+    Los badges vienen del método to_dict() del modelo ProductoCatalogo
+    """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
 
     try:
+        logger.info(f"🛍️ Cargando catálogo público para negocio: {negocio_id}")
+        
         query = ProductoCatalogo.query.filter_by(
             negocio_id=negocio_id,
             activo=True,
             estado_publicacion=True
         )
         
+        # Filtro por categoría
         categoria = request.args.get('categoria')
         if categoria:
             query = query.filter_by(categoria=categoria)
         
+        # Búsqueda
         search = request.args.get('search', '').strip()
         if search:
             query = query.filter(ProductoCatalogo.nombre.ilike(f"%{search}%"))
         
-        limit = min(int(request.args.get('limit', 50)), 200)
+        # Límite
+        limit = min(int(request.args.get('limit', 100)), 500)
         
-        productos = query.order_by(ProductoCatalogo.nombre.asc()).limit(limit).all()
+        # Ordenamiento
+        sort = request.args.get('sort', 'newest')
+        if sort == 'price_asc':
+            query = query.order_by(ProductoCatalogo.precio.asc())
+        elif sort == 'price_desc':
+            query = query.order_by(ProductoCatalogo.precio.desc())
+        elif sort == 'name_asc':
+            query = query.order_by(ProductoCatalogo.nombre.asc())
+        elif sort == 'bestseller':
+            query = query.order_by(ProductoCatalogo.total_ventas.desc())
+        elif sort == 'rating':
+            query = query.order_by(ProductoCatalogo.rating_promedio.desc())
+        else:  # newest
+            query = query.order_by(ProductoCatalogo.id_producto.desc())
         
-        datos_publicos = [{
-            "id": p.id_producto,
-            "nombre": p.nombre,
-            "descripcion": p.descripcion,
-            "precio": p.precio,
-            "categoria": p.categoria,
-            "imagen_url": p.imagen_url,
-            "imagenes": parse_json_field(p.imagenes, []),
-            "videos": parse_json_field(p.videos, []),
-            "sku": p.referencia_sku,
-            "en_stock": p.stock > 0
-        } for p in productos]
+        productos = query.limit(limit).all()
+        
+        # ★ USAR to_dict() QUE INCLUYE BADGES CALCULADOS
+        datos_publicos = []
+        for p in productos:
+            # to_dict() ya incluye badges calculados automáticamente
+            producto_dict = p.to_dict()
+            
+            # Filtrar campos sensibles que no deben ser públicos
+            campos_publicos = {
+                "id": producto_dict.get("id"),
+                "id_producto": producto_dict.get("id_producto"),
+                "nombre": producto_dict.get("nombre"),
+                "descripcion": producto_dict.get("descripcion"),
+                "precio": producto_dict.get("precio"),
+                "precio_original": producto_dict.get("precio_original"),
+                "categoria": producto_dict.get("categoria"),
+                "imagen_url": producto_dict.get("imagen_url"),
+                "imagenes": producto_dict.get("imagenes", []),
+                "videos": producto_dict.get("videos", []),
+                "sku": producto_dict.get("sku"),
+                "stock": producto_dict.get("stock"),
+                
+                # ★ BADGES CALCULADOS (del método calcular_badges())
+                "badges": producto_dict.get("badges", {}),
+                
+                # Atajos para compatibilidad con frontend legacy
+                "nuevo": producto_dict.get("nuevo", False),
+                "destacado": producto_dict.get("destacado", False),
+                "mas_vendido": producto_dict.get("mas_vendido", False),
+                "envio_gratis": producto_dict.get("envio_gratis", False),
+                "tiene_descuento": producto_dict.get("tiene_descuento", False),
+                "descuento_porcentaje": producto_dict.get("descuento_porcentaje", 0),
+                
+                # Métricas para social proof
+                "rating": producto_dict.get("rating", 0),
+                "total_reviews": producto_dict.get("total_reviews", 0),
+                "total_ventas": producto_dict.get("total_ventas", 0),
+                "ventas_30_dias": producto_dict.get("ventas_30_dias", 0),
+                "visitas_7_dias": producto_dict.get("visitas_7_dias", 0),
+                
+                # Estado
+                "en_stock": (producto_dict.get("stock") or 0) > 0,
+                "activo": producto_dict.get("activo", True)
+            }
+            
+            datos_publicos.append(campos_publicos)
 
+        # Obtener categorías disponibles
         categorias = db.session.query(ProductoCatalogo.categoria).filter_by(
             negocio_id=negocio_id,
             activo=True,
             estado_publicacion=True
         ).distinct().all()
+        
+        categorias_list = [c[0] for c in categorias if c[0]]
+
+        logger.info(f"✅ Catálogo público: {len(datos_publicos)} productos con badges")
 
         return jsonify({
             "success": True,
             "negocio_id": negocio_id,
             "total": len(datos_publicos),
-            "categorias": [c[0] for c in categorias if c[0]],
+            "categorias": categorias_list,
             "productos": datos_publicos
         }), 200
 
     except Exception as e:
-        logger.error(f"❌ Error catálogo público: {str(e)}")
+        logger.error(f"❌ Error catálogo público: {traceback.format_exc()}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+# ============================================
+# AGREGAR A: catalogo_api.py
+# NUEVO ENDPOINT: Actualizar Badges Manuales
+# ============================================
+
+# AGREGAR ESTE ENDPOINT AL FINAL DEL ARCHIVO (antes del comentario de cierre)
+
+@catalogo_api_bp.route('/producto/<int:id_producto>/badges', methods=['PATCH', 'PUT', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def actualizar_badges_producto(id_producto):
+    """
+    PATCH/PUT /api/producto/{id}/badges
+    
+    Actualiza los badges MANUALES de un producto.
+    Los badges automáticos se calculan en tiempo real.
+    
+    Body JSON:
+    {
+        "destacado": true/false,
+        "mas_vendido": true/false,
+        "envio_gratis": true/false,
+        "promo_inicio": "2026-01-20T00:00:00Z",  // opcional
+        "promo_fin": "2026-01-25T23:59:59Z",     // opcional
+        "promo_badge_texto": "🎉 50% OFF"        // opcional
+    }
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    user_id = get_authorized_user_id()
+    if not user_id:
+        return jsonify({"success": False, "message": "No autorizado"}), 401
+
+    try:
+        producto = ProductoCatalogo.query.filter_by(
+            id_producto=id_producto,
+            usuario_id=int(user_id)
+        ).first()
+        
+        if not producto:
+            return jsonify({"success": False, "message": "Producto no encontrado"}), 404
+
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "message": "No se enviaron datos"}), 400
+
+        logger.info(f"🏷️ Actualizando badges de producto {id_producto}")
+        logger.info(f"📋 Datos recibidos: {data}")
+
+        # Actualizar badges manuales
+        if 'destacado' in data:
+            producto.badge_destacado = data['destacado'] in [True, 'true', '1', 1]
+            logger.info(f"   ⭐ Destacado: {producto.badge_destacado}")
+        
+        if 'mas_vendido' in data:
+            producto.badge_mas_vendido = data['mas_vendido'] in [True, 'true', '1', 1]
+            logger.info(f"   🔥 Más vendido: {producto.badge_mas_vendido}")
+        
+        if 'envio_gratis' in data:
+            producto.badge_envio_gratis = data['envio_gratis'] in [True, 'true', '1', 1]
+            logger.info(f"   🚚 Envío gratis: {producto.badge_envio_gratis}")
+        
+        # Actualizar promoción programada (opcional)
+        if 'promo_inicio' in data:
+            if data['promo_inicio']:
+                try:
+                    producto.promo_inicio = datetime.fromisoformat(data['promo_inicio'].replace('Z', '+00:00'))
+                except:
+                    producto.promo_inicio = None
+            else:
+                producto.promo_inicio = None
+        
+        if 'promo_fin' in data:
+            if data['promo_fin']:
+                try:
+                    producto.promo_fin = datetime.fromisoformat(data['promo_fin'].replace('Z', '+00:00'))
+                except:
+                    producto.promo_fin = None
+            else:
+                producto.promo_fin = None
+        
+        if 'promo_badge_texto' in data:
+            producto.promo_badge_texto = data['promo_badge_texto']
+        
+        # Actualizar precio original para descuento
+        if 'precio_original' in data:
+            if data['precio_original']:
+                producto.precio_original = float(data['precio_original'])
+            else:
+                producto.precio_original = None
+
+        db.session.commit()
+
+        # Retornar producto actualizado con badges calculados
+        producto_dict = producto.to_dict()
+
+        logger.info(f"✅ Badges actualizados para producto {id_producto}")
+
+        return jsonify({
+            "success": True,
+            "message": "Badges actualizados",
+            "producto": {
+                "id": producto.id_producto,
+                "nombre": producto.nombre,
+                "badges": producto_dict.get("badges", {}),
+                "badge_destacado": producto.badge_destacado,
+                "badge_mas_vendido": producto.badge_mas_vendido,
+                "badge_envio_gratis": producto.badge_envio_gratis,
+                "promo_inicio": producto.promo_inicio.isoformat() if producto.promo_inicio else None,
+                "promo_fin": producto.promo_fin.isoformat() if producto.promo_fin else None,
+                "promo_badge_texto": producto.promo_badge_texto,
+                "precio_original": float(producto.precio_original) if producto.precio_original else None
+            }
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error actualizando badges: {traceback.format_exc()}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
+@catalogo_api_bp.route('/productos/badges/masivo', methods=['PATCH', 'PUT', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def actualizar_badges_masivo():
+    """
+    PATCH/PUT /api/productos/badges/masivo
+    
+    Actualiza badges de múltiples productos a la vez.
+    
+    Body JSON:
+    {
+        "productos": [1, 2, 3, 4],  // IDs de productos
+        "badges": {
+            "destacado": true,
+            "envio_gratis": true
+        }
+    }
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    user_id = get_authorized_user_id()
+    if not user_id:
+        return jsonify({"success": False, "message": "No autorizado"}), 401
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "message": "No se enviaron datos"}), 400
+
+        producto_ids = data.get('productos', [])
+        badges_update = data.get('badges', {})
+        
+        if not producto_ids:
+            return jsonify({"success": False, "message": "No se especificaron productos"}), 400
+        
+        if not badges_update:
+            return jsonify({"success": False, "message": "No se especificaron badges"}), 400
+
+        logger.info(f"🏷️ Actualización masiva de badges para {len(producto_ids)} productos")
+
+        # Obtener productos del usuario
+        productos = ProductoCatalogo.query.filter(
+            ProductoCatalogo.id_producto.in_(producto_ids),
+            ProductoCatalogo.usuario_id == int(user_id)
+        ).all()
+        
+        if not productos:
+            return jsonify({"success": False, "message": "No se encontraron productos"}), 404
+
+        actualizados = 0
+        for producto in productos:
+            if 'destacado' in badges_update:
+                producto.badge_destacado = badges_update['destacado'] in [True, 'true', '1', 1]
+            if 'mas_vendido' in badges_update:
+                producto.badge_mas_vendido = badges_update['mas_vendido'] in [True, 'true', '1', 1]
+            if 'envio_gratis' in badges_update:
+                producto.badge_envio_gratis = badges_update['envio_gratis'] in [True, 'true', '1', 1]
+            actualizados += 1
+
+        db.session.commit()
+
+        logger.info(f"✅ {actualizados} productos actualizados")
+
+        return jsonify({
+            "success": True,
+            "message": f"{actualizados} productos actualizados",
+            "actualizados": actualizados
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error actualización masiva: {traceback.format_exc()}")
+        return jsonify({"success": False, "message": str(e)}), 500
 # ============================================
 # FIN DEL ARCHIVO - catalogo_api.py v3.1
 # ============================================
