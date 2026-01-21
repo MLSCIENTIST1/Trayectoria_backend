@@ -484,7 +484,7 @@ def guardar_producto_catalogo():
 
 
 # ============================================
-# 3. ACTUALIZAR PRODUCTO (Edición completa) - CORREGIDO v3.2
+# 3. ACTUALIZAR PRODUCTO (Edición completa) - CORREGIDO v3.3
 # ============================================
 
 @catalogo_api_bp.route('/producto/actualizar/<int:id_producto>', methods=['PUT', 'PATCH', 'OPTIONS'])
@@ -495,6 +495,8 @@ def actualizar_producto(id_producto):
     
     Actualiza cualquier campo del producto.
     Solo actualiza los campos que vengan en el request.
+    
+    v3.3 - Corregido: Las imágenes ahora se REEMPLAZAN en lugar de solo agregarse
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -632,16 +634,33 @@ def actualizar_producto(id_producto):
             logger.info(f"🎥 Videos actualizados: {len(videos)}")
 
         # ========================================
-        # PROCESAR IMÁGENES EXISTENTES
+        # ★ PROCESAR IMÁGENES - CORREGIDO v3.3 ★
+        # Ahora REEMPLAZA la lista en lugar de solo agregar
         # ========================================
-        galeria_actual = parse_json_field(producto.imagenes, [])
         
+        # Inicializar galería con las imágenes actuales del producto
+        galeria_actual = parse_json_field(producto.imagenes, [])
+        logger.info(f"🖼️ Imágenes actuales en BD: {len(galeria_actual)}")
+        
+        # Si el frontend envía el campo 'imagenes', REEMPLAZAR la galería completa
+        # Esto permite eliminar imágenes que el usuario quitó
         if 'imagenes' in data:
-            imagenes_nuevas = parse_json_field(data['imagenes'], [])
-            # Combinar con las actuales si son diferentes
-            for url in imagenes_nuevas:
-                if url and url not in galeria_actual:
-                    galeria_actual.append(url)
+            imagenes_enviadas = parse_json_field(data['imagenes'], None)
+            
+            # Solo reemplazar si es una lista válida (puede ser vacía)
+            if imagenes_enviadas is not None and isinstance(imagenes_enviadas, list):
+                # Filtrar URLs válidas
+                galeria_actual = [url for url in imagenes_enviadas if url and isinstance(url, str)]
+                logger.info(f"🖼️ Imágenes REEMPLAZADAS desde frontend: {len(galeria_actual)}")
+            else:
+                logger.info(f"🖼️ Campo 'imagenes' recibido pero no es lista válida: {type(imagenes_enviadas)}")
+        
+        # También verificar campos alternativos
+        elif 'imagenes_existentes' in data:
+            imagenes_enviadas = parse_json_field(data['imagenes_existentes'], None)
+            if imagenes_enviadas is not None and isinstance(imagenes_enviadas, list):
+                galeria_actual = [url for url in imagenes_enviadas if url and isinstance(url, str)]
+                logger.info(f"🖼️ Imágenes REEMPLAZADAS (imagenes_existentes): {len(galeria_actual)}")
         
         # ========================================
         # SUBIR NUEVA IMAGEN PRINCIPAL
@@ -663,7 +682,7 @@ def actualizar_producto(id_producto):
                 nueva_url = upload_result.get('secure_url')
                 producto.imagen_url = nueva_url
                 
-                # Agregar a galería si no existe
+                # Agregar al inicio de la galería si no existe
                 if nueva_url not in galeria_actual:
                     galeria_actual.insert(0, nueva_url)
                 
@@ -692,18 +711,26 @@ def actualizar_producto(id_producto):
                             resource_type="auto"
                         )
                         url = upload_result.get('secure_url')
-                        galeria_actual.append(url)
+                        if url not in galeria_actual:
+                            galeria_actual.append(url)
                         logger.info(f"✅ Imagen galería [{i}] subida: {url}")
                     except Exception as e:
                         logger.error(f"❌ Error subiendo imagen galería [{i}]: {e}")
         
-        # Limitar a 10 imágenes y guardar
+        # ========================================
+        # GUARDAR GALERÍA FINAL
+        # ========================================
+        # Limitar a 10 imágenes
         galeria_actual = galeria_actual[:10]
         producto.imagenes = json.dumps(galeria_actual)
         
-        # Actualizar imagen_url si está vacía pero hay galería
-        if not producto.imagen_url and galeria_actual:
+        # Actualizar imagen_url principal
+        if galeria_actual:
             producto.imagen_url = galeria_actual[0]
+        elif not producto.imagen_url:
+            producto.imagen_url = None
+        
+        logger.info(f"🖼️ Galería final guardada: {len(galeria_actual)} imágenes")
 
         db.session.commit()
 
