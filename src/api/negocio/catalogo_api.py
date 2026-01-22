@@ -1489,67 +1489,7 @@ def listar_categorias():
             "message": str(e),
             "categorias": []
         }), 500
-```
 
-## 📊 Ejemplo de logs que verás:
-```
-📁 ═══════════════════════════════════════════════
-📁 LISTANDO CATEGORÍAS
-👤 Usuario ID: 2
-🏢 Negocio ID: 4
-🏪 Sucursal ID: None
-🔍 Buscando categorías custom en BD...
-✅ Categorías custom encontradas: 14
-📋 Lista de categorías custom:
-   - ID=45, Nombre='Herramientas', Color=#6366f1, Icono=🔧
-   - ID=46, Nombre='Accesorios Moto', Color=#ec4899, Icono=🏍️
-   - ID=47, Nombre='Accesorios Taller', Color=#10b981, Icono=🔨
-   ... (11 más)
-📦 Contando productos por categoría...
-   📊 Total productos encontrados: 23
-⚠️ Categorías con espacios detectadas:
-   ' Accesorios Moto' -> 'Accesorios Moto'
-   ' Equipamiento Comercial' -> 'Equipamiento Comercial'
-📊 Conteo de productos por categoría:
-   - 'Herramientas': 11 productos
-   - 'Accesorios Moto': 4 productos
-   - 'Accesorios Taller': 4 productos
-   - 'Equipamiento Comercial': 1 productos
-   - 'accesorios para mi bici': 1 productos
-   - 'General': 1 productos
-   - 'Huevos': 1 productos
-🔨 Construyendo diccionario de categorías...
-📝 Procesando 14 categorías custom...
-   ✅ 'Herramientas': ID=45, Productos=11, Custom=True
-   ✅ 'Accesorios Moto': ID=46, Productos=4, Custom=True
-   ✅ 'Accesorios Taller': ID=47, Productos=4, Custom=True
-   ✅ 'Equipamiento Comercial': ID=48, Productos=1, Custom=True
-   ✅ 'Lubricantes': ID=49, Productos=0, Custom=True
-   ✅ 'Repuestos': ID=50, Productos=0, Custom=True
-   ... (8 categorías más con 0 productos)
-📦 Agregando categorías de productos no registradas en BD...
-   ➕ 'accesorios para mi bici': Productos=1, Custom=False (auto-generada)
-   ➕ 'General': Productos=1, Custom=False (auto-generada)
-   ➕ 'Huevos': Productos=1, Custom=False (auto-generada)
-   📊 Categorías auto-generadas: 3
-🔀 Ordenando categorías...
-✅ ═══════════════════════════════════════════════
-✅ LISTADO COMPLETADO
-✅ Total categorías a devolver: 17
-✅ Categorías custom (con ID): 14
-✅ Categorías auto (sin ID): 3
-✅ ═══════════════════════════════════════════════
-📋 Lista final ordenada:
-   1. [✓] 'Herramientas': 11 productos (ID=45)
-   2. [✓] 'Accesorios Moto': 4 productos (ID=46)
-   3. [✓] 'Accesorios Taller': 4 productos (ID=47)
-   4. [✓] 'Equipamiento Comercial': 1 productos (ID=48)
-   5. [✗] 'accesorios para mi bici': 1 productos (ID=N/A)
-   6. [✗] 'General': 1 productos (ID=N/A)
-   7. [✗] 'Huevos': 1 productos (ID=N/A)
-   8. [✓] 'Lubricantes': 0 productos (ID=49)
-   9. [✓] 'Repuestos': 0 productos (ID=50)
-   ... (8 categorías más sin productos)
 # ============================================
 # 14. CREAR CATEGORÍA
 # ============================================
