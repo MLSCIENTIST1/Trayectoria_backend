@@ -1311,11 +1311,32 @@ def estadisticas_inventario():
 # 13. LISTAR CATEGORÍAS
 # ============================================
 
+# ============================================
+# ENDPOINT CORREGIDO - CATEGORÍAS DESDE config_tienda
+# ============================================
+# 
+# INSTRUCCIONES:
+# 1. Abre tu archivo catalogo_api.py
+# 2. Busca la sección "# 13. LISTAR CATEGORÍAS" o la función "listar_categorias()"
+# 3. REEMPLAZA toda la función con este código
+# 4. Verifica que tengas estas importaciones al inicio del archivo:
+#
+#    from src.models.negocio import Negocio  # ← Ajusta la ruta según tu proyecto
+#    import traceback
+#
+# ============================================
+
 @catalogo_api_bp.route('/categorias', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def listar_categorias():
     """
-    GET /api/categorias - DEVUELVE CATEGORÍAS PRIORIZANDO config_tienda
+    GET /api/categorias - DEVUELVE CATEGORÍAS DESDE config_tienda
+    
+    Las categorías se leen desde:
+    1. config_tienda.categories (guardadas por el Designer)
+    2. Categorías auto-generadas de productos existentes
+    
+    Retorna TODAS las categorías unificadas.
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -1326,109 +1347,165 @@ def listar_categorias():
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
-        logger.info("📁 Iniciando recuperación de categorías...")
+        logger.info("📁 ═══════════════════════════════════════════════")
+        logger.info("📁 LISTANDO CATEGORÍAS DESDE config_tienda v4.0")
+        
         ctx = get_biz_context()
-        negocio_id = ctx.get('negocio_id')
+        
+        logger.info(f"👤 Usuario ID: {user_id}")
+        logger.info(f"🏢 Negocio ID: {ctx['negocio_id']}")
         
         # ========================================
-        # 1. OBTENER CONFIGURACIÓN DESDE EL MODELO 'Negocios'
-        # ========================================
-        categorias_config = []
-        
-        if negocio_id:
-            try:
-                # Importación según la ruta que especificaste
-                from src.models.colombia_data import Negocios
-                
-                # Buscamos por id_negocio como indica tu modelo
-                negocio = Negocios.query.filter_by(id_negocio=negocio_id).first()
-                
-                if negocio and negocio.config_tienda:
-                    config = negocio.config_tienda
-                    
-                    # Manejo de limpieza de prefijos (como el #id_negocioslug...) 
-                    # si el campo config_tienda viene con el string sucio
-                    if isinstance(config, str):
-                        try:
-                            # Si tiene el prefijo que vimos antes, cortamos hasta el primer '{'
-                            if "{" in config:
-                                config = config[config.find("{"):]
-                            config = json.loads(config)
-                        except Exception as e:
-                            logger.error(f"Error parseando JSON de config_tienda: {e}")
-                            config = {}
-                    
-                    # Extraer categorías del Designer
-                    categorias_config = config.get('categories', [])
-                    logger.info(f"✅ Categorías cargadas del Designer: {len(categorias_config)}")
-            
-            except Exception as e:
-                logger.warning(f"⚠️ Error al consultar tabla Negocios: {str(e)}")
-
-        # ========================================
-        # 2. CONTEO DE PRODUCTOS (Para sincronizar stock/cantidades)
-        # ========================================
-        # Filtramos productos del usuario y negocio actual
-        productos = ProductoCatalogo.query.filter_by(
-            usuario_id=int(user_id), 
-            negocio_id=negocio_id
-        ).all()
-        
-        conteo = {}
-        for p in productos:
-            cat = (p.categoria or 'Sin categoría').strip()
-            conteo[cat] = conteo.get(cat, 0) + 1
-
-        # ========================================
-        # 3. CONSTRUCCIÓN DEL DICCIONARIO FINAL
+        # 1. OBTENER CATEGORÍAS DESDE config_tienda
         # ========================================
         categorias_dict = {}
-        colores_default = ['#6366f1', '#ec4899', '#10b981', '#f59e0b', '#8b5cf6']
         
-        # A. Agregamos lo definido en el Designer (Prioridad)
-        for idx, cat in enumerate(categorias_config):
-            nombre = (cat.get('name') or cat.get('nombre', '')).strip()
-            if not nombre: continue
+        if ctx['negocio_id']:
+            logger.info("🔍 Buscando categorías en config_tienda...")
             
-            categorias_dict[nombre] = {
-                "id": cat.get('id'),
-                "nombre": nombre,
-                "icon": cat.get('icon') or cat.get('icono', '📁'),
-                "color": cat.get('color', colores_default[idx % len(colores_default)]),
-                "count": conteo.get(nombre, 0),
-                "featured": cat.get('featured', False),
-                "custom": True  # Indica que fue creada manualmente en el Designer
-            }
-
-        # B. Agregamos categorías que están en productos pero NO en el Designer
-        for cat_nombre, cantidad in conteo.items():
-            if cat_nombre not in categorias_dict:
-                categorias_dict[cat_nombre] = {
-                    "id": None,
-                    "nombre": cat_nombre,
-                    "icon": '📦',
-                    "color": '#9ca3af',
-                    "count": cantidad,
-                    "featured": False,
-                    "custom": False # Creada automáticamente por existencia de productos
-                }
-
-        # Convertir a lista y ordenar (Destacados primero, luego por cantidad)
-        resultado = sorted(
-            categorias_dict.values(), 
-            key=lambda x: (not x['featured'], -x['count'], x['nombre'].lower())
+            negocio = Negocio.query.filter_by(
+                id_negocio=ctx['negocio_id'],
+                usuario_id=user_id
+            ).first()
+            
+            if negocio and negocio.config_tienda:
+                logger.info("✅ config_tienda encontrado")
+                
+                # Obtener categorías del Designer
+                categories_from_config = negocio.config_tienda.get('categories', [])
+                
+                logger.info(f"📦 Categorías en config_tienda: {len(categories_from_config)}")
+                
+                if categories_from_config:
+                    logger.info("📋 Procesando categorías del Designer:")
+                    
+                    for idx, cat in enumerate(categories_from_config, 1):
+                        nombre = cat.get('name', '')
+                        
+                        if nombre:
+                            categorias_dict[nombre] = {
+                                'id': cat.get('id', idx),
+                                'nombre': nombre,
+                                'icono': cat.get('icon', '📦'),
+                                'color': cat.get('color', '#6366f1'),
+                                'featured': cat.get('featured', False),
+                                'count': 0,  # Se actualizará después con productos reales
+                                'custom': True,  # Marca que viene del Designer
+                                'source': 'config_tienda'
+                            }
+                            
+                            featured_mark = "⭐" if cat.get('featured') else ""
+                            logger.info(f"   {idx}. {featured_mark} '{nombre}' - {cat.get('icon', '📦')}")
+                else:
+                    logger.info("   ℹ️ No hay categorías guardadas en config_tienda")
+            else:
+                logger.warning("⚠️ No se encontró config_tienda para este negocio")
+        
+        # ========================================
+        # 2. OBTENER CATEGORÍAS DE PRODUCTOS EXISTENTES
+        # ========================================
+        logger.info("🔍 Obteniendo categorías de productos...")
+        
+        query = Producto.query.filter_by(
+            usuario_id=int(user_id),
+            activo=True
         )
-
+        
+        if ctx['negocio_id']:
+            query = query.filter_by(negocio_id=ctx['negocio_id'])
+        
+        productos = query.all()
+        logger.info(f"📦 Total productos activos: {len(productos)}")
+        
+        # Contar productos por categoría
+        for producto in productos:
+            cat_nombre = producto.categoria
+            
+            if cat_nombre:
+                if cat_nombre in categorias_dict:
+                    # Actualizar contador de categoría existente
+                    categorias_dict[cat_nombre]['count'] += 1
+                else:
+                    # Agregar nueva categoría auto-generada
+                    categorias_dict[cat_nombre] = {
+                        'id': len(categorias_dict) + 1,
+                        'nombre': cat_nombre,
+                        'icono': '📦',  # Icono por defecto
+                        'color': '#6b7280',  # Color por defecto
+                        'featured': False,
+                        'count': 1,
+                        'custom': False,  # Auto-generada
+                        'source': 'productos'
+                    }
+        
+        logger.info(f"📊 Total categorías únicas después de productos: {len(categorias_dict)}")
+        
+        # ========================================
+        # 3. CONVERTIR A LISTA Y ORDENAR
+        # ========================================
+        logger.info("🔀 Ordenando categorías...")
+        
+        categorias_list = list(categorias_dict.values())
+        
+        # Ordenar: primero las featured, luego por cantidad de productos, luego alfabético
+        categorias_list.sort(key=lambda x: (
+            not x.get('featured', False),  # Featured primero
+            -x['count'],                    # Mayor cantidad de productos
+            x['nombre'].lower()             # Alfabético
+        ))
+        
+        # ========================================
+        # 4. LOGGING FINAL
+        # ========================================
+        logger.info(f"✅ ═══════════════════════════════════════════════")
+        logger.info(f"✅ LISTADO COMPLETADO")
+        logger.info(f"✅ Total categorías a devolver: {len(categorias_list)}")
+        
+        custom_count = len([c for c in categorias_list if c['custom']])
+        auto_count = len([c for c in categorias_list if not c['custom']])
+        
+        logger.info(f"✅ Categorías del Designer: {custom_count}")
+        logger.info(f"✅ Categorías auto-generadas: {auto_count}")
+        
+        if categorias_list:
+            logger.info("📋 Top 5 categorías:")
+            for cat in categorias_list[:5]:
+                custom_label = "[DESIGNER]" if cat['custom'] else "[AUTO]"
+                featured_label = "⭐" if cat.get('featured') else ""
+                logger.info(f"   {custom_label}{featured_label} '{cat['nombre']}': {cat['count']} productos")
+        
+        logger.info(f"✅ ═══════════════════════════════════════════════")
+        
         return jsonify({
             "success": True,
-            "total": len(resultado),
-            "categorias": resultado,
-            "negocio_id": negocio_id
+            "total": len(categorias_list),
+            "categorias": categorias_list,
+            "source": "config_tienda",
+            "stats": {
+                "designer": custom_count,
+                "auto": auto_count
+            }
         }), 200
 
     except Exception as e:
-        logger.error(f"❌ ERROR CRÍTICO: {str(e)}")
-        return jsonify({"success": False, "message": str(e)}), 500
+        logger.error(f"❌ ═══════════════════════════════════════════════")
+        logger.error(f"❌ ERROR CRÍTICO AL LISTAR CATEGORÍAS")
+        logger.error(f"❌ Error: {str(e)}")
+        logger.error(f"❌ Tipo: {type(e).__name__}")
+        logger.error(f"❌ Traceback completo:")
+        logger.error(traceback.format_exc())
+        logger.error(f"❌ ═══════════════════════════════════════════════")
+        
+        return jsonify({
+            "success": False, 
+            "message": str(e),
+            "categorias": []
+        }), 500
+
+
+# ============================================
+# FIN DEL ENDPOINT CORREGIDO
+# ============================================
 
 
 # ============================================
