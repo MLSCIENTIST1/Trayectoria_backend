@@ -1314,7 +1314,7 @@ def estadisticas_inventario():
 @catalogo_api_bp.route('/categorias', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def listar_categorias():
-    """GET /api/categorias - DEVUELVE TODAS LAS CATEGORÍAS CREADAS"""
+    """GET /api/categorias - DEVUELVE TODAS LAS CATEGORÍAS"""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
 
@@ -1325,59 +1325,65 @@ def listar_categorias():
     try:
         ctx = get_biz_context()
         
-        # ✅ 1. Obtener TODAS las categorías personalizadas (incluso sin productos)
+        logger.info(f"📁 Obteniendo categorías - User: {user_id}, Negocio: {ctx['negocio_id']}")
+        
+        # 1. Obtener categorías personalizadas
         categorias_custom = []
         try:
             query = CategoriaProducto.query.filter_by(usuario_id=int(user_id))
             if ctx['negocio_id']:
                 query = query.filter_by(negocio_id=ctx['negocio_id'])
             categorias_custom = query.all()
-            logger.info(f"📁 Categorías custom encontradas: {len(categorias_custom)}")
+            logger.info(f"   ✅ Categorías custom: {len(categorias_custom)}")
         except Exception as e:
-            logger.warning(f"⚠️ Error cargando categorías custom: {e}")
-            pass
+            logger.warning(f"   ⚠️ Error cargando categorías custom: {e}")
         
-        # ✅ 2. Contar productos por categoría
+        # 2. Contar productos por categoría
         query_productos = ProductoCatalogo.query.filter_by(usuario_id=int(user_id))
         if ctx['negocio_id']:
             query_productos = query_productos.filter_by(negocio_id=ctx['negocio_id'])
         
         productos = query_productos.all()
+        logger.info(f"   📦 Productos encontrados: {len(productos)}")
         
         conteo = {}
         for p in productos:
             cat = p.categoria or 'Sin categoría'
             conteo[cat] = conteo.get(cat, 0) + 1
         
-        categorias_dict = {}
+        logger.info(f"   📊 Categorías con productos: {list(conteo.keys())}")
         
-        # ✅ 3. INCLUIR TODAS LAS CATEGORÍAS CUSTOM (con o sin productos)
+        # 3. Construir lista de categorías
+        categorias_list = []
+        
+        # Agregar categorías custom (TODAS, tengan o no productos)
         for cat in categorias_custom:
-            categorias_dict[cat.nombre] = {
+            categorias_list.append({
                 "id": cat.id_categoria,
                 "name": cat.nombre,
                 "nombre": cat.nombre,
-                "icon": cat.icono,
-                "icono": cat.icono,
-                "color": cat.color,
-                "count": conteo.get(cat.nombre, 0),  # ✅ Puede ser 0
+                "icon": cat.icono or '📁',
+                "icono": cat.icono or '📁',
+                "color": cat.color or '#6366f1',
+                "count": conteo.get(cat.nombre, 0),
                 "productos": conteo.get(cat.nombre, 0),
                 "custom": True
-            }
+            })
         
-        # ✅ 4. Agregar categorías de productos que no están en CategoriaProducto
+        # Agregar categorías de productos que no están en custom
         iconos_default = {
             'Electrónica': '📱', 'Ropa': '👕', 'Hogar': '🏠', 
             'Accesorios': '🎁', 'Alimentos': '🍔', 'Bebidas': '🥤',
             'General': '📦', 'Sin categoría': '📁'
         }
-        
         colores_default = ['#6366f1', '#ec4899', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4']
         
+        categorias_custom_nombres = [cat.nombre for cat in categorias_custom]
         idx = 0
+        
         for cat_nombre, cantidad in conteo.items():
-            if cat_nombre not in categorias_dict and cat_nombre != 'Sin categoría':
-                categorias_dict[cat_nombre] = {
+            if cat_nombre not in categorias_custom_nombres:
+                categorias_list.append({
                     "id": None,
                     "name": cat_nombre,
                     "nombre": cat_nombre,
@@ -1387,18 +1393,14 @@ def listar_categorias():
                     "count": cantidad,
                     "productos": cantidad,
                     "custom": False
-                }
+                })
                 idx += 1
-
-        categorias_list = list(categorias_dict.values())
         
-        # ✅ 5. Ordenar: primero por productos (descendente), luego alfabético
+        # Ordenar
         categorias_list.sort(key=lambda x: (-x['count'], x['nombre'].lower()))
-
-        logger.info(f"✅ Total categorías devueltas: {len(categorias_list)}")
-        for cat in categorias_list:
-            logger.info(f"   📁 {cat['nombre']}: {cat['count']} productos")
-
+        
+        logger.info(f"✅ Total categorías a devolver: {len(categorias_list)}")
+        
         return jsonify({
             "success": True,
             "total": len(categorias_list),
@@ -1407,7 +1409,12 @@ def listar_categorias():
 
     except Exception as e:
         logger.error(f"❌ Error listar categorías: {str(e)}")
-        return jsonify({"success": False, "message": str(e)}), 500
+        logger.error(f"   {traceback.format_exc()}")
+        return jsonify({
+            "success": False, 
+            "message": str(e),
+            "categorias": []  # Devolver array vacío en caso de error
+        }), 500
 
 # ============================================
 # 14. CREAR CATEGORÍA
