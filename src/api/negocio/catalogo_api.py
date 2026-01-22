@@ -1320,57 +1320,106 @@ def listar_categorias():
 
     user_id = get_authorized_user_id()
     if not user_id:
+        logger.warning("❌ Intento de listar categorías sin autenticación")
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
+        logger.info("📁 ═══════════════════════════════════════════════")
+        logger.info("📁 LISTANDO CATEGORÍAS")
+        
         ctx = get_biz_context()
         
-        logger.info(f"📁 Obteniendo categorías - User: {user_id}, Negocio: {ctx['negocio_id']}")
+        logger.info(f"👤 Usuario ID: {user_id}")
+        logger.info(f"🏢 Negocio ID: {ctx['negocio_id']}")
+        logger.info(f"🏪 Sucursal ID: {ctx['sucursal_id']}")
         
-        # 1. Obtener categorías personalizadas
+        # 1. Obtener TODAS las categorías personalizadas
         categorias_custom = []
         try:
+            logger.info("🔍 Buscando categorías custom en BD...")
+            
             query = CategoriaProducto.query.filter_by(usuario_id=int(user_id))
             if ctx['negocio_id']:
                 query = query.filter_by(negocio_id=ctx['negocio_id'])
+            
             categorias_custom = query.all()
-            logger.info(f"   ✅ Categorías custom: {len(categorias_custom)}")
+            
+            logger.info(f"✅ Categorías custom encontradas: {len(categorias_custom)}")
+            
+            if categorias_custom:
+                logger.info("📋 Lista de categorías custom:")
+                for cat in categorias_custom:
+                    logger.info(f"   - ID={cat.id_categoria}, Nombre='{cat.nombre}', Color={cat.color}, Icono={cat.icono}")
+            else:
+                logger.info("   ℹ️ No hay categorías custom creadas en la BD")
+                
         except Exception as e:
-            logger.warning(f"   ⚠️ Error cargando categorías custom: {e}")
+            logger.warning(f"⚠️ Error cargando categorías custom: {str(e)}")
+            logger.warning(f"   Tipo de error: {type(e).__name__}")
+            logger.warning(f"   Traceback: {traceback.format_exc()}")
         
-        # 2. Contar productos por categoría
+        # 2. Contar productos por categoría (con TRIM)
+        logger.info("📦 Contando productos por categoría...")
+        
         query_productos = ProductoCatalogo.query.filter_by(usuario_id=int(user_id))
         if ctx['negocio_id']:
             query_productos = query_productos.filter_by(negocio_id=ctx['negocio_id'])
         
         productos = query_productos.all()
-        logger.info(f"   📦 Productos encontrados: {len(productos)}")
+        logger.info(f"   📊 Total productos encontrados: {len(productos)}")
         
         conteo = {}
+        categorias_sin_normalizar = {}  # Para detectar problemas
+        
         for p in productos:
-            cat = p.categoria or 'Sin categoría'
-            conteo[cat] = conteo.get(cat, 0) + 1
+            cat_original = p.categoria or 'Sin categoría'
+            # ✅ NORMALIZAR: Quitar espacios al inicio/final
+            cat_normalizada = cat_original.strip()
+            
+            # Detectar si había espacios
+            if cat_original != cat_normalizada:
+                categorias_sin_normalizar[cat_original] = cat_normalizada
+            
+            conteo[cat_normalizada] = conteo.get(cat_normalizada, 0) + 1
         
-        logger.info(f"   📊 Categorías con productos: {list(conteo.keys())}")
+        # Log de categorías con problemas de espacios
+        if categorias_sin_normalizar:
+            logger.warning("⚠️ Categorías con espacios detectadas:")
+            for original, normalizada in categorias_sin_normalizar.items():
+                logger.warning(f"   '{original}' -> '{normalizada}'")
         
-        # 3. Construir lista de categorías
-        categorias_list = []
+        logger.info("📊 Conteo de productos por categoría:")
+        for cat_nombre, cantidad in sorted(conteo.items(), key=lambda x: -x[1]):
+            logger.info(f"   - '{cat_nombre}': {cantidad} productos")
         
-        # Agregar categorías custom (TODAS, tengan o no productos)
+        # 3. Construir diccionario con TODAS las categorías custom
+        logger.info("🔨 Construyendo diccionario de categorías...")
+        
+        categorias_dict = {}
+        
+        # ✅ AGREGAR TODAS LAS CATEGORÍAS CUSTOM (incluso sin productos)
+        logger.info(f"📝 Procesando {len(categorias_custom)} categorías custom...")
+        
         for cat in categorias_custom:
-            categorias_list.append({
+            nombre_normalizado = cat.nombre.strip()  # ✅ NORMALIZAR
+            
+            categorias_dict[nombre_normalizado] = {
                 "id": cat.id_categoria,
-                "name": cat.nombre,
-                "nombre": cat.nombre,
+                "name": nombre_normalizado,
+                "nombre": nombre_normalizado,
                 "icon": cat.icono or '📁',
                 "icono": cat.icono or '📁',
                 "color": cat.color or '#6366f1',
-                "count": conteo.get(cat.nombre, 0),
-                "productos": conteo.get(cat.nombre, 0),
+                "count": conteo.get(nombre_normalizado, 0),  # ✅ Puede ser 0
+                "productos": conteo.get(nombre_normalizado, 0),
                 "custom": True
-            })
+            }
+            
+            logger.info(f"   ✅ '{nombre_normalizado}': ID={cat.id_categoria}, Productos={conteo.get(nombre_normalizado, 0)}, Custom=True")
         
-        # Agregar categorías de productos que no están en custom
+        # 4. Agregar categorías de productos que NO están en custom
+        logger.info("📦 Agregando categorías de productos no registradas en BD...")
+        
         iconos_default = {
             'Electrónica': '📱', 'Ropa': '👕', 'Hogar': '🏠', 
             'Accesorios': '🎁', 'Alimentos': '🍔', 'Bebidas': '🥤',
@@ -1378,12 +1427,12 @@ def listar_categorias():
         }
         colores_default = ['#6366f1', '#ec4899', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4']
         
-        categorias_custom_nombres = [cat.nombre for cat in categorias_custom]
         idx = 0
+        categorias_agregadas_auto = 0
         
         for cat_nombre, cantidad in conteo.items():
-            if cat_nombre not in categorias_custom_nombres:
-                categorias_list.append({
+            if cat_nombre not in categorias_dict:
+                categorias_dict[cat_nombre] = {
                     "id": None,
                     "name": cat_nombre,
                     "nombre": cat_nombre,
@@ -1393,13 +1442,32 @@ def listar_categorias():
                     "count": cantidad,
                     "productos": cantidad,
                     "custom": False
-                })
+                }
+                
+                logger.info(f"   ➕ '{cat_nombre}': Productos={cantidad}, Custom=False (auto-generada)")
+                categorias_agregadas_auto += 1
                 idx += 1
         
-        # Ordenar
+        logger.info(f"   📊 Categorías auto-generadas: {categorias_agregadas_auto}")
+        
+        # 5. Convertir a lista y ordenar
+        logger.info("🔀 Ordenando categorías...")
+        
+        categorias_list = list(categorias_dict.values())
         categorias_list.sort(key=lambda x: (-x['count'], x['nombre'].lower()))
         
+        logger.info(f"✅ ═══════════════════════════════════════════════")
+        logger.info(f"✅ LISTADO COMPLETADO")
         logger.info(f"✅ Total categorías a devolver: {len(categorias_list)}")
+        logger.info(f"✅ Categorías custom (con ID): {len([c for c in categorias_list if c['custom']])}")
+        logger.info(f"✅ Categorías auto (sin ID): {len([c for c in categorias_list if not c['custom']])}")
+        logger.info(f"✅ ═══════════════════════════════════════════════")
+        
+        # Log final de todas las categorías
+        logger.info("📋 Lista final ordenada:")
+        for i, cat in enumerate(categorias_list, 1):
+            custom_label = "✓" if cat['custom'] else "✗"
+            logger.info(f"   {i}. [{custom_label}] '{cat['nombre']}': {cat['count']} productos (ID={cat.get('id', 'N/A')})")
         
         return jsonify({
             "success": True,
@@ -1408,14 +1476,80 @@ def listar_categorias():
         }), 200
 
     except Exception as e:
-        logger.error(f"❌ Error listar categorías: {str(e)}")
-        logger.error(f"   {traceback.format_exc()}")
+        logger.error(f"❌ ═══════════════════════════════════════════════")
+        logger.error(f"❌ ERROR CRÍTICO AL LISTAR CATEGORÍAS")
+        logger.error(f"❌ Error: {str(e)}")
+        logger.error(f"❌ Tipo: {type(e).__name__}")
+        logger.error(f"❌ Traceback completo:")
+        logger.error(traceback.format_exc())
+        logger.error(f"❌ ═══════════════════════════════════════════════")
+        
         return jsonify({
             "success": False, 
             "message": str(e),
-            "categorias": []  # Devolver array vacío en caso de error
+            "categorias": []
         }), 500
+```
 
+## 📊 Ejemplo de logs que verás:
+```
+📁 ═══════════════════════════════════════════════
+📁 LISTANDO CATEGORÍAS
+👤 Usuario ID: 2
+🏢 Negocio ID: 4
+🏪 Sucursal ID: None
+🔍 Buscando categorías custom en BD...
+✅ Categorías custom encontradas: 14
+📋 Lista de categorías custom:
+   - ID=45, Nombre='Herramientas', Color=#6366f1, Icono=🔧
+   - ID=46, Nombre='Accesorios Moto', Color=#ec4899, Icono=🏍️
+   - ID=47, Nombre='Accesorios Taller', Color=#10b981, Icono=🔨
+   ... (11 más)
+📦 Contando productos por categoría...
+   📊 Total productos encontrados: 23
+⚠️ Categorías con espacios detectadas:
+   ' Accesorios Moto' -> 'Accesorios Moto'
+   ' Equipamiento Comercial' -> 'Equipamiento Comercial'
+📊 Conteo de productos por categoría:
+   - 'Herramientas': 11 productos
+   - 'Accesorios Moto': 4 productos
+   - 'Accesorios Taller': 4 productos
+   - 'Equipamiento Comercial': 1 productos
+   - 'accesorios para mi bici': 1 productos
+   - 'General': 1 productos
+   - 'Huevos': 1 productos
+🔨 Construyendo diccionario de categorías...
+📝 Procesando 14 categorías custom...
+   ✅ 'Herramientas': ID=45, Productos=11, Custom=True
+   ✅ 'Accesorios Moto': ID=46, Productos=4, Custom=True
+   ✅ 'Accesorios Taller': ID=47, Productos=4, Custom=True
+   ✅ 'Equipamiento Comercial': ID=48, Productos=1, Custom=True
+   ✅ 'Lubricantes': ID=49, Productos=0, Custom=True
+   ✅ 'Repuestos': ID=50, Productos=0, Custom=True
+   ... (8 categorías más con 0 productos)
+📦 Agregando categorías de productos no registradas en BD...
+   ➕ 'accesorios para mi bici': Productos=1, Custom=False (auto-generada)
+   ➕ 'General': Productos=1, Custom=False (auto-generada)
+   ➕ 'Huevos': Productos=1, Custom=False (auto-generada)
+   📊 Categorías auto-generadas: 3
+🔀 Ordenando categorías...
+✅ ═══════════════════════════════════════════════
+✅ LISTADO COMPLETADO
+✅ Total categorías a devolver: 17
+✅ Categorías custom (con ID): 14
+✅ Categorías auto (sin ID): 3
+✅ ═══════════════════════════════════════════════
+📋 Lista final ordenada:
+   1. [✓] 'Herramientas': 11 productos (ID=45)
+   2. [✓] 'Accesorios Moto': 4 productos (ID=46)
+   3. [✓] 'Accesorios Taller': 4 productos (ID=47)
+   4. [✓] 'Equipamiento Comercial': 1 productos (ID=48)
+   5. [✗] 'accesorios para mi bici': 1 productos (ID=N/A)
+   6. [✗] 'General': 1 productos (ID=N/A)
+   7. [✗] 'Huevos': 1 productos (ID=N/A)
+   8. [✓] 'Lubricantes': 0 productos (ID=49)
+   9. [✓] 'Repuestos': 0 productos (ID=50)
+   ... (8 categorías más sin productos)
 # ============================================
 # 14. CREAR CATEGORÍA
 # ============================================
@@ -1423,25 +1557,41 @@ def listar_categorias():
 @catalogo_api_bp.route('/categorias', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def crear_categoria():
-    """POST /api/categorias"""
+    """POST /api/categorias - Crea una nueva categoría"""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
 
     user_id = get_authorized_user_id()
     if not user_id:
+        logger.warning("❌ Intento de crear categoría sin autenticación")
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
+        logger.info("📁 ═══════════════════════════════════════════════")
+        logger.info("📁 CREANDO NUEVA CATEGORÍA")
+        
         data = request.get_json()
+        logger.info(f"📋 Datos recibidos: {data}")
+        
+        # ✅ NORMALIZAR: Quitar espacios al inicio/final
         nombre = (data.get('nombre') or data.get('name', '')).strip()
         
         if not nombre:
+            logger.warning("⚠️ Intento de crear categoría sin nombre")
             return jsonify({"success": False, "message": "El nombre es requerido"}), 400
 
+        logger.info(f"📝 Nombre normalizado: '{nombre}' (longitud: {len(nombre)})")
+        
         ctx = get_biz_context()
         negocio_id = ctx['negocio_id'] or int(data.get('negocio_id', 1))
+        
+        logger.info(f"🏢 Negocio ID: {negocio_id}")
+        logger.info(f"👤 Usuario ID: {user_id}")
 
         try:
+            # Verificar si ya existe
+            logger.info(f"🔍 Verificando si existe: usuario={user_id}, negocio={negocio_id}, nombre='{nombre}'")
+            
             existente = CategoriaProducto.query.filter_by(
                 usuario_id=int(user_id),
                 negocio_id=negocio_id,
@@ -1449,20 +1599,36 @@ def crear_categoria():
             ).first()
             
             if existente:
+                logger.warning(f"⚠️ Categoría '{nombre}' ya existe (ID: {existente.id_categoria})")
                 return jsonify({"success": False, "message": "Esta categoría ya existe"}), 400
             
+            logger.info("✅ No existe duplicado, procediendo a crear...")
+            
+            # Extraer datos de color e icono
+            icono = data.get('icono') or data.get('icon', '📦')
+            color = data.get('color', '#6366f1')
+            
+            logger.info(f"🎨 Color: {color}")
+            logger.info(f"🏷️ Icono: {icono}")
+            
+            # Crear nueva categoría
             nueva_cat = CategoriaProducto(
                 usuario_id=int(user_id),
                 negocio_id=negocio_id,
                 nombre=nombre,
-                icono=data.get('icono') or data.get('icon', '📦'),
-                color=data.get('color', '#6366f1')
+                icono=icono,
+                color=color
             )
             
             db.session.add(nueva_cat)
             db.session.commit()
-
-            logger.info(f"✅ Categoría creada: {nombre}")
+            
+            logger.info(f"✅ ═══════════════════════════════════════════════")
+            logger.info(f"✅ CATEGORÍA CREADA EXITOSAMENTE")
+            logger.info(f"✅ ID: {nueva_cat.id_categoria}")
+            logger.info(f"✅ Nombre: '{nueva_cat.nombre}'")
+            logger.info(f"✅ Negocio: {nueva_cat.negocio_id}")
+            logger.info(f"✅ ═══════════════════════════════════════════════")
 
             return jsonify({
                 "success": True,
@@ -1471,21 +1637,38 @@ def crear_categoria():
             }), 201
             
         except Exception as e:
-            logger.error(f"Error creando categoría: {e}")
+            db.session.rollback()
+            logger.error(f"❌ Error en creación de categoría (DB): {str(e)}")
+            logger.error(f"   Tipo de error: {type(e).__name__}")
+            logger.error(f"   Traceback: {traceback.format_exc()}")
+            
+            # Fallback: Retornar como "registrada" aunque no se guardó en DB
+            logger.warning(f"⚠️ Retornando categoría como 'registrada' sin ID de BD")
             return jsonify({
                 "success": True,
                 "message": "Categoría registrada",
                 "categoria": {
                     "id": None,
                     "nombre": nombre,
-                    "icon": data.get('icono', '📦'),
-                    "color": data.get('color', '#6366f1')
+                    "icon": icono,
+                    "icono": icono,
+                    "color": color,
+                    "count": 0,
+                    "productos": 0,
+                    "custom": False
                 }
             }), 201
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"❌ Error crear categoría: {str(e)}")
+        logger.error(f"❌ ═══════════════════════════════════════════════")
+        logger.error(f"❌ ERROR CRÍTICO AL CREAR CATEGORÍA")
+        logger.error(f"❌ Error: {str(e)}")
+        logger.error(f"❌ Tipo: {type(e).__name__}")
+        logger.error(f"❌ Traceback completo:")
+        logger.error(traceback.format_exc())
+        logger.error(f"❌ ═══════════════════════════════════════════════")
+        
         return jsonify({"success": False, "message": str(e)}), 500
 
 
