@@ -17,7 +17,7 @@ from flask import Blueprint, request, jsonify
 from flask_cors import cross_origin
 from flask_login import current_user
 from src.models.colombia_data.negocio import Negocio
-from src.models.colombia_data.negocio import Producto
+
 
 from src.models.database import db
 from src.models.colombia_data.contabilidad.operaciones_y_catalogo import (
@@ -1350,7 +1350,7 @@ def listar_categorias():
 
     try:
         logger.info("📁 ═══════════════════════════════════════════════")
-        logger.info("📁 LISTANDO CATEGORÍAS DESDE config_tienda v4.0")
+        logger.info("📁 LISTANDO CATEGORÍAS DESDE config_tienda v4.1")
         
         ctx = get_biz_context()
         
@@ -1408,7 +1408,8 @@ def listar_categorias():
         # ========================================
         logger.info("🔍 Obteniendo categorías de productos...")
         
-        query = Producto.query.filter_by(
+        # ★ IMPORTANTE: Usar ProductoCatalogo (no Producto)
+        query = ProductoCatalogo.query.filter_by(
             usuario_id=int(user_id),
             activo=True
         )
@@ -1503,6 +1504,7 @@ def listar_categorias():
             "message": str(e),
             "categorias": []
         }), 500
+
 
 
 # ============================================
