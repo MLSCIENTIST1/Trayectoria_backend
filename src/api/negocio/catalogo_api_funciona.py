@@ -1,7 +1,7 @@
 # ============================================
-# catalogo_api.py - VERSIÓN v3.3 COMPLETA
-# Conectado con Inventario PRO v2.3 + BizContext
-# ACTUALIZADO: Soporte para badges_data JSON
+# catalogo_api.py - VERSIÓN CORREGIDA v3.2
+# Conectado con Inventario PRO + BizContext
+# CORREGIDO: Error nuevo_prod not defined
 # ============================================
 
 import cloudinary
@@ -17,6 +17,7 @@ from flask import Blueprint, request, jsonify
 from flask_cors import cross_origin
 from flask_login import current_user
 from src.models.colombia_data.negocio import Negocio
+
 
 from src.models.database import db
 from src.models.colombia_data.contabilidad.operaciones_y_catalogo import (
@@ -72,14 +73,18 @@ def get_biz_context():
     Obtiene el contexto de negocio desde headers o query params.
     Compatible con BizContext.js del frontend.
     """
+    # Intentar obtener de headers primero
     negocio_id = request.headers.get('X-Business-ID') or request.headers.get('X-Negocio-ID')
     
+    # Si no está en headers, buscar en query params
     if not negocio_id:
         negocio_id = request.args.get('negocio_id')
     
+    # Si no está en query, buscar en body JSON
     if not negocio_id and request.is_json:
         negocio_id = request.json.get('negocio_id')
     
+    # Si es form data
     if not negocio_id and request.form:
         negocio_id = request.form.get('negocio_id')
     
@@ -110,14 +115,14 @@ def parse_json_field(value, default=None):
     if isinstance(value, list):
         return value
     
-    if isinstance(value, dict):
-        return value
-    
     if isinstance(value, str):
+        # Intentar parsear como JSON
         try:
             parsed = json.loads(value)
-            if isinstance(parsed, (list, dict)):
+            # Si el resultado es una lista, retornarla
+            if isinstance(parsed, list):
                 return parsed
+            # Si es un string (doble encoding), intentar parsear de nuevo
             if isinstance(parsed, str):
                 try:
                     return json.loads(parsed)
@@ -125,72 +130,10 @@ def parse_json_field(value, default=None):
                     return default
             return default
         except json.JSONDecodeError:
+            # No es JSON válido, retornar default
             return default
     
     return default
-
-
-def procesar_badges_desde_request(data):
-    """
-    ★ NUEVO v3.3: Procesa los badges enviados desde el frontend Inventario PRO v2.3.
-    
-    El frontend envía un FormData con:
-    - badges: JSON string con todos los badges manuales (9 badges + personalizado)
-    
-    Returns:
-        dict: Diccionario de badges para guardar en badges_data
-    """
-    badges_raw = data.get('badges')
-    
-    # Estructura por defecto con los 9 badges manuales + personalizado
-    badges_default = {
-        'destacado': False,
-        'envio_gratis': False,
-        'pre_orden': False,
-        'edicion_limitada': False,
-        'oferta_flash': False,
-        'combo': False,
-        'garantia_extendida': False,
-        'eco_friendly': False,
-        'badge_personalizado': None
-    }
-    
-    if badges_raw is None:
-        # Si no viene el campo badges, intentar leer badges individuales (legacy)
-        return {
-            'destacado': data.get('destacado', False) in [True, 'true', '1', 1],
-            'envio_gratis': data.get('envio_gratis', False) in [True, 'true', '1', 1],
-            'pre_orden': data.get('pre_orden', False) in [True, 'true', '1', 1],
-            'edicion_limitada': data.get('edicion_limitada', False) in [True, 'true', '1', 1],
-            'oferta_flash': data.get('oferta_flash', False) in [True, 'true', '1', 1],
-            'combo': data.get('combo', False) in [True, 'true', '1', 1],
-            'garantia_extendida': data.get('garantia_extendida', False) in [True, 'true', '1', 1],
-            'eco_friendly': data.get('eco_friendly', False) in [True, 'true', '1', 1],
-            'badge_personalizado': data.get('badge_personalizado') or None
-        }
-    
-    # Parsear JSON si viene como string
-    if isinstance(badges_raw, str):
-        try:
-            badges_raw = json.loads(badges_raw)
-        except:
-            return badges_default
-    
-    if not isinstance(badges_raw, dict):
-        return badges_default
-    
-    # Retornar badges procesados con valores booleanos correctos
-    return {
-        'destacado': bool(badges_raw.get('destacado', False)),
-        'envio_gratis': bool(badges_raw.get('envio_gratis', False)),
-        'pre_orden': bool(badges_raw.get('pre_orden', False)),
-        'edicion_limitada': bool(badges_raw.get('edicion_limitada', False)),
-        'oferta_flash': bool(badges_raw.get('oferta_flash', False)),
-        'combo': bool(badges_raw.get('combo', False)),
-        'garantia_extendida': bool(badges_raw.get('garantia_extendida', False)),
-        'eco_friendly': bool(badges_raw.get('eco_friendly', False)),
-        'badge_personalizado': badges_raw.get('badge_personalizado') or None
-    }
 
 
 def require_auth(f):
@@ -214,9 +157,8 @@ def health_check():
     return jsonify({
         "status": "online", 
         "module": "catalogo",
-        "version": "3.3",
-        "cloudinary": "configured",
-        "badges_support": "v2.3_json"
+        "version": "3.2",
+        "cloudinary": "configured"
     }), 200
 
 
@@ -257,18 +199,23 @@ def obtener_mis_productos():
         
         logger.info(f"📦 Obteniendo productos - User: {user_id}, Negocio: {ctx['negocio_id']}")
         
+        # Query base
         query = ProductoCatalogo.query.filter_by(usuario_id=int(user_id))
         
+        # Filtro por negocio (BizContext)
         if ctx['negocio_id']:
             query = query.filter_by(negocio_id=ctx['negocio_id'])
             
+        # Filtro por sucursal
         if ctx['sucursal_id']:
             query = query.filter_by(sucursal_id=ctx['sucursal_id'])
         
+        # Filtro por categoría
         categoria = request.args.get('categoria')
         if categoria:
             query = query.filter_by(categoria=categoria)
         
+        # Filtro por stock
         stock_filter = request.args.get('stock_filter')
         if stock_filter == 'in_stock':
             query = query.filter(ProductoCatalogo.stock > 10)
@@ -277,6 +224,7 @@ def obtener_mis_productos():
         elif stock_filter == 'out_of_stock':
             query = query.filter(ProductoCatalogo.stock == 0)
         
+        # Búsqueda
         search = request.args.get('search', '').strip()
         if search:
             search_term = f"%{search}%"
@@ -288,6 +236,7 @@ def obtener_mis_productos():
                 )
             )
         
+        # Ordenamiento
         sort = request.args.get('sort', 'newest')
         if sort == 'name_asc':
             query = query.order_by(ProductoCatalogo.nombre.asc())
@@ -301,21 +250,24 @@ def obtener_mis_productos():
             query = query.order_by(ProductoCatalogo.stock.asc())
         elif sort == 'stock_desc':
             query = query.order_by(ProductoCatalogo.stock.desc())
-        else:
+        else:  # newest
             query = query.order_by(ProductoCatalogo.id_producto.desc())
         
         productos = query.all()
         
+        # Transformar a formato compatible con JS
         data_final = []
         for p in productos:
             d = p.to_dict()
+            # Asegurar aliases para JS
             d['id'] = p.id_producto
             d['sku'] = p.referencia_sku
             d['barcode'] = p.codigo_barras or ''
             d['codigo_barras'] = p.codigo_barras or ''
+            # Parsear campos JSON
             d['imagenes'] = parse_json_field(p.imagenes, [])
             d['videos'] = parse_json_field(p.videos, [])
-            d['youtube_links'] = d['videos']
+            d['youtube_links'] = d['videos']  # Alias para compatibilidad JS
             data_final.append(d)
 
         logger.info(f"✅ Catálogo: {len(data_final)} productos para usuario {user_id}")
@@ -333,7 +285,7 @@ def obtener_mis_productos():
 
 
 # ============================================
-# 2. GUARDAR PRODUCTO (Crear nuevo) - v3.3
+# 2. GUARDAR PRODUCTO (Crear nuevo) - CORREGIDO v3.2
 # ============================================
 
 @catalogo_api_bp.route('/catalogo/producto/guardar', methods=['POST', 'OPTIONS'])
@@ -350,9 +302,8 @@ def guardar_producto_catalogo():
     - negocio_id, sucursal_id (o via headers)
     - imagen (file) - imagen principal
     - imagen_1, imagen_2, ... (files) - galería adicional
-    - youtube_links o videos (JSON string)
-    - imagenes (JSON string) - URLs existentes
-    - badges (JSON string) - ★ badges manuales v2.3 (9 badges + personalizado)
+    - youtube_links o videos (JSON string) - videos de YouTube
+    - imagenes (JSON string) - URLs de imágenes existentes
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -362,10 +313,12 @@ def guardar_producto_catalogo():
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
+        # Detectar tipo de contenido
         is_form = 'multipart/form-data' in (request.content_type or '')
         data = request.form.to_dict() if is_form else (request.get_json(silent=True) or {})
         ctx = get_biz_context()
         
+        # Validar nombre
         nombre = data.get('nombre', '').strip()
         if not nombre:
             return jsonify({"success": False, "message": "El nombre es requerido"}), 400
@@ -374,6 +327,8 @@ def guardar_producto_catalogo():
         logger.info(f"📦 CREANDO PRODUCTO: {nombre}")
         logger.info(f"📦 User ID: {user_id}")
         logger.info(f"📦 Negocio ID: {ctx['negocio_id']}")
+        logger.info(f"📋 Campos recibidos: {list(data.keys())}")
+        logger.info(f"📁 Archivos recibidos: {list(request.files.keys())}")
         
         # ========================================
         # 1. PROCESAR IMAGEN PRINCIPAL
@@ -405,7 +360,7 @@ def guardar_producto_catalogo():
         # ========================================
         # 2. PROCESAR GALERÍA DE IMÁGENES
         # ========================================
-        for i in range(1, 10):
+        for i in range(1, 10):  # imagen_1 hasta imagen_9
             file_key = f'imagen_{i}'
             if file_key in request.files:
                 img_file = request.files[file_key]
@@ -428,35 +383,41 @@ def guardar_producto_catalogo():
                     except Exception as e:
                         logger.error(f"❌ Error subiendo imagen galería [{i}]: {e}")
         
+        # Agregar imágenes existentes (URLs que vienen del frontend)
         imagenes_existentes = parse_json_field(data.get('imagenes'), [])
         if imagenes_existentes:
+            logger.info(f"📷 Imágenes existentes recibidas: {len(imagenes_existentes)}")
+            # No duplicar URLs que ya están en galeria_urls
             for url in imagenes_existentes:
                 if url and url not in galeria_urls:
                     galeria_urls.append(url)
         
+        # Limitar a 10 imágenes máximo
         galeria_urls = galeria_urls[:10]
+        logger.info(f"📷 Total imágenes en galería: {len(galeria_urls)}")
         
         # ========================================
         # 3. PROCESAR YOUTUBE/VIDEOS
         # ========================================
+        # El frontend puede enviar como 'youtube_links' o 'videos'
         videos_raw = data.get('youtube_links') or data.get('videos') or '[]'
         videos = parse_json_field(videos_raw, [])
-        videos = [url for url in videos if url and isinstance(url, str) and ('youtube' in url or 'youtu.be' in url or 'vimeo' in url)]
+        
+        # Filtrar solo URLs válidas
+        videos = [url for url in videos if url and isinstance(url, str) and ('youtube' in url or 'youtu.be' in url)]
+        
+        logger.info(f"🎥 Videos de YouTube: {len(videos)}")
+        if videos:
+            logger.info(f"🎥 URLs: {videos}")
         
         # ========================================
-        # 4. ★ PROCESAR BADGES (v2.3 - JSON)
-        # ========================================
-        badges_data = procesar_badges_desde_request(data)
-        logger.info(f"🏷️ Badges recibidos: {badges_data}")
-        
-        # ========================================
-        # 5. OBTENER IDs DE CONTEXTO
+        # 4. OBTENER IDs DE CONTEXTO
         # ========================================
         negocio_id = ctx['negocio_id'] or int(data.get('negocio_id') or 1)
         sucursal_id = ctx['sucursal_id'] or int(data.get('sucursal_id') or 1)
         
         # ========================================
-        # 6. CREAR PRODUCTO
+        # 5. CREAR PRODUCTO
         # ========================================
         nuevo_prod = ProductoCatalogo(
             nombre=nombre,
@@ -479,14 +440,13 @@ def guardar_producto_catalogo():
             etiquetas=json.dumps(parse_json_field(data.get('etiquetas'), [])),
             sucursal_id=sucursal_id,
             activo=True,
-            estado_publicacion=True,
-            badges_data=json.dumps(badges_data)  # ★ v2.3: Guardar badges en JSON
+            estado_publicacion=True
         )
         
-        # ★ Badges columnas legacy (compatibilidad)
-        nuevo_prod.badge_destacado = badges_data.get('destacado', False)
+        # ★ Badges manuales al crear (v3.2)
+        nuevo_prod.badge_destacado = data.get('destacado', False) in [True, 'true', '1', 1]
         nuevo_prod.badge_mas_vendido = data.get('mas_vendido', False) in [True, 'true', '1', 1]
-        nuevo_prod.badge_envio_gratis = badges_data.get('envio_gratis', False)
+        nuevo_prod.badge_envio_gratis = data.get('envio_gratis', False) in [True, 'true', '1', 1]
         
         if data.get('precio_original'):
             nuevo_prod.precio_original = float(data['precio_original'])
@@ -495,15 +455,20 @@ def guardar_producto_catalogo():
         db.session.commit()
 
         # ========================================
-        # 7. PREPARAR RESPUESTA
+        # 6. PREPARAR RESPUESTA
         # ========================================
         producto_dict = nuevo_prod.to_dict()
         producto_dict['id'] = nuevo_prod.id_producto
         producto_dict['imagenes'] = galeria_urls
         producto_dict['videos'] = videos
-        producto_dict['youtube_links'] = videos
+        producto_dict['youtube_links'] = videos  # Alias para JS
         
-        logger.info(f"✅ PRODUCTO CREADO: {nombre} - ID: {nuevo_prod.id_producto}")
+        logger.info(f"✅ ═══════════════════════════════════════")
+        logger.info(f"✅ PRODUCTO CREADO: {nombre}")
+        logger.info(f"✅ ID: {nuevo_prod.id_producto}")
+        logger.info(f"✅ Imágenes: {len(galeria_urls)}")
+        logger.info(f"✅ Videos: {len(videos)}")
+        logger.info(f"✅ ═══════════════════════════════════════")
 
         return jsonify({
             "success": True,
@@ -521,7 +486,7 @@ def guardar_producto_catalogo():
 
 
 # ============================================
-# 3. ACTUALIZAR PRODUCTO (Edición completa) - v3.3
+# 3. ACTUALIZAR PRODUCTO (Edición completa) - CORREGIDO v3.3
 # ============================================
 
 @catalogo_api_bp.route('/producto/actualizar/<int:id_producto>', methods=['PUT', 'PATCH', 'OPTIONS'])
@@ -531,7 +496,9 @@ def actualizar_producto(id_producto):
     PUT/PATCH /api/producto/actualizar/{id}
     
     Actualiza cualquier campo del producto.
-    v3.3 - Soporte para badges_data JSON (9 badges + personalizado)
+    Solo actualiza los campos que vengan en el request.
+    
+    v3.3 - Corregido: Las imágenes ahora se REEMPLAZAN en lugar de solo agregarse
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -552,74 +519,92 @@ def actualizar_producto(id_producto):
         is_form = 'multipart/form-data' in (request.content_type or '')
         data = request.form.to_dict() if is_form else (request.get_json(silent=True) or {})
 
+        logger.info(f"📝 ═══════════════════════════════════════")
         logger.info(f"📝 ACTUALIZANDO PRODUCTO ID: {id_producto}")
+        logger.info(f"📋 Campos recibidos: {list(data.keys())}")
+        logger.info(f"📁 Archivos recibidos: {list(request.files.keys())}")
 
         # ========================================
         # ACTUALIZAR CAMPOS BÁSICOS
         # ========================================
         if 'nombre' in data:
             producto.nombre = data['nombre'].strip()
+        
         if 'descripcion' in data:
             producto.descripcion = data['descripcion']
+        
         if 'categoria' in data:
             producto.categoria = data['categoria']
+        
         if 'precio' in data:
             producto.precio = float(data['precio'])
+        
         if 'costo' in data:
             producto.costo = float(data['costo'])
+        
         if 'stock' in data:
             producto.stock = int(data['stock'])
+        
         if 'sku' in data or 'referencia_sku' in data:
             producto.referencia_sku = data.get('sku') or data.get('referencia_sku')
+        
         if 'barcode' in data or 'codigo_barras' in data:
             producto.codigo_barras = data.get('barcode') or data.get('codigo_barras')
+        
         if 'activo' in data:
             producto.activo = data['activo'] in [True, 'true', '1', 1]
+        
         if 'estado_publicacion' in data:
             producto.estado_publicacion = data['estado_publicacion'] in [True, 'true', '1', 1]
+        
         if 'negocio_id' in data:
             producto.negocio_id = int(data['negocio_id'])
+        
         if 'sucursal_id' in data:
             producto.sucursal_id = int(data['sucursal_id'])
+        
         if 'stock_minimo' in data:
             producto.stock_minimo = int(data['stock_minimo'])
+        
         if 'stock_critico' in data:
             producto.stock_critico = int(data['stock_critico'])
+        
         if 'stock_bajo' in data:
             producto.stock_bajo = int(data['stock_bajo'])
 
         # ========================================
-        # ★ ACTUALIZAR BADGES (v2.3 - JSON)
+        # ★ ACTUALIZAR BADGES MANUALES (v3.2)
         # ========================================
-        if 'badges' in data:
-            # Frontend envía badges como JSON string con los 9 badges
-            badges_data = procesar_badges_desde_request(data)
-            producto.badges_data = json.dumps(badges_data)
-            # Actualizar columnas legacy para compatibilidad
-            producto.badge_destacado = badges_data.get('destacado', False)
-            producto.badge_envio_gratis = badges_data.get('envio_gratis', False)
-            logger.info(f"🏷️ Badges actualizados (JSON): {badges_data}")
-        else:
-            # Badges individuales (legacy - compatibilidad con frontend viejo)
-            if 'destacado' in data or 'badge_destacado' in data:
-                val = data.get('destacado') or data.get('badge_destacado')
-                producto.badge_destacado = val in [True, 'true', '1', 1]
-            if 'mas_vendido' in data or 'badge_mas_vendido' in data:
-                val = data.get('mas_vendido') or data.get('badge_mas_vendido')
-                producto.badge_mas_vendido = val in [True, 'true', '1', 1]
-            if 'envio_gratis' in data or 'badge_envio_gratis' in data:
-                val = data.get('envio_gratis') or data.get('badge_envio_gratis')
-                producto.badge_envio_gratis = val in [True, 'true', '1', 1]
+        if 'destacado' in data or 'badge_destacado' in data:
+            val = data.get('destacado') or data.get('badge_destacado')
+            producto.badge_destacado = val in [True, 'true', '1', 1]
+            logger.info(f"   ⭐ Badge destacado: {producto.badge_destacado}")
         
-        # Precio original
+        if 'mas_vendido' in data or 'badge_mas_vendido' in data:
+            val = data.get('mas_vendido') or data.get('badge_mas_vendido')
+            producto.badge_mas_vendido = val in [True, 'true', '1', 1]
+            logger.info(f"   🔥 Badge más vendido: {producto.badge_mas_vendido}")
+        
+        if 'envio_gratis' in data or 'badge_envio_gratis' in data:
+            val = data.get('envio_gratis') or data.get('badge_envio_gratis')
+            producto.badge_envio_gratis = val in [True, 'true', '1', 1]
+            logger.info(f"   🚚 Badge envío gratis: {producto.badge_envio_gratis}")
+        
+        # Precio original (para calcular descuento)
         if 'precio_original' in data:
-            producto.precio_original = float(data['precio_original']) if data['precio_original'] else None
+            if data['precio_original']:
+                producto.precio_original = float(data['precio_original'])
+            else:
+                producto.precio_original = None
+            logger.info(f"   💰 Precio original: {producto.precio_original}")
         
         # Promoción programada
         if 'promo_inicio' in data:
             if data['promo_inicio']:
                 try:
-                    producto.promo_inicio = datetime.fromisoformat(str(data['promo_inicio']).replace('Z', '+00:00'))
+                    producto.promo_inicio = datetime.fromisoformat(
+                        str(data['promo_inicio']).replace('Z', '+00:00')
+                    )
                 except:
                     producto.promo_inicio = None
             else:
@@ -628,7 +613,9 @@ def actualizar_producto(id_producto):
         if 'promo_fin' in data:
             if data['promo_fin']:
                 try:
-                    producto.promo_fin = datetime.fromisoformat(str(data['promo_fin']).replace('Z', '+00:00'))
+                    producto.promo_fin = datetime.fromisoformat(
+                        str(data['promo_fin']).replace('Z', '+00:00')
+                    )
                 except:
                     producto.promo_fin = None
             else:
@@ -643,64 +630,113 @@ def actualizar_producto(id_producto):
         if 'youtube_links' in data or 'videos' in data:
             videos_raw = data.get('youtube_links') or data.get('videos') or '[]'
             videos = parse_json_field(videos_raw, [])
+            # Filtrar URLs válidas de YouTube
             videos = [url for url in videos if url and isinstance(url, str)]
             producto.videos = json.dumps(videos)
+            logger.info(f"🎥 Videos actualizados: {len(videos)}")
 
         # ========================================
-        # PROCESAR IMÁGENES - REEMPLAZA lista
+        # ★ PROCESAR IMÁGENES - CORREGIDO v3.3 ★
+        # Ahora REEMPLAZA la lista en lugar de solo agregar
         # ========================================
-        galeria_actual = parse_json_field(producto.imagenes, [])
         
+        # Inicializar galería con las imágenes actuales del producto
+        galeria_actual = parse_json_field(producto.imagenes, [])
+        logger.info(f"🖼️ Imágenes actuales en BD: {len(galeria_actual)}")
+        
+        # Si el frontend envía el campo 'imagenes', REEMPLAZAR la galería completa
+        # Esto permite eliminar imágenes que el usuario quitó
         if 'imagenes' in data:
             imagenes_enviadas = parse_json_field(data['imagenes'], None)
+            
+            # Solo reemplazar si es una lista válida (puede ser vacía)
             if imagenes_enviadas is not None and isinstance(imagenes_enviadas, list):
+                # Filtrar URLs válidas
                 galeria_actual = [url for url in imagenes_enviadas if url and isinstance(url, str)]
+                logger.info(f"🖼️ Imágenes REEMPLAZADAS desde frontend: {len(galeria_actual)}")
+            else:
+                logger.info(f"🖼️ Campo 'imagenes' recibido pero no es lista válida: {type(imagenes_enviadas)}")
+        
+        # También verificar campos alternativos
         elif 'imagenes_existentes' in data:
             imagenes_enviadas = parse_json_field(data['imagenes_existentes'], None)
             if imagenes_enviadas is not None and isinstance(imagenes_enviadas, list):
                 galeria_actual = [url for url in imagenes_enviadas if url and isinstance(url, str)]
+                logger.info(f"🖼️ Imágenes REEMPLAZADAS (imagenes_existentes): {len(galeria_actual)}")
         
-        # Subir nueva imagen principal
+        # ========================================
+        # SUBIR NUEVA IMAGEN PRINCIPAL
+        # ========================================
         file = request.files.get('imagen') or request.files.get('imagen_file')
         if file and file.filename:
+            logger.info(f"📷 Subiendo nueva imagen principal: {file.filename}")
             nombre_limpio = re.sub(r'[^a-zA-Z0-9]', '', producto.nombre[:15])
             p_id = f"user_{user_id}_{nombre_limpio}_{int(time.time())}"
+            
             try:
-                upload_result = cloudinary.uploader.upload(file, folder="productos_bizflow", public_id=p_id, overwrite=True, resource_type="auto")
+                upload_result = cloudinary.uploader.upload(
+                    file,
+                    folder="productos_bizflow",
+                    public_id=p_id,
+                    overwrite=True,
+                    resource_type="auto"
+                )
                 nueva_url = upload_result.get('secure_url')
                 producto.imagen_url = nueva_url
+                
+                # Agregar al inicio de la galería si no existe
                 if nueva_url not in galeria_actual:
                     galeria_actual.insert(0, nueva_url)
+                
+                logger.info(f"✅ Imagen principal actualizada: {nueva_url}")
             except Exception as e:
                 logger.error(f"❌ Error subiendo imagen principal: {e}")
         
-        # Subir imágenes de galería adicionales
+        # ========================================
+        # SUBIR IMÁGENES DE GALERÍA ADICIONALES
+        # ========================================
         for i in range(1, 10):
             file_key = f'imagen_{i}'
             if file_key in request.files:
                 img_file = request.files[file_key]
                 if img_file and img_file.filename:
+                    logger.info(f"📷 Subiendo imagen galería [{i}]: {img_file.filename}")
                     nombre_limpio = re.sub(r'[^a-zA-Z0-9]', '', producto.nombre[:15])
                     img_id = f"user_{user_id}_{nombre_limpio}_gal{i}_{int(time.time())}"
+                    
                     try:
-                        upload_result = cloudinary.uploader.upload(img_file, folder="productos_bizflow/galeria", public_id=img_id, overwrite=True, resource_type="auto")
+                        upload_result = cloudinary.uploader.upload(
+                            img_file,
+                            folder="productos_bizflow/galeria",
+                            public_id=img_id,
+                            overwrite=True,
+                            resource_type="auto"
+                        )
                         url = upload_result.get('secure_url')
                         if url not in galeria_actual:
                             galeria_actual.append(url)
+                        logger.info(f"✅ Imagen galería [{i}] subida: {url}")
                     except Exception as e:
                         logger.error(f"❌ Error subiendo imagen galería [{i}]: {e}")
         
-        # Guardar galería final
+        # ========================================
+        # GUARDAR GALERÍA FINAL
+        # ========================================
+        # Limitar a 10 imágenes
         galeria_actual = galeria_actual[:10]
         producto.imagenes = json.dumps(galeria_actual)
         
+        # Actualizar imagen_url principal
         if galeria_actual:
             producto.imagen_url = galeria_actual[0]
         elif not producto.imagen_url:
             producto.imagen_url = None
+        
+        logger.info(f"🖼️ Galería final guardada: {len(galeria_actual)} imágenes")
 
         db.session.commit()
 
+        # Preparar respuesta
         producto_dict = producto.to_dict()
         producto_dict['id'] = producto.id_producto
         producto_dict['imagenes'] = galeria_actual
@@ -708,6 +744,7 @@ def actualizar_producto(id_producto):
         producto_dict['youtube_links'] = producto_dict['videos']
 
         logger.info(f"✅ Producto {id_producto} actualizado correctamente")
+        logger.info(f"✅ Imágenes: {len(galeria_actual)}, Videos: {len(producto_dict['videos'])}")
 
         return jsonify({
             "success": True,
@@ -790,6 +827,7 @@ def obtener_producto(id_producto):
         if not producto:
             return jsonify({"success": False, "message": "Producto no encontrado"}), 404
 
+        # Construir respuesta completa
         data = producto.to_dict()
         data['id'] = producto.id_producto
         data['sku'] = producto.referencia_sku
@@ -799,6 +837,7 @@ def obtener_producto(id_producto):
         data['youtube_links'] = data['videos']
         data['etiquetas'] = parse_json_field(producto.etiquetas, [])
 
+        # Obtener movimientos recientes
         try:
             movimientos = MovimientoStock.query.filter_by(
                 producto_id=id_producto
@@ -850,8 +889,10 @@ def edicion_rapida(id_producto):
 
         if 'stock' in data:
             producto.stock = int(data['stock'])
+        
         if 'precio' in data:
             producto.precio = float(data['precio'])
+        
         if 'costo' in data:
             producto.costo = float(data['costo'])
 
@@ -877,13 +918,13 @@ def edicion_rapida(id_producto):
 
 
 # ============================================
-# 7. DUPLICAR PRODUCTO - v3.3
+# 7. DUPLICAR PRODUCTO
 # ============================================
 
 @catalogo_api_bp.route('/producto/duplicar/<int:id_producto>', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def duplicar_producto(id_producto):
-    """POST /api/producto/duplicar/{id} - Incluye badges_data"""
+    """POST /api/producto/duplicar/{id}"""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
 
@@ -915,14 +956,8 @@ def duplicar_producto(id_producto):
             imagenes=original.imagenes,
             videos=original.videos,
             sucursal_id=original.sucursal_id,
-            activo=False,
-            badges_data=original.badges_data  # ★ v3.3: Copiar badges_data
+            activo=False
         )
-        
-        # Copiar badges legacy también
-        duplicado.badge_destacado = original.badge_destacado
-        duplicado.badge_mas_vendido = original.badge_mas_vendido
-        duplicado.badge_envio_gratis = original.badge_envio_gratis
         
         db.session.add(duplicado)
         db.session.commit()
@@ -999,7 +1034,11 @@ def toggle_activo(id_producto):
 @catalogo_api_bp.route('/producto/<int:id_producto>/stock', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def ajustar_stock(id_producto):
-    """POST /api/producto/{id}/stock"""
+    """
+    POST /api/producto/{id}/stock
+    
+    Body: { tipo: 'entrada'|'salida'|'ajuste', cantidad: N, nota: '' }
+    """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
 
@@ -1040,12 +1079,13 @@ def ajustar_stock(id_producto):
                 return jsonify({"success": False, "message": "Stock insuficiente"}), 400
             nuevo_stock = stock_anterior - cantidad
             cantidad_movimiento = -cantidad
-        else:
+        else:  # ajuste
             nuevo_stock = cantidad
             cantidad_movimiento = cantidad - stock_anterior
 
         producto.stock = nuevo_stock
         
+        # Registrar movimiento
         try:
             movimiento = MovimientoStock(
                 producto_id=id_producto,
@@ -1135,7 +1175,11 @@ def obtener_movimientos(id_producto):
             logger.warning(f"⚠️ Error obteniendo movimientos: {e}")
             return jsonify({
                 "success": True,
-                "producto": {"id": producto.id_producto, "nombre": producto.nombre, "stock_actual": producto.stock},
+                "producto": {
+                    "id": producto.id_producto,
+                    "nombre": producto.nombre,
+                    "stock_actual": producto.stock
+                },
                 "resumen": {"total_entradas": 0, "total_salidas": 0, "total_movimientos": 0},
                 "movimientos": []
             }), 200
@@ -1163,11 +1207,15 @@ def obtener_alertas_stock():
     try:
         ctx = get_biz_context()
         
-        query = ProductoCatalogo.query.filter_by(usuario_id=int(user_id), activo=True)
+        query = ProductoCatalogo.query.filter_by(
+            usuario_id=int(user_id),
+            activo=True
+        )
         
         if ctx['negocio_id']:
             query = query.filter_by(negocio_id=ctx['negocio_id'])
         
+        # Productos con stock bajo o crítico
         query = query.filter(ProductoCatalogo.stock <= ProductoCatalogo.stock_bajo)
         productos = query.order_by(ProductoCatalogo.stock.asc()).all()
         
@@ -1262,80 +1310,206 @@ def estadisticas_inventario():
 
 
 # ============================================
-# 13. LISTAR CATEGORÍAS (desde config_tienda)
+# 13. LISTAR CATEGORÍAS
+# ============================================
+
+# ============================================
+# ENDPOINT CORREGIDO - CATEGORÍAS DESDE config_tienda
+# ============================================
+# 
+# INSTRUCCIONES:
+# 1. Abre tu archivo catalogo_api.py
+# 2. Busca la sección "# 13. LISTAR CATEGORÍAS" o la función "listar_categorias()"
+# 3. REEMPLAZA toda la función con este código
+# 4. Verifica que tengas estas importaciones al inicio del archivo:
+#
+#    from src.models.negocio import Negocio  # ← Ajusta la ruta según tu proyecto
+#    import traceback
+#
 # ============================================
 
 @catalogo_api_bp.route('/categorias', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def listar_categorias():
-    """GET /api/categorias - Categorías desde config_tienda + productos"""
+    """
+    GET /api/categorias - DEVUELVE CATEGORÍAS DESDE config_tienda
+    
+    Las categorías se leen desde:
+    1. config_tienda.categories (guardadas por el Designer)
+    2. Categorías auto-generadas de productos existentes
+    
+    Retorna TODAS las categorías unificadas.
+    """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
 
     user_id = get_authorized_user_id()
     if not user_id:
+        logger.warning("❌ Intento de listar categorías sin autenticación")
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
+        logger.info("📁 ═══════════════════════════════════════════════")
+        logger.info("📁 LISTANDO CATEGORÍAS DESDE config_tienda v4.1")
+        
         ctx = get_biz_context()
+        
+        logger.info(f"👤 Usuario ID: {user_id}")
+        logger.info(f"🏢 Negocio ID: {ctx['negocio_id']}")
+        
+        # ========================================
+        # 1. OBTENER CATEGORÍAS DESDE config_tienda
+        # ========================================
         categorias_dict = {}
         
         if ctx['negocio_id']:
-            negocio = Negocio.query.filter_by(id_negocio=ctx['negocio_id'], usuario_id=user_id).first()
+            logger.info("🔍 Buscando categorías en config_tienda...")
+            
+            negocio = Negocio.query.filter_by(
+                id_negocio=ctx['negocio_id'],
+                usuario_id=user_id
+            ).first()
             
             if negocio and negocio.config_tienda:
+                logger.info("✅ config_tienda encontrado")
+                
+                # Obtener categorías del Designer
                 categories_from_config = negocio.config_tienda.get('categories', [])
                 
-                for idx, cat in enumerate(categories_from_config, 1):
-                    nombre = cat.get('name', '')
-                    if nombre:
-                        categorias_dict[nombre] = {
-                            'id': cat.get('id', idx),
-                            'nombre': nombre,
-                            'icono': cat.get('icon', '📦'),
-                            'color': cat.get('color', '#6366f1'),
-                            'featured': cat.get('featured', False),
-                            'count': 0,
-                            'custom': True,
-                            'source': 'config_tienda'
-                        }
+                logger.info(f"📦 Categorías en config_tienda: {len(categories_from_config)}")
+                
+                if categories_from_config:
+                    logger.info("📋 Procesando categorías del Designer:")
+                    
+                    for idx, cat in enumerate(categories_from_config, 1):
+                        nombre = cat.get('name', '')
+                        
+                        if nombre:
+                            categorias_dict[nombre] = {
+                                'id': cat.get('id', idx),
+                                'nombre': nombre,
+                                'icono': cat.get('icon', '📦'),
+                                'color': cat.get('color', '#6366f1'),
+                                'featured': cat.get('featured', False),
+                                'count': 0,  # Se actualizará después con productos reales
+                                'custom': True,  # Marca que viene del Designer
+                                'source': 'config_tienda'
+                            }
+                            
+                            featured_mark = "⭐" if cat.get('featured') else ""
+                            logger.info(f"   {idx}. {featured_mark} '{nombre}' - {cat.get('icon', '📦')}")
+                else:
+                    logger.info("   ℹ️ No hay categorías guardadas en config_tienda")
+            else:
+                logger.warning("⚠️ No se encontró config_tienda para este negocio")
         
-        query = ProductoCatalogo.query.filter_by(usuario_id=int(user_id), activo=True)
+        # ========================================
+        # 2. OBTENER CATEGORÍAS DE PRODUCTOS EXISTENTES
+        # ========================================
+        logger.info("🔍 Obteniendo categorías de productos...")
+        
+        # ★ IMPORTANTE: Usar ProductoCatalogo (no Producto)
+        query = ProductoCatalogo.query.filter_by(
+            usuario_id=int(user_id),
+            activo=True
+        )
+        
         if ctx['negocio_id']:
             query = query.filter_by(negocio_id=ctx['negocio_id'])
         
         productos = query.all()
+        logger.info(f"📦 Total productos activos: {len(productos)}")
         
+        # Contar productos por categoría
         for producto in productos:
             cat_nombre = producto.categoria
+            
             if cat_nombre:
                 if cat_nombre in categorias_dict:
+                    # Actualizar contador de categoría existente
                     categorias_dict[cat_nombre]['count'] += 1
                 else:
+                    # Agregar nueva categoría auto-generada
                     categorias_dict[cat_nombre] = {
                         'id': len(categorias_dict) + 1,
                         'nombre': cat_nombre,
-                        'icono': '📦',
-                        'color': '#6b7280',
+                        'icono': '📦',  # Icono por defecto
+                        'color': '#6b7280',  # Color por defecto
                         'featured': False,
                         'count': 1,
-                        'custom': False,
+                        'custom': False,  # Auto-generada
                         'source': 'productos'
                     }
         
+        logger.info(f"📊 Total categorías únicas después de productos: {len(categorias_dict)}")
+        
+        # ========================================
+        # 3. CONVERTIR A LISTA Y ORDENAR
+        # ========================================
+        logger.info("🔀 Ordenando categorías...")
+        
         categorias_list = list(categorias_dict.values())
-        categorias_list.sort(key=lambda x: (not x.get('featured', False), -x['count'], x['nombre'].lower()))
+        
+        # Ordenar: primero las featured, luego por cantidad de productos, luego alfabético
+        categorias_list.sort(key=lambda x: (
+            not x.get('featured', False),  # Featured primero
+            -x['count'],                    # Mayor cantidad de productos
+            x['nombre'].lower()             # Alfabético
+        ))
+        
+        # ========================================
+        # 4. LOGGING FINAL
+        # ========================================
+        logger.info(f"✅ ═══════════════════════════════════════════════")
+        logger.info(f"✅ LISTADO COMPLETADO")
+        logger.info(f"✅ Total categorías a devolver: {len(categorias_list)}")
+        
+        custom_count = len([c for c in categorias_list if c['custom']])
+        auto_count = len([c for c in categorias_list if not c['custom']])
+        
+        logger.info(f"✅ Categorías del Designer: {custom_count}")
+        logger.info(f"✅ Categorías auto-generadas: {auto_count}")
+        
+        if categorias_list:
+            logger.info("📋 Top 5 categorías:")
+            for cat in categorias_list[:5]:
+                custom_label = "[DESIGNER]" if cat['custom'] else "[AUTO]"
+                featured_label = "⭐" if cat.get('featured') else ""
+                logger.info(f"   {custom_label}{featured_label} '{cat['nombre']}': {cat['count']} productos")
+        
+        logger.info(f"✅ ═══════════════════════════════════════════════")
         
         return jsonify({
             "success": True,
             "total": len(categorias_list),
             "categorias": categorias_list,
-            "source": "config_tienda"
+            "source": "config_tienda",
+            "stats": {
+                "designer": custom_count,
+                "auto": auto_count
+            }
         }), 200
 
     except Exception as e:
-        logger.error(f"❌ Error listar categorías: {traceback.format_exc()}")
-        return jsonify({"success": False, "message": str(e), "categorias": []}), 500
+        logger.error(f"❌ ═══════════════════════════════════════════════")
+        logger.error(f"❌ ERROR CRÍTICO AL LISTAR CATEGORÍAS")
+        logger.error(f"❌ Error: {str(e)}")
+        logger.error(f"❌ Tipo: {type(e).__name__}")
+        logger.error(f"❌ Traceback completo:")
+        logger.error(traceback.format_exc())
+        logger.error(f"❌ ═══════════════════════════════════════════════")
+        
+        return jsonify({
+            "success": False, 
+            "message": str(e),
+            "categorias": []
+        }), 500
+
+
+
+# ============================================
+# FIN DEL ENDPOINT CORREGIDO
+# ============================================
 
 
 # ============================================
@@ -1354,7 +1528,10 @@ def actualizar_categoria(id_categoria):
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
-        categoria = CategoriaProducto.query.filter_by(id_categoria=id_categoria, usuario_id=int(user_id)).first()
+        categoria = CategoriaProducto.query.filter_by(
+            id_categoria=id_categoria,
+            usuario_id=int(user_id)
+        ).first()
         
         if not categoria:
             return jsonify({"success": False, "message": "Categoría no encontrada"}), 404
@@ -1363,18 +1540,28 @@ def actualizar_categoria(id_categoria):
         nombre_anterior = categoria.nombre
         
         if 'nombre' in data or 'name' in data:
-            categoria.nombre = (data.get('nombre') or data.get('name')).strip()
+            nuevo_nombre = data.get('nombre') or data.get('name')
+            categoria.nombre = nuevo_nombre.strip()
+        
         if 'icono' in data or 'icon' in data:
             categoria.icono = data.get('icono') or data.get('icon')
+        
         if 'color' in data:
             categoria.color = data['color']
 
         if nombre_anterior != categoria.nombre:
-            ProductoCatalogo.query.filter_by(usuario_id=int(user_id), categoria=nombre_anterior).update({'categoria': categoria.nombre})
+            ProductoCatalogo.query.filter_by(
+                usuario_id=int(user_id),
+                categoria=nombre_anterior
+            ).update({'categoria': categoria.nombre})
 
         db.session.commit()
 
-        return jsonify({"success": True, "message": "Categoría actualizada", "categoria": categoria.to_dict()}), 200
+        return jsonify({
+            "success": True,
+            "message": "Categoría actualizada",
+            "categoria": categoria.to_dict()
+        }), 200
 
     except Exception as e:
         db.session.rollback()
@@ -1397,18 +1584,31 @@ def eliminar_categoria(id_categoria):
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
-        categoria = CategoriaProducto.query.filter_by(id_categoria=id_categoria, usuario_id=int(user_id)).first()
+        categoria = CategoriaProducto.query.filter_by(
+            id_categoria=id_categoria,
+            usuario_id=int(user_id)
+        ).first()
         
         if not categoria:
             return jsonify({"success": False, "message": "Categoría no encontrada"}), 404
 
         nombre = categoria.nombre
-        productos_afectados = ProductoCatalogo.query.filter_by(usuario_id=int(user_id), categoria=nombre).update({'categoria': ''})
+        
+        productos_afectados = ProductoCatalogo.query.filter_by(
+            usuario_id=int(user_id),
+            categoria=nombre
+        ).update({'categoria': ''})
         
         db.session.delete(categoria)
         db.session.commit()
 
-        return jsonify({"success": True, "message": f"Categoría '{nombre}' eliminada", "productos_afectados": productos_afectados}), 200
+        logger.info(f"🗑️ Categoría eliminada: {nombre}")
+
+        return jsonify({
+            "success": True,
+            "message": f"Categoría '{nombre}' eliminada",
+            "productos_afectados": productos_afectados
+        }), 200
 
     except Exception as e:
         db.session.rollback()
@@ -1431,7 +1631,10 @@ def agregar_imagenes(id_producto):
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
-        producto = ProductoCatalogo.query.filter_by(id_producto=id_producto, usuario_id=int(user_id)).first()
+        producto = ProductoCatalogo.query.filter_by(
+            id_producto=id_producto,
+            usuario_id=int(user_id)
+        ).first()
         
         if not producto:
             return jsonify({"success": False, "message": "Producto no encontrado"}), 404
@@ -1446,7 +1649,13 @@ def agregar_imagenes(id_producto):
                 img_id = f"user_{user_id}_{nombre_limpio}_{int(time.time())}_{key}"
                 
                 try:
-                    upload_result = cloudinary.uploader.upload(file, folder="productos_bizflow/galeria", public_id=img_id, overwrite=True, resource_type="auto")
+                    upload_result = cloudinary.uploader.upload(
+                        file,
+                        folder="productos_bizflow/galeria",
+                        public_id=img_id,
+                        overwrite=True,
+                        resource_type="auto"
+                    )
                     nuevas_urls.append(upload_result.get('secure_url'))
                 except Exception as e:
                     logger.error(f"Error subiendo {key}: {e}")
@@ -1460,10 +1669,18 @@ def agregar_imagenes(id_producto):
         producto.imagenes = json.dumps(galeria_completa)
         db.session.commit()
 
-        return jsonify({"success": True, "message": f"{len(nuevas_urls)} imágenes agregadas", "imagenes": galeria_completa, "total": len(galeria_completa)}), 201
+        logger.info(f"📷 {len(nuevas_urls)} imágenes agregadas a producto {id_producto}")
+
+        return jsonify({
+            "success": True,
+            "message": f"{len(nuevas_urls)} imágenes agregadas",
+            "imagenes": galeria_completa,
+            "total": len(galeria_completa)
+        }), 201
 
     except Exception as e:
         db.session.rollback()
+        logger.error(f"❌ Error agregar imágenes: {traceback.format_exc()}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -1483,7 +1700,10 @@ def eliminar_imagen(id_producto, index):
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
-        producto = ProductoCatalogo.query.filter_by(id_producto=id_producto, usuario_id=int(user_id)).first()
+        producto = ProductoCatalogo.query.filter_by(
+            id_producto=id_producto,
+            usuario_id=int(user_id)
+        ).first()
         
         if not producto:
             return jsonify({"success": False, "message": "Producto no encontrado"}), 404
@@ -1503,7 +1723,11 @@ def eliminar_imagen(id_producto, index):
         
         db.session.commit()
 
-        return jsonify({"success": True, "message": "Imagen eliminada", "imagenes": galeria}), 200
+        return jsonify({
+            "success": True,
+            "message": "Imagen eliminada",
+            "imagenes": galeria
+        }), 200
 
     except Exception as e:
         db.session.rollback()
@@ -1526,28 +1750,44 @@ def agregar_video(id_producto):
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
-        producto = ProductoCatalogo.query.filter_by(id_producto=id_producto, usuario_id=int(user_id)).first()
+        producto = ProductoCatalogo.query.filter_by(
+            id_producto=id_producto,
+            usuario_id=int(user_id)
+        ).first()
         
         if not producto:
             return jsonify({"success": False, "message": "Producto no encontrado"}), 404
 
         data = request.get_json()
         videos_actuales = parse_json_field(producto.videos, [])
+
+        def extraer_youtube_id(url):
+            patterns = [
+                r'(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s?]+)',
+                r'youtube\.com\/shorts\/([^&\s?]+)'
+            ]
+            for pattern in patterns:
+                match = re.search(pattern, url)
+                if match:
+                    return match.group(1)
+            return None
+
         nuevos_videos = []
         
         if 'videos' in data:
             for v in data['videos']:
                 url = v.get('url', '') if isinstance(v, dict) else v
-                if url and ('youtube' in url or 'youtu.be' in url or 'vimeo' in url):
+                if url and ('youtube' in url or 'youtu.be' in url):
                     nuevos_videos.append(url)
         elif 'url' in data:
             url = data['url']
-            if url and ('youtube' in url or 'youtu.be' in url or 'vimeo' in url):
+            if url and ('youtube' in url or 'youtu.be' in url):
                 nuevos_videos.append(url)
 
         if not nuevos_videos:
-            return jsonify({"success": False, "message": "No se recibieron URLs válidas"}), 400
+            return jsonify({"success": False, "message": "No se recibieron URLs válidas de YouTube"}), 400
 
+        # Evitar duplicados
         videos_unicos = [v for v in nuevos_videos if v not in videos_actuales]
         
         if not videos_unicos:
@@ -1559,10 +1799,18 @@ def agregar_video(id_producto):
         producto.videos = json.dumps(todos_videos)
         db.session.commit()
 
-        return jsonify({"success": True, "message": f"{len(videos_unicos)} video(s) agregado(s)", "videos": todos_videos, "total": len(todos_videos)}), 201
+        logger.info(f"🎥 {len(videos_unicos)} videos agregados a producto {id_producto}")
+
+        return jsonify({
+            "success": True,
+            "message": f"{len(videos_unicos)} video(s) agregado(s)",
+            "videos": todos_videos,
+            "total": len(todos_videos)
+        }), 201
 
     except Exception as e:
         db.session.rollback()
+        logger.error(f"❌ Error agregar video: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -1582,7 +1830,10 @@ def eliminar_video(id_producto, index):
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
-        producto = ProductoCatalogo.query.filter_by(id_producto=id_producto, usuario_id=int(user_id)).first()
+        producto = ProductoCatalogo.query.filter_by(
+            id_producto=id_producto,
+            usuario_id=int(user_id)
+        ).first()
         
         if not producto:
             return jsonify({"success": False, "message": "Producto no encontrado"}), 404
@@ -1596,7 +1847,12 @@ def eliminar_video(id_producto, index):
         producto.videos = json.dumps(videos)
         db.session.commit()
 
-        return jsonify({"success": True, "message": "Video eliminado", "video_eliminado": video_eliminado, "videos": videos}), 200
+        return jsonify({
+            "success": True,
+            "message": "Video eliminado",
+            "video_eliminado": video_eliminado,
+            "videos": videos
+        }), 200
 
     except Exception as e:
         db.session.rollback()
@@ -1625,6 +1881,7 @@ def buscar_por_codigo():
             return jsonify({"success": False, "message": "Código requerido"}), 400
 
         ctx = get_biz_context()
+        
         query = ProductoCatalogo.query.filter_by(usuario_id=int(user_id))
         
         if ctx['negocio_id']:
@@ -1639,14 +1896,24 @@ def buscar_por_codigo():
         ).first()
         
         if not producto:
-            return jsonify({"success": False, "encontrado": False, "message": "Producto no encontrado", "codigo": codigo}), 404
+            return jsonify({
+                "success": False,
+                "encontrado": False,
+                "message": "Producto no encontrado",
+                "codigo": codigo
+            }), 404
 
         producto_dict = producto.to_dict()
         producto_dict['id'] = producto.id_producto
 
-        return jsonify({"success": True, "encontrado": True, "producto": producto_dict}), 200
+        return jsonify({
+            "success": True,
+            "encontrado": True,
+            "producto": producto_dict
+        }), 200
 
     except Exception as e:
+        logger.error(f"❌ Error buscar código: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -1690,14 +1957,25 @@ def buscar_productos():
         ).limit(20).all()
 
         resultados = [{
-            "id": p.id_producto, "nombre": p.nombre, "sku": p.referencia_sku,
-            "barcode": p.codigo_barras, "categoria": p.categoria,
-            "precio": p.precio, "stock": p.stock, "imagen_url": p.imagen_url
+            "id": p.id_producto,
+            "nombre": p.nombre,
+            "sku": p.referencia_sku,
+            "barcode": p.codigo_barras,
+            "categoria": p.categoria,
+            "precio": p.precio,
+            "stock": p.stock,
+            "imagen_url": p.imagen_url
         } for p in productos]
 
-        return jsonify({"success": True, "termino": q, "total": len(resultados), "productos": resultados}), 200
+        return jsonify({
+            "success": True,
+            "termino": q,
+            "total": len(resultados),
+            "productos": resultados
+        }), 200
 
     except Exception as e:
+        logger.error(f"❌ Error buscar: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -1794,6 +2072,8 @@ def importar_productos():
 
         db.session.commit()
 
+        logger.info(f"📥 Importación: {importados} productos, {len(errores)} errores")
+
         return jsonify({
             "success": True,
             "message": f"{importados} productos importados",
@@ -1804,6 +2084,7 @@ def importar_productos():
 
     except Exception as e:
         db.session.rollback()
+        logger.error(f"❌ Error importar: {traceback.format_exc()}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -1824,6 +2105,7 @@ def exportar_productos():
 
     try:
         ctx = get_biz_context()
+        
         params = request.get_json() if request.method == 'POST' else request.args.to_dict()
         
         formato = params.get('formato', 'csv').lower()
@@ -1848,10 +2130,14 @@ def exportar_productos():
         productos = query.all()
 
         campo_map = {
-            'nombre': lambda p: p.nombre, 'sku': lambda p: p.referencia_sku or '',
-            'codigo_barras': lambda p: p.codigo_barras or '', 'categoria': lambda p: p.categoria or '',
-            'precio': lambda p: p.precio, 'costo': lambda p: p.costo,
-            'stock': lambda p: p.stock, 'descripcion': lambda p: p.descripcion or ''
+            'nombre': lambda p: p.nombre,
+            'sku': lambda p: p.referencia_sku or '',
+            'codigo_barras': lambda p: p.codigo_barras or '',
+            'categoria': lambda p: p.categoria or '',
+            'precio': lambda p: p.precio,
+            'costo': lambda p: p.costo,
+            'stock': lambda p: p.stock,
+            'descripcion': lambda p: p.descripcion or ''
         }
 
         datos = []
@@ -1863,7 +2149,12 @@ def exportar_productos():
             datos.append(fila)
 
         if formato == 'json':
-            return jsonify({"success": True, "total": len(datos), "formato": "json", "datos": datos}), 200
+            return jsonify({
+                "success": True,
+                "total": len(datos),
+                "formato": "json",
+                "datos": datos
+            }), 200
         else:
             import io
             import csv
@@ -1874,17 +2165,20 @@ def exportar_productos():
             writer.writerows(datos)
             
             return jsonify({
-                "success": True, "total": len(datos), "formato": "csv",
+                "success": True,
+                "total": len(datos),
+                "formato": "csv",
                 "contenido": output.getvalue(),
                 "filename": f"productos_{datetime.now().strftime('%Y%m%d')}.csv"
             }), 200
 
     except Exception as e:
+        logger.error(f"❌ Error exportar: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
 # ============================================
-# 25. CATÁLOGO PÚBLICO (Sin auth) - v3.3
+# 25. CATÁLOGO PÚBLICO (Sin auth) - v3.2
 # ============================================
 
 @catalogo_api_bp.route('/productos/publicos/<int:negocio_id>', methods=['GET', 'OPTIONS'])
@@ -1893,9 +2187,8 @@ def catalogo_publico(negocio_id):
     """
     GET /api/productos/publicos/{negocio_id}
     
-    Catálogo público con BADGES CALCULADOS (v3.3)
+    Catálogo público con BADGES CALCULADOS (v3.2)
     Los badges vienen del método to_dict() del modelo ProductoCatalogo
-    Incluye los 9 badges manuales + badge personalizado desde badges_data JSON
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -1934,16 +2227,18 @@ def catalogo_publico(negocio_id):
             query = query.order_by(ProductoCatalogo.total_ventas.desc())
         elif sort == 'rating':
             query = query.order_by(ProductoCatalogo.rating_promedio.desc())
-        else:
+        else:  # newest
             query = query.order_by(ProductoCatalogo.id_producto.desc())
         
         productos = query.limit(limit).all()
         
-        # ★ USAR to_dict() QUE INCLUYE BADGES CALCULADOS (v2.3)
+        # ★ USAR to_dict() QUE INCLUYE BADGES CALCULADOS
         datos_publicos = []
         for p in productos:
+            # to_dict() ya incluye badges calculados automáticamente
             producto_dict = p.to_dict()
             
+            # Filtrar campos sensibles que no deben ser públicos
             campos_publicos = {
                 "id": producto_dict.get("id"),
                 "id_producto": producto_dict.get("id_producto"),
@@ -1958,7 +2253,7 @@ def catalogo_publico(negocio_id):
                 "sku": producto_dict.get("sku"),
                 "stock": producto_dict.get("stock"),
                 
-                # ★ BADGES CALCULADOS (del método calcular_badges() - v2.3)
+                # ★ BADGES CALCULADOS (del método calcular_badges())
                 "badges": producto_dict.get("badges", {}),
                 
                 # Atajos para compatibilidad con frontend legacy
@@ -1985,12 +2280,14 @@ def catalogo_publico(negocio_id):
 
         # Obtener categorías disponibles
         categorias = db.session.query(ProductoCatalogo.categoria).filter_by(
-            negocio_id=negocio_id, activo=True, estado_publicacion=True
+            negocio_id=negocio_id,
+            activo=True,
+            estado_publicacion=True
         ).distinct().all()
         
         categorias_list = [c[0] for c in categorias if c[0]]
 
-        logger.info(f"✅ Catálogo público: {len(datos_publicos)} productos con badges v2.3")
+        logger.info(f"✅ Catálogo público: {len(datos_publicos)} productos con badges")
 
         return jsonify({
             "success": True,
@@ -2006,7 +2303,7 @@ def catalogo_publico(negocio_id):
 
 
 # ============================================
-# 26. ACTUALIZAR BADGES DE PRODUCTO - v3.3
+# 26. ACTUALIZAR BADGES DE PRODUCTO
 # ============================================
 
 @catalogo_api_bp.route('/producto/<int:id_producto>/badges', methods=['PATCH', 'PUT', 'OPTIONS'])
@@ -2015,20 +2312,17 @@ def actualizar_badges_producto(id_producto):
     """
     PATCH/PUT /api/producto/{id}/badges
     
-    ★ v3.3: Actualiza los 9 badges manuales + badge personalizado
-    Usa el método set_badges_manuales() del modelo si está disponible.
+    Actualiza los badges MANUALES de un producto.
+    Los badges automáticos se calculan en tiempo real.
     
     Body JSON:
     {
         "destacado": true/false,
+        "mas_vendido": true/false,
         "envio_gratis": true/false,
-        "pre_orden": true/false,
-        "edicion_limitada": true/false,
-        "oferta_flash": true/false,
-        "combo": true/false,
-        "garantia_extendida": true/false,
-        "eco_friendly": true/false,
-        "badge_personalizado": "🔥 HOT"
+        "promo_inicio": "2026-01-20T00:00:00Z",
+        "promo_fin": "2026-01-25T23:59:59Z",
+        "promo_badge_texto": "🎉 50% OFF"
     }
     """
     if request.method == 'OPTIONS':
@@ -2054,30 +2348,20 @@ def actualizar_badges_producto(id_producto):
         logger.info(f"🏷️ Actualizando badges de producto {id_producto}")
         logger.info(f"📋 Datos recibidos: {data}")
 
-        # ★ v3.3: Usar método set_badges_manuales si está disponible
-        if hasattr(producto, 'set_badges_manuales'):
-            producto.set_badges_manuales(data)
-            logger.info(f"✅ Badges actualizados via set_badges_manuales()")
-        else:
-            # Fallback: Actualizar manualmente
-            badges_data = {
-                'destacado': data.get('destacado', False) in [True, 'true', '1', 1],
-                'envio_gratis': data.get('envio_gratis', False) in [True, 'true', '1', 1],
-                'pre_orden': data.get('pre_orden', False) in [True, 'true', '1', 1],
-                'edicion_limitada': data.get('edicion_limitada', False) in [True, 'true', '1', 1],
-                'oferta_flash': data.get('oferta_flash', False) in [True, 'true', '1', 1],
-                'combo': data.get('combo', False) in [True, 'true', '1', 1],
-                'garantia_extendida': data.get('garantia_extendida', False) in [True, 'true', '1', 1],
-                'eco_friendly': data.get('eco_friendly', False) in [True, 'true', '1', 1],
-                'badge_personalizado': data.get('badge_personalizado') or None
-            }
-            producto.badges_data = json.dumps(badges_data)
-            
-            # Actualizar columnas legacy
-            producto.badge_destacado = badges_data['destacado']
-            producto.badge_envio_gratis = badges_data['envio_gratis']
+        # Actualizar badges manuales
+        if 'destacado' in data:
+            producto.badge_destacado = data['destacado'] in [True, 'true', '1', 1]
+            logger.info(f"   ⭐ Destacado: {producto.badge_destacado}")
         
-        # Promoción programada (opcional)
+        if 'mas_vendido' in data:
+            producto.badge_mas_vendido = data['mas_vendido'] in [True, 'true', '1', 1]
+            logger.info(f"   🔥 Más vendido: {producto.badge_mas_vendido}")
+        
+        if 'envio_gratis' in data:
+            producto.badge_envio_gratis = data['envio_gratis'] in [True, 'true', '1', 1]
+            logger.info(f"   🚚 Envío gratis: {producto.badge_envio_gratis}")
+        
+        # Actualizar promoción programada (opcional)
         if 'promo_inicio' in data:
             if data['promo_inicio']:
                 try:
@@ -2099,8 +2383,12 @@ def actualizar_badges_producto(id_producto):
         if 'promo_badge_texto' in data:
             producto.promo_badge_texto = data['promo_badge_texto']
         
+        # Actualizar precio original para descuento
         if 'precio_original' in data:
-            producto.precio_original = float(data['precio_original']) if data['precio_original'] else None
+            if data['precio_original']:
+                producto.precio_original = float(data['precio_original'])
+            else:
+                producto.precio_original = None
 
         db.session.commit()
 
@@ -2116,7 +2404,9 @@ def actualizar_badges_producto(id_producto):
                 "id": producto.id_producto,
                 "nombre": producto.nombre,
                 "badges": producto_dict.get("badges", {}),
-                "badges_data": parse_json_field(producto.badges_data, {}),
+                "badge_destacado": producto.badge_destacado,
+                "badge_mas_vendido": producto.badge_mas_vendido,
+                "badge_envio_gratis": producto.badge_envio_gratis,
                 "promo_inicio": producto.promo_inicio.isoformat() if producto.promo_inicio else None,
                 "promo_fin": producto.promo_fin.isoformat() if producto.promo_fin else None,
                 "promo_badge_texto": producto.promo_badge_texto,
@@ -2131,7 +2421,7 @@ def actualizar_badges_producto(id_producto):
 
 
 # ============================================
-# 27. ACTUALIZAR BADGES MASIVO - v3.3
+# 27. ACTUALIZAR BADGES MASIVO
 # ============================================
 
 @catalogo_api_bp.route('/productos/badges/masivo', methods=['PATCH', 'PUT', 'OPTIONS'])
@@ -2140,15 +2430,14 @@ def actualizar_badges_masivo():
     """
     PATCH/PUT /api/productos/badges/masivo
     
-    ★ v3.3: Actualiza badges de múltiples productos (9 badges manuales)
+    Actualiza badges de múltiples productos a la vez.
     
     Body JSON:
     {
         "productos": [1, 2, 3, 4],
         "badges": {
             "destacado": true,
-            "envio_gratis": true,
-            "oferta_flash": false
+            "envio_gratis": true
         }
     }
     """
@@ -2175,6 +2464,7 @@ def actualizar_badges_masivo():
 
         logger.info(f"🏷️ Actualización masiva de badges para {len(producto_ids)} productos")
 
+        # Obtener productos del usuario
         productos = ProductoCatalogo.query.filter(
             ProductoCatalogo.id_producto.in_(producto_ids),
             ProductoCatalogo.usuario_id == int(user_id)
@@ -2185,27 +2475,12 @@ def actualizar_badges_masivo():
 
         actualizados = 0
         for producto in productos:
-            # ★ v3.3: Actualizar badges_data JSON
-            badges_actuales = parse_json_field(producto.badges_data, {})
-            
-            # Actualizar solo los badges especificados
-            for key, value in badges_update.items():
-                if key == 'badge_personalizado':
-                    badges_actuales[key] = value or None
-                elif key in ['destacado', 'envio_gratis', 'pre_orden', 'edicion_limitada', 
-                           'oferta_flash', 'combo', 'garantia_extendida', 'eco_friendly']:
-                    badges_actuales[key] = value in [True, 'true', '1', 1]
-            
-            producto.badges_data = json.dumps(badges_actuales)
-            
-            # Actualizar columnas legacy
             if 'destacado' in badges_update:
                 producto.badge_destacado = badges_update['destacado'] in [True, 'true', '1', 1]
             if 'mas_vendido' in badges_update:
                 producto.badge_mas_vendido = badges_update['mas_vendido'] in [True, 'true', '1', 1]
             if 'envio_gratis' in badges_update:
                 producto.badge_envio_gratis = badges_update['envio_gratis'] in [True, 'true', '1', 1]
-            
             actualizados += 1
 
         db.session.commit()
@@ -2225,7 +2500,5 @@ def actualizar_badges_masivo():
 
 
 # ============================================
-# FIN DEL ARCHIVO - catalogo_api.py v3.3
-# Soporte completo para badges_data JSON
-# (9 badges manuales + badge personalizado)
+# FIN DEL ARCHIVO - catalogo_api.py v3.2
 # ============================================

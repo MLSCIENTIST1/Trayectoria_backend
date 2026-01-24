@@ -1,7 +1,7 @@
 """
 BizFlow Studio - Modelos de Contabilidad y Catálogo
 Operaciones financieras y gestión de productos
-ACTUALIZADO: Inventario PRO v2.2 - Sistema de Badges Inteligente
+ACTUALIZADO: Inventario PRO v2.3 - Sistema de Badges con badges_data JSON
 """
 
 import sqlalchemy as sa
@@ -223,7 +223,7 @@ class CategoriaProducto(db.Model):
 
 
 # ==========================================
-# MODELO: ESTADÍSTICAS DE PRODUCTO (NUEVO v2.2)
+# MODELO: ESTADÍSTICAS DE PRODUCTO
 # ==========================================
 class ProductoEstadisticas(db.Model):
     """Estadísticas diarias de productos para badges automáticos."""
@@ -266,7 +266,7 @@ class ProductoEstadisticas(db.Model):
 
 
 # ==========================================
-# MODELO: HISTORIAL DE PRECIOS (NUEVO v2.2)
+# MODELO: HISTORIAL DE PRECIOS
 # ==========================================
 class ProductoPreciosHistorico(db.Model):
     """Historial de precios para badge de 'precio más bajo'."""
@@ -301,7 +301,7 @@ class ProductoPreciosHistorico(db.Model):
 
 
 # ==========================================
-# MODELO: REVIEWS DE PRODUCTO (NUEVO v2.2)
+# MODELO: REVIEWS DE PRODUCTO
 # ==========================================
 class ProductoReview(db.Model):
     """Reviews de productos para badge de 'mejor valorado'."""
@@ -322,7 +322,7 @@ class ProductoReview(db.Model):
     )
     cliente_nombre = sa.Column(sa.String(100))
     cliente_email = sa.Column(sa.String(150))
-    rating = sa.Column(sa.Integer, nullable=False)  # 1-5
+    rating = sa.Column(sa.Integer, nullable=False)
     titulo = sa.Column(sa.String(150))
     comentario = sa.Column(sa.Text)
     verificado = sa.Column(sa.Boolean, default=False)
@@ -342,29 +342,30 @@ class ProductoReview(db.Model):
             "aprobado": self.aprobado,
             "fecha": self.fecha.isoformat() if self.fecha else None
         }
-
-
 # ==========================================
-# MODELO: PRODUCTO CATÁLOGO (INVENTARIO PRO v2.2)
+# MODELO: PRODUCTO CATÁLOGO (INVENTARIO PRO v2.3)
 # ==========================================
 class ProductoCatalogo(db.Model):
     """
     Modelo para gestión de productos en el catálogo/inventario.
-    ACTUALIZADO v2.2: Sistema de Badges Inteligente (Data-Driven)
+    ACTUALIZADO v2.3: Sistema de Badges con columna badges_data (JSON)
     
-    BADGES AUTOMÁTICOS (calculados en to_dict):
-    - nuevo: fecha_creacion < 15 días
+    BADGES AUTOMÁTICOS (calculados en calcular_badges):
+    - nuevo: fecha_creacion < 30 días
     - descuento: precio_original > precio
     - agotado: stock = 0
+    - ultima_unidad: stock = 1
     - ultimas_unidades: stock <= 5 y > 0
     - mejor_valorado: rating >= 4.5 con 5+ reviews
     - popular: visitas_7_dias >= 50
-    - precio_minimo: precio <= precio_historico_min
     
-    BADGES MANUALES (columnas en BD):
-    - badge_destacado: marcado manualmente en inventario
-    - badge_mas_vendido: marcado manualmente en inventario
-    - badge_envio_gratis: marcado manualmente en inventario
+    BADGES MANUALES (columnas legacy BD):
+    - badge_destacado, badge_mas_vendido, badge_envio_gratis
+    
+    BADGES FLEXIBLES (en badges_data JSON - v2.3):
+    - destacado, envio_gratis, pre_orden, edicion_limitada
+    - oferta_flash, combo, garantia_extendida, eco_friendly
+    - badge_personalizado (texto libre max 20 chars)
     """
     __tablename__ = 'productos_catalogo'
     __table_args__ = {'extend_existing': True}
@@ -384,9 +385,9 @@ class ProductoCatalogo(db.Model):
     # PRECIOS Y COSTOS
     # ==========================================
     precio = sa.Column(sa.Float, nullable=False)
-    precio_original = sa.Column(sa.Numeric(12, 2), nullable=True)  # ★ NUEVO: Para descuentos
+    precio_original = sa.Column(sa.Numeric(12, 2), nullable=True)
     costo = sa.Column(sa.Float, default=0.0, nullable=False)
-    precio_historico_min = sa.Column(sa.Numeric(12, 2), nullable=True)  # ★ NUEVO: Badge precio más bajo
+    precio_historico_min = sa.Column(sa.Numeric(12, 2), nullable=True)
     
     # ==========================================
     # IDENTIFICACIÓN TÉCNICA
@@ -395,7 +396,7 @@ class ProductoCatalogo(db.Model):
     codigo_barras = sa.Column(sa.String(100), nullable=True)
     
     # ==========================================
-    # MULTIMEDIA (INVENTARIO PRO v2.1)
+    # MULTIMEDIA
     # ==========================================
     imagen_url = sa.Column(sa.String(500), nullable=True)
     imagenes = sa.Column(sa.Text, nullable=True, default='[]')
@@ -417,24 +418,31 @@ class ProductoCatalogo(db.Model):
     stock_bajo = sa.Column(sa.Integer, default=10)
     
     # ==========================================
-    # ★ MÉTRICAS PARA BADGES AUTOMÁTICOS (v2.2)
+    # MÉTRICAS PARA BADGES AUTOMÁTICOS
     # ==========================================
     total_ventas = sa.Column(sa.Integer, default=0)
     ventas_30_dias = sa.Column(sa.Integer, default=0)
     visitas_7_dias = sa.Column(sa.Integer, default=0)
     rating_promedio = sa.Column(sa.Numeric(2, 1), default=0)
     total_reviews = sa.Column(sa.Integer, default=0)
-    velocidad_venta = sa.Column(sa.Numeric(5, 2), default=0)  # unidades/día
+    velocidad_venta = sa.Column(sa.Numeric(5, 2), default=0)
     
     # ==========================================
-    # ★ BADGES MANUALES (v2.2)
+    # BADGES MANUALES (columnas legacy)
     # ==========================================
     badge_destacado = sa.Column(sa.Boolean, default=False)
     badge_mas_vendido = sa.Column(sa.Boolean, default=False)
     badge_envio_gratis = sa.Column(sa.Boolean, default=False)
     
     # ==========================================
-    # ★ PROMOCIONES PROGRAMADAS (v2.2)
+    # ★ BADGES FLEXIBLES (v2.3 - JSON Storage)
+    # ==========================================
+    # Almacena: destacado, envio_gratis, pre_orden, edicion_limitada,
+    # oferta_flash, combo, garantia_extendida, eco_friendly, badge_personalizado
+    badges_data = sa.Column(sa.Text, nullable=True, default='{}')
+    
+    # ==========================================
+    # PROMOCIONES PROGRAMADAS
     # ==========================================
     promo_inicio = sa.Column(sa.DateTime, nullable=True)
     promo_fin = sa.Column(sa.DateTime, nullable=True)
@@ -507,10 +515,119 @@ class ProductoCatalogo(db.Model):
         self.sucursal_id = kwargs.get('sucursal_id', 1)
         self.activo = kwargs.get('activo', True)
         self.estado_publicacion = kwargs.get('estado_publicacion', True)
-        # Badges manuales
+        
+        # Badges columnas legacy
         self.badge_destacado = kwargs.get('badge_destacado', False)
         self.badge_mas_vendido = kwargs.get('badge_mas_vendido', False)
         self.badge_envio_gratis = kwargs.get('badge_envio_gratis', False)
+        
+        # ★ Badges flexibles (JSON) v2.3
+        badges_data = kwargs.get('badges_data')
+        if badges_data:
+            if isinstance(badges_data, dict):
+                self.badges_data = json.dumps(badges_data)
+            elif isinstance(badges_data, str):
+                self.badges_data = badges_data
+            else:
+                self.badges_data = '{}'
+        else:
+            self.badges_data = '{}'
+    
+    # ==========================================
+    # HELPER PARA PARSEAR JSON
+    # ==========================================
+    def _parse_json_field(self, field_value, default=None):
+        """
+        Helper para parsear campos JSON almacenados como TEXT.
+        Maneja correctamente el doble encoding.
+        """
+        if default is None:
+            default = []
+        if field_value is None:
+            return default
+        if isinstance(field_value, (list, dict)):
+            return field_value
+        if isinstance(field_value, str):
+            try:
+                parsed = json.loads(field_value)
+                if isinstance(parsed, str):
+                    try:
+                        return json.loads(parsed)
+                    except:
+                        return default
+                return parsed
+            except (json.JSONDecodeError, TypeError):
+                return default
+        return default
+    
+    def _parse_badges_data(self):
+        """Parsea el campo badges_data (JSON) de forma segura."""
+        return self._parse_json_field(self.badges_data, {})
+    
+    # ==========================================
+    # MÉTODOS DE BADGES v2.3
+    # ==========================================
+    def get_badges_manuales(self):
+        """
+        Obtiene todos los badges manuales (columnas legacy + JSON).
+        Prioriza badges_data JSON sobre columnas legacy.
+        """
+        badges_flex = self._parse_badges_data()
+        
+        return {
+            # Desde badges_data JSON (prioridad) o columnas legacy
+            "destacado": badges_flex.get('destacado', bool(self.badge_destacado)),
+            "mas_vendido": badges_flex.get('mas_vendido', bool(self.badge_mas_vendido)),
+            "envio_gratis": badges_flex.get('envio_gratis', bool(self.badge_envio_gratis)),
+            # Solo desde badges_data JSON
+            "pre_orden": badges_flex.get('pre_orden', False),
+            "edicion_limitada": badges_flex.get('edicion_limitada', False),
+            "oferta_flash": badges_flex.get('oferta_flash', False),
+            "combo": badges_flex.get('combo', False),
+            "garantia_extendida": badges_flex.get('garantia_extendida', False),
+            "eco_friendly": badges_flex.get('eco_friendly', False),
+            "badge_personalizado": badges_flex.get('badge_personalizado')
+        }
+    
+    def set_badges_manuales(self, badges_dict):
+        """
+        Guarda los badges manuales desde el frontend.
+        Actualiza tanto badges_data JSON como columnas legacy.
+        """
+        if not badges_dict:
+            return
+        
+        # Si viene como string JSON, parsearlo
+        if isinstance(badges_dict, str):
+            try:
+                badges_dict = json.loads(badges_dict)
+            except:
+                return
+        
+        if not isinstance(badges_dict, dict):
+            return
+        
+        # Actualizar columnas legacy para compatibilidad
+        if 'destacado' in badges_dict:
+            self.badge_destacado = bool(badges_dict['destacado'])
+        if 'mas_vendido' in badges_dict:
+            self.badge_mas_vendido = bool(badges_dict['mas_vendido'])
+        if 'envio_gratis' in badges_dict:
+            self.badge_envio_gratis = bool(badges_dict['envio_gratis'])
+        
+        # Guardar todos los badges en badges_data JSON
+        badges_flex = {
+            'destacado': bool(badges_dict.get('destacado', False)),
+            'envio_gratis': bool(badges_dict.get('envio_gratis', False)),
+            'pre_orden': bool(badges_dict.get('pre_orden', False)),
+            'edicion_limitada': bool(badges_dict.get('edicion_limitada', False)),
+            'oferta_flash': bool(badges_dict.get('oferta_flash', False)),
+            'combo': bool(badges_dict.get('combo', False)),
+            'garantia_extendida': bool(badges_dict.get('garantia_extendida', False)),
+            'eco_friendly': bool(badges_dict.get('eco_friendly', False)),
+            'badge_personalizado': badges_dict.get('badge_personalizado') or None
+        }
+        self.badges_data = json.dumps(badges_flex)
     
     # ==========================================
     # MÉTODOS DE STOCK
@@ -548,21 +665,41 @@ class ProductoCatalogo(db.Model):
         return round(self.precio - self.costo, 2)
     
     # ==========================================
-    # ★ MÉTODO PARA CALCULAR BADGES (v2.2)
+    # PROPIEDADES PARA MULTIMEDIA
+    # ==========================================
+    @property
+    def imagenes_lista(self):
+        """Obtiene la lista de imágenes como array"""
+        return self._parse_json_field(self.imagenes, [])
+    
+    @property
+    def videos_lista(self):
+        """Obtiene la lista de videos como array"""
+        return self._parse_json_field(self.videos, [])
+    
+    @property
+    def youtube_links(self):
+        """Alias para compatibilidad con frontend"""
+        return self.videos_lista
+    
+    # ==========================================
+    # ★ MÉTODO PARA CALCULAR BADGES (v2.3)
     # ==========================================
     def calcular_badges(self):
         """
-        Calcula todos los badges automáticos y retorna diccionario completo.
-        Este método es llamado por to_dict() para incluir badges en la respuesta API.
+        Calcula todos los badges (automáticos + manuales).
+        Retorna diccionario completo para la API.
         """
         now = datetime.utcnow()
         
-        # Convertir precios a float de forma segura
+        # Convertir precios a float
         precio_actual = float(self.precio) if self.precio else 0
         precio_orig = float(self.precio_original) if self.precio_original else None
         precio_min = float(self.precio_historico_min) if self.precio_historico_min else None
         
-        # Calcular descuento
+        # ═══════════════════════════════════════
+        # BADGE: DESCUENTO
+        # ═══════════════════════════════════════
         tiene_descuento = precio_orig is not None and precio_orig > precio_actual
         descuento_porcentaje = 0
         descuento_ahorro = 0
@@ -570,13 +707,25 @@ class ProductoCatalogo(db.Model):
             descuento_porcentaje = round((1 - precio_actual / precio_orig) * 100)
             descuento_ahorro = round(precio_orig - precio_actual, 2)
         
-        # Verificar si es nuevo (menos de 15 días)
+        # ═══════════════════════════════════════
+        # BADGE: NUEVO (menos de 30 días)
+        # ═══════════════════════════════════════
         es_nuevo = False
         if self.fecha_creacion:
             dias_desde_creacion = (now - self.fecha_creacion).days
-            es_nuevo = dias_desde_creacion < 15
+            es_nuevo = dias_desde_creacion < 30
         
-        # Verificar promoción activa
+        # ═══════════════════════════════════════
+        # BADGES DE STOCK
+        # ═══════════════════════════════════════
+        stock = self.stock or 0
+        es_agotado = stock == 0
+        es_ultima_unidad = stock == 1
+        es_ultimas_unidades = 0 < stock <= 5
+        
+        # ═══════════════════════════════════════
+        # PROMOCIÓN ACTIVA
+        # ═══════════════════════════════════════
         promo_activa = False
         promo_segundos = None
         if self.promo_inicio and self.promo_fin:
@@ -584,95 +733,66 @@ class ProductoCatalogo(db.Model):
             if promo_activa and self.promo_fin > now:
                 promo_segundos = int((self.promo_fin - now).total_seconds())
         
-        # Rating y reviews
+        # ═══════════════════════════════════════
+        # MÉTRICAS
+        # ═══════════════════════════════════════
         rating = float(self.rating_promedio) if self.rating_promedio else 0
         reviews = self.total_reviews or 0
+        visitas = self.visitas_7_dias or 0
+        velocidad = float(self.velocidad_venta or 0)
+        
+        # ═══════════════════════════════════════
+        # BADGES MANUALES (desde JSON + legacy)
+        # ═══════════════════════════════════════
+        badges_manuales = self.get_badges_manuales()
         
         return {
-            # ==========================================
+            # ═══════════════════════════════════════
             # BADGES AUTOMÁTICOS
-            # ==========================================
+            # ═══════════════════════════════════════
             "nuevo": es_nuevo,
             "descuento": tiene_descuento,
             "descuento_porcentaje": descuento_porcentaje,
             "descuento_ahorro": descuento_ahorro,
-            "agotado": self.stock == 0,
-            "ultimas_unidades": self.stock is not None and 0 < self.stock <= 5,
-            "stock_bajo": self.stock is not None and 0 < self.stock <= (self.stock_minimo or 5),
+            "agotado": es_agotado,
+            "ultima_unidad": es_ultima_unidad,
+            "ultimas_unidades": es_ultimas_unidades,
+            "stock_bajo": 0 < stock <= (self.stock_minimo or 5),
             "mejor_valorado": rating >= 4.5 and reviews >= 5,
-            "popular": (self.visitas_7_dias or 0) >= 50,
-            "vende_rapido": float(self.velocidad_venta or 0) >= 1.0,
+            "popular": visitas >= 50,
+            "vende_rapido": velocidad >= 1.0,
             "precio_minimo": precio_min is not None and precio_actual <= precio_min,
             
-            # ==========================================
-            # BADGES MANUALES
-            # ==========================================
-            "destacado": bool(self.badge_destacado),
-            "mas_vendido": bool(self.badge_mas_vendido),
-            "envio_gratis": bool(self.badge_envio_gratis),
+            # ═══════════════════════════════════════
+            # BADGES MANUALES (desde badges_data JSON)
+            # ═══════════════════════════════════════
+            "destacado": badges_manuales.get("destacado", False),
+            "mas_vendido": badges_manuales.get("mas_vendido", False),
+            "envio_gratis": badges_manuales.get("envio_gratis", False),
+            "pre_orden": badges_manuales.get("pre_orden", False),
+            "edicion_limitada": badges_manuales.get("edicion_limitada", False),
+            "oferta_flash": badges_manuales.get("oferta_flash", False),
+            "combo": badges_manuales.get("combo", False),
+            "garantia_extendida": badges_manuales.get("garantia_extendida", False),
+            "eco_friendly": badges_manuales.get("eco_friendly", False),
+            "badge_personalizado": badges_manuales.get("badge_personalizado"),
             
-            # ==========================================
+            # ═══════════════════════════════════════
             # PROMOCIÓN
-            # ==========================================
+            # ═══════════════════════════════════════
             "promo_activa": promo_activa,
             "promo_texto": self.promo_badge_texto if promo_activa else None,
             "promo_segundos_restantes": promo_segundos,
             
-            # ==========================================
-            # MÉTRICAS (para social proof en frontend)
-            # ==========================================
+            # ═══════════════════════════════════════
+            # MÉTRICAS (social proof)
+            # ═══════════════════════════════════════
             "rating": rating,
             "total_reviews": reviews,
             "total_ventas": self.total_ventas or 0,
             "ventas_30_dias": self.ventas_30_dias or 0,
-            "visitas_7_dias": self.visitas_7_dias or 0
+            "visitas_7_dias": visitas
         }
-    
-    # ==========================================
-    # HELPER PARA PARSEAR JSON
-    # ==========================================
-    def _parse_json_field(self, field_value):
-        """
-        Helper para parsear campos JSON almacenados como TEXT.
-        Maneja correctamente el doble encoding que puede venir del frontend.
-        """
-        if field_value is None:
-            return []
-        if isinstance(field_value, list):
-            return field_value
-        if isinstance(field_value, str):
-            try:
-                parsed = json.loads(field_value)
-                # Si el resultado es string, puede ser doble encoding
-                if isinstance(parsed, str):
-                    try:
-                        return json.loads(parsed)
-                    except:
-                        return []
-                if isinstance(parsed, list):
-                    return parsed
-                return []
-            except (json.JSONDecodeError, TypeError):
-                return []
-        return []
-    
-    # ==========================================
-    # PROPIEDADES PARA ACCESO A MULTIMEDIA
-    # ==========================================
-    @property
-    def imagenes_lista(self):
-        """Obtiene la lista de imágenes como array"""
-        return self._parse_json_field(self.imagenes)
-    
-    @property
-    def videos_lista(self):
-        """Obtiene la lista de videos como array"""
-        return self._parse_json_field(self.videos)
-    
-    @property
-    def youtube_links(self):
-        """Alias para compatibilidad con frontend - retorna videos"""
-        return self.videos_lista
     
     # ==========================================
     # SERIALIZACIÓN
@@ -680,66 +800,50 @@ class ProductoCatalogo(db.Model):
     def to_dict(self):
         """
         Serializa el producto a diccionario.
-        Compatible con Inventario PRO v2.2 y Tienda Pública.
-        Incluye badges calculados automáticamente.
+        Compatible con Inventario PRO v2.3 y Tienda Pública.
         """
-        # Parsear campos JSON
-        imagenes_lista = self._parse_json_field(self.imagenes)
-        videos_lista = self._parse_json_field(self.videos)
-        etiquetas_lista = self._parse_json_field(self.etiquetas)
+        imagenes_lista = self._parse_json_field(self.imagenes, [])
+        videos_lista = self._parse_json_field(self.videos, [])
+        etiquetas_lista = self._parse_json_field(self.etiquetas, [])
         
-        # ★ Calcular badges automáticamente
+        # ★ Calcular todos los badges
         badges = self.calcular_badges()
         
         return {
-            # ==========================================
             # IDENTIFICADORES
-            # ==========================================
             "id": self.id_producto,
             "id_producto": self.id_producto,
             
-            # ==========================================
             # INFORMACIÓN BÁSICA
-            # ==========================================
             "nombre": self.nombre,
             "descripcion": self.descripcion or "",
             
-            # ==========================================
             # PRECIOS Y COSTOS
-            # ==========================================
             "precio": float(self.precio) if self.precio else 0,
             "precio_original": float(self.precio_original) if self.precio_original else None,
             "costo": float(self.costo) if self.costo else 0,
             "margen_utilidad": self.get_margen_utilidad(),
             "ganancia_unitaria": self.get_ganancia_unitaria(),
             
-            # ==========================================
             # IDENTIFICACIÓN TÉCNICA
-            # ==========================================
             "sku": self.referencia_sku,
             "referencia_sku": self.referencia_sku,
             "codigo_barras": self.codigo_barras or "",
             "barcode": self.codigo_barras or "",
             
-            # ==========================================
-            # MULTIMEDIA (compatible con JS)
-            # ==========================================
+            # MULTIMEDIA
             "imagen_url": self.imagen_url,
             "imagen": self.imagen_url,
             "imagenes": imagenes_lista,
             "videos": videos_lista,
             "youtube_links": videos_lista,
             
-            # ==========================================
             # CATEGORIZACIÓN
-            # ==========================================
             "categoria": self.categoria,
             "plan": self.plan,
             "etiquetas": etiquetas_lista,
             
-            # ==========================================
             # INVENTARIO
-            # ==========================================
             "stock": self.stock or 0,
             "stock_minimo": self.stock_minimo or 5,
             "stock_critico": self.stock_critico or 2,
@@ -747,12 +851,10 @@ class ProductoCatalogo(db.Model):
             "necesita_reabastecimiento": self.necesita_reabastecimiento(),
             "nivel_stock": self.nivel_stock(),
             
-            # ==========================================
-            # ★ BADGES (v2.2 - Sistema Inteligente)
-            # ==========================================
+            # ★ BADGES COMPLETOS (v2.3)
             "badges": badges,
             
-            # Atajos directos para compatibilidad con frontend
+            # Atajos para compatibilidad frontend
             "nuevo": badges["nuevo"],
             "destacado": badges["destacado"],
             "mas_vendido": badges["mas_vendido"],
@@ -760,31 +862,23 @@ class ProductoCatalogo(db.Model):
             "tiene_descuento": badges["descuento"],
             "descuento_porcentaje": badges["descuento_porcentaje"],
             
-            # ==========================================
-            # MÉTRICAS (para social proof)
-            # ==========================================
+            # MÉTRICAS
             "rating": badges["rating"],
             "total_reviews": badges["total_reviews"],
             "total_ventas": badges["total_ventas"],
             "ventas_30_dias": badges["ventas_30_dias"],
             "visitas_7_dias": badges["visitas_7_dias"],
             
-            # ==========================================
             # ESTADO
-            # ==========================================
             "activo": self.activo,
             "estado_publicacion": self.estado_publicacion,
             
-            # ==========================================
             # RELACIONES
-            # ==========================================
             "negocio_id": self.negocio_id,
             "sucursal_id": self.sucursal_id,
             "usuario_id": self.usuario_id,
             
-            # ==========================================
             # FECHAS
-            # ==========================================
             "fecha": self.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S') if self.fecha_creacion else None,
             "fecha_creacion": self.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S') if self.fecha_creacion else None,
             "created_at": self.fecha_creacion.isoformat() if self.fecha_creacion else None,
