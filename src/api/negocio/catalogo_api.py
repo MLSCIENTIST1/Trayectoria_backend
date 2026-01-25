@@ -331,7 +331,115 @@ def obtener_mis_productos():
         logger.error(f"❌ Error en GET mis-productos: {traceback.format_exc()}")
         return jsonify({"success": False, "message": str(e)}), 500
 
+# ============================================
+# 14. CREAR CATEGORÍA (POST) - ★ NUEVO v5.8
+# ============================================
 
+@catalogo_api_bp.route('/categorias', methods=['POST'])
+@cross_origin(supports_credentials=True)
+def crear_categoria():
+    """
+    POST /api/categorias
+    
+    ★ v5.8: Crea una nueva categoría en la tabla categorias_producto
+    
+    Body JSON:
+    {
+        "nombre": "Mi Categoría",
+        "icono": "📦",
+        "color": "#6366f1",
+        "negocio_id": 123,
+        "usuario_id": 456,
+        "featured": false
+    }
+    """
+    user_id = get_authorized_user_id()
+    if not user_id:
+        return jsonify({"success": False, "message": "No autorizado"}), 401
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "message": "No se enviaron datos"}), 400
+        
+        nombre = (data.get('nombre') or data.get('name', '')).strip()
+        if not nombre:
+            return jsonify({"success": False, "message": "El nombre es requerido"}), 400
+        
+        ctx = get_biz_context()
+        negocio_id = data.get('negocio_id') or ctx['negocio_id']
+        
+        if not negocio_id:
+            return jsonify({"success": False, "message": "negocio_id es requerido"}), 400
+        
+        # Verificar si ya existe
+        existente = CategoriaProducto.query.filter_by(
+            negocio_id=int(negocio_id),
+            usuario_id=int(user_id),
+            nombre=nombre
+        ).first()
+        
+        if existente:
+            return jsonify({
+                "success": False, 
+                "message": f"Ya existe una categoría con el nombre '{nombre}'",
+                "categoria": existente.to_dict() if hasattr(existente, 'to_dict') else {
+                    'id': existente.id_categoria,
+                    'nombre': existente.nombre
+                }
+            }), 409
+        
+        # Obtener el orden máximo actual
+        max_orden = db.session.query(db.func.max(CategoriaProducto.orden)).filter_by(
+            negocio_id=int(negocio_id),
+            usuario_id=int(user_id)
+        ).scalar() or 0
+        
+        # Crear nueva categoría
+        nueva_categoria = CategoriaProducto(
+            nombre=nombre,
+            icono=data.get('icono') or data.get('icon') or '📦',
+            color=data.get('color') or '#6366f1',
+            negocio_id=int(negocio_id),
+            usuario_id=int(user_id),
+            orden=max_orden + 1,
+            activo=True
+        )
+        
+        # Campos opcionales
+        if hasattr(nueva_categoria, 'featured'):
+            nueva_categoria.featured = data.get('featured', False) in [True, 'true', '1', 1]
+        if hasattr(nueva_categoria, 'destacada'):
+            nueva_categoria.destacada = data.get('featured', False) in [True, 'true', '1', 1]
+        
+        db.session.add(nueva_categoria)
+        db.session.commit()
+        
+        # Preparar respuesta
+        cat_dict = nueva_categoria.to_dict() if hasattr(nueva_categoria, 'to_dict') else {
+            'id': nueva_categoria.id_categoria,
+            'id_categoria': nueva_categoria.id_categoria,
+            'nombre': nueva_categoria.nombre,
+            'icono': nueva_categoria.icono,
+            'color': nueva_categoria.color,
+            'orden': nueva_categoria.orden,
+            'activo': nueva_categoria.activo
+        }
+        
+        logger.info(f"✅ Categoría creada: {nombre} (ID: {nueva_categoria.id_categoria})")
+
+        return jsonify({
+            "success": True,
+            "message": f"Categoría '{nombre}' creada",
+            "categoria": cat_dict,
+            "id": nueva_categoria.id_categoria,
+            "id_categoria": nueva_categoria.id_categoria
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error crear categoría: {traceback.format_exc()}")
+        return jsonify({"success": False, "message": str(e)}), 500
 # ============================================
 # 2. GUARDAR PRODUCTO (Crear nuevo) - v3.3
 # ============================================
@@ -1268,7 +1376,13 @@ def estadisticas_inventario():
 @catalogo_api_bp.route('/categorias', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def listar_categorias():
-    """GET /api/categorias - Categorías desde config_tienda + productos"""
+    """
+    GET /api/categorias
+    
+    ★ v5.8: Lee categorías desde la tabla categorias_producto
+    Query params:
+    - negocio_id: Filtrar por negocio (requerido si no viene en headers)
+    """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
 
@@ -1278,65 +1392,89 @@ def listar_categorias():
 
     try:
         ctx = get_biz_context()
-        categorias_dict = {}
+        negocio_id = ctx['negocio_id']
         
-        if ctx['negocio_id']:
-            negocio = Negocio.query.filter_by(id_negocio=ctx['negocio_id'], usuario_id=user_id).first()
+        if not negocio_id:
+            return jsonify({
+                "success": False, 
+                "message": "negocio_id es requerido",
+                "categorias": []
+            }), 400
+        
+        logger.info(f"📂 Cargando categorías - Negocio: {negocio_id}, User: {user_id}")
+        
+        # ★ LEER DE TABLA categorias_producto
+        categorias_db = CategoriaProducto.query.filter_by(
+            negocio_id=negocio_id,
+            usuario_id=int(user_id)
+        ).order_by(CategoriaProducto.orden.asc(), CategoriaProducto.id_categoria.asc()).all()
+        
+        # Contar productos por categoría
+        productos_por_cat = {}
+        productos = ProductoCatalogo.query.filter_by(
+            negocio_id=negocio_id,
+            usuario_id=int(user_id),
+            activo=True
+        ).all()
+        
+        for p in productos:
+            cat_nombre = p.categoria or 'Sin categoría'
+            productos_por_cat[cat_nombre] = productos_por_cat.get(cat_nombre, 0) + 1
+        
+        # Formatear respuesta
+        categorias_list = []
+        for cat in categorias_db:
+            cat_dict = cat.to_dict() if hasattr(cat, 'to_dict') else {
+                'id': cat.id_categoria,
+                'id_categoria': cat.id_categoria,
+                'nombre': cat.nombre,
+                'icono': cat.icono,
+                'color': cat.color,
+                'orden': getattr(cat, 'orden', 0),
+                'activo': getattr(cat, 'activo', True)
+            }
             
-            if negocio and negocio.config_tienda:
-                categories_from_config = negocio.config_tienda.get('categories', [])
-                
-                for idx, cat in enumerate(categories_from_config, 1):
-                    nombre = cat.get('name', '')
-                    if nombre:
-                        categorias_dict[nombre] = {
-                            'id': cat.get('id', idx),
-                            'nombre': nombre,
-                            'icono': cat.get('icon', '📦'),
-                            'color': cat.get('color', '#6366f1'),
-                            'featured': cat.get('featured', False),
-                            'count': 0,
-                            'custom': True,
-                            'source': 'config_tienda'
-                        }
+            # Agregar count de productos
+            cat_dict['count'] = productos_por_cat.get(cat.nombre, 0)
+            cat_dict['featured'] = getattr(cat, 'featured', False) or getattr(cat, 'destacada', False)
+            cat_dict['source'] = 'database'
+            
+            categorias_list.append(cat_dict)
         
-        query = ProductoCatalogo.query.filter_by(usuario_id=int(user_id), activo=True)
-        if ctx['negocio_id']:
-            query = query.filter_by(negocio_id=ctx['negocio_id'])
+        # Si no hay categorías en BD, buscar en productos existentes
+        if not categorias_list:
+            categorias_de_productos = set()
+            for p in productos:
+                if p.categoria:
+                    categorias_de_productos.add(p.categoria)
+            
+            for idx, nombre in enumerate(sorted(categorias_de_productos)):
+                categorias_list.append({
+                    'id': None,  # No tiene ID en BD
+                    'nombre': nombre,
+                    'icono': '📦',
+                    'color': '#6b7280',
+                    'count': productos_por_cat.get(nombre, 0),
+                    'featured': False,
+                    'source': 'productos'
+                })
         
-        productos = query.all()
-        
-        for producto in productos:
-            cat_nombre = producto.categoria
-            if cat_nombre:
-                if cat_nombre in categorias_dict:
-                    categorias_dict[cat_nombre]['count'] += 1
-                else:
-                    categorias_dict[cat_nombre] = {
-                        'id': len(categorias_dict) + 1,
-                        'nombre': cat_nombre,
-                        'icono': '📦',
-                        'color': '#6b7280',
-                        'featured': False,
-                        'count': 1,
-                        'custom': False,
-                        'source': 'productos'
-                    }
-        
-        categorias_list = list(categorias_dict.values())
-        categorias_list.sort(key=lambda x: (not x.get('featured', False), -x['count'], x['nombre'].lower()))
-        
+        logger.info(f"✅ {len(categorias_list)} categorías encontradas para negocio {negocio_id}")
+
         return jsonify({
             "success": True,
             "total": len(categorias_list),
             "categorias": categorias_list,
-            "source": "config_tienda"
+            "source": "database"
         }), 200
 
     except Exception as e:
         logger.error(f"❌ Error listar categorías: {traceback.format_exc()}")
-        return jsonify({"success": False, "message": str(e), "categorias": []}), 500
-
+        return jsonify({
+            "success": False, 
+            "message": str(e), 
+            "categorias": []
+        }), 500
 
 # ============================================
 # 15. ACTUALIZAR CATEGORÍA
@@ -1345,7 +1483,12 @@ def listar_categorias():
 @catalogo_api_bp.route('/categorias/<int:id_categoria>', methods=['PUT', 'PATCH', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def actualizar_categoria(id_categoria):
-    """PUT/PATCH /api/categorias/{id}"""
+    """
+    PUT/PATCH /api/categorias/{id}
+    
+    Actualiza una categoría existente.
+    También actualiza los productos que usan esta categoría si cambia el nombre.
+    """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
 
@@ -1354,31 +1497,75 @@ def actualizar_categoria(id_categoria):
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
-        categoria = CategoriaProducto.query.filter_by(id_categoria=id_categoria, usuario_id=int(user_id)).first()
+        categoria = CategoriaProducto.query.filter_by(
+            id_categoria=id_categoria, 
+            usuario_id=int(user_id)
+        ).first()
         
         if not categoria:
             return jsonify({"success": False, "message": "Categoría no encontrada"}), 404
 
         data = request.get_json()
-        nombre_anterior = categoria.nombre
+        if not data:
+            return jsonify({"success": False, "message": "No se enviaron datos"}), 400
         
+        nombre_anterior = categoria.nombre
+        productos_afectados = 0
+        
+        # Actualizar campos
         if 'nombre' in data or 'name' in data:
-            categoria.nombre = (data.get('nombre') or data.get('name')).strip()
+            nuevo_nombre = (data.get('nombre') or data.get('name', '')).strip()
+            if nuevo_nombre and nuevo_nombre != nombre_anterior:
+                categoria.nombre = nuevo_nombre
+                
+                # Actualizar productos que usan esta categoría
+                productos_afectados = ProductoCatalogo.query.filter_by(
+                    usuario_id=int(user_id), 
+                    categoria=nombre_anterior
+                ).update({'categoria': nuevo_nombre})
+        
         if 'icono' in data or 'icon' in data:
             categoria.icono = data.get('icono') or data.get('icon')
+        
         if 'color' in data:
             categoria.color = data['color']
-
-        if nombre_anterior != categoria.nombre:
-            ProductoCatalogo.query.filter_by(usuario_id=int(user_id), categoria=nombre_anterior).update({'categoria': categoria.nombre})
+        
+        if 'orden' in data:
+            categoria.orden = int(data['orden'])
+        
+        if 'activo' in data:
+            categoria.activo = data['activo'] in [True, 'true', '1', 1]
+        
+        if 'featured' in data:
+            if hasattr(categoria, 'featured'):
+                categoria.featured = data['featured'] in [True, 'true', '1', 1]
+            if hasattr(categoria, 'destacada'):
+                categoria.destacada = data['featured'] in [True, 'true', '1', 1]
 
         db.session.commit()
+        
+        cat_dict = categoria.to_dict() if hasattr(categoria, 'to_dict') else {
+            'id': categoria.id_categoria,
+            'id_categoria': categoria.id_categoria,
+            'nombre': categoria.nombre,
+            'icono': categoria.icono,
+            'color': categoria.color
+        }
+        
+        logger.info(f"✅ Categoría actualizada: {categoria.nombre} (ID: {id_categoria})")
 
-        return jsonify({"success": True, "message": "Categoría actualizada", "categoria": categoria.to_dict()}), 200
+        return jsonify({
+            "success": True, 
+            "message": "Categoría actualizada", 
+            "categoria": cat_dict,
+            "productos_afectados": productos_afectados
+        }), 200
 
     except Exception as e:
         db.session.rollback()
+        logger.error(f"❌ Error actualizar categoría: {traceback.format_exc()}")
         return jsonify({"success": False, "message": str(e)}), 500
+
 
 
 # ============================================
@@ -1388,7 +1575,12 @@ def actualizar_categoria(id_categoria):
 @catalogo_api_bp.route('/categorias/<int:id_categoria>', methods=['DELETE', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def eliminar_categoria(id_categoria):
-    """DELETE /api/categorias/{id}"""
+    """
+    DELETE /api/categorias/{id}
+    
+    Elimina una categoría. Los productos con esta categoría 
+    quedan con categoría vacía o 'Sin categoría'.
+    """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
 
@@ -1397,21 +1589,102 @@ def eliminar_categoria(id_categoria):
         return jsonify({"success": False, "message": "No autorizado"}), 401
 
     try:
-        categoria = CategoriaProducto.query.filter_by(id_categoria=id_categoria, usuario_id=int(user_id)).first()
+        categoria = CategoriaProducto.query.filter_by(
+            id_categoria=id_categoria, 
+            usuario_id=int(user_id)
+        ).first()
         
         if not categoria:
             return jsonify({"success": False, "message": "Categoría no encontrada"}), 404
 
         nombre = categoria.nombre
-        productos_afectados = ProductoCatalogo.query.filter_by(usuario_id=int(user_id), categoria=nombre).update({'categoria': ''})
+        
+        # Actualizar productos que usan esta categoría
+        productos_afectados = ProductoCatalogo.query.filter_by(
+            usuario_id=int(user_id), 
+            categoria=nombre
+        ).update({'categoria': ''})
         
         db.session.delete(categoria)
         db.session.commit()
+        
+        logger.info(f"🗑️ Categoría eliminada: {nombre} (ID: {id_categoria})")
 
-        return jsonify({"success": True, "message": f"Categoría '{nombre}' eliminada", "productos_afectados": productos_afectados}), 200
+        return jsonify({
+            "success": True, 
+            "message": f"Categoría '{nombre}' eliminada", 
+            "productos_afectados": productos_afectados
+        }), 200
 
     except Exception as e:
         db.session.rollback()
+        logger.error(f"❌ Error eliminar categoría: {traceback.format_exc()}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+# ============================================
+# 16.1 REORDENAR CATEGORÍAS - ★ NUEVO v5.8
+# ============================================
+
+@catalogo_api_bp.route('/categorias/reordenar', methods=['POST', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def reordenar_categorias():
+    """
+    POST /api/categorias/reordenar
+    
+    Actualiza el orden de múltiples categorías.
+    
+    Body JSON:
+    {
+        "orden": [
+            {"id": 1, "orden": 0},
+            {"id": 2, "orden": 1},
+            {"id": 3, "orden": 2}
+        ]
+    }
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    user_id = get_authorized_user_id()
+    if not user_id:
+        return jsonify({"success": False, "message": "No autorizado"}), 401
+
+    try:
+        data = request.get_json()
+        if not data or 'orden' not in data:
+            return jsonify({"success": False, "message": "Se requiere lista de orden"}), 400
+        
+        orden_list = data['orden']
+        actualizados = 0
+        
+        for item in orden_list:
+            cat_id = item.get('id') or item.get('id_categoria')
+            nuevo_orden = item.get('orden', 0)
+            
+            if cat_id:
+                categoria = CategoriaProducto.query.filter_by(
+                    id_categoria=int(cat_id),
+                    usuario_id=int(user_id)
+                ).first()
+                
+                if categoria:
+                    categoria.orden = nuevo_orden
+                    actualizados += 1
+        
+        db.session.commit()
+        
+        logger.info(f"✅ {actualizados} categorías reordenadas")
+
+        return jsonify({
+            "success": True,
+            "message": f"{actualizados} categorías reordenadas",
+            "actualizados": actualizados
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error reordenar categorías: {traceback.format_exc()}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
