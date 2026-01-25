@@ -194,10 +194,13 @@ class MovimientoStock(db.Model):
 
 
 # ==========================================
-# MODELO: CATEGORÍA DE PRODUCTO
+# MODELO: CATEGORÍA DE PRODUCTO (CORREGIDO v2.3)
 # ==========================================
 class CategoriaProducto(db.Model):
-    """Categorías personalizadas para productos."""
+    """
+    Categorías personalizadas para productos.
+    ACTUALIZADO v2.3: Agregados campos orden, activo y featured
+    """
     __tablename__ = 'categorias_producto'
     
     id_categoria = sa.Column(sa.Integer, primary_key=True)
@@ -208,17 +211,29 @@ class CategoriaProducto(db.Model):
     nombre = sa.Column(sa.String(100), nullable=False)
     icono = sa.Column(sa.String(10), default='📦')
     color = sa.Column(sa.String(20), default='#6366f1')
+    
+    # ★ NUEVOS CAMPOS v2.3
+    orden = sa.Column(sa.Integer, default=0)
+    activo = sa.Column(sa.Boolean, default=True)
+    featured = sa.Column(sa.Boolean, default=False)  # Categoría destacada
+    
     fecha_creacion = sa.Column(sa.DateTime, default=datetime.utcnow)
     
     def to_dict(self):
         return {
             "id": self.id_categoria,
+            "id_categoria": self.id_categoria,
             "name": self.nombre,
             "nombre": self.nombre,
             "icon": self.icono,
             "icono": self.icono,
             "color": self.color,
-            "negocio_id": self.negocio_id
+            "orden": self.orden or 0,
+            "activo": self.activo if self.activo is not None else True,
+            "featured": self.featured or False,
+            "negocio_id": self.negocio_id,
+            "usuario_id": self.usuario_id,
+            "fecha_creacion": self.fecha_creacion.isoformat() if self.fecha_creacion else None
         }
 
 
@@ -342,6 +357,8 @@ class ProductoReview(db.Model):
             "aprobado": self.aprobado,
             "fecha": self.fecha.isoformat() if self.fecha else None
         }
+
+
 # ==========================================
 # MODELO: PRODUCTO CATÁLOGO (INVENTARIO PRO v2.3)
 # ==========================================
