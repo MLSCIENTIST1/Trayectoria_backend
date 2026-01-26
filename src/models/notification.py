@@ -1,94 +1,329 @@
+"""
+TUKOMERCIO - API de Notificaciones para Negocios
+Endpoints para la campanita de BizFlow Studio
+"""
+
 import logging
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, JSON
-from sqlalchemy.orm import relationship
+from flask import Blueprint, jsonify, request
 from src.models.database import db
+from src.models.notification import Notification
 
-# Configurar logging
+# Logger
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
-# Evitar errores si el archivo ya tiene handlers
-if not logger.handlers:
-    file_handler = logging.FileHandler('notifications.log')
-    file_handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+# Blueprint
+notifications_negocio_bp = Blueprint('notifications_negocio_bp', __name__, url_prefix='/api/notifications')
 
-# Modelo Notification
-class Notification(db.Model):
-    __tablename__ = "notification"
 
-    id = Column(Integer, primary_key=True)
+# ==========================================
+# ENDPOINTS PARA CAMPANITA
+# ==========================================
+
+@notifications_negocio_bp.route('/negocio/<int:negocio_id>/count', methods=['GET'])
+def get_count_no_leidas(negocio_id):
+    """
+    Obtiene el contador de notificaciones no leídas para la campanita.
     
-    # ✅ CORRECCIÓN: Apuntar a 'usuarios' (plural) para coincidir con el modelo Usuario corregido
-    user_id = Column(Integer, ForeignKey('usuarios.id_usuario'), nullable=False)  # Receptor
-    sender_id = Column(Integer, ForeignKey('usuarios.id_usuario'), nullable=False) # Remitente
+    GET /api/notifications/negocio/1/count
+    Response: { "count": 5 }
+    """
+    try:
+        count = Notification.contar_no_leidas(negocio_id=negocio_id)
+        return jsonify({
+            "success": True,
+            "count": count
+        }), 200
+    except Exception as e:
+        logger.error(f"Error al contar notificaciones: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@notifications_negocio_bp.route('/negocio/<int:negocio_id>', methods=['GET'])
+def get_notificaciones_negocio(negocio_id):
+    """
+    Lista notificaciones de un negocio para el dropdown de la campanita.
     
-    request_id = Column(Integer, nullable=True)  # ID de solicitud relacionado
-    is_accepted = Column(Boolean, default=False)
-    timestamp = Column(DateTime, default=datetime.utcnow)
-    is_read = Column(Boolean, default=False)
-    type = Column(String, default='default_type')
-    extra_data = Column(JSON, nullable=True)
-    response = Column(String(255), nullable=True)
-    request_message_details = Column(String(255), nullable=True)
-    questions = Column(String(255), nullable=True)
-    message = Column(String(255), nullable=True)
-
-    # ✅ Relaciones con Usuario (usando el nombre de la clase 'Usuario')
-    sender = relationship('Usuario', foreign_keys=[sender_id], back_populates='sent_notifications')
-    receiver = relationship('Usuario', foreign_keys=[user_id], back_populates='received_notifications')
-
-    # Relación con Message
-    messages = relationship('Message', back_populates='notification', lazy='select')
-
-    @classmethod
-    def create_notification(cls, user_id, sender_id, request_id, message, params=None, extra_data=None):
-        try:
-            notification_type = params.get('type', 'default_type') if params else 'default_type'
-            notification = cls(
-                user_id=user_id,
-                sender_id=sender_id,
-                request_id=request_id,
-                message=message,
-                type=notification_type,
-                extra_data=extra_data
+    GET /api/notifications/negocio/1?limite=20&solo_no_leidas=false
+    """
+    try:
+        limite = request.args.get('limite', 20, type=int)
+        solo_no_leidas = request.args.get('solo_no_leidas', 'false').lower() == 'true'
+        categoria = request.args.get('categoria', None)
+        
+        if categoria:
+            notificaciones = Notification.obtener_por_categoria(
+                negocio_id=negocio_id,
+                categoria=categoria,
+                limite=limite
             )
-            db.session.add(notification)
-            db.session.commit()
-            logger.info(f"Notificación creada: {notification}")
-            return notification
-        except Exception as e:
-            logger.error(f"Error al crear la notificación: {e}", exc_info=True)
-            db.session.rollback()
-            raise
+        else:
+            notificaciones = Notification.obtener_recientes(
+                negocio_id=negocio_id,
+                limite=limite,
+                solo_no_leidas=solo_no_leidas
+            )
+        
+        # Contador de no leídas
+        count_no_leidas = Notification.contar_no_leidas(negocio_id=negocio_id)
+        
+        return jsonify({
+            "success": True,
+            "notificaciones": [n.to_dict_mini() for n in notificaciones],
+            "count_no_leidas": count_no_leidas,
+            "total": len(notificaciones)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error al obtener notificaciones: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
-    @classmethod
-    def accept_notification(cls, notification_id):
-        try:
-            notification = cls.query.get(notification_id)
-            if not notification:
-                logger.error(f"No se encontró la notificación con ID {notification_id}.")
-                return False
-            if notification.is_accepted:
-                logger.info(f"La notificación con ID {notification_id} ya estaba aceptada.")
-                return True
-            notification.is_accepted = True
-            db.session.commit()
-            db.session.refresh(notification)
-            logger.debug(f"Estado de la notificación después de commit: {notification}")
-            logger.info(f"Notificación con ID {notification_id} aceptada.")
-            return True
-        except Exception as e:
-            logger.error(f"Error al aceptar la notificación: {e}", exc_info=True)
-            db.session.rollback()
-            return False
 
-    def __repr__(self):
-        return f"<Notification id={self.id} type={self.type} is_read={self.is_read}>"
+@notifications_negocio_bp.route('/negocio/<int:negocio_id>/detalle/<int:notif_id>', methods=['GET'])
+def get_notificacion_detalle(negocio_id, notif_id):
+    """
+    Obtiene el detalle completo de una notificación.
+    
+    GET /api/notifications/negocio/1/detalle/123
+    """
+    try:
+        notificacion = Notification.query.filter_by(
+            id=notif_id,
+            negocio_id=negocio_id
+        ).first()
+        
+        if not notificacion:
+            return jsonify({"success": False, "error": "Notificación no encontrada"}), 404
+        
+        return jsonify({
+            "success": True,
+            "notificacion": notificacion.to_dict()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error al obtener detalle: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
-# Importaciones al final para evitar problemas de importación circular
-from src.models.message import Message
-from src.models.usuarios import Usuario
+
+# ==========================================
+# MARCAR COMO LEÍDAS
+# ==========================================
+
+@notifications_negocio_bp.route('/negocio/<int:negocio_id>/marcar-leida/<int:notif_id>', methods=['POST'])
+def marcar_leida(negocio_id, notif_id):
+    """
+    Marca una notificación específica como leída.
+    
+    POST /api/notifications/negocio/1/marcar-leida/123
+    """
+    try:
+        notificacion = Notification.query.filter_by(
+            id=notif_id,
+            negocio_id=negocio_id
+        ).first()
+        
+        if not notificacion:
+            return jsonify({"success": False, "error": "Notificación no encontrada"}), 404
+        
+        notificacion.marcar_leida()
+        db.session.commit()
+        
+        # Retornar nuevo contador
+        count = Notification.contar_no_leidas(negocio_id=negocio_id)
+        
+        return jsonify({
+            "success": True,
+            "message": "Notificación marcada como leída",
+            "count_no_leidas": count
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error al marcar como leída: {e}")
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@notifications_negocio_bp.route('/negocio/<int:negocio_id>/marcar-todas-leidas', methods=['POST'])
+def marcar_todas_leidas(negocio_id):
+    """
+    Marca todas las notificaciones del negocio como leídas.
+    
+    POST /api/notifications/negocio/1/marcar-todas-leidas
+    """
+    try:
+        count = Notification.marcar_todas_leidas(negocio_id=negocio_id)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": f"{count} notificaciones marcadas como leídas",
+            "count_no_leidas": 0
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error al marcar todas como leídas: {e}")
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==========================================
+# ELIMINAR NOTIFICACIONES
+# ==========================================
+
+@notifications_negocio_bp.route('/negocio/<int:negocio_id>/eliminar/<int:notif_id>', methods=['DELETE'])
+def eliminar_notificacion(negocio_id, notif_id):
+    """
+    Elimina una notificación específica.
+    
+    DELETE /api/notifications/negocio/1/eliminar/123
+    """
+    try:
+        notificacion = Notification.query.filter_by(
+            id=notif_id,
+            negocio_id=negocio_id
+        ).first()
+        
+        if not notificacion:
+            return jsonify({"success": False, "error": "Notificación no encontrada"}), 404
+        
+        db.session.delete(notificacion)
+        db.session.commit()
+        
+        count = Notification.contar_no_leidas(negocio_id=negocio_id)
+        
+        return jsonify({
+            "success": True,
+            "message": "Notificación eliminada",
+            "count_no_leidas": count
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error al eliminar notificación: {e}")
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@notifications_negocio_bp.route('/negocio/<int:negocio_id>/limpiar', methods=['DELETE'])
+def limpiar_leidas(negocio_id):
+    """
+    Elimina todas las notificaciones leídas del negocio.
+    
+    DELETE /api/notifications/negocio/1/limpiar
+    """
+    try:
+        count = Notification.query.filter_by(
+            negocio_id=negocio_id,
+            is_read=True
+        ).delete()
+        
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": f"{count} notificaciones eliminadas"
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error al limpiar notificaciones: {e}")
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==========================================
+# CREAR NOTIFICACIÓN (PARA TESTING/ADMIN)
+# ==========================================
+
+@notifications_negocio_bp.route('/negocio/<int:negocio_id>/crear', methods=['POST'])
+def crear_notificacion_manual(negocio_id):
+    """
+    Crea una notificación manualmente (útil para testing).
+    
+    POST /api/notifications/negocio/1/crear
+    Body: {
+        "tipo": "sistema",
+        "titulo": "Prueba",
+        "mensaje": "Esto es una prueba",
+        "prioridad": "media"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({"success": False, "error": "Datos requeridos"}), 400
+        
+        # Obtener user_id del negocio (dueño) - esto depende de tu estructura
+        # Por ahora lo hacemos opcional
+        user_id = data.get('user_id')
+        
+        notif = Notification.crear_notificacion_generica(
+            negocio_id=negocio_id,
+            user_id=user_id,
+            tipo=data.get('tipo', 'sistema'),
+            titulo=data.get('titulo', 'Notificación'),
+            mensaje=data.get('mensaje', ''),
+            referencia_tipo=data.get('referencia_tipo'),
+            referencia_id=data.get('referencia_id'),
+            action_url=data.get('action_url'),
+            prioridad=data.get('prioridad', 'media'),
+            extra_data=data.get('extra_data')
+        )
+        
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Notificación creada",
+            "notificacion": notif.to_dict_mini()
+        }), 201
+        
+    except Exception as e:
+        logger.error(f"Error al crear notificación: {e}")
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==========================================
+# ESTADÍSTICAS
+# ==========================================
+
+@notifications_negocio_bp.route('/negocio/<int:negocio_id>/stats', methods=['GET'])
+def get_estadisticas(negocio_id):
+    """
+    Obtiene estadísticas de notificaciones del negocio.
+    
+    GET /api/notifications/negocio/1/stats
+    """
+    try:
+        from sqlalchemy import func
+        
+        # Total
+        total = Notification.query.filter_by(negocio_id=negocio_id).count()
+        
+        # No leídas
+        no_leidas = Notification.contar_no_leidas(negocio_id=negocio_id)
+        
+        # Por tipo
+        por_tipo = db.session.query(
+            Notification.type,
+            func.count(Notification.id)
+        ).filter_by(
+            negocio_id=negocio_id
+        ).group_by(
+            Notification.type
+        ).all()
+        
+        tipos_count = {tipo: count for tipo, count in por_tipo}
+        
+        return jsonify({
+            "success": True,
+            "stats": {
+                "total": total,
+                "no_leidas": no_leidas,
+                "leidas": total - no_leidas,
+                "por_tipo": tipos_count
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error al obtener estadísticas: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
