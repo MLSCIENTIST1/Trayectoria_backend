@@ -179,6 +179,12 @@ def register_api(app):
         fail_count += 1
         logger.warning("⚠️  Módulo de checkout no cargado - Las tiendas no podrán procesar pedidos")
     
+    # 📦 Pedidos API (Gestión de pedidos para el dueño)
+    if safe_register('src.api.tiendas.pedidos_api', 'pedidos_api_bp', 'Gestión de Pedidos'):
+        success_count += 1
+    else:
+        fail_count += 1
+    
     # ==========================================
     # 💰 CONTABILIDAD E INVENTARIO
     # ==========================================
