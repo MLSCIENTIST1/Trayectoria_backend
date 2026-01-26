@@ -245,9 +245,10 @@ def register_api(app):
     # 💬 NOTIFICACIONES Y CHAT
     # ==========================================
     logger.info("\n💬 Cargando módulos de comunicación...")
-    
+
     communication_modules = [
         ('src.api.notifications.notifications_api', 'notifications_bp', 'Sistema de Notificaciones'),
+        ('src.api.notifications.notifications_negocio_api', 'notifications_negocio_bp', 'Notificaciones Negocio'),  # ← AGREGAR
         ('src.api.notifications.chat_api', 'chat_bp', 'Sistema de Chat'),
     ]
     
