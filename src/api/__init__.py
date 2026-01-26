@@ -1,7 +1,7 @@
 """
-BizFlow Studio - Registro de APIs v2.7
+BizFlow Studio - Registro de APIs v2.8
 Sistema de carga segura de blueprints
-Actualizado: Agregado módulo de Checkout API (Tiendas Online)
+Actualizado: Agregado módulo de Notificaciones para Negocios (campanita)
 """
 
 import traceback
@@ -17,7 +17,7 @@ def register_api(app):
     """
     
     logger.info("="*70)
-    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.7")
+    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.8")
     logger.info("="*70)
     
     # ==========================================
@@ -29,7 +29,7 @@ def register_api(app):
         return jsonify({
             "status": "online", 
             "message": "BizFlow Studio API operativa",
-            "version": "2.7.0"
+            "version": "2.8.0"
         }), 200
     
     logger.info("✅ Ruta de salud global registrada: /api/health")
@@ -169,7 +169,7 @@ def register_api(app):
             fail_count += 1
     
     # ==========================================
-    # 🏪 CHECKOUT API (Tiendas Online) ← NUEVO
+    # 🏪 CHECKOUT API (Tiendas Online)
     # ==========================================
     logger.info("\n🏪 Cargando módulo de checkout para tiendas online...")
     
@@ -245,10 +245,9 @@ def register_api(app):
     # 💬 NOTIFICACIONES Y CHAT
     # ==========================================
     logger.info("\n💬 Cargando módulos de comunicación...")
-
+    
     communication_modules = [
         ('src.api.notifications.notifications_api', 'notifications_bp', 'Sistema de Notificaciones'),
-        ('src.api.notifications.notifications_negocio_api', 'notifications_negocio_bp', 'Notificaciones Negocio'),  # ← AGREGAR
         ('src.api.notifications.chat_api', 'chat_bp', 'Sistema de Chat'),
     ]
     
@@ -257,6 +256,13 @@ def register_api(app):
             success_count += 1
         else:
             fail_count += 1
+    
+    # 🔔 Notificaciones para Negocios (campanita BizFlow)
+    # Nota: prefix=None porque las rutas ya incluyen /api/
+    if safe_register('src.api.notifications.notifications_negocio_api', 'notifications_negocio_bp', 'Notificaciones Negocio', prefix=None):
+        success_count += 1
+    else:
+        fail_count += 1
     
     # ==========================================
     # 📋 CONTRATOS Y CANDIDATOS
@@ -317,7 +323,7 @@ def register_api(app):
         if 'comprador' in rule.rule or 'pedido' in rule.rule:
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     
-    # Listar rutas de checkout/tiendas ← NUEVO
+    # Listar rutas de checkout/tiendas
     logger.info("\n🏪 Rutas de checkout/tiendas registradas:")
     for rule in app.url_map.iter_rules():
         if 'tienda' in rule.rule or 'checkout' in rule.rule:
@@ -333,6 +339,12 @@ def register_api(app):
     logger.info("\n📸 Rutas de avatar registradas:")
     for rule in app.url_map.iter_rules():
         if 'avatar' in rule.rule:
+            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
+    
+    # Listar rutas de notificaciones
+    logger.info("\n🔔 Rutas de notificaciones registradas:")
+    for rule in app.url_map.iter_rules():
+        if 'notification' in rule.rule:
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
 
     if fail_count > 0:
