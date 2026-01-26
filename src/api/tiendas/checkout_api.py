@@ -1,6 +1,7 @@
 """
-Checkout API - TuKomercio v3.0
+Checkout API - TuKomercio v3.1
 Usa modelos SQLAlchemy existentes (Comprador, DireccionComprador, Pedido)
+★ NUEVO: Crea notificación automática para la campanita
 Ruta: /api/tiendas/<slug>/checkout
 """
 
@@ -10,13 +11,21 @@ import datetime
 
 # Importar modelos existentes
 from src.models import Comprador
-from src.models import  DireccionComprador
+from src.models import DireccionComprador
 from src.models import Pedido 
 from src.models.database import db
 
+# ★ NUEVO: Importar modelo de notificaciones
+try:
+    from src.models.notification import Notification
+    TIENE_NOTIFICACIONES = True
+except ImportError:
+    TIENE_NOTIFICACIONES = False
+    print("⚠️ Modelo Notification no disponible - notificaciones desactivadas")
+
 checkout_api_bp = Blueprint('checkout_api', __name__)
 
-print("🏪 Módulo checkout_api v3.0 iniciando (con modelos SQLAlchemy)...")
+print("🏪 Módulo checkout_api v3.1 iniciando (con notificaciones)...")
 
 
 @checkout_api_bp.route('/tiendas/<slug>/checkout', methods=['POST', 'OPTIONS'])
@@ -24,6 +33,7 @@ print("🏪 Módulo checkout_api v3.0 iniciando (con modelos SQLAlchemy)...")
 def procesar_checkout(slug):
     """
     Procesa un pedido de la tienda online usando los modelos SQLAlchemy existentes.
+    ★ NUEVO: Crea notificación automática para la campanita del dueño.
     
     POST /api/tiendas/<slug>/checkout
     
@@ -188,7 +198,23 @@ def procesar_checkout(slug):
         print(f"✅ Pedido creado: {pedido.codigo_pedido}")
         
         # ==========================================
-        # 4. GUARDAR TODO EN LA BASE DE DATOS
+        # ★ 4. CREAR NOTIFICACIÓN PARA LA CAMPANITA
+        # ==========================================
+        notificacion_creada = False
+        if TIENE_NOTIFICACIONES:
+            try:
+                # Flush para obtener el ID del pedido
+                db.session.flush()
+                
+                notificacion = Notification.crear_notificacion_pedido(pedido)
+                notificacion_creada = True
+                print(f"🔔 Notificación creada para campanita")
+            except Exception as notif_error:
+                print(f"⚠️ Error creando notificación (no crítico): {notif_error}")
+                # No fallar el pedido por esto
+        
+        # ==========================================
+        # 5. GUARDAR TODO EN LA BASE DE DATOS
         # ==========================================
         try:
             db.session.commit()
@@ -200,7 +226,7 @@ def procesar_checkout(slug):
             raise commit_error
         
         # ==========================================
-        # 5. PREPARAR RESPUESTA
+        # 6. PREPARAR RESPUESTA
         # ==========================================
         response_data = {
             'success': True,
@@ -214,13 +240,15 @@ def procesar_checkout(slug):
                 'estado': pedido.estado,
                 'fecha_creacion': pedido.fecha_pedido.isoformat()
             },
-            'comprador': comprador.to_dict_checkout()  # Incluye el token
+            'comprador': comprador.to_dict_checkout(),  # Incluye el token
+            'notificacion_enviada': notificacion_creada  # ★ NUEVO
         }
         
         print(f"✅ Checkout completado: {pedido.codigo_pedido}")
         print(f"   Comprador: {comprador.nombre} (ID: {comprador.id_comprador})")
         print(f"   Token: {comprador.token_acceso}")
-        print(f"   Total: ${data.get('total', 0):,}\n")
+        print(f"   Total: ${data.get('total', 0):,}")
+        print(f"   🔔 Notificación: {'Sí' if notificacion_creada else 'No'}\n")
         
         return jsonify(response_data), 201
         
@@ -256,8 +284,9 @@ def test_checkout(slug):
         'success': True,
         'message': f'✅ Checkout funcionando para: {slug}',
         'endpoint': f'/api/tiendas/{slug}/checkout',
-        'version': '3.0',
-        'models': 'SQLAlchemy (Comprador, DireccionComprador, Pedido)'
+        'version': '3.1',
+        'models': 'SQLAlchemy (Comprador, DireccionComprador, Pedido)',
+        'notificaciones': TIENE_NOTIFICACIONES
     }), 200
 
 
@@ -267,13 +296,15 @@ def health():
     return jsonify({
         'status': 'online',
         'module': 'checkout_api',
-        'version': '3.0',
-        'database': 'SQLAlchemy'
+        'version': '3.1',
+        'database': 'SQLAlchemy',
+        'notificaciones': TIENE_NOTIFICACIONES
     }), 200
 
 
-print("✅ Módulo checkout_api v3.0 cargado correctamente (con modelos SQLAlchemy)")
+print("✅ Módulo checkout_api v3.1 cargado correctamente")
 print("   Modelos utilizados:")
 print("   - Comprador (con token_acceso)")
 print("   - DireccionComprador")
 print("   - Pedido")
+print(f"   - Notification: {'✅ Activo' if TIENE_NOTIFICACIONES else '❌ No disponible'}")
