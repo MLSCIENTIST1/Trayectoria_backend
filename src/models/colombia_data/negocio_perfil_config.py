@@ -27,7 +27,7 @@ class NegocioPerfilConfig(db.Model):
     # IDENTIFICACIÓN
     # ═══════════════════════════════════════════════════════════
     id = Column(Integer, primary_key=True)
-    negocio_id = Column(Integer, ForeignKey('negocio.id_negocio', ondelete='CASCADE'), unique=True, nullable=False)
+    negocio_id = Column(Integer, ForeignKey('negocios.id_negocio', ondelete='CASCADE'), unique=True, nullable=False)
 
     # ═══════════════════════════════════════════════════════════
     # LAYOUT PERSONALIZADO (Drag & Drop)
