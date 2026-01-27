@@ -1,7 +1,7 @@
 """
-BizFlow Studio - Registro de APIs v2.8
+BizFlow Studio - Registro de APIs v2.9
 Sistema de carga segura de blueprints
-Actualizado: Agregado módulo de Notificaciones para Negocios (campanita)
+Actualizado: Agregado módulo de Generación de QR
 """
 
 import traceback
@@ -17,7 +17,7 @@ def register_api(app):
     """
     
     logger.info("="*70)
-    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.8")
+    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.9")
     logger.info("="*70)
     
     # ==========================================
@@ -29,7 +29,7 @@ def register_api(app):
         return jsonify({
             "status": "online", 
             "message": "BizFlow Studio API operativa",
-            "version": "2.8.0"
+            "version": "2.9.0"
         }), 200
     
     logger.info("✅ Ruta de salud global registrada: /api/health")
@@ -151,6 +151,18 @@ def register_api(app):
         success_count += 1
     else:
         fail_count += 1
+    
+    # ==========================================
+    # 🔲 GENERADOR DE QR
+    # ==========================================
+    logger.info("\n🔲 Cargando módulo de generación de QR...")
+    
+    # Las rutas ya incluyen /api/ en el blueprint
+    if safe_register('src.api.negocio.qr_generator_api', 'qr_generator_bp', 'Generador de QR', prefix=None):
+        success_count += 1
+    else:
+        fail_count += 1
+        logger.warning("⚠️  Módulo de QR no cargado - pip install qrcode[pil]")
     
     # ==========================================
     # 🛒 COMPRADORES Y PEDIDOS (ECOSISTEMA TRAYECTORIA)
@@ -321,6 +333,12 @@ def register_api(app):
     logger.info("\n📍 Rutas de negocios registradas:")
     for rule in app.url_map.iter_rules():
         if 'negocio' in rule.rule or 'sucursal' in rule.rule or 'mis_negocios' in rule.rule:
+            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
+    
+    # 🔲 Listar rutas de QR
+    logger.info("\n🔲 Rutas de QR registradas:")
+    for rule in app.url_map.iter_rules():
+        if '/qr' in rule.rule or '/n/' in rule.rule:
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     
     # Listar rutas de compradores y pedidos

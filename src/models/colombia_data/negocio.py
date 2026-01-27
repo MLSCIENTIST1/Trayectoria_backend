@@ -2,14 +2,16 @@
 BizFlow Studio - Modelo de Negocio
 Gestión de negocios con soporte para micrositios
 
-VERSIÓN PARCHADA - Incluye:
+VERSIÓN 2.4 - Incluye:
 - whatsapp, tipo_pagina, logo_url
 - config_tienda (JSONB) para Store Designer
+- 🆕 QR del negocio (qr_negocio_url, qr_negocio_data)
+- 🆕 Perfil público (perfil_publico)
 """
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSONB  # 🎨 NUEVO: Para config_tienda
+from sqlalchemy.dialects.postgresql import JSONB
 from src.models.database import db
 from datetime import datetime
 
@@ -17,7 +19,7 @@ from datetime import datetime
 class Negocio(db.Model):
     """
     Modelo para gestión de negocios (empresas/comercios) en BizFlow.
-    Incluye soporte para micrositios personalizados.
+    Incluye soporte para micrositios personalizados y QR automático.
     """
     __tablename__ = 'negocios'
 
@@ -35,21 +37,28 @@ class Negocio(db.Model):
     # MICROSITIO / PÁGINA WEB
     # ==========================================
     tiene_pagina = sa.Column(sa.Boolean, default=False, nullable=False)
-    plantilla_id = sa.Column(sa.String(50), nullable=True)  # 'p1', 'p2', 'p3', etc.
-    slug = sa.Column(sa.String(100), unique=True, nullable=True, index=True)  # URL amigable
+    plantilla_id = sa.Column(sa.String(50), nullable=True)
+    slug = sa.Column(sa.String(100), unique=True, nullable=True, index=True)
     color_tema = sa.Column(sa.String(20), default="#4cd137")
     
     # ==========================================
-    # NUEVOS CAMPOS - MICROSITIO EXTENDIDO
+    # CAMPOS EXTENDIDOS MICROSITIO
     # ==========================================
-    whatsapp = sa.Column(sa.String(20), nullable=True)  # Número de WhatsApp para contacto
-    tipo_pagina = sa.Column(sa.String(50), default='landing', nullable=True)  # 'landing', 'catalogo', 'tienda'
-    logo_url = sa.Column(sa.Text, nullable=True)  # URL del logo del negocio
+    whatsapp = sa.Column(sa.String(20), nullable=True)
+    tipo_pagina = sa.Column(sa.String(50), default='landing', nullable=True)
+    logo_url = sa.Column(sa.Text, nullable=True)
     
     # ==========================================
     # 🎨 STORE DESIGNER - Configuración JSON
     # ==========================================
     config_tienda = sa.Column(JSONB, default={}, nullable=True)
+    
+    # ==========================================
+    # 🆕 QR DEL NEGOCIO
+    # ==========================================
+    qr_negocio_url = sa.Column(sa.Text, nullable=True)  # URL del QR en Cloudinary
+    qr_negocio_data = sa.Column(sa.String(300), nullable=True)  # Dato codificado: tukomercio.com/n/{slug}
+    perfil_publico = sa.Column(sa.Boolean, default=True, nullable=False)  # Visible públicamente
     
     # ==========================================
     # METADATA
@@ -79,15 +88,13 @@ class Negocio(db.Model):
     ciudad = relationship("Colombia", foreign_keys=[ciudad_id])
     dueno = relationship("Usuario", foreign_keys=[usuario_id])
     
-    # Relación con sucursales (cascade delete)
     sucursales = relationship(
         "Sucursal",
         back_populates="negocio",
         cascade="all, delete-orphan",
-        lazy='dynamic'  # Para queries eficientes
+        lazy='dynamic'
     )
     
-    # Relación con productos del catálogo
     productos = relationship(
         "ProductoCatalogo",
         back_populates="negocio",
@@ -95,7 +102,6 @@ class Negocio(db.Model):
         lazy='dynamic'
     )
     
-    # Relación con transacciones
     transacciones = relationship(
         "TransaccionOperativa",
         back_populates="negocio",
@@ -104,18 +110,10 @@ class Negocio(db.Model):
     )
 
     # ==========================================
-    # MÉTODOS
+    # CONSTRUCTOR
     # ==========================================
     
     def __init__(self, nombre_negocio, usuario_id, **kwargs):
-        """
-        Constructor del negocio.
-        
-        Args:
-            nombre_negocio (str): Nombre del negocio
-            usuario_id (int): ID del usuario propietario
-            **kwargs: Campos adicionales
-        """
         self.nombre_negocio = nombre_negocio
         self.usuario_id = usuario_id
         
@@ -134,8 +132,13 @@ class Negocio(db.Model):
         self.plantilla_id = kwargs.get('plantilla_id')
         self.tiene_pagina = kwargs.get('tiene_pagina', False)
         
-        # 🎨 Store Designer
+        # Store Designer
         self.config_tienda = kwargs.get('config_tienda', {})
+        
+        # 🆕 QR y perfil público
+        self.qr_negocio_url = kwargs.get('qr_negocio_url')
+        self.qr_negocio_data = kwargs.get('qr_negocio_data')
+        self.perfil_publico = kwargs.get('perfil_publico', True)
         
         # Generar slug si no se proporciona
         if not kwargs.get('slug'):
@@ -143,21 +146,15 @@ class Negocio(db.Model):
         else:
             self.slug = kwargs.get('slug')
     
+    # ==========================================
+    # MÉTODOS PRIVADOS
+    # ==========================================
+    
     def _generar_slug(self, nombre):
-        """
-        Genera un slug URL-friendly desde el nombre del negocio.
-        
-        Args:
-            nombre (str): Nombre del negocio
-            
-        Returns:
-            str: Slug generado
-        """
+        """Genera un slug URL-friendly desde el nombre del negocio."""
         import re
-        # Convertir a minúsculas
         slug = nombre.lower()
         
-        # Reemplazar caracteres especiales
         replacements = {
             'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u',
             'ñ': 'n', 'ü': 'u',
@@ -167,25 +164,18 @@ class Negocio(db.Model):
         for old, new in replacements.items():
             slug = slug.replace(old, new)
         
-        # Eliminar caracteres no permitidos
         slug = re.sub(r'[^a-z0-9-]', '', slug)
-        
-        # Eliminar guiones múltiples
         slug = re.sub(r'-+', '-', slug)
-        
-        # Eliminar guiones al inicio y final
         slug = slug.strip('-')
         
-        return slug[:100]  # Limitar longitud
+        return slug[:100]
+    
+    # ==========================================
+    # MÉTODOS DE PÁGINA
+    # ==========================================
     
     def activar_pagina(self, plantilla_id='p1', tipo_pagina='landing'):
-        """
-        Activa el micrositio del negocio.
-        
-        Args:
-            plantilla_id (str): ID de la plantilla a usar
-            tipo_pagina (str): Tipo de página ('landing', 'catalogo', 'tienda')
-        """
+        """Activa el micrositio del negocio."""
         self.tiene_pagina = True
         self.plantilla_id = plantilla_id
         self.tipo_pagina = tipo_pagina
@@ -198,33 +188,69 @@ class Negocio(db.Model):
         self.tiene_pagina = False
     
     def get_url_sitio(self):
-        """
-        Obtiene la URL del micrositio.
-        
-        Returns:
-            str or None: URL del sitio o None si no tiene
-        """
+        """Obtiene la URL del micrositio."""
         if self.tiene_pagina and self.slug:
             return f"/sitio/{self.slug}"
         return None
     
-    def get_whatsapp_link(self, mensaje=None):
+    # ==========================================
+    # 🆕 MÉTODOS DE QR
+    # ==========================================
+    
+    def get_url_perfil_publico(self, base_url="https://tukomercio.com"):
         """
-        Genera el link de WhatsApp para contacto.
+        Obtiene la URL del perfil público del negocio.
+        Esta es la URL que se codifica en el QR.
         
         Args:
-            mensaje (str): Mensaje predeterminado (opcional)
+            base_url (str): URL base de la plataforma
             
         Returns:
-            str or None: URL de WhatsApp o None si no tiene número
+            str: URL del perfil público
         """
+        if self.slug:
+            return f"{base_url}/n/{self.slug}"
+        return None
+    
+    def generar_qr_data(self, base_url="https://tukomercio.com"):
+        """
+        Genera el dato que se codificará en el QR.
+        
+        Args:
+            base_url (str): URL base de la plataforma
+            
+        Returns:
+            str: URL a codificar en el QR
+        """
+        url = self.get_url_perfil_publico(base_url)
+        if url:
+            self.qr_negocio_data = url
+        return url
+    
+    def set_qr_url(self, url):
+        """
+        Establece la URL del QR almacenado (Cloudinary).
+        
+        Args:
+            url (str): URL de la imagen QR
+        """
+        self.qr_negocio_url = url
+    
+    def tiene_qr(self):
+        """Verifica si el negocio tiene QR generado."""
+        return bool(self.qr_negocio_url)
+    
+    # ==========================================
+    # MÉTODOS DE WHATSAPP
+    # ==========================================
+    
+    def get_whatsapp_link(self, mensaje=None):
+        """Genera el link de WhatsApp para contacto."""
         if not self.whatsapp:
             return None
         
-        # Limpiar número (solo dígitos)
         numero = ''.join(filter(str.isdigit, self.whatsapp))
         
-        # Agregar código de país si no lo tiene (Colombia = 57)
         if len(numero) == 10:
             numero = f"57{numero}"
         
@@ -236,16 +262,12 @@ class Negocio(db.Model):
         
         return url
     
+    # ==========================================
+    # SERIALIZACIÓN
+    # ==========================================
+    
     def to_dict(self, include_relations=False):
-        """
-        Convierte el negocio a diccionario.
-        
-        Args:
-            include_relations (bool): Si incluir sucursales y productos
-            
-        Returns:
-            dict: Datos del negocio
-        """
+        """Convierte el negocio a diccionario."""
         data = {
             "id": self.id_negocio,
             "id_negocio": self.id_negocio,
@@ -265,14 +287,20 @@ class Negocio(db.Model):
             "color_tema": self.color_tema,
             "url_sitio": self.get_url_sitio(),
             
-            # Nuevos campos de micrositio
+            # Campos extendidos micrositio
             "whatsapp": self.whatsapp,
             "tipo_pagina": self.tipo_pagina,
             "logo_url": self.logo_url,
             "whatsapp_link": self.get_whatsapp_link(),
             
-            # 🎨 Store Designer
+            # Store Designer
             "config_tienda": self.config_tienda or {},
+            
+            # 🆕 QR del negocio
+            "qr_negocio_url": self.qr_negocio_url,
+            "qr_negocio_data": self.qr_negocio_data,
+            "perfil_publico": self.perfil_publico,
+            "tiene_qr": self.tiene_qr(),
             
             # Metadata
             "fecha_registro": self.fecha_registro.isoformat() if self.fecha_registro else None,
