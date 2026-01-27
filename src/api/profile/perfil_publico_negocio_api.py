@@ -6,17 +6,94 @@ Ubicación: src/api/profile/perfil_publico_negocio_api.py
 ═══════════════════════════════════════════════════════════════════════════════
 """
 
-from flask import Blueprint, jsonify, request
-from flask_cors import cross_origin
-from sqlalchemy import func, desc
-from datetime import datetime, timedelta
+print("=" * 70)
+print("🎯 PERFIL_PUBLICO_NEGOCIO_API: INICIANDO CARGA DEL MÓDULO")
+print("=" * 70)
 
-from src.models.colombia_data import Negocio
-from src.models.colombia_data import Sucursal
-from src.models import db
+# ==========================================
+# IMPORTS CON LOGS DETALLADOS
+# ==========================================
 
-# Crear Blueprint
+try:
+    print("🔄 [1/7] Importando Flask...")
+    from flask import Blueprint, jsonify, request
+    print("✅ [1/7] Flask importado correctamente")
+except Exception as e:
+    print(f"❌ [1/7] ERROR importando Flask: {e}")
+    import traceback
+    traceback.print_exc()
+    raise
+
+try:
+    print("🔄 [2/7] Importando flask_cors...")
+    from flask_cors import cross_origin
+    print("✅ [2/7] flask_cors importado correctamente")
+except Exception as e:
+    print(f"❌ [2/7] ERROR importando flask_cors: {e}")
+    import traceback
+    traceback.print_exc()
+    raise
+
+try:
+    print("🔄 [3/7] Importando sqlalchemy...")
+    from sqlalchemy import func, desc
+    print("✅ [3/7] sqlalchemy importado correctamente")
+except Exception as e:
+    print(f"❌ [3/7] ERROR importando sqlalchemy: {e}")
+    import traceback
+    traceback.print_exc()
+    raise
+
+try:
+    print("🔄 [4/7] Importando datetime...")
+    from datetime import datetime, timedelta
+    print("✅ [4/7] datetime importado correctamente")
+except Exception as e:
+    print(f"❌ [4/7] ERROR importando datetime: {e}")
+    import traceback
+    traceback.print_exc()
+    raise
+
+try:
+    print("🔄 [5/7] Importando Negocio desde src.models.colombia_data...")
+    from src.models.colombia_data import Negocio
+    print("✅ [5/7] Negocio importado correctamente")
+except Exception as e:
+    print(f"❌ [5/7] ERROR importando Negocio: {e}")
+    import traceback
+    traceback.print_exc()
+    raise
+
+try:
+    print("🔄 [6/7] Importando Sucursal desde src.models.colombia_data...")
+    from src.models.colombia_data import Sucursal
+    print("✅ [6/7] Sucursal importado correctamente")
+except Exception as e:
+    print(f"❌ [6/7] ERROR importando Sucursal: {e}")
+    import traceback
+    traceback.print_exc()
+    raise
+
+try:
+    print("🔄 [7/7] Importando db desde src.models...")
+    from src.models import db
+    print("✅ [7/7] db importado correctamente")
+except Exception as e:
+    print(f"❌ [7/7] ERROR importando db: {e}")
+    import traceback
+    traceback.print_exc()
+    raise
+
+print("=" * 70)
+print("🎯 PERFIL_PUBLICO_NEGOCIO_API: TODOS LOS IMPORTS EXITOSOS")
+print("=" * 70)
+
+# ==========================================
+# CREAR BLUEPRINT
+# ==========================================
+print("🔄 Creando Blueprint 'perfil_publico_negocio'...")
 perfil_publico_negocio_bp = Blueprint('perfil_publico_negocio', __name__)
+print(f"✅ Blueprint creado: nombre='{perfil_publico_negocio_bp.name}'")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -27,20 +104,16 @@ perfil_publico_negocio_bp = Blueprint('perfil_publico_negocio', __name__)
 def get_perfil_publico(slug):
     """
     Obtiene todos los datos del perfil público de un negocio.
-    
-    Args:
-        slug: Identificador único del negocio en la URL
-        
-    Returns:
-        JSON con: negocio, score, badges, etapas, videos, reseñas, contacto
     """
+    print(f"🎯 GET /api/negocio/perfil-publico/{slug} - Iniciando...")
+    
     try:
-        # ─────────────────────────────────────────────────────────────
         # 1. BUSCAR NEGOCIO POR SLUG
-        # ─────────────────────────────────────────────────────────────
+        print(f"   🔍 Buscando negocio con slug='{slug}'...")
         negocio = Negocio.query.filter_by(slug=slug, activo=True).first()
         
         if not negocio:
+            print(f"   ❌ Negocio no encontrado con slug='{slug}'")
             return jsonify({
                 'success': False,
                 'error': 'Negocio no encontrado',
@@ -48,56 +121,38 @@ def get_perfil_publico(slug):
             }), 404
 
         id_negocio = negocio.id_negocio
+        print(f"   ✅ Negocio encontrado: id={id_negocio}, nombre='{negocio.nombre}'")
 
-        # ─────────────────────────────────────────────────────────────
-        # 2. OBTENER SUCURSAL PRINCIPAL (para datos de contacto)
-        # ─────────────────────────────────────────────────────────────
+        # 2. OBTENER SUCURSAL PRINCIPAL
+        print(f"   🔍 Buscando sucursal principal...")
         sucursal_principal = Sucursal.query.filter_by(
             id_negocio=id_negocio,
             es_principal=True,
             activo=True
         ).first()
         
-        # Si no hay principal, tomar la primera activa
         if not sucursal_principal:
             sucursal_principal = Sucursal.query.filter_by(
                 id_negocio=id_negocio,
                 activo=True
             ).first()
+        
+        if sucursal_principal:
+            print(f"   ✅ Sucursal encontrada: id={sucursal_principal.id_sucursal}")
+        else:
+            print(f"   ⚠️ No se encontró sucursal para el negocio")
 
-        # ─────────────────────────────────────────────────────────────
-        # 3. CALCULAR ESTADÍSTICAS (simuladas por ahora)
-        # ─────────────────────────────────────────────────────────────
+        # 3. CALCULAR DATOS
+        print(f"   📊 Calculando estadísticas...")
         stats = calcular_estadisticas_simuladas(id_negocio)
-        
-        # ─────────────────────────────────────────────────────────────
-        # 4. OBTENER CALIFICACIONES POR ETAPA (simuladas)
-        # ─────────────────────────────────────────────────────────────
         etapas = obtener_etapas_simuladas()
-        
-        # ─────────────────────────────────────────────────────────────
-        # 5. CALCULAR BIZSCORE
-        # ─────────────────────────────────────────────────────────────
         bizscore = calcular_bizscore(stats, etapas)
-        
-        # ─────────────────────────────────────────────────────────────
-        # 6. OBTENER BADGES (simulados)
-        # ─────────────────────────────────────────────────────────────
         badges = obtener_badges_simulados(negocio)
-        
-        # ─────────────────────────────────────────────────────────────
-        # 7. OBTENER VIDEOS (simulados)
-        # ─────────────────────────────────────────────────────────────
         videos = obtener_videos_simulados()
-        
-        # ─────────────────────────────────────────────────────────────
-        # 8. OBTENER RESEÑAS (simuladas)
-        # ─────────────────────────────────────────────────────────────
         resenas = obtener_resenas_simuladas()
         
-        # ─────────────────────────────────────────────────────────────
-        # 9. CONSTRUIR RESPUESTA
-        # ─────────────────────────────────────────────────────────────
+        # 4. CONSTRUIR RESPUESTA
+        print(f"   📦 Construyendo respuesta...")
         response = {
             'success': True,
             'data': {
@@ -135,10 +190,11 @@ def get_perfil_publico(slug):
             }
         }
         
+        print(f"   ✅ Respuesta construida exitosamente para '{negocio.nombre}'")
         return jsonify(response), 200
         
     except Exception as e:
-        print(f"Error en get_perfil_publico: {str(e)}")
+        print(f"   ❌ ERROR en get_perfil_publico: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({
@@ -150,7 +206,7 @@ def get_perfil_publico(slug):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# FUNCIONES AUXILIARES PARA OBTENER DATOS DEL NEGOCIO
+# FUNCIONES AUXILIARES
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def get_ubicacion(negocio, sucursal):
@@ -163,7 +219,6 @@ def get_ubicacion(negocio, sucursal):
         if direccion:
             return direccion
     
-    # Fallback al negocio
     ciudad = getattr(negocio, 'ciudad', None)
     if ciudad:
         return f"{ciudad}, Colombia"
@@ -173,13 +228,11 @@ def get_ubicacion(negocio, sucursal):
 
 def get_whatsapp(negocio, sucursal):
     """Obtiene el WhatsApp del negocio."""
-    # Primero de sucursal
     if sucursal:
         whatsapp = getattr(sucursal, 'whatsapp', None) or getattr(sucursal, 'telefono', None)
         if whatsapp:
             return whatsapp
     
-    # Luego del negocio
     return getattr(negocio, 'whatsapp', None) or getattr(negocio, 'telefono', None)
 
 
@@ -194,11 +247,11 @@ def get_telefono(negocio, sucursal):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# FUNCIONES SIMULADAS (mientras se implementan los modelos reales)
+# FUNCIONES SIMULADAS
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def calcular_estadisticas_simuladas(id_negocio):
-    """Estadísticas simuladas - reemplazar con datos reales."""
+    """Estadísticas simuladas."""
     return {
         'total_contratos': 127,
         'contratos_exitosos': 124,
@@ -310,7 +363,7 @@ def calcular_bizscore(stats, etapas):
 
 def obtener_badges_simulados(negocio):
     """Badges simulados."""
-    badges = [
+    return [
         {
             'codigo': 'verificado',
             'nombre': 'Verificado',
@@ -348,7 +401,6 @@ def obtener_badges_simulados(negocio):
             'especial': False
         }
     ]
-    return badges
 
 
 def obtener_videos_simulados():
@@ -417,8 +469,11 @@ def obtener_resenas_simuladas():
 @cross_origin()
 def listar_negocios_publicos():
     """Lista negocios con perfil público activo."""
+    print("🎯 GET /api/negocios/publicos - Iniciando...")
+    
     try:
         negocios = Negocio.query.filter_by(activo=True).limit(20).all()
+        print(f"   ✅ Encontrados {len(negocios)} negocios")
         
         resultado = []
         for negocio in negocios:
@@ -436,7 +491,18 @@ def listar_negocios_publicos():
         }), 200
         
     except Exception as e:
+        print(f"   ❌ ERROR: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
         }), 500
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FIN DEL MÓDULO
+# ═══════════════════════════════════════════════════════════════════════════════
+print("=" * 70)
+print("🎯 PERFIL_PUBLICO_NEGOCIO_API: MÓDULO CARGADO COMPLETAMENTE")
+print(f"🎯 Blueprint registrado: {perfil_publico_negocio_bp.name}")
+print(f"🎯 Rutas definidas: /api/negocio/perfil-publico/<slug>, /api/negocios/publicos")
+print("=" * 70)

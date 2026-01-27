@@ -10,11 +10,19 @@ from flask import jsonify
 
 logger = logging.getLogger(__name__)
 
+print("=" * 70)
+print("🔌 API __INIT__.PY: INICIANDO CARGA DEL MÓDULO")
+print("=" * 70)
+
 
 def register_api(app):
     """
     Registra de forma segura todos los Blueprints en la aplicación Flask.
     """
+    
+    print("=" * 70)
+    print("🔌 REGISTER_API: INICIANDO REGISTRO DE BLUEPRINTS v2.10")
+    print("=" * 70)
     
     logger.info("="*70)
     logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.10")
@@ -33,6 +41,7 @@ def register_api(app):
         }), 200
     
     logger.info("✅ Ruta de salud global registrada: /api/health")
+    print("✅ Ruta de salud global registrada: /api/health")
     
     # ==========================================
     # FUNCIÓN DE REGISTRO SEGURO
@@ -41,32 +50,47 @@ def register_api(app):
         """
         Intenta importar y registrar un blueprint de manera segura.
         """
+        print(f"\n🔄 SAFE_REGISTER: Intentando cargar '{display_name}'...")
+        print(f"   📦 Module path: {module_path}")
+        print(f"   📦 Blueprint name: {bp_name}")
+        print(f"   📦 Prefix: {prefix}")
+        
         try:
             # Importar el módulo
+            print(f"   🔄 Importando módulo '{module_path}'...")
             module = __import__(module_path, fromlist=[bp_name])
+            print(f"   ✅ Módulo importado exitosamente")
+            
+            print(f"   🔄 Obteniendo blueprint '{bp_name}' del módulo...")
             blueprint = getattr(module, bp_name)
+            print(f"   ✅ Blueprint obtenido: {blueprint}")
             
             # Registrar el blueprint
+            print(f"   🔄 Registrando blueprint en la app...")
             if prefix:
                 app.register_blueprint(blueprint, url_prefix=prefix)
             else:
                 app.register_blueprint(blueprint)
             
             prefix_display = prefix if prefix else '/'
+            print(f"   ✅ ÉXITO: {display_name} → {prefix_display}")
             logger.info(f"✅ {display_name:35} → {prefix_display}")
             return True
             
         except ImportError as e:
+            print(f"   ❌ IMPORT ERROR en '{display_name}': {str(e)}")
             logger.error(f"❌ {display_name:35} → ImportError: {str(e)}")
             traceback.print_exc()
             return False
             
         except AttributeError as e:
+            print(f"   ❌ ATTRIBUTE ERROR en '{display_name}': Blueprint '{bp_name}' no encontrado: {str(e)}")
             logger.error(f"❌ {display_name:35} → Blueprint '{bp_name}' no encontrado: {str(e)}")
             traceback.print_exc()
             return False
             
         except Exception as e:
+            print(f"   ❌ ERROR GENERAL en '{display_name}': {str(e)}")
             logger.error(f"❌ {display_name:35} → Error: {str(e)}")
             traceback.print_exc()
             return False
@@ -80,6 +104,9 @@ def register_api(app):
     # ==========================================
     # 🔐 AUTENTICACIÓN (CRÍTICO - PRIMERO)
     # ==========================================
+    print("\n" + "=" * 50)
+    print("🔐 SECCIÓN: AUTENTICACIÓN")
+    print("=" * 50)
     logger.info("\n🔐 Cargando sistema de autenticación...")
     
     auth_loaded = False
@@ -95,10 +122,14 @@ def register_api(app):
     else:
         fail_count += 1
         logger.error("❌ CRÍTICO: No se pudo cargar el sistema de autenticación")
+        print("❌ CRÍTICO: No se pudo cargar el sistema de autenticación")
     
     # ==========================================
     # 🔑 RECUPERACIÓN DE CONTRASEÑA
     # ==========================================
+    print("\n" + "=" * 50)
+    print("🔑 SECCIÓN: RECUPERACIÓN DE CONTRASEÑA")
+    print("=" * 50)
     logger.info("\n🔑 Cargando módulo de recuperación de contraseña...")
     
     if safe_register('src.api.auth.password_reset_api', 'password_reset_bp', 'Password Reset API', prefix=None):
@@ -110,19 +141,25 @@ def register_api(app):
     # ==========================================
     # 🏢 NEGOCIO Y SUCURSALES (CRÍTICO)
     # ==========================================
+    print("\n" + "=" * 50)
+    print("🏢 SECCIÓN: NEGOCIO Y SUCURSALES")
+    print("=" * 50)
     logger.info("\n🏢 Cargando módulos de negocio y sucursales...")
     
     negocio_loaded = False
     
     # Intentar cargar negocio_completo_api.py
     try:
+        print("🔄 Intentando cargar negocio_completo_api directamente...")
         from src.api.negocio.negocio_completo_api import negocio_api_bp
         app.register_blueprint(negocio_api_bp, url_prefix='/api')
         logger.info(f"✅ {'Gestión Negocios/Sucursales':35} → /api")
+        print("✅ Gestión Negocios/Sucursales cargado")
         success_count += 1
         negocio_loaded = True
     except ImportError as e:
         logger.error(f"❌ Error importando negocio_completo_api: {e}")
+        print(f"❌ Error importando negocio_completo_api: {e}")
         traceback.print_exc()
         
         # Fallback: intentar negocio_api.py
@@ -137,6 +174,7 @@ def register_api(app):
             fail_count += 1
     except Exception as e:
         logger.error(f"❌ Error general cargando negocios: {e}")
+        print(f"❌ Error general cargando negocios: {e}")
         traceback.print_exc()
         fail_count += 1
     
@@ -155,6 +193,9 @@ def register_api(app):
     # ==========================================
     # 🔲 GENERADOR DE QR
     # ==========================================
+    print("\n" + "=" * 50)
+    print("🔲 SECCIÓN: GENERADOR DE QR")
+    print("=" * 50)
     logger.info("\n🔲 Cargando módulo de generación de QR...")
     
     # Las rutas ya incluyen /api/ en el blueprint
@@ -167,6 +208,9 @@ def register_api(app):
     # ==========================================
     # 🛒 COMPRADORES Y PEDIDOS (ECOSISTEMA TRAYECTORIA)
     # ==========================================
+    print("\n" + "=" * 50)
+    print("🛒 SECCIÓN: COMPRADORES Y PEDIDOS")
+    print("=" * 50)
     logger.info("\n🛒 Cargando módulos de compradores y pedidos...")
     
     compradores_modules = [
@@ -183,6 +227,9 @@ def register_api(app):
     # ==========================================
     # 🏪 CHECKOUT API (Tiendas Online)
     # ==========================================
+    print("\n" + "=" * 50)
+    print("🏪 SECCIÓN: CHECKOUT API")
+    print("=" * 50)
     logger.info("\n🏪 Cargando módulo de checkout para tiendas online...")
     
     if safe_register('src.api.tiendas.checkout_api', 'checkout_api_bp', 'Checkout Tiendas Online'):
@@ -200,6 +247,9 @@ def register_api(app):
     # ==========================================
     # 💰 CONTABILIDAD E INVENTARIO
     # ==========================================
+    print("\n" + "=" * 50)
+    print("💰 SECCIÓN: CONTABILIDAD E INVENTARIO")
+    print("=" * 50)
     logger.info("\n💰 Cargando centro de control operativo...")
     
     accounting_modules = [
@@ -217,6 +267,9 @@ def register_api(app):
     # ==========================================
     # 🔍 SERVICIOS Y BÚSQUEDA
     # ==========================================
+    print("\n" + "=" * 50)
+    print("🔍 SECCIÓN: SERVICIOS Y BÚSQUEDA")
+    print("=" * 50)
     logger.info("\n🔍 Cargando módulos de servicios...")
     
     service_modules = [
@@ -234,6 +287,9 @@ def register_api(app):
     # ==========================================
     # ⭐ CALIFICACIONES
     # ==========================================
+    print("\n" + "=" * 50)
+    print("⭐ SECCIÓN: CALIFICACIONES")
+    print("=" * 50)
     logger.info("\n⭐ Cargando módulos de calificaciones...")
     
     if safe_register('src.api.calificaciones.calificar_api', 'calificar_bp', 'Sistema de Calificaciones'):
@@ -244,6 +300,9 @@ def register_api(app):
     # ==========================================
     # 👤 PERFIL DE USUARIO
     # ==========================================
+    print("\n" + "=" * 50)
+    print("👤 SECCIÓN: PERFIL DE USUARIO")
+    print("=" * 50)
     logger.info("\n👤 Cargando módulos de perfil...")
     
     profile_modules = [
@@ -260,20 +319,34 @@ def register_api(app):
             fail_count += 1
     
     # ==========================================
-    # 🎯 PERFIL PÚBLICO NEGOCIO (BizScore)
+    # 🎯 PERFIL PÚBLICO NEGOCIO (BizScore) - CRÍTICO
     # ==========================================
+    print("\n" + "=" * 70)
+    print("🎯🎯🎯 SECCIÓN CRÍTICA: PERFIL PÚBLICO NEGOCIO (BizScore) 🎯🎯🎯")
+    print("=" * 70)
     logger.info("\n🎯 Cargando módulo de perfil público BizScore...")
+    
+    print("🎯 Intentando cargar: src.api.profile.perfil_publico_negocio_api")
+    print("🎯 Blueprint esperado: perfil_publico_negocio_bp")
+    print("🎯 Prefix: None (rutas incluyen /api/)")
     
     # Perfil público del negocio - /api/negocio/perfil-publico/<slug>
     if safe_register('src.api.profile.perfil_publico_negocio_api', 'perfil_publico_negocio_bp', 'Perfil Público Negocio', prefix=None):
         success_count += 1
+        print("🎯 ✅✅✅ PERFIL PÚBLICO NEGOCIO CARGADO EXITOSAMENTE ✅✅✅")
     else:
         fail_count += 1
+        print("🎯 ❌❌❌ PERFIL PÚBLICO NEGOCIO FALLÓ AL CARGAR ❌❌❌")
         logger.warning("⚠️  Módulo de perfil público no cargado")
+    
+    print("=" * 70)
     
     # ==========================================
     # 💬 NOTIFICACIONES Y CHAT
     # ==========================================
+    print("\n" + "=" * 50)
+    print("💬 SECCIÓN: NOTIFICACIONES Y CHAT")
+    print("=" * 50)
     logger.info("\n💬 Cargando módulos de comunicación...")
     
     communication_modules = [
@@ -297,6 +370,9 @@ def register_api(app):
     # ==========================================
     # 📋 CONTRATOS Y CANDIDATOS
     # ==========================================
+    print("\n" + "=" * 50)
+    print("📋 SECCIÓN: CONTRATOS Y CANDIDATOS")
+    print("=" * 50)
     logger.info("\n📋 Cargando módulos de contratos...")
     
     contract_modules = [
@@ -314,6 +390,9 @@ def register_api(app):
     # ==========================================
     # 🎯 TRAYECTORIA (SCORES, BADGES, MÉTRICAS, PORTFOLIO)
     # ==========================================
+    print("\n" + "=" * 50)
+    print("🎯 SECCIÓN: TRAYECTORIA")
+    print("=" * 50)
     logger.info("\n🎯 Cargando módulos de trayectoria...")
     
     trayectoria_modules = [
@@ -333,6 +412,14 @@ def register_api(app):
     # ==========================================
     # 📊 RESUMEN FINAL
     # ==========================================
+    print("\n" + "=" * 70)
+    print("📊 RESUMEN FINAL DE REGISTRO DE BLUEPRINTS")
+    print("=" * 70)
+    print(f"   ✅ Exitosos:  {success_count}")
+    print(f"   ❌ Fallidos:  {fail_count}")
+    print(f"   📦 Total:     {success_count + fail_count}")
+    print("=" * 70)
+    
     logger.info("\n" + "="*70)
     logger.info("📊 RESUMEN DE REGISTRO DE BLUEPRINTS")
     logger.info("="*70)
@@ -354,10 +441,17 @@ def register_api(app):
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     
     # 🎯 Listar rutas de perfil público
+    print("\n🎯 Verificando rutas de perfil público BizScore:")
     logger.info("\n🎯 Rutas de perfil público BizScore:")
+    perfil_publico_encontrado = False
     for rule in app.url_map.iter_rules():
         if 'perfil-publico' in rule.rule:
+            print(f"   ✅ ENCONTRADA: {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
+            perfil_publico_encontrado = True
+    
+    if not perfil_publico_encontrado:
+        print("   ❌ NO SE ENCONTRARON RUTAS DE PERFIL PÚBLICO")
     
     # Listar rutas de compradores y pedidos
     logger.info("\n🛒 Rutas de compradores y pedidos registradas:")
@@ -391,8 +485,10 @@ def register_api(app):
 
     if fail_count > 0:
         logger.warning(f"⚠️  {fail_count} módulo(s) no se cargaron. Revisa los logs.")
+        print(f"⚠️  {fail_count} módulo(s) no se cargaron. Revisa los logs.")
     else:
         logger.info("🎉 Todos los módulos cargados exitosamente")
+        print("🎉 Todos los módulos cargados exitosamente")
     
     # Listar rutas de trayectoria
     logger.info("\n🎯 Rutas de trayectoria registradas:")
@@ -401,4 +497,13 @@ def register_api(app):
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     logger.info("")
     
+    print("\n" + "=" * 70)
+    print("🔌 REGISTER_API: FINALIZADO")
+    print("=" * 70)
+    
     return success_count, fail_count
+
+
+print("=" * 70)
+print("🔌 API __INIT__.PY: MÓDULO CARGADO")
+print("=" * 70)
