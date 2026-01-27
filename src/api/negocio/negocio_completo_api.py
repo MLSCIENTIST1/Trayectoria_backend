@@ -1,7 +1,7 @@
 """
 BizFlow Studio - API de Gestión de Negocios y Sucursales
 Sistema completo para multi-tenancy (múltiples negocios por usuario)
-ACTUALIZADO v2.3: Detección de colisiones de sesión (igual que catalogo_api)
+ACTUALIZADO v2.4: Generación automática de QR al registrar/actualizar negocio
 """
 
 import logging
@@ -22,6 +22,85 @@ logger = logging.getLogger(__name__)
 
 # Blueprint
 negocio_api_bp = Blueprint('negocio_api_bp', __name__)
+
+
+# ==========================================
+# 📱 QR AUTO-GENERATION (v2.4)
+# ==========================================
+
+QR_BASE_URL = "https://tukomercio.com"  # 🔧 Cambiar por tu dominio en producción
+
+def auto_generar_qr_negocio(negocio, commit=True):
+    """
+    Genera automáticamente el QR para un negocio.
+    Llamar después de crear o actualizar el negocio.
+    
+    Args:
+        negocio: Instancia del modelo Negocio
+        commit: Si hacer commit a la DB (default True)
+        
+    Returns:
+        dict: {success, qr_data, qr_base64} o {success: False, error}
+    """
+    try:
+        import qrcode
+        import io
+        import base64
+    except ImportError:
+        logger.warning("⚠️ qrcode no instalado. Instalar: pip install qrcode[pil]")
+        return {"success": False, "error": "qrcode no disponible"}
+    
+    if not negocio:
+        return {"success": False, "error": "Negocio no proporcionado"}
+    
+    try:
+        # Asegurar que tiene slug
+        if not negocio.slug:
+            negocio.slug = generar_slug(negocio.nombre_negocio)
+        
+        # URL del perfil público
+        qr_data = f"{QR_BASE_URL}/n/{negocio.slug}"
+        
+        # Generar imagen QR
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=10,
+            border=2,
+        )
+        qr.add_data(qr_data)
+        qr.make(fit=True)
+        
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Convertir a base64
+        buffer = io.BytesIO()
+        img.save(buffer, format='PNG')
+        buffer.seek(0)
+        qr_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        
+        # Guardar en el negocio (si el modelo tiene el campo)
+        if hasattr(negocio, 'qr_negocio_data'):
+            negocio.qr_negocio_data = qr_data
+        
+        if hasattr(negocio, 'qr_negocio_base64'):
+            negocio.qr_negocio_base64 = f"data:image/png;base64,{qr_base64}"
+        
+        if commit:
+            db.session.commit()
+        
+        logger.info(f"✅ QR generado para negocio {negocio.id_negocio}: {qr_data}")
+        
+        return {
+            "success": True,
+            "qr_data": qr_data,
+            "qr_base64": f"data:image/png;base64,{qr_base64}",
+            "slug": negocio.slug
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error generando QR automático: {e}")
+        return {"success": False, "error": str(e)}
 
 
 # ==========================================
@@ -173,7 +252,11 @@ def serialize_negocio(negocio, include_sucursales=False):
         "url_sitio": f"/tienda/{negocio.slug}" if getattr(negocio, 'tiene_pagina', False) and getattr(negocio, 'slug', None) else None,
         
         # 🎨 Store Designer
-        "config_tienda": getattr(negocio, 'config_tienda', {}) or {}
+        "config_tienda": getattr(negocio, 'config_tienda', {}) or {},
+        
+        # 📱 QR Data (v2.4)
+        "qr_negocio_data": getattr(negocio, 'qr_negocio_data', None),
+        "qr_url": f"/api/negocio/{negocio.id_negocio}/qr" if getattr(negocio, 'slug', None) else None
     }
     
     if negocio.ciudad:
@@ -219,8 +302,8 @@ def negocio_health():
     return jsonify({
         "status": "online",
         "module": "negocios_sucursales",
-        "version": "2.3.0",  # Actualizado
-        "features": ["micrositios", "tienda_online", "config_tienda", "jwt_auth", "collision_detection"]
+        "version": "2.4.0",  # 🆕 Actualizado - QR auto-generation
+        "features": ["micrositios", "tienda_online", "config_tienda", "jwt_auth", "collision_detection", "qr_auto_generation"]
     }), 200
 
 
@@ -358,7 +441,10 @@ def obtener_negocio_por_slug(slug):
 @negocio_api_bp.route('/registrar_negocio', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def registrar_negocio():
-    """Registra un nuevo negocio para el usuario autenticado."""
+    """
+    Registra un nuevo negocio para el usuario autenticado.
+    🆕 v2.4: Genera QR automáticamente al crear el negocio.
+    """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     
@@ -414,7 +500,7 @@ def registrar_negocio():
         )
         
         db.session.add(nuevo_negocio)
-        db.session.flush()
+        db.session.flush()  # Para obtener el ID antes del commit
         
         sucursal_principal = Sucursal(
             nombre_sucursal="Principal",
@@ -429,15 +515,32 @@ def registrar_negocio():
         db.session.add(sucursal_principal)
         db.session.commit()
         
+        # ==========================================
+        # 🆕 GENERAR QR AUTOMÁTICAMENTE (v2.4)
+        # ==========================================
+        qr_result = auto_generar_qr_negocio(nuevo_negocio, commit=True)
+        
+        if qr_result.get('success'):
+            logger.info(f"📱 QR generado automáticamente: {qr_result.get('qr_data')}")
+        else:
+            logger.warning(f"⚠️ QR no generado: {qr_result.get('error')}")
+        
         logger.info(f"✅ Negocio creado: {nombre_negocio} (ID: {nuevo_negocio.id_negocio}, slug: {slug_final}) por usuario {user_id}")
+        
+        # Respuesta con datos del QR incluidos
+        response_data = {
+            "negocio": serialize_negocio(nuevo_negocio),
+            "sucursal_principal": serialize_sucursal(sucursal_principal),
+            # 🆕 QR Data
+            "qr_generated": qr_result.get('success', False),
+            "qr_data": qr_result.get('qr_data'),
+            "qr_url": f"/api/negocio/{nuevo_negocio.id_negocio}/qr" if qr_result.get('success') else None
+        }
         
         return jsonify({
             "success": True,
             "message": f"Negocio '{nombre_negocio}' registrado exitosamente",
-            "data": {
-                "negocio": serialize_negocio(nuevo_negocio),
-                "sucursal_principal": serialize_sucursal(sucursal_principal)
-            }
+            "data": response_data
         }), 201
         
     except Exception as e:
@@ -452,6 +555,7 @@ def actualizar_negocio(negocio_id):
     """
     Actualiza un negocio existente.
     🔐 Soporta autenticación via JWT (para Store Designer en iframe)
+    🆕 v2.4: Regenera QR si cambia el slug
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -473,6 +577,9 @@ def actualizar_negocio(negocio_id):
         data = request.get_json()
         
         logger.info(f"📝 Actualizando negocio {negocio_id} por usuario {user_id}")
+        
+        # 🆕 Guardar slug anterior para detectar cambios
+        slug_anterior = negocio.slug
         
         # Campos básicos
         if 'nombre_negocio' in data:
@@ -538,12 +645,25 @@ def actualizar_negocio(negocio_id):
         
         db.session.commit()
         
+        # ==========================================
+        # 🆕 REGENERAR QR SI CAMBIÓ EL SLUG (v2.4)
+        # ==========================================
+        qr_regenerated = False
+        if negocio.slug and negocio.slug != slug_anterior:
+            qr_result = auto_generar_qr_negocio(negocio, commit=True)
+            qr_regenerated = qr_result.get('success', False)
+            if qr_regenerated:
+                logger.info(f"📱 QR regenerado por cambio de slug: {qr_result.get('qr_data')}")
+        
         logger.info(f"✅ Negocio actualizado: {negocio.nombre_negocio}")
+        
+        response_data = serialize_negocio(negocio)
+        response_data['qr_regenerated'] = qr_regenerated
         
         return jsonify({
             "success": True,
             "message": "Negocio actualizado exitosamente",
-            "data": serialize_negocio(negocio)
+            "data": response_data
         }), 200
         
     except Exception as e:
