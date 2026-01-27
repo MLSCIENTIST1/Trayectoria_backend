@@ -132,6 +132,14 @@ class Servicio(db.Model):
         foreign_keys=[id_contratado],
         back_populates="servicios_como_contratado"
     )
+    
+    # Relación muchos a muchos con usuarios
+    usuarios = relationship(
+        "Usuario",
+        secondary="usuario_servicio",
+        back_populates="servicios",
+        lazy='select'
+    )
 
     # ═══════════════════════════════════════════════════════════
     # RELACIONES - NEGOCIOS (NUEVO)
@@ -236,10 +244,3 @@ class Servicio(db.Model):
             "negocio_contratado_info": self.negocio_contratado.serialize() if self.negocio_contratado else None,
         })
         return data
-
-
-# Importaciones diferidas para evitar ciclos
-from src.models.usuarios import Usuario
-from src.models.colombia_data.colombia_data import Colombia
-from src.models.colombia_data.ratings.service_ratings import ServiceRatings
-from src.models.colombia_data.negocio import Negocio
