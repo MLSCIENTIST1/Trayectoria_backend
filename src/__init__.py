@@ -123,12 +123,13 @@ class Config:
     # CORS (CRÍTICO)
     # ==========================================
     CORS_ORIGINS = [
-        "https://trayectoria-rxdc1.web.app",
-        "https://mitrayectoria.web.app",
-        "http://localhost:5001",
-        "http://localhost:5173",
-        "http://localhost:3000"
-    ]
+    "https://trayectoria-rxdc1.web.app",
+    "https://mitrayectoria.web.app",
+    "https://tuko.pages.dev",
+    "http://localhost:5001",
+    "http://localhost:5173",
+    "http://localhost:3000"
+]
     
     # ==========================================
     # CONFIGURACIÓN DE EMAIL (NAMECHEAP PRIVATE EMAIL)
