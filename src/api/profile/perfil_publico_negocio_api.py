@@ -11,9 +11,9 @@ from flask_cors import cross_origin
 from sqlalchemy import func, desc
 from datetime import datetime, timedelta
 
-from src.models.negocio import Negocio
-from src.models.sucursal import Sucursal
-from extensions import db
+from src.models.colombia_data import Negocio
+from src.models.colombia_data import Sucursal
+from src.models import db
 
 # Crear Blueprint
 perfil_publico_negocio_bp = Blueprint('perfil_publico_negocio', __name__)
