@@ -209,4 +209,4 @@ class BadgeVerificationService:
 
 # Importaciones diferidas
 from src.models.colombia_data.negocio import Negocio
-from src.models.colombia_data.badges.negocio_badge import NegocioBadge
+from src.models.colombia_data.ratings.negocio_badge import NegocioBadge 
