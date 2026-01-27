@@ -69,8 +69,8 @@ class NegocioBadgeObtenido(db.Model):
     negocio = relationship("Negocio", backref="badges_obtenidos")
     badge = relationship("NegocioBadge", back_populates="badges_obtenidos")
     
-    # Relación con videos donde se muestra este badge
-    videos = relationship("NegocioVideoBadge", back_populates="badge_obtenido")
+    # TODO: Crear modelo NegocioVideoBadge cuando se implemente
+    # videos = relationship("NegocioVideoBadge", back_populates="badge_obtenido")
 
     # ═══════════════════════════════════════════════════════════
     # MÉTODOS HELPER
@@ -209,4 +209,4 @@ class BadgeVerificationService:
 
 # Importaciones diferidas
 from src.models.colombia_data.negocio import Negocio
-from src.models.colombia_data.ratings.negocio_badge import NegocioBadge 
+from src.models.colombia_data.ratings.negocio_badge import NegocioBadge
