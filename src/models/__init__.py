@@ -40,6 +40,18 @@ from src.models.colombia_data.ratings.service_overall_scores import ServiceOvera
 from src.models.colombia_data.ratings.service_qualifiers import ServiceQualifiers
 
 # ==========================================
+# BIZSCORE - BADGES Y GAMIFICACIÓN
+# ==========================================
+from src.models.colombia_data.ratings.negocio_badge import NegocioBadge, BADGES_INICIALES
+from src.models.colombia_data.ratings.negocio_badge_obtenido import NegocioBadgeObtenido, BadgeVerificationService
+
+# ==========================================
+# BIZSCORE - PERFIL PÚBLICO Y VIDEOS
+# ==========================================
+from src.models.colombia_data.negocio_perfil_config import NegocioPerfilConfig
+from src.models.colombia_data.negocio_video import NegocioVideo
+
+# ==========================================
 # MODELOS DE MONETIZACIÓN
 # ==========================================
 from src.models.colombia_data.monetization_management import MonetizationManagement
@@ -52,7 +64,7 @@ from src.models.compradores.direccion import DireccionComprador
 from src.models.compradores.pedido import Pedido, PedidoHistorial
 
 # ==========================================
-# NUEVO: MODELO DE RECUPERACIÓN DE CONTRASEÑA
+# MODELO DE RECUPERACIÓN DE CONTRASEÑA
 # ==========================================
 from .password_reset_token import PasswordResetToken
 
@@ -89,6 +101,16 @@ __all__ = [
     "ServiceOverallScores",
     "ServiceQualifiers",
     
+    # BizScore - Badges
+    "NegocioBadge",
+    "BADGES_INICIALES",
+    "NegocioBadgeObtenido",
+    "BadgeVerificationService",
+    
+    # BizScore - Perfil y Videos
+    "NegocioPerfilConfig",
+    "NegocioVideo",
+    
     # Monetización
     "MonetizationManagement",
     
@@ -98,6 +120,6 @@ __all__ = [
     "Pedido",
     "PedidoHistorial",
     
-    # NUEVO: Password Reset
+    # Password Reset
     "PasswordResetToken"
 ]
