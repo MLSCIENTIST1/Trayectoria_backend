@@ -109,7 +109,8 @@ class NegocioVideo(db.Model):
     # RELACIONES
     # ═══════════════════════════════════════════════════════════
     negocio = relationship("Negocio", backref="videos")
-    badges = relationship("NegocioVideoBadge", back_populates="video", cascade="all, delete-orphan")
+    # TODO: Crear modelo NegocioVideoBadge cuando se implemente
+    # badges = relationship("NegocioVideoBadge", back_populates="video", cascade="all, delete-orphan")
 
     # ═══════════════════════════════════════════════════════════
     # MÉTODOS HELPER
@@ -153,11 +154,13 @@ class NegocioVideo(db.Model):
 
     def get_badges_asignados(self) -> list:
         """Retorna los badges asignados a este video"""
-        return [vb.badge_obtenido.serialize_para_video() for vb in self.badges if vb.badge_obtenido]
+        # TODO: Implementar cuando exista NegocioVideoBadge
+        return []
 
     def puede_agregar_badge(self, max_badges: int = 4) -> bool:
         """Verifica si se puede agregar más badges"""
-        return len(self.badges) < max_badges
+        # TODO: Implementar cuando exista NegocioVideoBadge
+        return True
 
     def serialize(self):
         return {
@@ -208,7 +211,7 @@ class NegocioVideo(db.Model):
                 "valor": self.metrica_valor,
                 "tendencia": self.metrica_tendencia
             } if self.metrica_nombre else None,
-            "badges": self.get_badges_asignados()[:3]  # Máximo 3 para el feed
+            "badges": self.get_badges_asignados()[:3]
         }
 
     def serialize_para_edicion(self):
