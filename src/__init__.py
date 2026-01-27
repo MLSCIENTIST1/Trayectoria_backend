@@ -123,13 +123,13 @@ class Config:
     # CORS (CRÍTICO)
     # ==========================================
     CORS_ORIGINS = [
-    "https://trayectoria-rxdc1.web.app",
-    "https://mitrayectoria.web.app",
-    "https://tuko.pages.dev",
-    "http://localhost:5001",
-    "http://localhost:5173",
-    "http://localhost:3000"
-]
+        "https://trayectoria-rxdc1.web.app",
+        "https://mitrayectoria.web.app",
+        "https://tuko.pages.dev",
+        "http://localhost:5001",
+        "http://localhost:5173",
+        "http://localhost:3000"
+    ]
     
     # ==========================================
     # CONFIGURACIÓN DE EMAIL (NAMECHEAP PRIVATE EMAIL)
@@ -250,7 +250,7 @@ def create_app():
     
     @app.after_request
     def after_request(response):
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        # CORS credentials ya manejado por Flask-CORS (supports_credentials=True)
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['X-XSS-Protection'] = '1; mode=block'
@@ -263,8 +263,6 @@ def create_app():
     
     logger.info("✅ Middleware de seguridad configurado")
     
-    # ==========================================
-    # INICIALIZACIÓN DE BASE DE DATOS
     # ==========================================
     # INICIALIZACIÓN DE BASE DE DATOS
     # ==========================================
