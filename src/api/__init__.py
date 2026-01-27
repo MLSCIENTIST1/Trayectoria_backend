@@ -1,7 +1,7 @@
 """
-BizFlow Studio - Registro de APIs v2.9
+BizFlow Studio - Registro de APIs v2.10
 Sistema de carga segura de blueprints
-Actualizado: Agregado módulo de Generación de QR
+Actualizado: Agregado módulo de Perfil Público BizScore
 """
 
 import traceback
@@ -17,7 +17,7 @@ def register_api(app):
     """
     
     logger.info("="*70)
-    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.9")
+    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.10")
     logger.info("="*70)
     
     # ==========================================
@@ -29,7 +29,7 @@ def register_api(app):
         return jsonify({
             "status": "online", 
             "message": "BizFlow Studio API operativa",
-            "version": "2.9.0"
+            "version": "2.10.0"
         }), 200
     
     logger.info("✅ Ruta de salud global registrada: /api/health")
@@ -260,6 +260,18 @@ def register_api(app):
             fail_count += 1
     
     # ==========================================
+    # 🎯 PERFIL PÚBLICO NEGOCIO (BizScore)
+    # ==========================================
+    logger.info("\n🎯 Cargando módulo de perfil público BizScore...")
+    
+    # Perfil público del negocio - /api/negocio/perfil-publico/<slug>
+    if safe_register('src.api.profile.perfil_publico_negocio_api', 'perfil_publico_negocio_bp', 'Perfil Público Negocio', prefix=None):
+        success_count += 1
+    else:
+        fail_count += 1
+        logger.warning("⚠️  Módulo de perfil público no cargado")
+    
+    # ==========================================
     # 💬 NOTIFICACIONES Y CHAT
     # ==========================================
     logger.info("\n💬 Cargando módulos de comunicación...")
@@ -339,6 +351,12 @@ def register_api(app):
     logger.info("\n🔲 Rutas de QR registradas:")
     for rule in app.url_map.iter_rules():
         if '/qr' in rule.rule or '/n/' in rule.rule:
+            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
+    
+    # 🎯 Listar rutas de perfil público
+    logger.info("\n🎯 Rutas de perfil público BizScore:")
+    for rule in app.url_map.iter_rules():
+        if 'perfil-publico' in rule.rule:
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     
     # Listar rutas de compradores y pedidos
