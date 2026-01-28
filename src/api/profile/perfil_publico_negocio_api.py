@@ -3,6 +3,8 @@
 API PERFIL PÚBLICO NEGOCIO - BizScore
 Endpoint: GET /api/negocio/perfil-publico/<slug>
 Ubicación: src/api/profile/perfil_publico_negocio_api.py
+
+VERSIÓN 2.0 - Solo datos reales
 ═══════════════════════════════════════════════════════════════════════════════
 """
 
@@ -11,89 +13,41 @@ print("🎯 PERFIL_PUBLICO_NEGOCIO_API: INICIANDO CARGA DEL MÓDULO")
 print("=" * 70)
 
 # ==========================================
-# IMPORTS CON LOGS DETALLADOS
+# IMPORTS
 # ==========================================
+from flask import Blueprint, jsonify, request
+from flask_cors import cross_origin
+from sqlalchemy import func, desc
+from datetime import datetime, timedelta
+
+# Modelos base
+from src.models.colombia_data import Negocio, Sucursal
+from src.models import db
+
+# Modelos opcionales (pueden no existir las tablas)
+try:
+    from src.models.colombia_data.negocio_video import NegocioVideo
+    print("✅ NegocioVideo importado")
+except Exception as e:
+    print(f"⚠️ NegocioVideo no disponible: {e}")
+    NegocioVideo = None
 
 try:
-    print("🔄 [1/7] Importando Flask...")
-    from flask import Blueprint, jsonify, request
-    print("✅ [1/7] Flask importado correctamente")
+    from src.models.colombia_data.ratings.negocio_badge import NegocioBadge
+    from src.models.colombia_data.ratings.negocio_badge_obtenido import NegocioBadgeObtenido
+    print("✅ Badges importados")
 except Exception as e:
-    print(f"❌ [1/7] ERROR importando Flask: {e}")
-    import traceback
-    traceback.print_exc()
-    raise
+    print(f"⚠️ Badges no disponibles: {e}")
+    NegocioBadge = None
+    NegocioBadgeObtenido = None
 
-try:
-    print("🔄 [2/7] Importando flask_cors...")
-    from flask_cors import cross_origin
-    print("✅ [2/7] flask_cors importado correctamente")
-except Exception as e:
-    print(f"❌ [2/7] ERROR importando flask_cors: {e}")
-    import traceback
-    traceback.print_exc()
-    raise
-
-try:
-    print("🔄 [3/7] Importando sqlalchemy...")
-    from sqlalchemy import func, desc
-    print("✅ [3/7] sqlalchemy importado correctamente")
-except Exception as e:
-    print(f"❌ [3/7] ERROR importando sqlalchemy: {e}")
-    import traceback
-    traceback.print_exc()
-    raise
-
-try:
-    print("🔄 [4/7] Importando datetime...")
-    from datetime import datetime, timedelta
-    print("✅ [4/7] datetime importado correctamente")
-except Exception as e:
-    print(f"❌ [4/7] ERROR importando datetime: {e}")
-    import traceback
-    traceback.print_exc()
-    raise
-
-try:
-    print("🔄 [5/7] Importando Negocio desde src.models.colombia_data...")
-    from src.models.colombia_data import Negocio
-    print("✅ [5/7] Negocio importado correctamente")
-except Exception as e:
-    print(f"❌ [5/7] ERROR importando Negocio: {e}")
-    import traceback
-    traceback.print_exc()
-    raise
-
-try:
-    print("🔄 [6/7] Importando Sucursal desde src.models.colombia_data...")
-    from src.models.colombia_data import Sucursal
-    print("✅ [6/7] Sucursal importado correctamente")
-except Exception as e:
-    print(f"❌ [6/7] ERROR importando Sucursal: {e}")
-    import traceback
-    traceback.print_exc()
-    raise
-
-try:
-    print("🔄 [7/7] Importando db desde src.models...")
-    from src.models import db
-    print("✅ [7/7] db importado correctamente")
-except Exception as e:
-    print(f"❌ [7/7] ERROR importando db: {e}")
-    import traceback
-    traceback.print_exc()
-    raise
-
-print("=" * 70)
-print("🎯 PERFIL_PUBLICO_NEGOCIO_API: TODOS LOS IMPORTS EXITOSOS")
-print("=" * 70)
+print("✅ Todos los imports completados")
 
 # ==========================================
 # CREAR BLUEPRINT
 # ==========================================
-print("🔄 Creando Blueprint 'perfil_publico_negocio'...")
 perfil_publico_negocio_bp = Blueprint('perfil_publico_negocio', __name__)
-print(f"✅ Blueprint creado: nombre='{perfil_publico_negocio_bp.name}'")
+print(f"✅ Blueprint creado: {perfil_publico_negocio_bp.name}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -105,15 +59,13 @@ def get_perfil_publico(slug):
     """
     Obtiene todos los datos del perfil público de un negocio.
     """
-    print(f"🎯 GET /api/negocio/perfil-publico/{slug} - Iniciando...")
+    print(f"🎯 GET /api/negocio/perfil-publico/{slug}")
     
     try:
-        # 1. BUSCAR NEGOCIO POR SLUG
-        print(f"   🔍 Buscando negocio con slug='{slug}'...")
+        # 1. BUSCAR NEGOCIO
         negocio = Negocio.query.filter_by(slug=slug, activo=True).first()
         
         if not negocio:
-            print(f"   ❌ Negocio no encontrado con slug='{slug}'")
             return jsonify({
                 'success': False,
                 'error': 'Negocio no encontrado',
@@ -121,10 +73,9 @@ def get_perfil_publico(slug):
             }), 404
 
         id_negocio = negocio.id_negocio
-        print(f"   ✅ Negocio encontrado: id={id_negocio}, nombre='{negocio.nombre_negocio}'")
+        print(f"   ✅ Negocio: {negocio.nombre_negocio} (ID: {id_negocio})")
 
-        # 2. OBTENER SUCURSAL PRINCIPAL
-        print(f"   🔍 Buscando sucursal principal...")
+        # 2. SUCURSAL PRINCIPAL
         sucursal_principal = Sucursal.query.filter_by(
             negocio_id=id_negocio,
             es_principal=True,
@@ -136,23 +87,18 @@ def get_perfil_publico(slug):
                 negocio_id=id_negocio,
                 activo=True
             ).first()
-        
-        if sucursal_principal:
-            print(f"   ✅ Sucursal encontrada: id={sucursal_principal.id_sucursal}")
-        else:
-            print(f"   ⚠️ No se encontró sucursal para el negocio")
 
-        # 3. CALCULAR DATOS
-        print(f"   📊 Calculando estadísticas...")
-        stats = calcular_estadisticas_simuladas(id_negocio)
-        etapas = obtener_etapas_simuladas()
-        bizscore = calcular_bizscore(stats, etapas)
-        badges = obtener_badges_simulados(negocio)
-        videos = obtener_videos_simulados()
-        resenas = obtener_resenas_simuladas()
+        # 3. OBTENER DATOS REALES
+        badges = obtener_badges_negocio(id_negocio)
+        videos = obtener_videos_negocio(id_negocio)
         
-        # 4. CONSTRUIR RESPUESTA
-        print(f"   📦 Construyendo respuesta...")
+        # 4. PLACEHOLDERS (pendientes de implementar)
+        stats = obtener_estadisticas_placeholder()
+        etapas = obtener_etapas_placeholder()
+        bizscore = calcular_bizscore(stats, etapas)
+        resenas = obtener_resenas_placeholder()
+        
+        # 5. CONSTRUIR RESPUESTA
         response = {
             'success': True,
             'data': {
@@ -160,8 +106,8 @@ def get_perfil_publico(slug):
                     'id': id_negocio,
                     'nombre': negocio.nombre_negocio,
                     'slug': negocio.slug,
-                    'descripcion': negocio.descripcion or negocio.nombre_negocio,
-                    'categoria': negocio.categoria or 'Comercio',
+                    'descripcion': negocio.descripcion or '',
+                    'categoria': negocio.categoria or 'General',
                     'logo_url': negocio.logo_url,
                     'ubicacion': get_ubicacion(negocio, sucursal_principal),
                     'verificado': getattr(negocio, 'verificado', False),
@@ -169,15 +115,15 @@ def get_perfil_publico(slug):
                     'whatsapp': get_whatsapp(negocio, sucursal_principal),
                     'telefono': get_telefono(negocio, sucursal_principal),
                     'email': getattr(negocio, 'email', None),
-                    'tiempo_respuesta_minutos': 45,
-                    'horario': getattr(negocio, 'horario', None) or 'Lun-Vie: 8am-6pm, Sáb: 9am-2pm'
+                    'tiempo_respuesta_minutos': None,
+                    'horario': getattr(negocio, 'horario', None)
                 },
                 'config': {
                     'color_primario': negocio.color_tema or '#a855f7',
                     'color_secundario': '#22d3ee',
-                    'mostrar_estadisticas': True,
-                    'mostrar_videos': True,
-                    'mostrar_resenas': True,
+                    'mostrar_estadisticas': False,  # Pendiente
+                    'mostrar_videos': len(videos) > 0,
+                    'mostrar_resenas': False,  # Pendiente
                     'badges_destacados': [],
                     'video_destacado_id': None
                 },
@@ -190,11 +136,11 @@ def get_perfil_publico(slug):
             }
         }
         
-        print(f"   ✅ Respuesta construida exitosamente para '{negocio.nombre_negocio}'")
+        print(f"   ✅ Respuesta: {len(badges)} badges, {len(videos)} videos")
         return jsonify(response), 200
         
     except Exception as e:
-        print(f"   ❌ ERROR en get_perfil_publico: {str(e)}")
+        print(f"   ❌ ERROR: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({
@@ -206,30 +152,114 @@ def get_perfil_publico(slug):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# FUNCIONES DE DATOS REALES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def obtener_badges_negocio(id_negocio):
+    """Obtiene los badges del negocio desde la BD."""
+    if not NegocioBadgeObtenido:
+        return []
+    
+    try:
+        badges_obtenidos = NegocioBadgeObtenido.query.filter_by(
+            negocio_id=id_negocio,
+            activo=True
+        ).order_by(
+            NegocioBadgeObtenido.es_favorito.desc(),
+            NegocioBadgeObtenido.fecha_obtencion.desc()
+        ).all()
+        
+        badges = []
+        for bo in badges_obtenidos:
+            if bo.badge:
+                badges.append({
+                    'codigo': bo.badge.codigo,
+                    'nombre': bo.badge.nombre,
+                    'descripcion': bo.badge.descripcion,
+                    'icono': bo.badge.icono,
+                    'color': bo.badge.color_primario,
+                    'color_fondo': bo.badge.color_fondo,
+                    'nivel': bo.badge.nivel,
+                    'categoria': bo.badge.categoria,
+                    'especial': bo.badge.es_exclusivo or bo.badge.nivel >= 4,
+                    'fecha_obtencion': bo.fecha_obtencion.isoformat() if bo.fecha_obtencion else None,
+                    'es_favorito': bo.es_favorito
+                })
+        
+        return badges
+        
+    except Exception as e:
+        print(f"   ⚠️ Error badges: {e}")
+        return []
+
+
+def obtener_videos_negocio(id_negocio):
+    """Obtiene los videos del negocio desde la BD."""
+    if not NegocioVideo:
+        return []
+    
+    try:
+        videos_db = NegocioVideo.query.filter_by(
+            negocio_id=id_negocio,
+            visible=True
+        ).order_by(
+            NegocioVideo.destacado.desc(),
+            NegocioVideo.orden.asc(),
+            NegocioVideo.fecha_creacion.desc()
+        ).limit(10).all()
+        
+        videos = []
+        for v in videos_db:
+            videos.append({
+                'id': v.id,
+                'titulo': v.titulo,
+                'descripcion': v.descripcion,
+                'thumbnail_url': v.url_thumbnail,
+                'video_url': v.url_video,
+                'duracion': v.get_duracion_formateada(),
+                'vistas': v.vistas or 0,
+                'likes': v.likes or 0,
+                'fecha': v.fecha_creacion.isoformat() if v.fecha_creacion else None,
+                'calidad': v.calidad,
+                'destacado': v.destacado,
+                'metrica': {
+                    'nombre': v.metrica_nombre,
+                    'valor': v.metrica_valor,
+                    'tendencia': v.metrica_tendencia,
+                    'icono': v.metrica_icono,
+                    'color': v.metrica_color
+                } if v.metrica_nombre else None,
+                'badges': []
+            })
+        
+        return videos
+        
+    except Exception as e:
+        print(f"   ⚠️ Error videos: {e}")
+        return []
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # FUNCIONES AUXILIARES
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def get_ubicacion(negocio, sucursal):
     """Obtiene la ubicación del negocio."""
     if sucursal:
-        ciudad = getattr(sucursal, 'ciudad', None)
-        direccion = getattr(sucursal, 'direccion', None)
-        if ciudad:
-            return f"{ciudad}, Colombia"
-        if direccion:
-            return direccion
+        if sucursal.ciudad:
+            return f"{sucursal.ciudad}, Colombia"
+        if sucursal.direccion:
+            return sucursal.direccion
     
-    # Intentar desde relación ciudad del negocio
     if negocio.ciudad:
         ciudad_nombre = getattr(negocio.ciudad, 'ciudad_nombre', None)
         if ciudad_nombre:
             return f"{ciudad_nombre}, Colombia"
     
-    # Fallback a dirección del negocio
     if negocio.direccion:
         return negocio.direccion
     
-    return "Colombia"
+    return None
 
 
 def get_whatsapp(negocio, sucursal):
@@ -238,7 +268,6 @@ def get_whatsapp(negocio, sucursal):
         whatsapp = getattr(sucursal, 'whatsapp', None) or getattr(sucursal, 'telefono', None)
         if whatsapp:
             return whatsapp
-    
     return negocio.whatsapp or negocio.telefono
 
 
@@ -248,98 +277,47 @@ def get_telefono(negocio, sucursal):
         telefono = getattr(sucursal, 'telefono', None)
         if telefono:
             return telefono
-    
     return negocio.telefono
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# FUNCIONES SIMULADAS
+# PLACEHOLDERS (pendientes de implementar con datos reales)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def calcular_estadisticas_simuladas(id_negocio):
-    """Estadísticas simuladas."""
+def obtener_estadisticas_placeholder():
+    """Estadísticas - TODO: conectar con service_ratings."""
     return {
-        'total_contratos': 127,
-        'contratos_exitosos': 124,
-        'tasa_exito': 98,
+        'total_contratos': 0,
+        'contratos_exitosos': 0,
+        'tasa_exito': 0,
         'disputas': 0,
         'sin_disputas': True,
-        'clientes_recurrentes': 34,
-        'tasa_recomendacion': 96,
-        'tiempo_promedio_dias': 4.2
+        'clientes_recurrentes': 0,
+        'tasa_recomendacion': 0,
+        'tiempo_promedio_dias': None
     }
 
 
-def obtener_etapas_simuladas():
-    """Etapas de calificación simuladas."""
-    return [
-        {
-            'numero': 1,
-            'codigo': 'contratacion',
-            'nombre': 'Contratación',
-            'descripcion': 'Claridad, respuesta y acuerdos',
-            'color': '#a855f7',
-            'score': 95,
-            'total_calificaciones': 127,
-            'criterios': [
-                {'codigo': 'claridad', 'nombre': 'Claridad', 'puntuacion': 96},
-                {'codigo': 'respuesta', 'nombre': 'Respuesta', 'puntuacion': 94},
-                {'codigo': 'acuerdos', 'nombre': 'Acuerdos', 'puntuacion': 95}
-            ]
-        },
-        {
-            'numero': 2,
-            'codigo': 'ejecucion',
-            'nombre': 'Ejecución',
-            'descripcion': 'Cumplimiento, calidad y comunicación',
-            'color': '#22d3ee',
-            'score': 92,
-            'total_calificaciones': 125,
-            'criterios': [
-                {'codigo': 'cumplimiento', 'nombre': 'Cumplimiento', 'puntuacion': 94},
-                {'codigo': 'calidad', 'nombre': 'Calidad', 'puntuacion': 91},
-                {'codigo': 'comunicacion', 'nombre': 'Comunicación', 'puntuacion': 92}
-            ]
-        },
-        {
-            'numero': 3,
-            'codigo': 'finalizacion',
-            'nombre': 'Finalización',
-            'descripcion': 'Entrega, completitud y satisfacción',
-            'color': '#10b981',
-            'score': 89,
-            'total_calificaciones': 124,
-            'criterios': [
-                {'codigo': 'entrega', 'nombre': 'Entrega', 'puntuacion': 90},
-                {'codigo': 'completitud', 'nombre': 'Completitud', 'puntuacion': 88},
-                {'codigo': 'satisfaccion', 'nombre': 'Satisfacción', 'puntuacion': 89}
-            ]
-        },
-        {
-            'numero': 4,
-            'codigo': 'post_servicio',
-            'nombre': 'Post-Servicio',
-            'descripcion': 'Durabilidad, garantía y seguimiento',
-            'color': '#f59e0b',
-            'score': 85,
-            'total_calificaciones': 98,
-            'criterios': [
-                {'codigo': 'durabilidad', 'nombre': 'Durabilidad', 'puntuacion': 86},
-                {'codigo': 'garantia', 'nombre': 'Garantía', 'puntuacion': 84},
-                {'codigo': 'seguimiento', 'nombre': 'Seguimiento', 'puntuacion': 85}
-            ]
-        }
-    ]
+def obtener_etapas_placeholder():
+    """Etapas - TODO: conectar con service_qualifiers."""
+    return []
 
 
 def calcular_bizscore(stats, etapas):
     """Calcula el BizScore."""
-    promedio_etapas = sum(e['score'] for e in etapas) / len(etapas) if etapas else 0
+    if not etapas:
+        return {
+            'valor': 0,
+            'nivel': 'Sin calificaciones',
+            'percentil': 0
+        }
+    
+    promedio_etapas = sum(e.get('score', 0) for e in etapas) / len(etapas)
     score_etapas = promedio_etapas * 0.40
-    score_exito = stats['tasa_exito'] * 0.25
-    score_recomendacion = stats['tasa_recomendacion'] * 0.20
-    score_disputas = 10 if stats['sin_disputas'] else max(0, 10 - (stats['disputas'] * 2))
-    score_recurrentes = min(5, stats['clientes_recurrentes'] * 0.5)
+    score_exito = stats.get('tasa_exito', 0) * 0.25
+    score_recomendacion = stats.get('tasa_recomendacion', 0) * 0.20
+    score_disputas = 10 if stats.get('sin_disputas', True) else max(0, 10 - (stats.get('disputas', 0) * 2))
+    score_recurrentes = min(5, stats.get('clientes_recurrentes', 0) * 0.5)
     
     score_total = round(score_etapas + score_exito + score_recomendacion + score_disputas + score_recurrentes, 0)
     score_total = min(100, max(0, score_total))
@@ -367,104 +345,13 @@ def calcular_bizscore(stats, etapas):
     }
 
 
-def obtener_badges_simulados(negocio):
-    """Badges simulados."""
-    return [
-        {
-            'codigo': 'verificado',
-            'nombre': 'Verificado',
-            'descripcion': 'Identidad verificada por TuKomercio',
-            'icono': 'bi-patch-check-fill',
-            'color': '#3b82f6',
-            'nivel': 2,
-            'especial': False
-        },
-        {
-            'codigo': 'rayo_veloz',
-            'nombre': 'Rayo Veloz',
-            'descripcion': 'Responde en menos de 1 hora',
-            'icono': 'bi-lightning-charge-fill',
-            'color': '#10b981',
-            'nivel': 2,
-            'especial': False
-        },
-        {
-            'codigo': 'top_5',
-            'nombre': 'Top 5%',
-            'descripcion': 'Entre los mejores de su categoría',
-            'icono': 'bi-award-fill',
-            'color': '#f59e0b',
-            'nivel': 4,
-            'especial': True
-        },
-        {
-            'codigo': 'sin_disputas',
-            'nombre': 'Récord Limpio',
-            'descripcion': '50+ contratos sin disputas',
-            'icono': 'bi-shield-check',
-            'color': '#10b981',
-            'nivel': 3,
-            'especial': False
-        }
-    ]
-
-
-def obtener_videos_simulados():
-    """Videos simulados."""
-    return [
-        {
-            'id': 1,
-            'titulo': 'Nuestro proceso de trabajo',
-            'descripcion': 'Conoce cómo trabajamos y por qué somos diferentes',
-            'thumbnail_url': 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=800&h=450&fit=crop',
-            'video_url': 'https://www.youtube.com/embed/dQw4w9WgXcQ',
-            'duracion': '3:45',
-            'vistas': 1250,
-            'likes': 89,
-            'fecha': datetime.now().isoformat(),
-            'calidad': 'HD',
-            'destacado': True,
-            'badges': [
-                {'nombre': 'Popular', 'icono': 'bi-star-fill', 'color': '#f59e0b'}
-            ],
-            'metrica': None
-        }
-    ]
-
-
-def obtener_resenas_simuladas():
-    """Reseñas simuladas."""
+def obtener_resenas_placeholder():
+    """Reseñas - TODO: conectar con service_ratings."""
     return {
-        'promedio': 4.8,
-        'total': 127,
-        'distribucion': {
-            5: 99,
-            4: 19,
-            3: 6,
-            2: 2,
-            1: 1
-        },
-        'lista': [
-            {
-                'id': 1,
-                'autor': {
-                    'nombre': 'Cliente Satisfecho',
-                    'avatar_url': None,
-                    'ubicacion': 'Bogotá',
-                    'es_recurrente': True
-                },
-                'puntuacion': 5,
-                'comentario': 'Excelente servicio, muy profesionales. Totalmente recomendado.',
-                'fecha': datetime.now().isoformat(),
-                'servicio_tipo': 'Servicio completo',
-                'verificada': True,
-                'respuesta': {
-                    'texto': '¡Muchas gracias por tu confianza! Siempre a la orden.',
-                    'fecha': datetime.now().isoformat()
-                },
-                'util_count': 12
-            }
-        ]
+        'promedio': 0,
+        'total': 0,
+        'distribucion': {5: 0, 4: 0, 3: 0, 2: 0, 1: 0},
+        'lista': []
     }
 
 
@@ -475,11 +362,8 @@ def obtener_resenas_simuladas():
 @cross_origin()
 def listar_negocios_publicos():
     """Lista negocios con perfil público activo."""
-    print("🎯 GET /api/negocios/publicos - Iniciando...")
-    
     try:
         negocios = Negocio.query.filter_by(activo=True, perfil_publico=True).limit(20).all()
-        print(f"   ✅ Encontrados {len(negocios)} negocios")
         
         resultado = []
         for negocio in negocios:
@@ -488,27 +372,16 @@ def listar_negocios_publicos():
                 'nombre': negocio.nombre_negocio,
                 'slug': negocio.slug,
                 'logo_url': negocio.logo_url,
-                'categoria': negocio.categoria or 'Comercio'
+                'categoria': negocio.categoria or 'General'
             })
         
-        return jsonify({
-            'success': True,
-            'data': resultado
-        }), 200
+        return jsonify({'success': True, 'data': resultado}), 200
         
     except Exception as e:
-        print(f"   ❌ ERROR: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# FIN DEL MÓDULO
 # ═══════════════════════════════════════════════════════════════════════════════
 print("=" * 70)
-print("🎯 PERFIL_PUBLICO_NEGOCIO_API: MÓDULO CARGADO COMPLETAMENTE")
-print(f"🎯 Blueprint registrado: {perfil_publico_negocio_bp.name}")
-print(f"🎯 Rutas definidas: /api/negocio/perfil-publico/<slug>, /api/negocios/publicos")
+print("🎯 PERFIL_PUBLICO_NEGOCIO_API v2.0 CARGADO - Solo datos reales")
 print("=" * 70)
