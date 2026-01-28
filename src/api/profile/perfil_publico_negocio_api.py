@@ -121,7 +121,7 @@ def get_perfil_publico(slug):
             }), 404
 
         id_negocio = negocio.id_negocio
-        print(f"   ✅ Negocio encontrado: id={id_negocio}, nombre='{negocio.nombre}'")
+        print(f"   ✅ Negocio encontrado: id={id_negocio}, nombre='{negocio.nombre_negocio}'")
 
         # 2. OBTENER SUCURSAL PRINCIPAL
         print(f"   🔍 Buscando sucursal principal...")
@@ -158,14 +158,14 @@ def get_perfil_publico(slug):
             'data': {
                 'negocio': {
                     'id': id_negocio,
-                    'nombre': negocio.nombre,
+                    'nombre': negocio.nombre_negocio,
                     'slug': negocio.slug,
-                    'descripcion': getattr(negocio, 'descripcion', None) or negocio.nombre,
-                    'categoria': getattr(negocio, 'categoria', None) or 'Comercio',
-                    'logo_url': getattr(negocio, 'logo_url', None),
+                    'descripcion': negocio.descripcion or negocio.nombre_negocio,
+                    'categoria': negocio.categoria or 'Comercio',
+                    'logo_url': negocio.logo_url,
                     'ubicacion': get_ubicacion(negocio, sucursal_principal),
                     'verificado': getattr(negocio, 'verificado', False),
-                    'fecha_registro': negocio.fecha_creacion.isoformat() if hasattr(negocio, 'fecha_creacion') and negocio.fecha_creacion else None,
+                    'fecha_registro': negocio.fecha_registro.isoformat() if negocio.fecha_registro else None,
                     'whatsapp': get_whatsapp(negocio, sucursal_principal),
                     'telefono': get_telefono(negocio, sucursal_principal),
                     'email': getattr(negocio, 'email', None),
@@ -173,7 +173,7 @@ def get_perfil_publico(slug):
                     'horario': getattr(negocio, 'horario', None) or 'Lun-Vie: 8am-6pm, Sáb: 9am-2pm'
                 },
                 'config': {
-                    'color_primario': '#a855f7',
+                    'color_primario': negocio.color_tema or '#a855f7',
                     'color_secundario': '#22d3ee',
                     'mostrar_estadisticas': True,
                     'mostrar_videos': True,
@@ -190,7 +190,7 @@ def get_perfil_publico(slug):
             }
         }
         
-        print(f"   ✅ Respuesta construida exitosamente para '{negocio.nombre}'")
+        print(f"   ✅ Respuesta construida exitosamente para '{negocio.nombre_negocio}'")
         return jsonify(response), 200
         
     except Exception as e:
@@ -219,9 +219,15 @@ def get_ubicacion(negocio, sucursal):
         if direccion:
             return direccion
     
-    ciudad = getattr(negocio, 'ciudad', None)
-    if ciudad:
-        return f"{ciudad}, Colombia"
+    # Intentar desde relación ciudad del negocio
+    if negocio.ciudad:
+        ciudad_nombre = getattr(negocio.ciudad, 'ciudad_nombre', None)
+        if ciudad_nombre:
+            return f"{ciudad_nombre}, Colombia"
+    
+    # Fallback a dirección del negocio
+    if negocio.direccion:
+        return negocio.direccion
     
     return "Colombia"
 
@@ -233,7 +239,7 @@ def get_whatsapp(negocio, sucursal):
         if whatsapp:
             return whatsapp
     
-    return getattr(negocio, 'whatsapp', None) or getattr(negocio, 'telefono', None)
+    return negocio.whatsapp or negocio.telefono
 
 
 def get_telefono(negocio, sucursal):
@@ -243,7 +249,7 @@ def get_telefono(negocio, sucursal):
         if telefono:
             return telefono
     
-    return getattr(negocio, 'telefono', None)
+    return negocio.telefono
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -472,17 +478,17 @@ def listar_negocios_publicos():
     print("🎯 GET /api/negocios/publicos - Iniciando...")
     
     try:
-        negocios = Negocio.query.filter_by(activo=True).limit(20).all()
+        negocios = Negocio.query.filter_by(activo=True, perfil_publico=True).limit(20).all()
         print(f"   ✅ Encontrados {len(negocios)} negocios")
         
         resultado = []
         for negocio in negocios:
             resultado.append({
                 'id': negocio.id_negocio,
-                'nombre': negocio.nombre,
+                'nombre': negocio.nombre_negocio,
                 'slug': negocio.slug,
-                'logo_url': getattr(negocio, 'logo_url', None),
-                'categoria': getattr(negocio, 'categoria', 'Comercio')
+                'logo_url': negocio.logo_url,
+                'categoria': negocio.categoria or 'Comercio'
             })
         
         return jsonify({
