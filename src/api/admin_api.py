@@ -1,36 +1,84 @@
 """
 ═══════════════════════════════════════════════════════════════════════════════
-TUKOMERCIO - ADMIN API
-Sistema de administración para superusuarios
-═══════════════════════════════════════════════════════════════════════════════
-
-Endpoints:
-- GET  /api/admin/check          → Verificar si el usuario es admin
-- GET  /api/admin/list           → Listar administradores
-- POST /api/admin/add            → Agregar nuevo admin
-- DELETE /api/admin/remove/<id>  → Remover admin
-- GET  /api/admin/challenges     → Listar todos los challenges
-- POST /api/admin/challenges     → Crear challenge
-- PUT  /api/admin/challenges/<id>→ Editar challenge
-- DELETE /api/admin/challenges/<id> → Eliminar challenge
-- GET  /api/admin/challenges/<id>/participaciones → Ver participaciones
-- PUT  /api/admin/participaciones/<id>/estado → Cambiar estado participación
-- GET  /api/admin/stats          → Estadísticas generales
-
+TUKOMERCIO - ADMIN API v2.0
+Sistema de administración usando Flask-Login (current_user)
 ═══════════════════════════════════════════════════════════════════════════════
 """
 
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, make_response
+from flask_login import current_user, login_required
 from functools import wraps
 from datetime import datetime
 import json
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # BLUEPRINT SETUP
 # ═══════════════════════════════════════════════════════════════════════════════
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CORS CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+ALLOWED_ORIGINS = [
+    "https://tuko.pages.dev",
+    "https://trayectoria-rxdc1.web.app",
+    "https://mitrayectoria.web.app",
+    "http://localhost:5001",
+    "http://localhost:5173",
+    "http://localhost:3000"
+]
+
+
+def build_cors_response(data=None, status=200):
+    """Construye respuesta con headers CORS que permiten credentials."""
+    if data is None:
+        response = make_response('', 204)
+    else:
+        response = make_response(jsonify(data), status)
+    
+    origin = request.headers.get('Origin', '')
+    
+    if origin in ALLOWED_ORIGINS:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'  # ← CRÍTICO
+    
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, PUT, DELETE'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, Accept'
+    response.headers['Access-Control-Max-Age'] = '3600'
+    
+    return response
+
+
+@admin_bp.before_request
+def handle_preflight():
+    """Maneja requests OPTIONS para CORS preflight."""
+    if request.method == 'OPTIONS':
+        response = make_response('', 204)
+        origin = request.headers.get('Origin', '')
+        if origin in ALLOWED_ORIGINS:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, PUT, DELETE'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, Accept'
+        response.headers['Access-Control-Max-Age'] = '3600'
+        return response
+
+
+@admin_bp.after_request
+def add_cors_headers(response):
+    """Agrega headers CORS a todas las respuestas."""
+    origin = request.headers.get('Origin', '')
+    if origin in ALLOWED_ORIGINS:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+    return response
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -48,27 +96,14 @@ def get_db_connection():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# AUTH DECORATORS
+# AUTH HELPERS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def get_user_from_token():
-    """Extrae información del usuario del token JWT."""
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    
-    if not token:
-        return None
-    
-    try:
-        import jwt
-        SECRET_KEY = os.environ.get('SECRET_KEY', 'tu-secret-key')
-        payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
-        return {
-            'user_id': payload.get('user_id'),
-            'email': payload.get('email'),
-            'negocio_id': payload.get('negocio_id')
-        }
-    except:
-        return None
+def get_current_user_email():
+    """Obtiene el email del usuario actual usando Flask-Login."""
+    if current_user.is_authenticated:
+        return current_user.correo.lower() if current_user.correo else None
+    return None
 
 
 def is_admin(email):
@@ -83,8 +118,8 @@ def is_admin(email):
         cur.execute("""
             SELECT id, email, nombre, rol, permisos, activo
             FROM administradores
-            WHERE email = %s AND activo = true
-        """, (email.lower(),))
+            WHERE LOWER(email) = LOWER(%s) AND activo = true
+        """, (email,))
         
         admin = cur.fetchone()
         cur.close()
@@ -95,25 +130,26 @@ def is_admin(email):
         return False, None
         
     except Exception as e:
-        print(f"Error verificando admin: {e}")
+        logger.error(f"Error verificando admin: {e}")
         return False, None
 
 
 def admin_required(f):
     """Decorator que requiere que el usuario sea administrador."""
     @wraps(f)
+    @login_required
     def decorated(*args, **kwargs):
-        user = get_user_from_token()
+        email = get_current_user_email()
         
-        if not user or not user.get('email'):
+        if not email:
             return jsonify({'error': 'No autorizado', 'is_admin': False}), 401
         
-        is_adm, admin_data = is_admin(user['email'])
+        is_adm, admin_data = is_admin(email)
         
         if not is_adm:
             return jsonify({'error': 'Acceso denegado. No eres administrador.', 'is_admin': False}), 403
         
-        g.user = user
+        g.user_email = email
         g.admin = admin_data
         
         return f(*args, **kwargs)
@@ -123,18 +159,19 @@ def admin_required(f):
 def superadmin_required(f):
     """Decorator que requiere que el usuario sea superadmin."""
     @wraps(f)
+    @login_required
     def decorated(*args, **kwargs):
-        user = get_user_from_token()
+        email = get_current_user_email()
         
-        if not user or not user.get('email'):
+        if not email:
             return jsonify({'error': 'No autorizado'}), 401
         
-        is_adm, admin_data = is_admin(user['email'])
+        is_adm, admin_data = is_admin(email)
         
         if not is_adm or admin_data.get('rol') != 'superadmin':
             return jsonify({'error': 'Acceso denegado. Se requiere rol de superadmin.'}), 403
         
-        g.user = user
+        g.user_email = email
         g.admin = admin_data
         
         return f(*args, **kwargs)
@@ -142,28 +179,38 @@ def superadmin_required(f):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# VERIFICACIÓN DE ADMIN
+# VERIFICACIÓN DE ADMIN (público, sin login_required)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@admin_bp.route('/check', methods=['GET'])
+@admin_bp.route('/check', methods=['GET', 'OPTIONS'])
 def check_admin():
     """
     GET /api/admin/check
     Verifica si el usuario actual es administrador.
     Usado para mostrar/ocultar el botón de admin en el navbar.
     """
-    user = get_user_from_token()
+    if request.method == 'OPTIONS':
+        return build_cors_response()
     
-    if not user or not user.get('email'):
-        return jsonify({
+    # Verificar si hay sesión activa
+    if not current_user.is_authenticated:
+        return build_cors_response({
             'is_admin': False,
             'message': 'No autenticado'
-        }), 200
+        }, 200)
     
-    is_adm, admin_data = is_admin(user['email'])
+    email = get_current_user_email()
+    
+    if not email:
+        return build_cors_response({
+            'is_admin': False,
+            'message': 'Email no disponible'
+        }, 200)
+    
+    is_adm, admin_data = is_admin(email)
     
     if is_adm:
-        return jsonify({
+        return build_cors_response({
             'is_admin': True,
             'admin': {
                 'email': admin_data['email'],
@@ -171,12 +218,12 @@ def check_admin():
                 'rol': admin_data['rol'],
                 'permisos': admin_data['permisos']
             }
-        }), 200
+        }, 200)
     
-    return jsonify({
+    return build_cors_response({
         'is_admin': False,
         'message': 'No eres administrador'
-    }), 200
+    }, 200)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -188,7 +235,7 @@ def check_admin():
 def list_admins():
     """
     GET /api/admin/list
-    Lista todos los administradores (solo superadmin puede ver todos).
+    Lista todos los administradores.
     """
     try:
         conn = get_db_connection()
@@ -210,6 +257,7 @@ def list_admins():
         }), 200
         
     except Exception as e:
+        logger.error(f"Error listando admins: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -219,14 +267,6 @@ def add_admin():
     """
     POST /api/admin/add
     Agregar nuevo administrador (solo superadmin).
-    
-    Body:
-    {
-        "email": "nuevo@admin.com",
-        "nombre": "Nombre del Admin",
-        "rol": "admin",  // admin o moderator
-        "permisos": ["challenges", "usuarios"]  // opcional
-    }
     """
     try:
         data = request.get_json()
@@ -247,7 +287,7 @@ def add_admin():
         cur = conn.cursor()
         
         # Verificar si ya existe
-        cur.execute("SELECT id FROM administradores WHERE email = %s", (email,))
+        cur.execute("SELECT id FROM administradores WHERE LOWER(email) = LOWER(%s)", (email,))
         if cur.fetchone():
             cur.close()
             conn.close()
@@ -272,6 +312,7 @@ def add_admin():
         }), 201
         
     except Exception as e:
+        logger.error(f"Error agregando admin: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -281,29 +322,31 @@ def remove_admin(admin_id):
     """
     DELETE /api/admin/remove/<id>
     Desactivar un administrador (solo superadmin).
-    No se puede eliminar a un superadmin ni a uno mismo.
     """
     try:
         conn = get_db_connection()
         cur = conn.cursor()
         
         # Verificar que existe y no es superadmin
-        cur.execute("""
-            SELECT id, email, rol FROM administradores WHERE id = %s
-        """, (admin_id,))
-        
+        cur.execute("SELECT id, email, rol FROM administradores WHERE id = %s", (admin_id,))
         admin_to_remove = cur.fetchone()
         
         if not admin_to_remove:
+            cur.close()
+            conn.close()
             return jsonify({'error': 'Administrador no encontrado'}), 404
         
         if admin_to_remove['rol'] == 'superadmin':
+            cur.close()
+            conn.close()
             return jsonify({'error': 'No se puede eliminar a un superadmin'}), 403
         
-        if admin_to_remove['email'] == g.admin['email']:
+        if admin_to_remove['email'].lower() == g.user_email.lower():
+            cur.close()
+            conn.close()
             return jsonify({'error': 'No puedes eliminarte a ti mismo'}), 403
         
-        # Desactivar (no eliminar)
+        # Desactivar
         cur.execute("""
             UPDATE administradores 
             SET activo = false, updated_at = CURRENT_TIMESTAMP
@@ -320,6 +363,7 @@ def remove_admin(admin_id):
         }), 200
         
     except Exception as e:
+        logger.error(f"Error removiendo admin: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -344,6 +388,8 @@ def reactivate_admin(admin_id):
         result = cur.fetchone()
         
         if not result:
+            cur.close()
+            conn.close()
             return jsonify({'error': 'Administrador no encontrado'}), 404
         
         conn.commit()
@@ -356,6 +402,7 @@ def reactivate_admin(admin_id):
         }), 200
         
     except Exception as e:
+        logger.error(f"Error reactivando admin: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -391,7 +438,6 @@ def list_challenges():
         cur.close()
         conn.close()
         
-        # Parsear JSON fields
         result = []
         for ch in challenges:
             ch = dict(ch)
@@ -405,6 +451,7 @@ def list_challenges():
         }), 200
         
     except Exception as e:
+        logger.error(f"Error listando challenges: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -465,6 +512,7 @@ def create_challenge():
         }), 201
         
     except Exception as e:
+        logger.error(f"Error creando challenge: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -479,13 +527,12 @@ def get_challenge(challenge_id):
         conn = get_db_connection()
         cur = conn.cursor()
         
-        cur.execute("""
-            SELECT * FROM challenges WHERE id = %s
-        """, (challenge_id,))
-        
+        cur.execute("SELECT * FROM challenges WHERE id = %s", (challenge_id,))
         challenge = cur.fetchone()
         
         if not challenge:
+            cur.close()
+            conn.close()
             return jsonify({'error': 'Challenge no encontrado'}), 404
         
         challenge = dict(challenge)
@@ -498,6 +545,7 @@ def get_challenge(challenge_id):
         return jsonify(challenge), 200
         
     except Exception as e:
+        logger.error(f"Error obteniendo challenge: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -514,7 +562,6 @@ def update_challenge(challenge_id):
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # Construir query dinámicamente
         updates = []
         values = []
         
@@ -537,7 +584,6 @@ def update_challenge(challenge_id):
                 updates.append(f"{col} = %s")
                 values.append(data[key])
         
-        # Campos JSON
         if 'premios' in data:
             updates.append("premios_json = %s")
             values.append(json.dumps(data['premios']))
@@ -547,6 +593,8 @@ def update_challenge(challenge_id):
             values.append(json.dumps(data['reglas']))
         
         if not updates:
+            cur.close()
+            conn.close()
             return jsonify({'error': 'No hay datos para actualizar'}), 400
         
         updates.append("updated_at = CURRENT_TIMESTAMP")
@@ -558,6 +606,8 @@ def update_challenge(challenge_id):
         result = cur.fetchone()
         
         if not result:
+            cur.close()
+            conn.close()
             return jsonify({'error': 'Challenge no encontrado'}), 404
         
         conn.commit()
@@ -570,6 +620,7 @@ def update_challenge(challenge_id):
         }), 200
         
     except Exception as e:
+        logger.error(f"Error actualizando challenge: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -584,7 +635,6 @@ def delete_challenge(challenge_id):
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # Verificar si tiene participaciones
         cur.execute("""
             SELECT COUNT(*) as total FROM challenge_participaciones WHERE challenge_id = %s
         """, (challenge_id,))
@@ -592,6 +642,8 @@ def delete_challenge(challenge_id):
         count = cur.fetchone()['total']
         
         if count > 0:
+            cur.close()
+            conn.close()
             return jsonify({
                 'error': f'No se puede eliminar. El challenge tiene {count} participaciones.'
             }), 400
@@ -600,6 +652,8 @@ def delete_challenge(challenge_id):
         result = cur.fetchone()
         
         if not result:
+            cur.close()
+            conn.close()
             return jsonify({'error': 'Challenge no encontrado'}), 404
         
         conn.commit()
@@ -612,6 +666,7 @@ def delete_challenge(challenge_id):
         }), 200
         
     except Exception as e:
+        logger.error(f"Error eliminando challenge: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -625,11 +680,6 @@ def list_participaciones(challenge_id):
     """
     GET /api/admin/challenges/<id>/participaciones
     Lista participaciones de un challenge con filtros.
-    
-    Query params:
-    - estado: pendiente, aprobado, rechazado, descalificado
-    - limit: número de resultados
-    - offset: para paginación
     """
     try:
         estado = request.args.get('estado')
@@ -671,7 +721,6 @@ def list_participaciones(challenge_id):
         cur.execute(query, params)
         participaciones = cur.fetchall()
         
-        # Contar totales
         cur.execute("""
             SELECT 
                 COUNT(*) as total,
@@ -697,6 +746,7 @@ def list_participaciones(challenge_id):
         }), 200
         
     except Exception as e:
+        logger.error(f"Error listando participaciones: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -706,12 +756,6 @@ def update_participacion_estado(participacion_id):
     """
     PUT /api/admin/participaciones/<id>/estado
     Cambiar estado de una participación.
-    
-    Body:
-    {
-        "estado": "aprobado" | "rechazado" | "descalificado",
-        "motivo": "Razón del rechazo" (opcional)
-    }
     """
     try:
         data = request.get_json()
@@ -734,6 +778,8 @@ def update_participacion_estado(participacion_id):
         result = cur.fetchone()
         
         if not result:
+            cur.close()
+            conn.close()
             return jsonify({'error': 'Participación no encontrada'}), 404
         
         conn.commit()
@@ -746,6 +792,7 @@ def update_participacion_estado(participacion_id):
         }), 200
         
     except Exception as e:
+        logger.error(f"Error actualizando participación: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -766,7 +813,6 @@ def get_admin_stats():
         
         stats = {}
         
-        # Challenges
         cur.execute("""
             SELECT 
                 COUNT(*) as total,
@@ -777,7 +823,6 @@ def get_admin_stats():
         """)
         stats['challenges'] = dict(cur.fetchone())
         
-        # Participaciones totales
         cur.execute("""
             SELECT 
                 COUNT(*) as total,
@@ -787,15 +832,12 @@ def get_admin_stats():
         """)
         stats['participaciones'] = dict(cur.fetchone())
         
-        # Votos totales
         cur.execute("SELECT COUNT(*) as total FROM challenge_votos")
         stats['votos'] = cur.fetchone()['total']
         
-        # Admins activos
         cur.execute("SELECT COUNT(*) as total FROM administradores WHERE activo = true")
         stats['admins'] = cur.fetchone()['total']
         
-        # Top 5 challenges por participaciones
         cur.execute("""
             SELECT c.id, c.nombre, c.estado, COUNT(cp.id) as participaciones
             FROM challenges c
@@ -812,14 +854,5 @@ def get_admin_stats():
         return jsonify(stats), 200
         
     except Exception as e:
+        logger.error(f"Error obteniendo stats: {e}")
         return jsonify({'error': str(e)}), 500
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# REGISTRAR BLUEPRINT
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def register_admin_api(app):
-    """Registrar el blueprint de admin en la app Flask."""
-    app.register_blueprint(admin_bp)
-    print("✅ Admin API registrada: /api/admin/*")
