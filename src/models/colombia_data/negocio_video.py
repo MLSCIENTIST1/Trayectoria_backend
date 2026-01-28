@@ -48,7 +48,7 @@ class NegocioVideo(db.Model):
     ancho = Column(Integer, nullable=True)                    # Resolución
     alto = Column(Integer, nullable=True)
     formato = Column(String(10), nullable=True)               # mp4, webm, etc.
-    tamaño_bytes = Column(Integer, nullable=True)
+    tamanio_bytes = Column(Integer, nullable=True)
     calidad = Column(String(10), default="HD")                # SD, HD, FHD, 4K
 
     # ═══════════════════════════════════════════════════════════
