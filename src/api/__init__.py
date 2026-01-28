@@ -1,7 +1,7 @@
 """
-BizFlow Studio - Registro de APIs v2.10
+BizFlow Studio - Registro de APIs v2.11
 Sistema de carga segura de blueprints
-Actualizado: Agregado módulo de Perfil Público BizScore
+Actualizado: Agregado módulo de Feed de Videos
 """
 
 import traceback
@@ -21,11 +21,11 @@ def register_api(app):
     """
     
     print("=" * 70)
-    print("🔌 REGISTER_API: INICIANDO REGISTRO DE BLUEPRINTS v2.10")
+    print("🔌 REGISTER_API: INICIANDO REGISTRO DE BLUEPRINTS v2.11")
     print("=" * 70)
     
     logger.info("="*70)
-    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.10")
+    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.11")
     logger.info("="*70)
     
     # ==========================================
@@ -37,7 +37,7 @@ def register_api(app):
         return jsonify({
             "status": "online", 
             "message": "BizFlow Studio API operativa",
-            "version": "2.10.0"
+            "version": "2.11.0"
         }), 200
     
     logger.info("✅ Ruta de salud global registrada: /api/health")
@@ -342,6 +342,29 @@ def register_api(app):
     print("=" * 70)
     
     # ==========================================
+    # 🎬 FEED DE VIDEOS (NUEVO - Scroll Infinito)
+    # ==========================================
+    print("\n" + "=" * 70)
+    print("🎬🎬🎬 SECCIÓN: FEED DE VIDEOS (Scroll Infinito) 🎬🎬🎬")
+    print("=" * 70)
+    logger.info("\n🎬 Cargando módulo de feed de videos...")
+    
+    print("🎬 Intentando cargar: src.api.videos.videos_api")
+    print("🎬 Blueprint esperado: videos_api")
+    print("🎬 Prefix: /api/videos")
+    
+    # Feed de videos - /api/videos/feed, /api/videos/<id>, etc.
+    if safe_register('src.api.videos.videos_api', 'videos_api', 'Feed de Videos', prefix='/api/videos'):
+        success_count += 1
+        print("🎬 ✅✅✅ FEED DE VIDEOS CARGADO EXITOSAMENTE ✅✅✅")
+    else:
+        fail_count += 1
+        print("🎬 ❌❌❌ FEED DE VIDEOS FALLÓ AL CARGAR ❌❌❌")
+        logger.warning("⚠️  Módulo de feed de videos no cargado")
+    
+    print("=" * 70)
+    
+    # ==========================================
     # 💬 NOTIFICACIONES Y CHAT
     # ==========================================
     print("\n" + "=" * 50)
@@ -453,6 +476,19 @@ def register_api(app):
     if not perfil_publico_encontrado:
         print("   ❌ NO SE ENCONTRARON RUTAS DE PERFIL PÚBLICO")
     
+    # 🎬 Listar rutas de videos
+    print("\n🎬 Verificando rutas de feed de videos:")
+    logger.info("\n🎬 Rutas de feed de videos:")
+    videos_encontrado = False
+    for rule in app.url_map.iter_rules():
+        if '/videos' in rule.rule:
+            print(f"   ✅ ENCONTRADA: {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
+            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
+            videos_encontrado = True
+    
+    if not videos_encontrado:
+        print("   ❌ NO SE ENCONTRARON RUTAS DE VIDEOS")
+    
     # Listar rutas de compradores y pedidos
     logger.info("\n🛒 Rutas de compradores y pedidos registradas:")
     for rule in app.url_map.iter_rules():
@@ -493,7 +529,7 @@ def register_api(app):
     # Listar rutas de trayectoria
     logger.info("\n🎯 Rutas de trayectoria registradas:")
     for rule in app.url_map.iter_rules():
-        if 'scores' in rule.rule or 'stages' in rule.rule or 'badges' in rule.rule or 'metrics' in rule.rule or 'portfolio' in rule.rule or '/videos' in rule.rule:
+        if 'scores' in rule.rule or 'stages' in rule.rule or 'badges' in rule.rule or 'metrics' in rule.rule or 'portfolio' in rule.rule:
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     logger.info("")
     
