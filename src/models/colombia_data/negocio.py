@@ -2,11 +2,12 @@
 BizFlow Studio - Modelo de Negocio
 Gestión de negocios con soporte para micrositios
 
-VERSIÓN 2.4 - Incluye:
+VERSIÓN 2.5 - Incluye:
 - whatsapp, tipo_pagina, logo_url
 - config_tienda (JSONB) para Store Designer
 - 🆕 QR del negocio (qr_negocio_url, qr_negocio_data)
 - 🆕 Perfil público (perfil_publico)
+- 🔄 URL actualizada para perfil público
 """
 
 import sqlalchemy as sa
@@ -57,7 +58,7 @@ class Negocio(db.Model):
     # 🆕 QR DEL NEGOCIO
     # ==========================================
     qr_negocio_url = sa.Column(sa.Text, nullable=True)  # URL del QR en Cloudinary
-    qr_negocio_data = sa.Column(sa.String(300), nullable=True)  # Dato codificado: tukomercio.com/n/{slug}
+    qr_negocio_data = sa.Column(sa.String(300), nullable=True)  # Dato codificado en el QR
     perfil_publico = sa.Column(sa.Boolean, default=True, nullable=False)  # Visible públicamente
     
     # ==========================================
@@ -194,10 +195,10 @@ class Negocio(db.Model):
         return None
     
     # ==========================================
-    # 🆕 MÉTODOS DE QR
+    # 🆕 MÉTODOS DE QR Y PERFIL PÚBLICO
     # ==========================================
     
-    def get_url_perfil_publico(self, base_url="https://tukomercio.com"):
+    def get_url_perfil_publico(self, base_url="https://tuko.pages.dev"):
         """
         Obtiene la URL del perfil público del negocio.
         Esta es la URL que se codifica en el QR.
@@ -209,10 +210,10 @@ class Negocio(db.Model):
             str: URL del perfil público
         """
         if self.slug:
-            return f"{base_url}/n/{self.slug}"
+            return f"{base_url}/negocio/negocio_perfil.html?slug={self.slug}"
         return None
     
-    def generar_qr_data(self, base_url="https://tukomercio.com"):
+    def generar_qr_data(self, base_url="https://tuko.pages.dev"):
         """
         Genera el dato que se codificará en el QR.
         
@@ -301,6 +302,7 @@ class Negocio(db.Model):
             "qr_negocio_data": self.qr_negocio_data,
             "perfil_publico": self.perfil_publico,
             "tiene_qr": self.tiene_qr(),
+            "url_perfil_publico": self.get_url_perfil_publico(),
             
             # Metadata
             "fecha_registro": self.fecha_registro.isoformat() if self.fecha_registro else None,
