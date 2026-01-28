@@ -650,6 +650,349 @@ def get_reactions(video_id):
     except Exception as e:
         print(f"❌ Error obteniendo reacciones: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+    
+"""
+═══════════════════════════════════════════════════════════════════════════════
+TUKOMERCIO - API DE SUBIDA DE VIDEOS
+Endpoint para que los Tukeros suban videos a su perfil
+═══════════════════════════════════════════════════════════════════════════════
+
+AGREGAR ESTE ENDPOINT A videos_api.py
+"""
+
+from flask import Blueprint, request, jsonify
+from datetime import datetime
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ENDPOINT: POST /api/videos/upload
+# Subir un nuevo video al feed
+# ═══════════════════════════════════════════════════════════════════════════════
+@videos_api.route('/upload', methods=['POST'])
+def upload_video():
+    """
+    Sube un nuevo video al feed de TuKomercio.
+    
+    Body JSON:
+    {
+        "negocio_id": 4,
+        "titulo": "Instalación de Luces LED",
+        "descripcion": "Tutorial completo...",
+        "video_url": "https://youtube.com/watch?v=...",
+        "video_tipo": "youtube",  // youtube, tiktok, mp4, webm, url
+        "thumbnail_url": "https://...",
+        "categoria": "tutorial",
+        "hashtags": ["motos", "LED", "tuning"],
+        "metrica_nombre": "Satisfacción",
+        "metrica_valor": "4.9 de 5",
+        "metrica_tendencia": "up"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'No se recibieron datos'}), 400
+        
+        # Validaciones
+        required_fields = ['negocio_id', 'titulo', 'video_url']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'success': False, 'error': f'Campo requerido: {field}'}), 400
+        
+        # Validar que el título tenga al menos 5 caracteres
+        if len(data.get('titulo', '').strip()) < 5:
+            return jsonify({'success': False, 'error': 'El título debe tener al menos 5 caracteres'}), 400
+        
+        # TODO: Validar que el usuario sea dueño del negocio
+        # auth_header = request.headers.get('Authorization', '')
+        # user_id = decode_token(auth_header)
+        # if not is_owner(user_id, data['negocio_id']):
+        #     return jsonify({'success': False, 'error': 'No autorizado'}), 403
+        
+        from db import get_db_connection
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Insertar video
+        cursor.execute("""
+            INSERT INTO negocio_videos (
+                negocio_id,
+                titulo,
+                descripcion,
+                video_url,
+                video_tipo,
+                thumbnail_url,
+                categoria,
+                hashtags,
+                metrica_nombre,
+                metrica_valor,
+                metrica_tendencia,
+                vistas,
+                likes,
+                activo,
+                fecha_creacion
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0, 0, true, NOW()
+            )
+            RETURNING id, fecha_creacion
+        """, [
+            data['negocio_id'],
+            data.get('titulo', '').strip(),
+            data.get('descripcion', '').strip(),
+            data.get('video_url', '').strip(),
+            data.get('video_tipo', 'url'),
+            data.get('thumbnail_url'),
+            data.get('categoria'),
+            data.get('hashtags', []),
+            data.get('metrica_nombre'),
+            data.get('metrica_valor'),
+            data.get('metrica_tendencia', 'up')
+        ])
+        
+        result = cursor.fetchone()
+        video_id = result[0]
+        fecha_creacion = result[1]
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Video publicado exitosamente',
+            'data': {
+                'id': video_id,
+                'titulo': data.get('titulo'),
+                'fecha_creacion': fecha_creacion.isoformat() if fecha_creacion else None
+            }
+        }), 201
+        
+    except Exception as e:
+        print(f"❌ Error subiendo video: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ENDPOINT: GET /api/videos/negocio/<negocio_id>
+# Obtener todos los videos de un negocio
+# ═══════════════════════════════════════════════════════════════════════════════
+@videos_api.route('/negocio/<int:negocio_id>', methods=['GET'])
+def get_negocio_videos(negocio_id):
+    """
+    Obtiene todos los videos de un negocio específico.
+    """
+    try:
+        from db import get_db_connection
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                id, titulo, descripcion, video_url, video_tipo,
+                thumbnail_url, categoria, hashtags, duracion, calidad,
+                vistas, likes, 
+                metrica_nombre, metrica_valor, metrica_tendencia,
+                destacado, activo, fecha_creacion
+            FROM negocio_videos
+            WHERE negocio_id = %s AND activo = true
+            ORDER BY destacado DESC, fecha_creacion DESC
+        """, [negocio_id])
+        
+        videos = []
+        for row in cursor.fetchall():
+            videos.append({
+                'id': row[0],
+                'titulo': row[1],
+                'descripcion': row[2],
+                'video_url': row[3],
+                'video_tipo': row[4],
+                'thumbnail_url': row[5],
+                'categoria': row[6],
+                'hashtags': row[7] or [],
+                'duracion': row[8],
+                'calidad': row[9],
+                'vistas': row[10] or 0,
+                'likes': row[11] or 0,
+                'metrica': {
+                    'nombre': row[12],
+                    'valor': row[13],
+                    'tendencia': row[14]
+                } if row[12] else None,
+                'destacado': row[15],
+                'activo': row[16],
+                'fecha': row[17].isoformat() if row[17] else None
+            })
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'videos': videos,
+                'total': len(videos)
+            }
+        })
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo videos del negocio: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ENDPOINT: DELETE /api/videos/<video_id>
+# Eliminar un video (soft delete)
+# ═══════════════════════════════════════════════════════════════════════════════
+@videos_api.route('/<int:video_id>', methods=['DELETE'])
+def delete_video(video_id):
+    """
+    Elimina un video (soft delete - marca como inactivo).
+    """
+    try:
+        # TODO: Validar que el usuario sea dueño del video
+        
+        from db import get_db_connection
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE negocio_videos 
+            SET activo = false, fecha_actualizacion = NOW()
+            WHERE id = %s
+            RETURNING id
+        """, [video_id])
+        
+        result = cursor.fetchone()
+        
+        if not result:
+            cursor.close()
+            conn.close()
+            return jsonify({'success': False, 'error': 'Video no encontrado'}), 404
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Video eliminado'
+        })
+        
+    except Exception as e:
+        print(f"❌ Error eliminando video: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ENDPOINT: PUT /api/videos/<video_id>
+# Actualizar información de un video
+# ═══════════════════════════════════════════════════════════════════════════════
+@videos_api.route('/<int:video_id>', methods=['PUT'])
+def update_video(video_id):
+    """
+    Actualiza la información de un video existente.
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'No se recibieron datos'}), 400
+        
+        # Campos que se pueden actualizar
+        allowed_fields = ['titulo', 'descripcion', 'categoria', 'hashtags', 
+                         'metrica_nombre', 'metrica_valor', 'metrica_tendencia', 'destacado']
+        
+        # Construir query dinámicamente
+        updates = []
+        values = []
+        
+        for field in allowed_fields:
+            if field in data:
+                updates.append(f"{field} = %s")
+                values.append(data[field])
+        
+        if not updates:
+            return jsonify({'success': False, 'error': 'No hay campos para actualizar'}), 400
+        
+        updates.append("fecha_actualizacion = NOW()")
+        values.append(video_id)
+        
+        from db import get_db_connection
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        query = f"""
+            UPDATE negocio_videos 
+            SET {', '.join(updates)}
+            WHERE id = %s
+            RETURNING id
+        """
+        
+        cursor.execute(query, values)
+        result = cursor.fetchone()
+        
+        if not result:
+            cursor.close()
+            conn.close()
+            return jsonify({'success': False, 'error': 'Video no encontrado'}), 404
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Video actualizado'
+        })
+        
+    except Exception as e:
+        print(f"❌ Error actualizando video: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ENDPOINT: POST /api/videos/<video_id>/destacar
+# Marcar/desmarcar video como destacado
+# ═══════════════════════════════════════════════════════════════════════════════
+@videos_api.route('/<int:video_id>/destacar', methods=['POST'])
+def toggle_destacado(video_id):
+    """
+    Marca o desmarca un video como destacado.
+    """
+    try:
+        from db import get_db_connection
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE negocio_videos 
+            SET destacado = NOT destacado, fecha_actualizacion = NOW()
+            WHERE id = %s
+            RETURNING id, destacado
+        """, [video_id])
+        
+        result = cursor.fetchone()
+        
+        if not result:
+            cursor.close()
+            conn.close()
+            return jsonify({'success': False, 'error': 'Video no encontrado'}), 404
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'destacado': result[1],
+            'message': 'Video destacado' if result[1] else 'Video ya no destacado'
+        })
+        
+    except Exception as e:
+        print(f"❌ Error cambiando destacado: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
