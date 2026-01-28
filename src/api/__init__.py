@@ -1,7 +1,7 @@
 """
-BizFlow Studio - Registro de APIs v2.13
+BizFlow Studio - Registro de APIs v2.14
 Sistema de carga segura de blueprints
-Actualizado: QR Generator v2.0 - QR de Página (Tienda) + QR de Negocio (Perfil)
+Actualizado: Admin API para gestión de challenges y administradores
 """
 
 import traceback
@@ -21,11 +21,11 @@ def register_api(app):
     """
     
     print("=" * 70)
-    print("🔌 REGISTER_API: INICIANDO REGISTRO DE BLUEPRINTS v2.13")
+    print("🔌 REGISTER_API: INICIANDO REGISTRO DE BLUEPRINTS v2.14")
     print("=" * 70)
     
     logger.info("="*70)
-    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.13")
+    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.14")
     logger.info("="*70)
     
     # ==========================================
@@ -37,7 +37,7 @@ def register_api(app):
         return jsonify({
             "status": "online", 
             "message": "BizFlow Studio API operativa",
-            "version": "2.13.0"
+            "version": "2.14.0"
         }), 200
     
     logger.info("✅ Ruta de salud global registrada: /api/health")
@@ -379,7 +379,7 @@ def register_api(app):
     print("=" * 70)
     
     # ==========================================
-    # 🏆 CHALLENGE #MiNegocioEn15Segundos (NUEVO)
+    # 🏆 CHALLENGE #MiNegocioEn15Segundos
     # ==========================================
     print("\n" + "=" * 70)
     print("🏆🏆🏆 SECCIÓN: CHALLENGE #MiNegocioEn15Segundos 🏆🏆🏆")
@@ -398,6 +398,37 @@ def register_api(app):
         fail_count += 1
         print("🏆 ❌❌❌ CHALLENGE API FALLÓ AL CARGAR ❌❌❌")
         logger.warning("⚠️  Módulo de Challenge no cargado")
+    
+    print("=" * 70)
+    
+    # ==========================================
+    # 🔐 ADMIN API (Panel de Administración)
+    # ==========================================
+    print("\n" + "=" * 70)
+    print("🔐🔐🔐 SECCIÓN: ADMIN API (Panel de Administración) 🔐🔐🔐")
+    print("=" * 70)
+    logger.info("\n🔐 Cargando módulo de administración...")
+    
+    print("🔐 Intentando cargar: src.api.admin_api")
+    print("🔐 Blueprint esperado: admin_bp")
+    print("🔐 Prefix: None (rutas ya incluyen /api/admin)")
+    print("🔐 Endpoints disponibles:")
+    print("   → /api/admin/check - Verificar si es admin")
+    print("   → /api/admin/list - Listar administradores")
+    print("   → /api/admin/add - Agregar admin (superadmin)")
+    print("   → /api/admin/remove/<id> - Desactivar admin")
+    print("   → /api/admin/challenges - CRUD challenges")
+    print("   → /api/admin/participaciones - Gestionar participaciones")
+    print("   → /api/admin/stats - Estadísticas generales")
+    
+    # Admin API - /api/admin/check, /api/admin/challenges, etc.
+    if safe_register('src.api.admin_api', 'admin_bp', 'Admin API', prefix=None):
+        success_count += 1
+        print("🔐 ✅✅✅ ADMIN API CARGADO EXITOSAMENTE ✅✅✅")
+    else:
+        fail_count += 1
+        print("🔐 ❌❌❌ ADMIN API FALLÓ AL CARGAR ❌❌❌")
+        logger.warning("⚠️  Módulo de Admin no cargado")
     
     print("=" * 70)
     
@@ -545,6 +576,19 @@ def register_api(app):
     
     if not challenge_encontrado:
         print("   ❌ NO SE ENCONTRARON RUTAS DE CHALLENGE")
+    
+    # 🔐 Listar rutas de Admin
+    print("\n🔐 Verificando rutas de Admin API:")
+    logger.info("\n🔐 Rutas de Admin API:")
+    admin_encontrado = False
+    for rule in app.url_map.iter_rules():
+        if '/admin' in rule.rule:
+            print(f"   ✅ ENCONTRADA: {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
+            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
+            admin_encontrado = True
+    
+    if not admin_encontrado:
+        print("   ❌ NO SE ENCONTRARON RUTAS DE ADMIN")
     
     # Listar rutas de compradores y pedidos
     logger.info("\n🛒 Rutas de compradores y pedidos registradas:")
