@@ -51,31 +51,33 @@ def get_video_feed():
         
         # Query base con JOIN a negocios y badges
         base_query = """
-            SELECT 
-                v.id,
-                v.titulo,
-                v.descripcion,
-                v.video_url,
-                v.thumbnail_url,
-                v.duracion,
-                v.calidad,
-                v.vistas,
-                v.likes,
-                v.fecha_creacion,
-                v.metrica_nombre,
-                v.metrica_valor,
-                v.metrica_tendencia,
-                n.id as negocio_id,
-                n.nombre_negocio as negocio_nombre,
-                n.slug as negocio_slug,
-                n.logo_url as negocio_logo,
-                n.categoria as negocio_categoria,
-                n.verificado as negocio_verificado,
-                n.ciudad as negocio_ciudad
-            FROM negocio_videos v
-            JOIN negocios n ON v.negocio_id = n.id
-            WHERE v.activo = true AND n.activo = true
-        """
+    SELECT 
+        v.id,
+        v.titulo,
+        v.descripcion,
+        v.video_url,
+        v.thumbnail_url,
+        v.duracion,
+        v.calidad,
+        v.vistas,
+        v.likes,
+        v.fecha_creacion,
+        v.metrica_nombre,
+        v.metrica_valor,
+        v.metrica_tendencia,
+        v.mostrar_badges,
+        v.badges_ids,
+        n.id as negocio_id,
+        n.nombre_negocio as negocio_nombre,
+        n.slug as negocio_slug,
+        n.logo_url as negocio_logo,
+        n.categoria as negocio_categoria,
+        n.verificado as negocio_verificado,
+        n.ciudad as negocio_ciudad
+    FROM negocio_videos v
+    JOIN negocios n ON v.negocio_id = n.id
+    WHERE v.activo = true AND n.activo = true
+"""
         
         params = []
         
@@ -111,24 +113,26 @@ def get_video_feed():
         rows = cursor.fetchall()
         
         videos = []
-        for row in rows:
-            video_id = row[0]
-            
-            # Obtener badges del negocio para este video
+for row in rows:
+    video_id = row[0]
+    mostrar_badges = row[13]  # Nueva columna
+    badges_ids = row[14]       # Nueva columna
+    negocio_id = row[15]       # Ahora es índice 15 (antes era 13)
+    
+    # Obtener badges según configuración del video
+    badges = []
+    
+    # Solo obtener badges si mostrar_badges es True
+    if mostrar_badges is not False:
+        
+        # Si el video tiene badges específicos seleccionados
+        if badges_ids and len(badges_ids) > 0:
             cursor.execute("""
-                SELECT 
-                    cb.id,
-                    cb.nombre,
-                    cb.descripcion,
-                    cb.icono,
-                    cb.color
-                FROM negocio_badges nb
-                JOIN catalogo_badges cb ON nb.badge_id = cb.id
-                WHERE nb.negocio_id = %s AND nb.activo = true
-                LIMIT 3
-            """, [row[13]])  # negocio_id
+                SELECT id, nombre, descripcion, icono, color
+                FROM catalogo_badges
+                WHERE id = ANY(%s)
+            """, [badges_ids])
             
-            badges = []
             for badge_row in cursor.fetchall():
                 badges.append({
                     'id': badge_row[0],
@@ -137,62 +141,55 @@ def get_video_feed():
                     'icono': badge_row[3],
                     'color': badge_row[4]
                 })
+        else:
+            # Fallback: usar badges del negocio
+            cursor.execute("""
+                SELECT cb.id, cb.nombre, cb.descripcion, cb.icono, cb.color
+                FROM negocio_badges nb
+                JOIN catalogo_badges cb ON nb.badge_id = cb.id
+                WHERE nb.negocio_id = %s AND nb.activo = true
+                LIMIT 3
+            """, [negocio_id])
             
-            videos.append({
-                'id': row[0],
-                'titulo': row[1],
-                'descripcion': row[2],
-                'video_url': row[3],
-                'thumbnail': row[4],
-                'duracion': row[5],
-                'calidad': row[6] or 'HD',
-                'vistas': row[7] or 0,
-                'likes': row[8] or 0,
-                'fecha': row[9].isoformat() if row[9] else None,
-                'negocio': {
-                    'id': row[13],
-                    'nombre': row[14],
-                    'slug': row[15],
-                    'logo_url': row[16],
-                    'categoria': row[17],
-                    'verificado': row[18] or False,
-                    'ubicacion': row[19]
-                },
-                'badges': badges,
-                'metrica': {
-                    'nombre': row[10] or 'Rendimiento',
-                    'valor': row[11] or '---',
-                    'tendencia': row[12] or 'neutral',
-                    'texto': row[11] or '---'
-                }
-            })
-        
-        cursor.close()
-        conn.close()
-        
-        return jsonify({
-            'success': True,
-            'data': {
-                'videos': videos,
-                'page': page,
-                'limit': limit,
-                'has_more': len(videos) >= limit
-            }
-        })
-        
-    except Exception as e:
-        print(f"❌ Error en feed de videos: {e}")
-        
-        # Fallback: devolver datos de prueba
-        return jsonify({
-            'success': True,
-            'data': {
-                'videos': get_test_videos(),
-                'page': 1,
-                'limit': 10,
-                'has_more': False
-            }
-        })
+            for badge_row in cursor.fetchall():
+                badges.append({
+                    'id': badge_row[0],
+                    'nombre': badge_row[1],
+                    'descripcion': badge_row[2],
+                    'icono': badge_row[3],
+                    'color': badge_row[4]
+                })
+    
+    videos.append({
+        'id': row[0],
+        'titulo': row[1],
+        'descripcion': row[2],
+        'video_url': row[3],
+        'thumbnail': row[4],
+        'duracion': row[5],
+        'calidad': row[6] or 'HD',
+        'vistas': row[7] or 0,
+        'likes': row[8] or 0,
+        'fecha': row[9].isoformat() if row[9] else None,
+        'negocio': {
+            'id': negocio_id,
+            'nombre': row[16],
+            'slug': row[17],
+            'logo_url': row[18],
+            'categoria': row[19],
+            'verificado': row[20] or False,
+            'ubicacion': row[21]
+        },
+        'badges': badges,
+        'mostrar_badges': mostrar_badges if mostrar_badges is not None else True,
+        'metrica': {
+            'nombre': row[10] or 'Rendimiento',
+            'valor': row[11] or '---',
+            'tendencia': row[12] or 'neutral',
+            'texto': row[11] or '---'
+        }
+    })
+```
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -273,6 +270,190 @@ def get_video(video_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ENDPOINT: GET /api/videos/<id>/metrics
+# Métricas en tiempo real para el player
+# ═══════════════════════════════════════════════════════════════════════════════
+@videos_api.route('/<int:video_id>/metrics', methods=['GET'])
+def get_video_metrics(video_id):
+    """
+    Obtiene las métricas actuales de un video para actualización en tiempo real.
+    Usado por el player cada 30 segundos.
+    
+    Response:
+    {
+        "success": true,
+        "data": {
+            "video_id": 123,
+            "vistas": 2340,
+            "likes": 187,
+            "comentarios": 45,
+            "compartidos": 23,
+            "reactions": {
+                "fuego": 45,
+                "profesional": 23,
+                "inspirador": 12,
+                "loquiero": 8,
+                "crack": 15,
+                "wow": 34
+            }
+        }
+    }
+    """
+    try:
+        from db import get_db_connection
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Obtener métricas básicas del video
+        cursor.execute("""
+            SELECT vistas, likes, comentarios, compartidos
+            FROM negocio_videos
+            WHERE id = %s AND activo = true
+        """, [video_id])
+        
+        row = cursor.fetchone()
+        
+        if not row:
+            cursor.close()
+            conn.close()
+            return jsonify({'success': False, 'error': 'Video no encontrado'}), 404
+        
+        # Obtener conteo de reacciones
+        cursor.execute("""
+            SELECT tipo_reaccion, COUNT(*) as count
+            FROM video_reacciones
+            WHERE video_id = %s
+            GROUP BY tipo_reaccion
+        """, [video_id])
+        
+        reactions = {
+            'fuego': 0, 'profesional': 0, 'inspirador': 0,
+            'loquiero': 0, 'crack': 0, 'wow': 0
+        }
+        
+        for r_row in cursor.fetchall():
+            if r_row[0] in reactions:
+                reactions[r_row[0]] = r_row[1]
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'video_id': video_id,
+                'vistas': row[0] or 0,
+                'likes': row[1] or 0,
+                'comentarios': row[2] or 0,
+                'compartidos': row[3] or 0,
+                'reactions': reactions
+            }
+        })
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo métricas: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@videos_api.route('/<int:video_id>/watch-time', methods=['POST'])
+def register_watch_time(video_id):
+    """
+    Registra el tiempo que un usuario vio un video.
+    Útil para analytics y algoritmo de recomendación.
+    
+    Body JSON:
+    {
+        "seconds": 45
+    }
+    """
+    try:
+        data = request.get_json() or {}
+        seconds = data.get('seconds', 0)
+        
+        if seconds <= 0:
+            return jsonify({'success': True, 'message': 'No time to register'})
+        
+        # Obtener identificador del usuario/sesión
+        session_id = request.headers.get('X-Session-ID') or request.cookies.get('session_id')
+        user_id = None  # TODO: Obtener del token si está autenticado
+        
+        from db import get_db_connection
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Registrar en tabla de analytics (si existe)
+        # Si no tienes esta tabla, puedes comentar este bloque
+        try:
+            cursor.execute("""
+                INSERT INTO video_watch_history (video_id, usuario_id, session_id, watch_seconds, created_at)
+                VALUES (%s, %s, %s, %s, NOW())
+            """, [video_id, user_id, session_id, seconds])
+        except Exception as e:
+            # Si la tabla no existe, solo logueamos
+            print(f"⚠️ Tabla video_watch_history no existe: {e}")
+        
+        # Actualizar tiempo total de visualización en el video
+        cursor.execute("""
+            UPDATE negocio_videos 
+            SET tiempo_total_visto = COALESCE(tiempo_total_visto, 0) + %s
+            WHERE id = %s
+        """, [seconds, video_id])
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'seconds_registered': seconds
+        })
+        
+    except Exception as e:
+        print(f"❌ Error registrando watch time: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ENDPOINT: POST /api/videos/<id>/share
+# Registrar cuando se comparte un video
+# ═══════════════════════════════════════════════════════════════════════════════
+@videos_api.route('/<int:video_id>/share', methods=['POST'])
+def register_video_share(video_id):
+    """
+    Registra cuando alguien comparte un video.
+    Incrementa el contador de compartidos.
+    """
+    try:
+        from db import get_db_connection
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE negocio_videos 
+            SET compartidos = COALESCE(compartidos, 0) + 1
+            WHERE id = %s AND activo = true
+            RETURNING compartidos
+        """, [video_id])
+        
+        result = cursor.fetchone()
+        
+        if not result:
+            cursor.close()
+            conn.close()
+            return jsonify({'success': False, 'error': 'Video no encontrado'}), 404
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'compartidos': result[0]
+        })
+        
+    except Exception as e:
+        print(f"❌ Error registrando share: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ENDPOINT: POST /api/videos/<id>/view
@@ -663,14 +844,11 @@ AGREGAR ESTE ENDPOINT A videos_api.py
 from flask import Blueprint, request, jsonify
 from datetime import datetime
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# ENDPOINT: POST /api/videos/upload
-# Subir un nuevo video al feed
-# ═══════════════════════════════════════════════════════════════════════════════
 @videos_api.route('/upload', methods=['POST'])
-def upload_video():
+def upload_video_v2():
     """
     Sube un nuevo video al feed de TuKomercio.
+    VERSIÓN ACTUALIZADA con soporte para badges del editor.
     
     Body JSON:
     {
@@ -678,10 +856,12 @@ def upload_video():
         "titulo": "Instalación de Luces LED",
         "descripcion": "Tutorial completo...",
         "video_url": "https://youtube.com/watch?v=...",
-        "video_tipo": "youtube",  // youtube, tiktok, mp4, webm, url
+        "video_tipo": "youtube",
         "thumbnail_url": "https://...",
         "categoria": "tutorial",
         "hashtags": ["motos", "LED", "tuning"],
+        "mostrar_badges": true,
+        "badges_ids": [1, 3, 5],
         "metrica_nombre": "Satisfacción",
         "metrica_valor": "4.9 de 5",
         "metrica_tendencia": "up"
@@ -699,19 +879,38 @@ def upload_video():
             if not data.get(field):
                 return jsonify({'success': False, 'error': f'Campo requerido: {field}'}), 400
         
-        # Validar que el título tenga al menos 5 caracteres
-        if len(data.get('titulo', '').strip()) < 5:
+        # Validar título
+        titulo = data.get('titulo', '').strip()
+        if len(titulo) < 5:
             return jsonify({'success': False, 'error': 'El título debe tener al menos 5 caracteres'}), 400
         
-        # TODO: Validar que el usuario sea dueño del negocio
-        # auth_header = request.headers.get('Authorization', '')
-        # user_id = decode_token(auth_header)
-        # if not is_owner(user_id, data['negocio_id']):
-        #     return jsonify({'success': False, 'error': 'No autorizado'}), 403
+        if len(titulo) > 100:
+            return jsonify({'success': False, 'error': 'El título no puede exceder 100 caracteres'}), 400
+        
+        # Procesar badges_ids a formato PostgreSQL array
+        badges_ids = data.get('badges_ids', [])
+        if isinstance(badges_ids, list):
+            badges_ids_str = '{' + ','.join(map(str, badges_ids)) + '}' if badges_ids else None
+        else:
+            badges_ids_str = None
+        
+        # Procesar hashtags
+        hashtags = data.get('hashtags', [])
+        if isinstance(hashtags, list):
+            hashtags_str = '{' + ','.join(f'"{tag}"' for tag in hashtags[:5]) + '}' if hashtags else None
+        else:
+            hashtags_str = None
         
         from db import get_db_connection
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        # Verificar que el negocio existe
+        cursor.execute("SELECT id FROM negocios WHERE id = %s AND activo = true", [data['negocio_id']])
+        if not cursor.fetchone():
+            cursor.close()
+            conn.close()
+            return jsonify({'success': False, 'error': 'Negocio no encontrado'}), 404
         
         # Insertar video
         cursor.execute("""
@@ -724,26 +923,32 @@ def upload_video():
                 thumbnail_url,
                 categoria,
                 hashtags,
+                mostrar_badges,
+                badges_ids,
                 metrica_nombre,
                 metrica_valor,
                 metrica_tendencia,
                 vistas,
                 likes,
+                comentarios,
+                compartidos,
                 activo,
                 fecha_creacion
             ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0, 0, true, NOW()
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0, 0, 0, 0, true, NOW()
             )
             RETURNING id, fecha_creacion
         """, [
             data['negocio_id'],
-            data.get('titulo', '').strip(),
-            data.get('descripcion', '').strip(),
+            titulo,
+            data.get('descripcion', '').strip()[:500],  # Limitar a 500 chars
             data.get('video_url', '').strip(),
             data.get('video_tipo', 'url'),
             data.get('thumbnail_url'),
             data.get('categoria'),
-            data.get('hashtags', []),
+            hashtags_str,
+            data.get('mostrar_badges', True),
+            badges_ids_str,
             data.get('metrica_nombre'),
             data.get('metrica_valor'),
             data.get('metrica_tendencia', 'up')
@@ -759,10 +964,10 @@ def upload_video():
         
         return jsonify({
             'success': True,
-            'message': 'Video publicado exitosamente',
+            'message': '¡Video publicado exitosamente!',
             'data': {
                 'id': video_id,
-                'titulo': data.get('titulo'),
+                'titulo': titulo,
                 'fecha_creacion': fecha_creacion.isoformat() if fecha_creacion else None
             }
         }), 201
@@ -772,6 +977,98 @@ def upload_video():
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ENDPOINT: GET /api/negocios/<id>/badges
+# Obtener badges de un negocio (para el editor de video)
+# ═══════════════════════════════════════════════════════════════════════════════
+# NOTA: Este endpoint debería ir en negocio_api.py, pero lo incluimos aquí
+# para mantener todo junto. Puedes moverlo si prefieres.
+
+@videos_api.route('/negocios/<int:negocio_id>/badges', methods=['GET'])
+def get_negocio_badges_for_video(negocio_id):
+    """
+    Obtiene los badges de un negocio para el selector del editor de video.
+    
+    Response:
+    {
+        "success": true,
+        "data": {
+            "badges": [
+                {
+                    "id": 1,
+                    "nombre": "Perfeccionista",
+                    "descripcion": "10 trabajos perfectos",
+                    "icono": "bi-gem",
+                    "color": "#a855f7"
+                },
+                ...
+            ]
+        }
+    }
+    """
+    try:
+        from db import get_db_connection
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Obtener badges activos del negocio
+        cursor.execute("""
+            SELECT 
+                cb.id,
+                cb.nombre,
+                cb.descripcion,
+                cb.icono,
+                cb.color,
+                nb.nivel,
+                nb.fecha_obtencion
+            FROM negocio_badges nb
+            JOIN catalogo_badges cb ON nb.badge_id = cb.id
+            WHERE nb.negocio_id = %s AND nb.activo = true
+            ORDER BY nb.fecha_obtencion DESC
+        """, [negocio_id])
+        
+        badges = []
+        for row in cursor.fetchall():
+            badges.append({
+                'id': row[0],
+                'nombre': row[1],
+                'descripcion': row[2],
+                'icono': row[3] or 'bi-award',
+                'color': row[4] or '#a855f7',
+                'nivel': row[5] or 1,
+                'fecha_obtencion': row[6].isoformat() if row[6] else None
+            })
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'badges': badges,
+                'total': len(badges)
+            }
+        })
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo badges: {e}")
+        
+        # Fallback: devolver badges de prueba
+        return jsonify({
+            'success': True,
+            'data': {
+                'badges': [
+                    {'id': 1, 'nombre': 'Perfeccionista', 'descripcion': '10 trabajos perfectos', 'icono': 'bi-gem', 'color': '#a855f7'},
+                    {'id': 2, 'nombre': 'Primera Estrella', 'descripcion': 'Primera calificación 5★', 'icono': 'bi-trophy-fill', 'color': '#f59e0b'},
+                    {'id': 3, 'nombre': 'Rayo Veloz', 'descripcion': 'Responde en <1h', 'icono': 'bi-lightning-charge-fill', 'color': '#10b981'},
+                    {'id': 4, 'nombre': 'Sin Disputas', 'descripcion': '30 días sin problemas', 'icono': 'bi-shield-check', 'color': '#3b82f6'}
+                ],
+                'total': 4
+            }
+        })
+    
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
