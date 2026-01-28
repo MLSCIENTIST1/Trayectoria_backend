@@ -1,7 +1,7 @@
 """
-BizFlow Studio - Registro de APIs v2.11
+BizFlow Studio - Registro de APIs v2.12
 Sistema de carga segura de blueprints
-Actualizado: Agregado módulo de Feed de Videos
+Actualizado: Agregado módulo de Challenge #MiNegocioEn15Segundos
 """
 
 import traceback
@@ -21,11 +21,11 @@ def register_api(app):
     """
     
     print("=" * 70)
-    print("🔌 REGISTER_API: INICIANDO REGISTRO DE BLUEPRINTS v2.11")
+    print("🔌 REGISTER_API: INICIANDO REGISTRO DE BLUEPRINTS v2.12")
     print("=" * 70)
     
     logger.info("="*70)
-    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.11")
+    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.12")
     logger.info("="*70)
     
     # ==========================================
@@ -37,7 +37,7 @@ def register_api(app):
         return jsonify({
             "status": "online", 
             "message": "BizFlow Studio API operativa",
-            "version": "2.11.0"
+            "version": "2.12.0"
         }), 200
     
     logger.info("✅ Ruta de salud global registrada: /api/health")
@@ -342,7 +342,7 @@ def register_api(app):
     print("=" * 70)
     
     # ==========================================
-    # 🎬 FEED DE VIDEOS (NUEVO - Scroll Infinito)
+    # 🎬 FEED DE VIDEOS (Scroll Infinito)
     # ==========================================
     print("\n" + "=" * 70)
     print("🎬🎬🎬 SECCIÓN: FEED DE VIDEOS (Scroll Infinito) 🎬🎬🎬")
@@ -361,6 +361,29 @@ def register_api(app):
         fail_count += 1
         print("🎬 ❌❌❌ FEED DE VIDEOS FALLÓ AL CARGAR ❌❌❌")
         logger.warning("⚠️  Módulo de feed de videos no cargado")
+    
+    print("=" * 70)
+    
+    # ==========================================
+    # 🏆 CHALLENGE #MiNegocioEn15Segundos (NUEVO)
+    # ==========================================
+    print("\n" + "=" * 70)
+    print("🏆🏆🏆 SECCIÓN: CHALLENGE #MiNegocioEn15Segundos 🏆🏆🏆")
+    print("=" * 70)
+    logger.info("\n🏆 Cargando módulo de Challenge viral...")
+    
+    print("🏆 Intentando cargar: src.api.challenge_api")
+    print("🏆 Blueprint esperado: challenge_bp")
+    print("🏆 Prefix: None (rutas ya incluyen /api/challenge)")
+    
+    # Challenge API - /api/challenge/active, /api/challenge/votar, etc.
+    if safe_register('src.api.challenge_api', 'challenge_bp', 'Challenge #MiNegocioEn15Segundos', prefix=None):
+        success_count += 1
+        print("🏆 ✅✅✅ CHALLENGE API CARGADO EXITOSAMENTE ✅✅✅")
+    else:
+        fail_count += 1
+        print("🏆 ❌❌❌ CHALLENGE API FALLÓ AL CARGAR ❌❌❌")
+        logger.warning("⚠️  Módulo de Challenge no cargado")
     
     print("=" * 70)
     
@@ -488,6 +511,19 @@ def register_api(app):
     
     if not videos_encontrado:
         print("   ❌ NO SE ENCONTRARON RUTAS DE VIDEOS")
+    
+    # 🏆 Listar rutas de Challenge
+    print("\n🏆 Verificando rutas de Challenge:")
+    logger.info("\n🏆 Rutas de Challenge #MiNegocioEn15Segundos:")
+    challenge_encontrado = False
+    for rule in app.url_map.iter_rules():
+        if '/challenge' in rule.rule:
+            print(f"   ✅ ENCONTRADA: {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
+            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
+            challenge_encontrado = True
+    
+    if not challenge_encontrado:
+        print("   ❌ NO SE ENCONTRARON RUTAS DE CHALLENGE")
     
     # Listar rutas de compradores y pedidos
     logger.info("\n🛒 Rutas de compradores y pedidos registradas:")
