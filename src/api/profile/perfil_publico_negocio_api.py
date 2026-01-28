@@ -126,14 +126,14 @@ def get_perfil_publico(slug):
         # 2. OBTENER SUCURSAL PRINCIPAL
         print(f"   🔍 Buscando sucursal principal...")
         sucursal_principal = Sucursal.query.filter_by(
-            id_negocio=id_negocio,
+            negocio_id=id_negocio,
             es_principal=True,
             activo=True
         ).first()
-        
+
         if not sucursal_principal:
             sucursal_principal = Sucursal.query.filter_by(
-                id_negocio=id_negocio,
+                negocio_id=id_negocio,
                 activo=True
             ).first()
         
