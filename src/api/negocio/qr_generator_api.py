@@ -2,10 +2,11 @@
 BizFlow Studio - API de Generación de QR
 Generación on-the-fly de códigos QR para negocios y páginas
 
-VERSIÓN 1.0
+VERSIÓN 1.1
 - QR de negocio (perfil público)
 - QR de página (tienda/landing) - futuro
 - Perfil público del negocio
+- 🔄 URL actualizada para perfil público
 """
 
 import logging
@@ -35,7 +36,12 @@ qr_generator_bp = Blueprint('qr_generator_bp', __name__)
 # ==========================================
 # CONFIGURACIÓN
 # ==========================================
-QR_BASE_URL = "https://tukomercio.com"  # 🔧 Cambiar por tu dominio
+QR_BASE_URL = "https://tuko.pages.dev"  # ✅ URL actualizada
+
+
+def get_perfil_publico_url(slug):
+    """Genera la URL del perfil público para el QR."""
+    return f"{QR_BASE_URL}/negocio/negocio_perfil.html?slug={slug}"
 
 
 # ==========================================
@@ -108,7 +114,7 @@ def qr_health():
     return jsonify({
         "status": "online",
         "module": "qr_generator",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "qr_available": QR_AVAILABLE,
         "base_url": QR_BASE_URL
     }), 200
@@ -155,8 +161,8 @@ def obtener_qr_negocio(negocio_id):
         if not negocio.slug:
             return jsonify({"success": False, "error": "El negocio no tiene slug configurado"}), 400
         
-        # URL del perfil público
-        qr_data = f"{QR_BASE_URL}/n/{negocio.slug}"
+        # ✅ URL del perfil público (formato correcto)
+        qr_data = get_perfil_publico_url(negocio.slug)
         
         # Actualizar qr_negocio_data si cambió
         if getattr(negocio, 'qr_negocio_data', None) != qr_data:
@@ -241,7 +247,9 @@ def descargar_qr_negocio(negocio_id):
         if not negocio.slug:
             return jsonify({"success": False, "error": "Sin slug configurado"}), 400
         
-        qr_data = f"{QR_BASE_URL}/n/{negocio.slug}"
+        # ✅ URL del perfil público (formato correcto)
+        qr_data = get_perfil_publico_url(negocio.slug)
+        
         size = int(request.args.get('size', 15))
         size = max(10, min(25, size))
         
@@ -337,7 +345,8 @@ def perfil_publico_negocio(slug):
                 "tienda": f"/tienda/{negocio.slug}" if negocio.tiene_pagina and negocio.tipo_pagina == 'tienda' else None,
                 "catalogo": f"/catalogo/{negocio.slug}" if negocio.tiene_pagina and negocio.tipo_pagina == 'catalogo' else None,
                 "landing": f"/sitio/{negocio.slug}" if negocio.tiene_pagina else None,
-                "calificar": f"/calificar/{negocio.slug}"
+                "calificar": f"/calificar/{negocio.slug}",
+                "perfil_publico": get_perfil_publico_url(negocio.slug)
             },
             
             # Para calificaciones (futuro)
