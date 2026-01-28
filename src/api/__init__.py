@@ -1,7 +1,7 @@
 """
-BizFlow Studio - Registro de APIs v2.12
+BizFlow Studio - Registro de APIs v2.13
 Sistema de carga segura de blueprints
-Actualizado: Agregado módulo de Challenge #MiNegocioEn15Segundos
+Actualizado: QR Generator v2.0 - QR de Página (Tienda) + QR de Negocio (Perfil)
 """
 
 import traceback
@@ -21,11 +21,11 @@ def register_api(app):
     """
     
     print("=" * 70)
-    print("🔌 REGISTER_API: INICIANDO REGISTRO DE BLUEPRINTS v2.12")
+    print("🔌 REGISTER_API: INICIANDO REGISTRO DE BLUEPRINTS v2.13")
     print("=" * 70)
     
     logger.info("="*70)
-    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.12")
+    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.13")
     logger.info("="*70)
     
     # ==========================================
@@ -37,7 +37,7 @@ def register_api(app):
         return jsonify({
             "status": "online", 
             "message": "BizFlow Studio API operativa",
-            "version": "2.12.0"
+            "version": "2.13.0"
         }), 200
     
     logger.info("✅ Ruta de salud global registrada: /api/health")
@@ -191,19 +191,33 @@ def register_api(app):
         fail_count += 1
     
     # ==========================================
-    # 🔲 GENERADOR DE QR
+    # 🔲 GENERADOR DE QR v2.0 (Página + Negocio)
     # ==========================================
-    print("\n" + "=" * 50)
-    print("🔲 SECCIÓN: GENERADOR DE QR")
-    print("=" * 50)
-    logger.info("\n🔲 Cargando módulo de generación de QR...")
+    print("\n" + "=" * 70)
+    print("🔲🔲🔲 SECCIÓN: GENERADOR DE QR v2.0 🔲🔲🔲")
+    print("=" * 70)
+    logger.info("\n🔲 Cargando módulo de generación de QR v2.0...")
+    
+    print("🔲 Endpoints disponibles:")
+    print("   → /api/negocio/<id>/qr - QR del perfil público")
+    print("   → /api/negocio/<id>/qr/download - Descargar QR perfil")
+    print("   → /api/negocio/<id>/pagina/qr - QR de la tienda/página")
+    print("   → /api/negocio/<id>/pagina/qr/download - Descargar QR página")
+    print("   → /api/negocio/<id>/qr/all - Todos los QRs del negocio")
+    print("   → /api/n/<slug> - Perfil público (donde apunta el QR)")
+    print("   → /api/qr/generate - Generar QR genérico")
+    print("   → /api/qr/health - Health check del módulo")
     
     # Las rutas ya incluyen /api/ en el blueprint
-    if safe_register('src.api.negocio.qr_generator_api', 'qr_generator_bp', 'Generador de QR', prefix=None):
+    if safe_register('src.api.negocio.qr_generator_api', 'qr_generator_bp', 'QR Generator v2.0 (Página+Perfil)', prefix=None):
         success_count += 1
+        print("🔲 ✅✅✅ QR GENERATOR v2.0 CARGADO EXITOSAMENTE ✅✅✅")
     else:
         fail_count += 1
+        print("🔲 ❌❌❌ QR GENERATOR FALLÓ AL CARGAR ❌❌❌")
         logger.warning("⚠️  Módulo de QR no cargado - pip install qrcode[pil]")
+    
+    print("=" * 70)
     
     # ==========================================
     # 🛒 COMPRADORES Y PEDIDOS (ECOSISTEMA TRAYECTORIA)
@@ -481,10 +495,17 @@ def register_api(app):
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     
     # 🔲 Listar rutas de QR
+    print("\n🔲 Verificando rutas de QR Generator v2.0:")
     logger.info("\n🔲 Rutas de QR registradas:")
+    qr_encontrado = False
     for rule in app.url_map.iter_rules():
         if '/qr' in rule.rule or '/n/' in rule.rule:
+            print(f"   ✅ ENCONTRADA: {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
+            qr_encontrado = True
+    
+    if not qr_encontrado:
+        print("   ❌ NO SE ENCONTRARON RUTAS DE QR")
     
     # 🎯 Listar rutas de perfil público
     print("\n🎯 Verificando rutas de perfil público BizScore:")

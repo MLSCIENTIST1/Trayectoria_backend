@@ -2,11 +2,11 @@
 BizFlow Studio - API de Generación de QR
 Generación on-the-fly de códigos QR para negocios y páginas
 
-VERSIÓN 1.1
+VERSIÓN 2.0
 - QR de negocio (perfil público)
-- QR de página (tienda/landing) - futuro
+- 🆕 QR de página (tienda)
 - Perfil público del negocio
-- 🔄 URL actualizada para perfil público
+- Soporte para diferentes tipos de página
 """
 
 import logging
@@ -36,12 +36,42 @@ qr_generator_bp = Blueprint('qr_generator_bp', __name__)
 # ==========================================
 # CONFIGURACIÓN
 # ==========================================
-QR_BASE_URL = "https://tuko.pages.dev"  # ✅ URL actualizada
+QR_BASE_URL = "https://tuko.pages.dev"
+
+# URLs por tipo de página
+PAGE_URLS = {
+    'tienda': lambda slug: f"{QR_BASE_URL}/tienda/?slug={slug}",
+    'ecommerce': lambda slug: f"{QR_BASE_URL}/tienda/?slug={slug}",
+    'landing': lambda slug: f"{QR_BASE_URL}/sitio/{slug}",  # Próximamente
+    'catalogo': lambda slug: f"{QR_BASE_URL}/catalogo/{slug}",  # Próximamente
+    'portfolio': lambda slug: f"{QR_BASE_URL}/portfolio/{slug}",  # Próximamente
+    'restaurant': lambda slug: f"{QR_BASE_URL}/menu/{slug}",  # Próximamente
+}
 
 
 def get_perfil_publico_url(slug):
     """Genera la URL del perfil público para el QR."""
     return f"{QR_BASE_URL}/negocio/negocio_perfil.html?slug={slug}"
+
+
+def get_pagina_url(slug, tipo_pagina):
+    """
+    Genera la URL de la página según su tipo.
+    
+    Args:
+        slug (str): Slug del negocio
+        tipo_pagina (str): Tipo de página (tienda, landing, etc.)
+        
+    Returns:
+        str: URL de la página
+    """
+    # Normalizar tipo
+    tipo = (tipo_pagina or 'tienda').lower()
+    
+    # Obtener función generadora de URL
+    url_generator = PAGE_URLS.get(tipo, PAGE_URLS['tienda'])
+    
+    return url_generator(slug)
 
 
 # ==========================================
@@ -71,7 +101,7 @@ def get_current_user_id():
     return None
 
 
-def generar_qr_imagen(data, size=10, border=2):
+def generar_qr_imagen(data, size=10, border=2, fill_color="black", back_color="white"):
     """
     Genera una imagen QR en memoria.
     
@@ -79,6 +109,8 @@ def generar_qr_imagen(data, size=10, border=2):
         data (str): Datos a codificar (URL)
         size (int): Tamaño del QR (box_size)
         border (int): Borde blanco alrededor
+        fill_color (str): Color del QR
+        back_color (str): Color de fondo
         
     Returns:
         BytesIO: Imagen PNG en memoria
@@ -95,7 +127,7 @@ def generar_qr_imagen(data, size=10, border=2):
     qr.add_data(data)
     qr.make(fit=True)
     
-    img = qr.make_image(fill_color="black", back_color="white")
+    img = qr.make_image(fill_color=fill_color, back_color=back_color)
     
     buffer = io.BytesIO()
     img.save(buffer, format='PNG')
@@ -114,21 +146,22 @@ def qr_health():
     return jsonify({
         "status": "online",
         "module": "qr_generator",
-        "version": "1.1.0",
+        "version": "2.0.0",
         "qr_available": QR_AVAILABLE,
-        "base_url": QR_BASE_URL
+        "base_url": QR_BASE_URL,
+        "supported_pages": list(PAGE_URLS.keys())
     }), 200
 
 
 # ==========================================
-# QR DEL NEGOCIO
+# QR DEL NEGOCIO (Perfil Público)
 # ==========================================
 
 @qr_generator_bp.route('/api/negocio/<int:negocio_id>/qr', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def obtener_qr_negocio(negocio_id):
     """
-    Genera y devuelve el QR del negocio.
+    Genera y devuelve el QR del negocio (perfil público).
     
     Query params:
         - format: 'png' (default) | 'base64' | 'json'
@@ -161,7 +194,7 @@ def obtener_qr_negocio(negocio_id):
         if not negocio.slug:
             return jsonify({"success": False, "error": "El negocio no tiene slug configurado"}), 400
         
-        # ✅ URL del perfil público (formato correcto)
+        # URL del perfil público
         qr_data = get_perfil_publico_url(negocio.slug)
         
         # Actualizar qr_negocio_data si cambió
@@ -172,7 +205,7 @@ def obtener_qr_negocio(negocio_id):
         # Parámetros
         formato = request.args.get('format', 'png').lower()
         size = int(request.args.get('size', 10))
-        size = max(5, min(20, size))  # Limitar entre 5 y 20
+        size = max(5, min(20, size))
         
         # Generar QR
         qr_buffer = generar_qr_imagen(qr_data, size=size)
@@ -192,6 +225,7 @@ def obtener_qr_negocio(negocio_id):
                 "data": {
                     "base64": f"data:image/png;base64,{qr_base64}",
                     "qr_data": qr_data,
+                    "qr_type": "negocio",
                     "negocio_id": negocio_id,
                     "slug": negocio.slug,
                     "nombre": negocio.nombre_negocio
@@ -203,6 +237,7 @@ def obtener_qr_negocio(negocio_id):
                 "success": True,
                 "data": {
                     "qr_data": qr_data,
+                    "qr_type": "negocio",
                     "qr_url": f"/api/negocio/{negocio_id}/qr?format=png",
                     "qr_download_url": f"/api/negocio/{negocio_id}/qr/download",
                     "negocio_id": negocio_id,
@@ -212,7 +247,7 @@ def obtener_qr_negocio(negocio_id):
             }), 200
         
     except Exception as e:
-        logger.error(f"❌ Error generando QR: {e}")
+        logger.error(f"❌ Error generando QR de negocio: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -220,7 +255,157 @@ def obtener_qr_negocio(negocio_id):
 @cross_origin(supports_credentials=True)
 def descargar_qr_negocio(negocio_id):
     """
-    Descarga el QR como archivo PNG de alta calidad para impresión.
+    Descarga el QR del negocio como archivo PNG de alta calidad.
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+    
+    if not QR_AVAILABLE:
+        return jsonify({"success": False, "error": "QR no disponible"}), 503
+    
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({"success": False, "error": "No autenticado"}), 401
+    
+    try:
+        negocio = Negocio.query.filter_by(
+            id_negocio=negocio_id,
+            usuario_id=user_id
+        ).first()
+        
+        if not negocio:
+            return jsonify({"success": False, "error": "Negocio no encontrado"}), 404
+        
+        if not negocio.slug:
+            return jsonify({"success": False, "error": "Sin slug configurado"}), 400
+        
+        qr_data = get_perfil_publico_url(negocio.slug)
+        
+        size = int(request.args.get('size', 15))
+        size = max(10, min(25, size))
+        
+        qr_buffer = generar_qr_imagen(qr_data, size=size, border=4)
+        
+        nombre_limpio = re.sub(r'[^a-zA-Z0-9]', '_', negocio.nombre_negocio)
+        
+        return send_file(
+            qr_buffer,
+            mimetype='image/png',
+            as_attachment=True,
+            download_name=f"QR_Negocio_{nombre_limpio}.png"
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Error descargando QR de negocio: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==========================================
+# 🆕 QR DE PÁGINA (Tienda, Landing, etc.)
+# ==========================================
+
+@qr_generator_bp.route('/api/negocio/<int:negocio_id>/pagina/qr', methods=['GET', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def obtener_qr_pagina(negocio_id):
+    """
+    Genera y devuelve el QR de la página del negocio (tienda, landing, etc.).
+    
+    Query params:
+        - format: 'png' (default) | 'base64' | 'json'
+        - size: tamaño del QR (default: 10)
+        
+    Returns:
+        - PNG image (default)
+        - Base64 string
+        - JSON con datos del QR
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+    
+    if not QR_AVAILABLE:
+        return jsonify({"success": False, "error": "QR no disponible en el servidor"}), 503
+    
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({"success": False, "error": "No autenticado"}), 401
+    
+    try:
+        negocio = Negocio.query.filter_by(
+            id_negocio=negocio_id,
+            usuario_id=user_id
+        ).first()
+        
+        if not negocio:
+            return jsonify({"success": False, "error": "Negocio no encontrado"}), 404
+        
+        if not negocio.slug:
+            return jsonify({"success": False, "error": "El negocio no tiene slug configurado"}), 400
+        
+        if not negocio.tiene_pagina:
+            return jsonify({"success": False, "error": "El negocio no tiene página activa"}), 400
+        
+        # Obtener tipo de página
+        tipo_pagina = negocio.tipo_pagina or 'tienda'
+        
+        # Generar URL según tipo de página
+        qr_data = get_pagina_url(negocio.slug, tipo_pagina)
+        
+        # Parámetros
+        formato = request.args.get('format', 'png').lower()
+        size = int(request.args.get('size', 10))
+        size = max(5, min(20, size))
+        
+        # Generar QR
+        qr_buffer = generar_qr_imagen(qr_data, size=size)
+        
+        if formato == 'png':
+            return send_file(
+                qr_buffer,
+                mimetype='image/png',
+                as_attachment=False,
+                download_name=f"qr-pagina-{negocio.slug}.png"
+            )
+        
+        elif formato == 'base64':
+            qr_base64 = base64.b64encode(qr_buffer.getvalue()).decode('utf-8')
+            return jsonify({
+                "success": True,
+                "data": {
+                    "base64": f"data:image/png;base64,{qr_base64}",
+                    "qr_data": qr_data,
+                    "qr_type": "pagina",
+                    "tipo_pagina": tipo_pagina,
+                    "negocio_id": negocio_id,
+                    "slug": negocio.slug,
+                    "nombre": negocio.nombre_negocio
+                }
+            }), 200
+        
+        else:  # json
+            return jsonify({
+                "success": True,
+                "data": {
+                    "qr_data": qr_data,
+                    "qr_type": "pagina",
+                    "tipo_pagina": tipo_pagina,
+                    "qr_url": f"/api/negocio/{negocio_id}/pagina/qr?format=png",
+                    "qr_download_url": f"/api/negocio/{negocio_id}/pagina/qr/download",
+                    "negocio_id": negocio_id,
+                    "nombre": negocio.nombre_negocio,
+                    "slug": negocio.slug
+                }
+            }), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Error generando QR de página: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@qr_generator_bp.route('/api/negocio/<int:negocio_id>/pagina/qr/download', methods=['GET', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def descargar_qr_pagina(negocio_id):
+    """
+    Descarga el QR de la página como archivo PNG de alta calidad para impresión.
     
     Query params:
         - size: tamaño del QR (default: 15, para mejor calidad)
@@ -247,31 +432,154 @@ def descargar_qr_negocio(negocio_id):
         if not negocio.slug:
             return jsonify({"success": False, "error": "Sin slug configurado"}), 400
         
-        # ✅ URL del perfil público (formato correcto)
-        qr_data = get_perfil_publico_url(negocio.slug)
+        if not negocio.tiene_pagina:
+            return jsonify({"success": False, "error": "Sin página activa"}), 400
+        
+        # Obtener tipo y URL
+        tipo_pagina = negocio.tipo_pagina or 'tienda'
+        qr_data = get_pagina_url(negocio.slug, tipo_pagina)
         
         size = int(request.args.get('size', 15))
         size = max(10, min(25, size))
         
         qr_buffer = generar_qr_imagen(qr_data, size=size, border=4)
         
-        # Nombre limpio para el archivo
+        # Nombre del archivo según tipo
+        tipo_label = {
+            'tienda': 'Tienda',
+            'ecommerce': 'Tienda',
+            'landing': 'Landing',
+            'catalogo': 'Catalogo',
+            'portfolio': 'Portfolio',
+            'restaurant': 'Menu'
+        }.get(tipo_pagina, 'Pagina')
+        
         nombre_limpio = re.sub(r'[^a-zA-Z0-9]', '_', negocio.nombre_negocio)
         
         return send_file(
             qr_buffer,
             mimetype='image/png',
             as_attachment=True,
-            download_name=f"QR_{nombre_limpio}.png"
+            download_name=f"QR_{tipo_label}_{nombre_limpio}.png"
         )
         
     except Exception as e:
-        logger.error(f"❌ Error descargando QR: {e}")
+        logger.error(f"❌ Error descargando QR de página: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
 # ==========================================
-# PERFIL PÚBLICO DEL NEGOCIO (donde apunta el QR)
+# 🆕 QR COMBINADO (Ambos QRs)
+# ==========================================
+
+@qr_generator_bp.route('/api/negocio/<int:negocio_id>/qr/all', methods=['GET', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def obtener_todos_qr(negocio_id):
+    """
+    Obtiene información de todos los QRs disponibles para un negocio.
+    
+    Returns:
+        JSON con:
+        - QR de negocio (perfil público)
+        - QR de página (si tiene página activa)
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+    
+    if not QR_AVAILABLE:
+        return jsonify({"success": False, "error": "QR no disponible"}), 503
+    
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({"success": False, "error": "No autenticado"}), 401
+    
+    try:
+        negocio = Negocio.query.filter_by(
+            id_negocio=negocio_id,
+            usuario_id=user_id
+        ).first()
+        
+        if not negocio:
+            return jsonify({"success": False, "error": "Negocio no encontrado"}), 404
+        
+        if not negocio.slug:
+            return jsonify({"success": False, "error": "Sin slug configurado"}), 400
+        
+        response_data = {
+            "negocio_id": negocio_id,
+            "nombre": negocio.nombre_negocio,
+            "slug": negocio.slug,
+            "qrs": []
+        }
+        
+        # QR de Negocio (siempre disponible)
+        qr_negocio_url = get_perfil_publico_url(negocio.slug)
+        qr_negocio_buffer = generar_qr_imagen(qr_negocio_url, size=10)
+        qr_negocio_base64 = base64.b64encode(qr_negocio_buffer.getvalue()).decode('utf-8')
+        
+        response_data["qrs"].append({
+            "type": "negocio",
+            "label": "Perfil del Negocio",
+            "description": "QR para ver el perfil público y reputación",
+            "icon": "bi-building",
+            "url": qr_negocio_url,
+            "base64": f"data:image/png;base64,{qr_negocio_base64}",
+            "download_url": f"/api/negocio/{negocio_id}/qr/download",
+            "available": True
+        })
+        
+        # QR de Página (solo si tiene página activa)
+        if negocio.tiene_pagina:
+            tipo_pagina = negocio.tipo_pagina or 'tienda'
+            qr_pagina_url = get_pagina_url(negocio.slug, tipo_pagina)
+            qr_pagina_buffer = generar_qr_imagen(qr_pagina_url, size=10)
+            qr_pagina_base64 = base64.b64encode(qr_pagina_buffer.getvalue()).decode('utf-8')
+            
+            tipo_labels = {
+                'tienda': ('Tienda Online', 'QR para acceder directamente a tu tienda', 'bi-cart3'),
+                'ecommerce': ('Tienda Online', 'QR para acceder directamente a tu tienda', 'bi-cart3'),
+                'landing': ('Landing Page', 'QR para tu página de presentación', 'bi-window'),
+                'catalogo': ('Catálogo', 'QR para ver tu catálogo de productos', 'bi-grid'),
+                'portfolio': ('Portafolio', 'QR para mostrar tus trabajos', 'bi-briefcase'),
+                'restaurant': ('Menú Digital', 'QR para ver el menú del restaurante', 'bi-cup-hot'),
+            }
+            
+            label, desc, icon = tipo_labels.get(tipo_pagina, ('Página', 'QR de tu página web', 'bi-globe'))
+            
+            response_data["qrs"].append({
+                "type": "pagina",
+                "tipo_pagina": tipo_pagina,
+                "label": label,
+                "description": desc,
+                "icon": icon,
+                "url": qr_pagina_url,
+                "base64": f"data:image/png;base64,{qr_pagina_base64}",
+                "download_url": f"/api/negocio/{negocio_id}/pagina/qr/download",
+                "available": True
+            })
+        else:
+            # Página no activa - mostrar como próximamente
+            response_data["qrs"].append({
+                "type": "pagina",
+                "tipo_pagina": None,
+                "label": "Página Web",
+                "description": "Crea tu página para obtener este QR",
+                "icon": "bi-globe",
+                "url": None,
+                "base64": None,
+                "download_url": None,
+                "available": False
+            })
+        
+        return jsonify({"success": True, "data": response_data}), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Error obteniendo QRs: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==========================================
+# PERFIL PÚBLICO DEL NEGOCIO
 # ==========================================
 
 @qr_generator_bp.route('/api/n/<string:slug>', methods=['GET', 'OPTIONS'])
@@ -280,12 +588,6 @@ def perfil_publico_negocio(slug):
     """
     Perfil público del negocio - Endpoint donde apunta el QR.
     NO requiere autenticación.
-    
-    Retorna información pública del negocio:
-    - Nombre, descripción, categoría
-    - Logo, WhatsApp
-    - Links a sus páginas (tienda, landing, etc.)
-    - Info para calificar
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -302,7 +604,6 @@ def perfil_publico_negocio(slug):
                 "error": "Negocio no encontrado"
             }), 404
         
-        # Verificar si el perfil es público
         if not getattr(negocio, 'perfil_publico', True):
             return jsonify({
                 "success": False, 
@@ -317,7 +618,6 @@ def perfil_publico_negocio(slug):
                 numero = f"57{numero}"
             whatsapp_link = f"https://wa.me/{numero}"
         
-        # Construir respuesta pública
         data = {
             "id_negocio": negocio.id_negocio,
             "nombre": negocio.nombre_negocio,
@@ -326,30 +626,22 @@ def perfil_publico_negocio(slug):
             "logo_url": negocio.logo_url,
             "color_tema": negocio.color_tema,
             
-            # Contacto
             "telefono": negocio.telefono,
             "whatsapp": negocio.whatsapp,
             "whatsapp_link": whatsapp_link,
             "direccion": negocio.direccion,
             
-            # Ciudad
             "ciudad": negocio.ciudad.ciudad_nombre if negocio.ciudad else None,
             
-            # Páginas disponibles
             "tiene_pagina": negocio.tiene_pagina,
             "tipo_pagina": negocio.tipo_pagina,
             "slug": negocio.slug,
             
-            # URLs de páginas
             "urls": {
-                "tienda": f"/tienda/{negocio.slug}" if negocio.tiene_pagina and negocio.tipo_pagina == 'tienda' else None,
-                "catalogo": f"/catalogo/{negocio.slug}" if negocio.tiene_pagina and negocio.tipo_pagina == 'catalogo' else None,
-                "landing": f"/sitio/{negocio.slug}" if negocio.tiene_pagina else None,
-                "calificar": f"/calificar/{negocio.slug}",
+                "tienda": get_pagina_url(negocio.slug, 'tienda') if negocio.tiene_pagina and negocio.tipo_pagina in ['tienda', 'ecommerce'] else None,
                 "perfil_publico": get_perfil_publico_url(negocio.slug)
             },
             
-            # Para calificaciones (futuro)
             "puede_calificar": True
         }
         
@@ -361,7 +653,7 @@ def perfil_publico_negocio(slug):
 
 
 # ==========================================
-# QR GENÉRICO (para URLs personalizadas)
+# QR GENÉRICO
 # ==========================================
 
 @qr_generator_bp.route('/api/qr/generate', methods=['POST', 'OPTIONS'])
@@ -370,11 +662,6 @@ def generar_qr_generico():
     """
     Genera un QR para cualquier URL/dato.
     Requiere autenticación.
-    
-    Body:
-        - data: string a codificar (requerido)
-        - size: tamaño (opcional, default: 10)
-        - format: 'png' | 'base64' (opcional, default: 'base64')
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
