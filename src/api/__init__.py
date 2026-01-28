@@ -637,7 +637,7 @@ def register_api(app):
     print("\n" + "=" * 70)
     print("🔌 REGISTER_API: FINALIZADO")
     print("=" * 70)
-    
+    print("\n")
     return success_count, fail_count
 
 
