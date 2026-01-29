@@ -7,8 +7,8 @@ Endpoint para scroll infinito de videos con badges y métricas
 
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timedelta
-import random
-from src.models import db
+from src.models.database import db
+from sqlalchemy import text
 
 # Crear Blueprint
 videos_api = Blueprint('videos_api', __name__)
@@ -68,15 +68,11 @@ VALID_REACTIONS = ['fuego', 'profesional', 'inspirador', 'loquiero', 'crack', 'w
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ENDPOINT: GET /api/videos/feed
-# Feed de videos con paginación, filtros y badges
 # ═══════════════════════════════════════════════════════════════════════════════
 @videos_api.route('/feed', methods=['GET'])
 def get_video_feed():
-    """
-    Obtiene el feed de videos con scroll infinito.
-    """
+    """Obtiene el feed de videos con scroll infinito"""
     try:
-        # Obtener parámetros
         page = request.args.get('page', 1, type=int)
         limit = min(request.args.get('limit', 10, type=int), 20)
         tab = request.args.get('tab', 'para-ti')
@@ -85,12 +81,8 @@ def get_video_feed():
         
         offset = (page - 1) * limit
         
-        from db import get_db_connection
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
         # Query base
-        base_query = """
+        query = """
             SELECT 
                 v.id, v.titulo, v.descripcion, v.video_url, v.thumbnail_url,
                 v.duracion, v.calidad, v.vistas, v.likes, v.fecha_creacion,
@@ -103,61 +95,50 @@ def get_video_feed():
             WHERE v.activo = true AND n.activo = true
         """
         
-        params = []
+        params = {}
         
         if category:
-            base_query += " AND LOWER(n.categoria) = LOWER(%s)"
-            params.append(category)
+            query += " AND LOWER(n.categoria) = LOWER(:category)"
+            params['category'] = category
         
         if city:
-            base_query += " AND LOWER(n.ciudad) = LOWER(%s)"
-            params.append(city)
+            query += " AND LOWER(n.ciudad) = LOWER(:city)"
+            params['city'] = city
         
-        # Ordenamiento según tab
         if tab == 'tendencias':
-            base_query += " ORDER BY v.vistas DESC, v.likes DESC"
+            query += " ORDER BY v.vistas DESC, v.likes DESC"
         elif tab == 'nuevos':
-            base_query += " ORDER BY v.fecha_creacion DESC"
+            query += " ORDER BY v.fecha_creacion DESC"
         else:
-            base_query += " ORDER BY v.fecha_creacion DESC"
+            query += " ORDER BY v.fecha_creacion DESC"
         
-        base_query += " LIMIT %s OFFSET %s"
-        params.extend([limit, offset])
+        query += " LIMIT :limit OFFSET :offset"
+        params['limit'] = limit
+        params['offset'] = offset
         
-        cursor.execute(base_query, params)
-        rows = cursor.fetchall()
+        result = db.session.execute(text(query), params)
+        rows = result.fetchall()
         
         videos = []
         for row in rows:
-            video_id = row[0]
+            negocio_id = row[15]
             mostrar_badges = row[13]
             badges_ids = row[14]
-            negocio_id = row[15]
             
             badges = []
             if mostrar_badges is not False:
-                if badges_ids and len(badges_ids) > 0:
-                    cursor.execute("""
-                        SELECT id, nombre, descripcion, icono, color
-                        FROM catalogo_badges WHERE id = ANY(%s)
-                    """, [badges_ids])
-                    for badge_row in cursor.fetchall():
-                        badges.append({
-                            'id': badge_row[0], 'nombre': badge_row[1],
-                            'descripcion': badge_row[2], 'icono': badge_row[3], 'color': badge_row[4]
-                        })
-                else:
-                    cursor.execute("""
-                        SELECT cb.id, cb.nombre, cb.descripcion, cb.icono, cb.color
-                        FROM negocio_badges nb
-                        JOIN catalogo_badges cb ON nb.badge_id = cb.id
-                        WHERE nb.negocio_id = %s AND nb.activo = true LIMIT 3
-                    """, [negocio_id])
-                    for badge_row in cursor.fetchall():
-                        badges.append({
-                            'id': badge_row[0], 'nombre': badge_row[1],
-                            'descripcion': badge_row[2], 'icono': badge_row[3], 'color': badge_row[4]
-                        })
+                badge_result = db.session.execute(text("""
+                    SELECT cb.id, cb.nombre, cb.descripcion, cb.icono, cb.color
+                    FROM negocio_badges nb
+                    JOIN catalogo_badges cb ON nb.badge_id = cb.id
+                    WHERE nb.negocio_id = :negocio_id AND nb.activo = true LIMIT 3
+                """), {'negocio_id': negocio_id})
+                
+                for badge_row in badge_result.fetchall():
+                    badges.append({
+                        'id': badge_row[0], 'nombre': badge_row[1],
+                        'descripcion': badge_row[2], 'icono': badge_row[3], 'color': badge_row[4]
+                    })
             
             videos.append({
                 'id': row[0],
@@ -189,11 +170,8 @@ def get_video_feed():
             })
         
         # Contar total
-        cursor.execute("SELECT COUNT(*) FROM negocio_videos WHERE activo = true")
-        total = cursor.fetchone()[0]
-        
-        cursor.close()
-        conn.close()
+        count_result = db.session.execute(text("SELECT COUNT(*) FROM negocio_videos WHERE activo = true"))
+        total = count_result.scalar()
         
         return jsonify({
             'success': True,
@@ -210,6 +188,8 @@ def get_video_feed():
         
     except Exception as e:
         print(f"❌ Error en feed: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -220,11 +200,7 @@ def get_video_feed():
 def get_video(video_id):
     """Obtiene un video específico por ID"""
     try:
-        from db import get_db_connection
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("""
+        result = db.session.execute(text("""
             SELECT 
                 v.id, v.titulo, v.descripcion, v.video_url, v.thumbnail_url,
                 v.duracion, v.calidad, v.vistas, v.likes, v.fecha_creacion,
@@ -232,28 +208,23 @@ def get_video(video_id):
                 n.id, n.nombre_negocio, n.slug, n.logo_url, n.categoria, n.verificado, n.ciudad
             FROM negocio_videos v
             JOIN negocios n ON v.negocio_id = n.id
-            WHERE v.id = %s AND v.activo = true
-        """, [video_id])
+            WHERE v.id = :video_id AND v.activo = true
+        """), {'video_id': video_id})
         
-        row = cursor.fetchone()
+        row = result.fetchone()
         
         if not row:
-            cursor.close()
-            conn.close()
             return jsonify({'success': False, 'error': 'Video no encontrado'}), 404
         
-        cursor.execute("""
+        badge_result = db.session.execute(text("""
             SELECT cb.id, cb.nombre, cb.descripcion, cb.icono, cb.color
             FROM negocio_badges nb
             JOIN catalogo_badges cb ON nb.badge_id = cb.id
-            WHERE nb.negocio_id = %s AND nb.activo = true LIMIT 3
-        """, [row[13]])
+            WHERE nb.negocio_id = :negocio_id AND nb.activo = true LIMIT 3
+        """), {'negocio_id': row[13]})
         
         badges = [{'id': b[0], 'nombre': b[1], 'descripcion': b[2], 'icono': b[3], 'color': b[4]} 
-                  for b in cursor.fetchall()]
-        
-        cursor.close()
-        conn.close()
+                  for b in badge_result.fetchall()]
         
         return jsonify({
             'success': True,
@@ -314,55 +285,57 @@ def upload_video():
         if len(titulo) > 100:
             return jsonify({'success': False, 'error': 'El título no puede exceder 100 caracteres'}), 400
         
+        # Verificar negocio
+        negocio_check = db.session.execute(text(
+            "SELECT id FROM negocios WHERE id = :id AND activo = true"
+        ), {'id': data['negocio_id']})
+        
+        if not negocio_check.fetchone():
+            return jsonify({'success': False, 'error': 'Negocio no encontrado'}), 404
+        
+        # Procesar badges_ids
         badges_ids = data.get('badges_ids', [])
         badges_ids_str = '{' + ','.join(map(str, badges_ids)) + '}' if badges_ids else None
         
+        # Procesar hashtags
         hashtags = data.get('hashtags', [])
         hashtags_str = '{' + ','.join(f'"{tag}"' for tag in hashtags[:5]) + '}' if hashtags else None
         
-        from db import get_db_connection
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("SELECT id FROM negocios WHERE id = %s AND activo = true", [data['negocio_id']])
-        if not cursor.fetchone():
-            cursor.close()
-            conn.close()
-            return jsonify({'success': False, 'error': 'Negocio no encontrado'}), 404
-        
-        cursor.execute("""
+        # Insertar video
+        result = db.session.execute(text("""
             INSERT INTO negocio_videos (
                 negocio_id, titulo, descripcion, video_url, video_tipo,
                 thumbnail_url, categoria, hashtags, mostrar_badges, badges_ids,
                 metrica_nombre, metrica_valor, metrica_tendencia,
                 vistas, likes, comentarios, compartidos, activo, fecha_creacion
             ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0, 0, 0, 0, true, NOW()
+                :negocio_id, :titulo, :descripcion, :video_url, :video_tipo,
+                :thumbnail_url, :categoria, :hashtags, :mostrar_badges, :badges_ids,
+                :metrica_nombre, :metrica_valor, :metrica_tendencia,
+                0, 0, 0, 0, true, NOW()
             )
             RETURNING id, fecha_creacion
-        """, [
-            data['negocio_id'],
-            titulo,
-            data.get('descripcion', '').strip()[:500],
-            data.get('video_url', '').strip(),
-            data.get('video_tipo', 'cloudinary'),
-            data.get('thumbnail_url'),
-            data.get('categoria'),
-            hashtags_str,
-            data.get('mostrar_badges', True),
-            badges_ids_str,
-            data.get('metrica_nombre'),
-            data.get('metrica_valor'),
-            data.get('metrica_tendencia', 'up')
-        ])
+        """), {
+            'negocio_id': data['negocio_id'],
+            'titulo': titulo,
+            'descripcion': data.get('descripcion', '').strip()[:500],
+            'video_url': data.get('video_url', '').strip(),
+            'video_tipo': data.get('video_tipo', 'cloudinary'),
+            'thumbnail_url': data.get('thumbnail_url'),
+            'categoria': data.get('categoria'),
+            'hashtags': hashtags_str,
+            'mostrar_badges': data.get('mostrar_badges', True),
+            'badges_ids': badges_ids_str,
+            'metrica_nombre': data.get('metrica_nombre'),
+            'metrica_valor': data.get('metrica_valor'),
+            'metrica_tendencia': data.get('metrica_tendencia', 'up')
+        })
         
-        result = cursor.fetchone()
-        video_id = result[0]
-        fecha_creacion = result[1]
+        row = result.fetchone()
+        video_id = row[0]
+        fecha_creacion = row[1]
         
-        conn.commit()
-        cursor.close()
-        conn.close()
+        db.session.commit()
         
         return jsonify({
             'success': True,
@@ -375,6 +348,7 @@ def upload_video():
         }), 201
         
     except Exception as e:
+        db.session.rollback()
         print(f"❌ Error subiendo video: {e}")
         import traceback
         traceback.print_exc()
@@ -388,33 +362,25 @@ def upload_video():
 def get_negocio_badges_for_video(negocio_id):
     """Obtiene los badges de un negocio para el editor de video"""
     try:
-        from db import get_db_connection
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("""
+        result = db.session.execute(text("""
             SELECT cb.id, cb.nombre, cb.descripcion, cb.icono, cb.color, nb.nivel
             FROM negocio_badges nb
             JOIN catalogo_badges cb ON nb.badge_id = cb.id
-            WHERE nb.negocio_id = %s AND nb.activo = true
+            WHERE nb.negocio_id = :negocio_id AND nb.activo = true
             ORDER BY nb.fecha_obtencion DESC
-        """, [negocio_id])
+        """), {'negocio_id': negocio_id})
         
         badges = []
-        for row in cursor.fetchall():
+        for row in result.fetchall():
             badges.append({
                 'id': row[0], 'nombre': row[1], 'descripcion': row[2],
                 'icono': row[3] or 'bi-award', 'color': row[4] or '#a855f7', 'nivel': row[5] or 1
             })
         
-        cursor.close()
-        conn.close()
-        
         return jsonify({'success': True, 'data': {'badges': badges, 'total': len(badges)}})
         
     except Exception as e:
         print(f"❌ Error obteniendo badges: {e}")
-        # Fallback
         return jsonify({
             'success': True,
             'data': {
@@ -435,22 +401,18 @@ def get_negocio_badges_for_video(negocio_id):
 def get_negocio_videos(negocio_id):
     """Obtiene todos los videos de un negocio"""
     try:
-        from db import get_db_connection
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("""
+        result = db.session.execute(text("""
             SELECT id, titulo, descripcion, video_url, video_tipo, thumbnail_url,
                    categoria, hashtags, duracion, calidad, vistas, likes,
                    metrica_nombre, metrica_valor, metrica_tendencia,
                    destacado, activo, fecha_creacion
             FROM negocio_videos
-            WHERE negocio_id = %s AND activo = true
+            WHERE negocio_id = :negocio_id AND activo = true
             ORDER BY destacado DESC, fecha_creacion DESC
-        """, [negocio_id])
+        """), {'negocio_id': negocio_id})
         
         videos = []
-        for row in cursor.fetchall():
+        for row in result.fetchall():
             videos.append({
                 'id': row[0], 'titulo': row[1], 'descripcion': row[2],
                 'video_url': row[3], 'video_tipo': row[4], 'thumbnail_url': row[5],
@@ -460,9 +422,6 @@ def get_negocio_videos(negocio_id):
                 'destacado': row[15], 'activo': row[16],
                 'fecha': row[17].isoformat() if row[17] else None
             })
-        
-        cursor.close()
-        conn.close()
         
         return jsonify({'success': True, 'data': {'videos': videos, 'total': len(videos)}})
         
@@ -478,19 +437,15 @@ def get_negocio_videos(negocio_id):
 def register_view(video_id):
     """Registra una vista del video"""
     try:
-        from db import get_db_connection
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("UPDATE negocio_videos SET vistas = COALESCE(vistas, 0) + 1 WHERE id = %s", [video_id])
-        
-        conn.commit()
-        cursor.close()
-        conn.close()
+        db.session.execute(text(
+            "UPDATE negocio_videos SET vistas = COALESCE(vistas, 0) + 1 WHERE id = :id"
+        ), {'id': video_id})
+        db.session.commit()
         
         return jsonify({'success': True})
         
     except Exception as e:
+        db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -504,22 +459,20 @@ def toggle_like(video_id):
         data = request.get_json() or {}
         action = data.get('action', 'like')
         
-        from db import get_db_connection
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
         if action == 'like':
-            cursor.execute("UPDATE negocio_videos SET likes = COALESCE(likes, 0) + 1 WHERE id = %s", [video_id])
+            db.session.execute(text(
+                "UPDATE negocio_videos SET likes = COALESCE(likes, 0) + 1 WHERE id = :id"
+            ), {'id': video_id})
         else:
-            cursor.execute("UPDATE negocio_videos SET likes = GREATEST(COALESCE(likes, 0) - 1, 0) WHERE id = %s", [video_id])
+            db.session.execute(text(
+                "UPDATE negocio_videos SET likes = GREATEST(COALESCE(likes, 0) - 1, 0) WHERE id = :id"
+            ), {'id': video_id})
         
-        conn.commit()
-        cursor.close()
-        conn.close()
-        
+        db.session.commit()
         return jsonify({'success': True, 'action': action})
         
     except Exception as e:
+        db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -542,31 +495,26 @@ def toggle_reaction(video_id):
             import uuid
             session_id = str(uuid.uuid4())
         
-        from db import get_db_connection
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
         if action == 'add':
-            cursor.execute("""
+            db.session.execute(text("""
                 INSERT INTO video_reacciones (video_id, session_id, tipo_reaccion)
-                VALUES (%s, %s, %s)
+                VALUES (:video_id, :session_id, :tipo)
                 ON CONFLICT (video_id, session_id) 
                 DO UPDATE SET tipo_reaccion = EXCLUDED.tipo_reaccion, created_at = NOW()
-            """, [video_id, session_id, reaction_type])
+            """), {'video_id': video_id, 'session_id': session_id, 'tipo': reaction_type})
         else:
-            cursor.execute("DELETE FROM video_reacciones WHERE video_id = %s AND session_id = %s", [video_id, session_id])
+            db.session.execute(text(
+                "DELETE FROM video_reacciones WHERE video_id = :video_id AND session_id = :session_id"
+            ), {'video_id': video_id, 'session_id': session_id})
         
-        conn.commit()
+        db.session.commit()
         
-        cursor.execute("""
+        result = db.session.execute(text("""
             SELECT tipo_reaccion, COUNT(*) FROM video_reacciones
-            WHERE video_id = %s GROUP BY tipo_reaccion
-        """, [video_id])
+            WHERE video_id = :video_id GROUP BY tipo_reaccion
+        """), {'video_id': video_id})
         
-        counts = {row[0]: row[1] for row in cursor.fetchall()}
-        
-        cursor.close()
-        conn.close()
+        counts = {row[0]: row[1] for row in result.fetchall()}
         
         return jsonify({
             'success': True,
@@ -577,6 +525,7 @@ def toggle_reaction(video_id):
         })
         
     except Exception as e:
+        db.session.rollback()
         print(f"❌ Error en reacción: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -588,31 +537,26 @@ def toggle_reaction(video_id):
 def get_reactions(video_id):
     """Obtiene el conteo de reacciones de un video"""
     try:
-        from db import get_db_connection
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("""
+        result = db.session.execute(text("""
             SELECT tipo_reaccion, COUNT(*) FROM video_reacciones
-            WHERE video_id = %s GROUP BY tipo_reaccion
-        """, [video_id])
+            WHERE video_id = :video_id GROUP BY tipo_reaccion
+        """), {'video_id': video_id})
         
         counts = {r: 0 for r in VALID_REACTIONS}
         total = 0
-        for row in cursor.fetchall():
+        for row in result.fetchall():
             counts[row[0]] = row[1]
             total += row[1]
         
         session_id = request.headers.get('X-Session-ID') or request.cookies.get('session_id')
         user_reaction = None
         if session_id:
-            cursor.execute("SELECT tipo_reaccion FROM video_reacciones WHERE video_id = %s AND session_id = %s", [video_id, session_id])
-            row = cursor.fetchone()
+            ur_result = db.session.execute(text(
+                "SELECT tipo_reaccion FROM video_reacciones WHERE video_id = :video_id AND session_id = :session_id"
+            ), {'video_id': video_id, 'session_id': session_id})
+            row = ur_result.fetchone()
             if row:
                 user_reaction = row[0]
-        
-        cursor.close()
-        conn.close()
         
         return jsonify({
             'success': True,
@@ -631,25 +575,18 @@ def get_reactions(video_id):
 def delete_video(video_id):
     """Elimina un video (soft delete)"""
     try:
-        from db import get_db_connection
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        result = db.session.execute(text(
+            "UPDATE negocio_videos SET activo = false WHERE id = :id RETURNING id"
+        ), {'id': video_id})
         
-        cursor.execute("UPDATE negocio_videos SET activo = false WHERE id = %s RETURNING id", [video_id])
-        result = cursor.fetchone()
-        
-        if not result:
-            cursor.close()
-            conn.close()
+        if not result.fetchone():
             return jsonify({'success': False, 'error': 'Video no encontrado'}), 404
         
-        conn.commit()
-        cursor.close()
-        conn.close()
-        
+        db.session.commit()
         return jsonify({'success': True, 'message': 'Video eliminado'})
         
     except Exception as e:
+        db.session.rollback()
         print(f"❌ Error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -669,37 +606,27 @@ def update_video(video_id):
                          'metrica_nombre', 'metrica_valor', 'metrica_tendencia', 'destacado']
         
         updates = []
-        values = []
+        params = {'video_id': video_id}
+        
         for field in allowed_fields:
             if field in data:
-                updates.append(f"{field} = %s")
-                values.append(data[field])
+                updates.append(f"{field} = :{field}")
+                params[field] = data[field]
         
         if not updates:
             return jsonify({'success': False, 'error': 'No hay campos para actualizar'}), 400
         
-        values.append(video_id)
+        query = f"UPDATE negocio_videos SET {', '.join(updates)} WHERE id = :video_id RETURNING id"
+        result = db.session.execute(text(query), params)
         
-        from db import get_db_connection
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        query = f"UPDATE negocio_videos SET {', '.join(updates)} WHERE id = %s RETURNING id"
-        cursor.execute(query, values)
-        result = cursor.fetchone()
-        
-        if not result:
-            cursor.close()
-            conn.close()
+        if not result.fetchone():
             return jsonify({'success': False, 'error': 'Video no encontrado'}), 404
         
-        conn.commit()
-        cursor.close()
-        conn.close()
-        
+        db.session.commit()
         return jsonify({'success': True, 'message': 'Video actualizado'})
         
     except Exception as e:
+        db.session.rollback()
         print(f"❌ Error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -711,28 +638,23 @@ def update_video(video_id):
 def toggle_destacado(video_id):
     """Marca o desmarca un video como destacado"""
     try:
-        from db import get_db_connection
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        result = db.session.execute(text(
+            "UPDATE negocio_videos SET destacado = NOT destacado WHERE id = :id RETURNING id, destacado"
+        ), {'id': video_id})
         
-        cursor.execute("UPDATE negocio_videos SET destacado = NOT destacado WHERE id = %s RETURNING id, destacado", [video_id])
-        result = cursor.fetchone()
-        
-        if not result:
-            cursor.close()
-            conn.close()
+        row = result.fetchone()
+        if not row:
             return jsonify({'success': False, 'error': 'Video no encontrado'}), 404
         
-        conn.commit()
-        cursor.close()
-        conn.close()
+        db.session.commit()
         
         return jsonify({
             'success': True,
-            'destacado': result[1],
-            'message': 'Video destacado' if result[1] else 'Video ya no destacado'
+            'destacado': row[1],
+            'message': 'Video destacado' if row[1] else 'Video ya no destacado'
         })
         
     except Exception as e:
+        db.session.rollback()
         print(f"❌ Error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
