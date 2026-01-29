@@ -84,7 +84,7 @@ def get_video_feed():
         # Query base
         query = """
             SELECT 
-                v.id, v.titulo, v.descripcion, v.video_url, v.thumbnail_url,
+                v.id, v.titulo, v.descripcion, v.url_video, v.url_thumbnail,
                 v.duracion, v.calidad, v.vistas, v.likes, v.fecha_creacion,
                 v.metrica_nombre, v.metrica_valor, v.metrica_tendencia,
                 v.mostrar_badges, v.badges_ids,
@@ -92,7 +92,7 @@ def get_video_feed():
                 n.categoria, n.verificado, n.ciudad
             FROM negocio_videos v
             JOIN negocios n ON v.negocio_id = n.id
-            WHERE v.activo = true AND n.activo = true
+            WHERE v.visible = true AND n.visible = true
         """
         
         params = {}
@@ -131,7 +131,7 @@ def get_video_feed():
                     SELECT cb.id, cb.nombre, cb.descripcion, cb.icono, cb.color
                     FROM negocio_badges nb
                     JOIN catalogo_badges cb ON nb.badge_id = cb.id
-                    WHERE nb.negocio_id = :negocio_id AND nb.activo = true LIMIT 3
+                    WHERE nb.negocio_id = :negocio_id AND nb.visible = true LIMIT 3
                 """), {'negocio_id': negocio_id})
                 
                 for badge_row in badge_result.fetchall():
@@ -144,7 +144,7 @@ def get_video_feed():
                 'id': row[0],
                 'titulo': row[1],
                 'descripcion': row[2],
-                'video_url': row[3],
+                'url_video': row[3],
                 'thumbnail': row[4],
                 'duracion': row[5],
                 'calidad': row[6] or 'HD',
@@ -170,7 +170,7 @@ def get_video_feed():
             })
         
         # Contar total
-        count_result = db.session.execute(text("SELECT COUNT(*) FROM negocio_videos WHERE activo = true"))
+        count_result = db.session.execute(text("SELECT COUNT(*) FROM negocio_videos WHERE visible = true"))
         total = count_result.scalar()
         
         return jsonify({
@@ -202,13 +202,13 @@ def get_video(video_id):
     try:
         result = db.session.execute(text("""
             SELECT 
-                v.id, v.titulo, v.descripcion, v.video_url, v.thumbnail_url,
+                v.id, v.titulo, v.descripcion, v.url_video, v.url_thumbnail,
                 v.duracion, v.calidad, v.vistas, v.likes, v.fecha_creacion,
                 v.metrica_nombre, v.metrica_valor, v.metrica_tendencia,
                 n.id, n.nombre_negocio, n.slug, n.logo_url, n.categoria, n.verificado, n.ciudad
             FROM negocio_videos v
             JOIN negocios n ON v.negocio_id = n.id
-            WHERE v.id = :video_id AND v.activo = true
+            WHERE v.id = :video_id AND v.visible = true
         """), {'video_id': video_id})
         
         row = result.fetchone()
@@ -220,7 +220,7 @@ def get_video(video_id):
             SELECT cb.id, cb.nombre, cb.descripcion, cb.icono, cb.color
             FROM negocio_badges nb
             JOIN catalogo_badges cb ON nb.badge_id = cb.id
-            WHERE nb.negocio_id = :negocio_id AND nb.activo = true LIMIT 3
+            WHERE nb.negocio_id = :negocio_id AND nb.visible = true LIMIT 3
         """), {'negocio_id': row[13]})
         
         badges = [{'id': b[0], 'nombre': b[1], 'descripcion': b[2], 'icono': b[3], 'color': b[4]} 
@@ -232,7 +232,7 @@ def get_video(video_id):
                 'id': row[0],
                 'titulo': row[1],
                 'descripcion': row[2],
-                'video_url': row[3],
+                'url_video': row[3],
                 'thumbnail': row[4],
                 'duracion': row[5],
                 'calidad': row[6] or 'HD',
@@ -273,7 +273,7 @@ def upload_video():
         if not data:
             return jsonify({'success': False, 'error': 'No se recibieron datos'}), 400
         
-        required_fields = ['negocio_id', 'titulo', 'video_url']
+        required_fields = ['negocio_id', 'titulo', 'url_video']
         for field in required_fields:
             if not data.get(field):
                 return jsonify({'success': False, 'error': f'Campo requerido: {field}'}), 400
@@ -287,7 +287,7 @@ def upload_video():
         
         # Verificar negocio
         negocio_check = db.session.execute(text(
-            "SELECT id_negocio FROM negocios WHERE id_negocio = :id AND activo = true"
+            "SELECT id_negocio FROM negocios WHERE id_negocio = :id AND visible = true"
         ), {'id': data['negocio_id']})
         
         if not negocio_check.fetchone():
@@ -304,13 +304,13 @@ def upload_video():
         # Insertar video
         result = db.session.execute(text("""
             INSERT INTO negocio_videos (
-                negocio_id, titulo, descripcion, video_url, video_tipo,
-                thumbnail_url, categoria, hashtags, mostrar_badges, badges_ids,
+                negocio_id, titulo, descripcion, url_video, fuente,
+                url_thumbnail, categoria, hashtags, mostrar_badges, badges_ids,
                 metrica_nombre, metrica_valor, metrica_tendencia,
-                vistas, likes, comentarios, compartidos, activo, fecha_creacion
+                vistas, likes, comentarios, compartidos, visible, fecha_creacion
             ) VALUES (
-                :negocio_id, :titulo, :descripcion, :video_url, :video_tipo,
-                :thumbnail_url, :categoria, :hashtags, :mostrar_badges, :badges_ids,
+                :negocio_id, :titulo, :descripcion, :url_video, :fuente,
+                :url_thumbnail, :categoria, :hashtags, :mostrar_badges, :badges_ids,
                 :metrica_nombre, :metrica_valor, :metrica_tendencia,
                 0, 0, 0, 0, true, NOW()
             )
@@ -319,9 +319,9 @@ def upload_video():
             'negocio_id': data['negocio_id'],
             'titulo': titulo,
             'descripcion': data.get('descripcion', '').strip()[:500],
-            'video_url': data.get('video_url', '').strip(),
-            'video_tipo': data.get('video_tipo', 'cloudinary'),
-            'thumbnail_url': data.get('thumbnail_url'),
+            'url_video': data.get('url_video', '').strip(),
+            'fuente': data.get('fuente', 'cloudinary'),
+            'url_thumbnail': data.get('url_thumbnail'),
             'categoria': data.get('categoria'),
             'hashtags': hashtags_str,
             'mostrar_badges': data.get('mostrar_badges', True),
@@ -366,7 +366,7 @@ def get_negocio_badges_for_video(negocio_id):
             SELECT cb.id, cb.nombre, cb.descripcion, cb.icono, cb.color, nb.nivel
             FROM negocio_badges nb
             JOIN catalogo_badges cb ON nb.badge_id = cb.id
-            WHERE nb.negocio_id = :negocio_id AND nb.activo = true
+            WHERE nb.negocio_id = :negocio_id AND nb.visible = true
             ORDER BY nb.fecha_obtencion DESC
         """), {'negocio_id': negocio_id})
         
@@ -402,12 +402,12 @@ def get_negocio_videos(negocio_id):
     """Obtiene todos los videos de un negocio"""
     try:
         result = db.session.execute(text("""
-            SELECT id, titulo, descripcion, video_url, video_tipo, thumbnail_url,
+            SELECT id, titulo, descripcion, url_video, fuente, url_thumbnail,
                    categoria, hashtags, duracion, calidad, vistas, likes,
                    metrica_nombre, metrica_valor, metrica_tendencia,
-                   destacado, activo, fecha_creacion
+                   destacado, visible, fecha_creacion
             FROM negocio_videos
-            WHERE negocio_id = :negocio_id AND activo = true
+            WHERE negocio_id = :negocio_id AND visible = true
             ORDER BY destacado DESC, fecha_creacion DESC
         """), {'negocio_id': negocio_id})
         
@@ -415,7 +415,7 @@ def get_negocio_videos(negocio_id):
         for row in result.fetchall():
             videos.append({
                 'id': row[0], 'titulo': row[1], 'descripcion': row[2],
-                'video_url': row[3], 'video_tipo': row[4], 'thumbnail_url': row[5],
+                'url_video': row[3], 'fuente': row[4], 'url_thumbnail': row[5],
                 'categoria': row[6], 'hashtags': row[7] or [], 'duracion': row[8],
                 'calidad': row[9], 'vistas': row[10] or 0, 'likes': row[11] or 0,
                 'metrica': {'nombre': row[12], 'valor': row[13], 'tendencia': row[14]} if row[12] else None,
@@ -576,7 +576,7 @@ def delete_video(video_id):
     """Elimina un video (soft delete)"""
     try:
         result = db.session.execute(text(
-            "UPDATE negocio_videos SET activo = false WHERE id = :id RETURNING id"
+            "UPDATE negocio_videos SET visible = false WHERE id = :id RETURNING id"
         ), {'id': video_id})
         
         if not result.fetchone():
