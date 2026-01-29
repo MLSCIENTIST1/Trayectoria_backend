@@ -205,7 +205,7 @@ def get_video(video_id):
                 v.id, v.titulo, v.descripcion, v.url_video, v.url_thumbnail,
                 v.duracion, v.calidad, v.vistas, v.likes, v.fecha_creacion,
                 v.metrica_nombre, v.metrica_valor, v.metrica_tendencia,
-                n.id, n.nombre_negocio, n.slug, n.logo_url, n.categoria, n.verificado, n.ciudad
+                n.id_negocio, n.nombre_negocio, n.slug, n.logo_url, n.categoria, n.verificado, n.ciudad
             FROM negocio_videos v
             JOIN negocios n ON v.negocio_id = n.id_negocio
             WHERE v.id = :video_id AND v.visible = true
