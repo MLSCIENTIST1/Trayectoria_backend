@@ -85,7 +85,7 @@ def get_video_feed():
         query = """
             SELECT 
                 v.id, v.titulo, v.descripcion, v.url_video, v.url_thumbnail,
-                v.duracion, v.calidad, v.vistas, v.likes, v.fecha_creacion,
+                v.duracion_segundos, v.calidad, v.vistas, v.likes, v.fecha_creacion,
                 v.metrica_nombre, v.metrica_valor, v.metrica_tendencia,
                 v.mostrar_badges, v.badges_ids,
                 n.id_negocio as negocio_id, n.nombre_negocio, n.slug, n.logo_url,
@@ -146,7 +146,7 @@ def get_video_feed():
                 'descripcion': row[2],
                 'url_video': row[3],
                 'thumbnail': row[4],
-                'duracion': row[5],
+                'duracion_segundos': row[5],
                 'calidad': row[6] or 'HD',
                 'vistas': row[7] or 0,
                 'likes': row[8] or 0,
@@ -203,7 +203,7 @@ def get_video(video_id):
         result = db.session.execute(text("""
             SELECT 
                 v.id, v.titulo, v.descripcion, v.url_video, v.url_thumbnail,
-                v.duracion, v.calidad, v.vistas, v.likes, v.fecha_creacion,
+                v.duracion_segundos, v.calidad, v.vistas, v.likes, v.fecha_creacion,
                 v.metrica_nombre, v.metrica_valor, v.metrica_tendencia,
                 n.id_negocio, n.nombre_negocio, n.slug, n.logo_url, n.categoria, n.verificado, n.ciudad
             FROM negocio_videos v
@@ -234,7 +234,7 @@ def get_video(video_id):
                 'descripcion': row[2],
                 'url_video': row[3],
                 'thumbnail': row[4],
-                'duracion': row[5],
+                'duracion_segundos': row[5],
                 'calidad': row[6] or 'HD',
                 'vistas': row[7] or 0,
                 'likes': row[8] or 0,
@@ -416,7 +416,7 @@ def get_negocio_videos(negocio_id):
             videos.append({
                 'id': row[0], 'titulo': row[1], 'descripcion': row[2],
                 'url_video': row[3], 'fuente': row[4], 'url_thumbnail': row[5],
-                'categoria': row[6], 'hashtags': row[7] or [], 'duracion': row[8],
+                'categoria': row[6], 'hashtags': row[7] or [], 'duracion_segundos': row[8],
                 'calidad': row[9], 'vistas': row[10] or 0, 'likes': row[11] or 0,
                 'metrica': {'nombre': row[12], 'valor': row[13], 'tendencia': row[14]} if row[12] else None,
                 'destacado': row[15], 'activo': row[16],
