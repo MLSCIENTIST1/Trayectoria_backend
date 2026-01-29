@@ -88,10 +88,10 @@ def get_video_feed():
                 v.duracion, v.calidad, v.vistas, v.likes, v.fecha_creacion,
                 v.metrica_nombre, v.metrica_valor, v.metrica_tendencia,
                 v.mostrar_badges, v.badges_ids,
-                n.id as negocio_id, n.nombre_negocio, n.slug, n.logo_url,
+                n.id_negocio as negocio_id, n.nombre_negocio, n.slug, n.logo_url,
                 n.categoria, n.verificado, n.ciudad
             FROM negocio_videos v
-            JOIN negocios n ON v.negocio_id = n.id
+            JOIN negocios n ON v.negocio_id = n.id_negocio
             WHERE v.visible = true AND n.visible = true
         """
         
@@ -207,7 +207,7 @@ def get_video(video_id):
                 v.metrica_nombre, v.metrica_valor, v.metrica_tendencia,
                 n.id, n.nombre_negocio, n.slug, n.logo_url, n.categoria, n.verificado, n.ciudad
             FROM negocio_videos v
-            JOIN negocios n ON v.negocio_id = n.id
+            JOIN negocios n ON v.negocio_id = n.id_negocio
             WHERE v.id = :video_id AND v.visible = true
         """), {'video_id': video_id})
         
