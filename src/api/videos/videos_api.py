@@ -2,6 +2,7 @@
 ═══════════════════════════════════════════════════════════════════════════════
 TUKOMERCIO - API FEED DE VIDEOS
 Endpoint para scroll infinito de videos con badges y métricas
+v2.1 - Con autenticación X-User-ID y persistencia de reacciones
 ═══════════════════════════════════════════════════════════════════════════════
 """
 
@@ -9,6 +10,7 @@ from flask import Blueprint, request, jsonify
 from datetime import datetime, timedelta
 from src.models.database import db
 from sqlalchemy import text
+import uuid
 
 # Crear Blueprint
 videos_api = Blueprint('videos_api', __name__)
@@ -67,6 +69,59 @@ VALID_REACTIONS = ['fuego', 'profesional', 'inspirador', 'loquiero', 'crack', 'w
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# HELPER: OBTENER IDENTIFICADOR DE USUARIO
+# ═══════════════════════════════════════════════════════════════════════════════
+def get_user_identifier():
+    """
+    Obtiene el identificador del usuario.
+    Prioriza X-User-ID (usuario autenticado) sobre X-Session-ID (anónimo).
+    Returns: tuple (user_id, session_id) - uno será None
+    """
+    user_id = request.headers.get('X-User-ID')
+    session_id = request.headers.get('X-Session-ID') or request.cookies.get('session_id')
+    
+    # Validar que user_id sea numérico
+    if user_id:
+        try:
+            user_id = int(user_id)
+        except (ValueError, TypeError):
+            user_id = None
+    
+    return user_id, session_id
+
+
+def get_user_reaction_for_video(video_id, user_id, session_id):
+    """
+    Obtiene la reacción del usuario para un video específico.
+    Prioriza usuario_id sobre session_id.
+    """
+    user_reaction = None
+    
+    if user_id:
+        # Usuario autenticado - buscar por usuario_id
+        ur_result = db.session.execute(text("""
+            SELECT tipo_reaccion FROM video_reacciones 
+            WHERE video_id = :video_id AND usuario_id = :user_id
+            LIMIT 1
+        """), {'video_id': video_id, 'user_id': user_id})
+        ur_row = ur_result.fetchone()
+        if ur_row:
+            user_reaction = ur_row[0]
+    elif session_id:
+        # Usuario anónimo - buscar por session_id
+        ur_result = db.session.execute(text("""
+            SELECT tipo_reaccion FROM video_reacciones 
+            WHERE video_id = :video_id AND session_id = :session_id
+            LIMIT 1
+        """), {'video_id': video_id, 'session_id': session_id})
+        ur_row = ur_result.fetchone()
+        if ur_row:
+            user_reaction = ur_row[0]
+    
+    return user_reaction
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # ENDPOINT: GET /api/videos/feed
 # ═══════════════════════════════════════════════════════════════════════════════
 @videos_api.route('/feed', methods=['GET'])
@@ -80,6 +135,9 @@ def get_video_feed():
         city = request.args.get('city', '')
         
         offset = (page - 1) * limit
+        
+        # Obtener identificador del usuario para user_reaction
+        user_id, session_id = get_user_identifier()
         
         # Query base
         query = """
@@ -149,7 +207,13 @@ def get_video_feed():
             """), {'video_id': video_id})
             reactions = {r: 0 for r in VALID_REACTIONS}
             for r_row in reactions_result.fetchall():
-                reactions[r_row[0]] = r_row[1]
+                if r_row[0] in VALID_REACTIONS:
+                    reactions[r_row[0]] = r_row[1]
+            
+            # ═══════════════════════════════════════════════════════════════
+            # NUEVO: Obtener user_reaction (reacción del usuario actual)
+            # ═══════════════════════════════════════════════════════════════
+            user_reaction = get_user_reaction_for_video(video_id, user_id, session_id)
             
             videos.append({
                 'id': video_id,
@@ -178,7 +242,8 @@ def get_video_feed():
                     'valor': row[11] or '---',
                     'tendencia': row[12] or 'neutral'
                 },
-                'reactions': reactions
+                'reactions': reactions,
+                'user_reaction': user_reaction  # ← NUEVO
             })
         
         # Contar total
@@ -212,6 +277,9 @@ def get_video_feed():
 def get_video(video_id):
     """Obtiene un video específico por ID"""
     try:
+        # Obtener identificador del usuario
+        user_id, session_id = get_user_identifier()
+        
         result = db.session.execute(text("""
             SELECT 
                 v.id, v.titulo, v.descripcion, v.url_video, v.url_thumbnail,
@@ -245,7 +313,11 @@ def get_video(video_id):
         """), {'video_id': video_id})
         reactions = {r: 0 for r in VALID_REACTIONS}
         for r_row in reactions_result.fetchall():
-            reactions[r_row[0]] = r_row[1]
+            if r_row[0] in VALID_REACTIONS:
+                reactions[r_row[0]] = r_row[1]
+        
+        # NUEVO: Obtener user_reaction
+        user_reaction = get_user_reaction_for_video(video_id, user_id, session_id)
         
         return jsonify({
             'success': True,
@@ -275,7 +347,8 @@ def get_video(video_id):
                     'valor': row[11] or '---',
                     'tendencia': row[12] or 'neutral'
                 },
-                'reactions': reactions
+                'reactions': reactions,
+                'user_reaction': user_reaction  # ← NUEVO
             }
         })
         
@@ -423,6 +496,9 @@ def get_negocio_badges_for_video(negocio_id):
 def get_negocio_videos(negocio_id):
     """Obtiene todos los videos de un negocio"""
     try:
+        # Obtener identificador del usuario
+        user_id, session_id = get_user_identifier()
+        
         result = db.session.execute(text("""
             SELECT id, titulo, descripcion, url_video, fuente, url_thumbnail,
                    categoria, hashtags, duracion, calidad, vistas, likes,
@@ -435,21 +511,29 @@ def get_negocio_videos(negocio_id):
         
         videos = []
         for row in result.fetchall():
+            video_id = row[0]
+            
+            # Obtener reacciones
             reactions_result = db.session.execute(text("""
                 SELECT tipo_reaccion, COUNT(*) FROM video_reacciones
                 WHERE video_id = :video_id GROUP BY tipo_reaccion
-            """), {'video_id': row[0]})
+            """), {'video_id': video_id})
             reactions = {r: 0 for r in VALID_REACTIONS}
             for r_row in reactions_result.fetchall():
-                reactions[r_row[0]] = r_row[1]
+                if r_row[0] in VALID_REACTIONS:
+                    reactions[r_row[0]] = r_row[1]
+            
+            # NUEVO: Obtener user_reaction
+            user_reaction = get_user_reaction_for_video(video_id, user_id, session_id)
             
             videos.append({
-                'id': row[0], 'titulo': row[1], 'descripcion': row[2],
+                'id': video_id, 'titulo': row[1], 'descripcion': row[2],
                 'video_url': row[3], 'fuente': row[4], 'url_thumbnail': row[5],
                 'categoria': row[6], 'hashtags': row[7] or [], 'duracion_segundos': row[8],
                 'calidad': row[9], 'vistas': row[10] or 0, 'likes': row[11] or 0,
                 'metrica': {'nombre': row[12], 'valor': row[13], 'tendencia': row[14]} if row[12] else None,
                 'reactions': reactions,
+                'user_reaction': user_reaction,  # ← NUEVO
                 'destacado': row[15], 'activo': row[16],
                 'fecha': row[17].isoformat() if row[17] else None
             })
@@ -508,11 +592,16 @@ def toggle_like(video_id):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# ENDPOINT: POST /api/videos/<id>/reaction
+# ENDPOINT: POST /api/videos/<id>/reaction - MEJORADO CON X-User-ID
 # ═══════════════════════════════════════════════════════════════════════════════
 @videos_api.route('/<int:video_id>/reaction', methods=['POST'])
 def toggle_reaction(video_id):
-    """Agrega o quita una reacción a un video"""
+    """
+    Agrega o quita una reacción a un video.
+    Prioriza X-User-ID (usuario autenticado) sobre X-Session-ID (anónimo).
+    - Si action='add': elimina reacción anterior y agrega la nueva
+    - Si action='remove': elimina la reacción
+    """
     try:
         data = request.get_json() or {}
         reaction_type = data.get('reaction_type')
@@ -521,43 +610,72 @@ def toggle_reaction(video_id):
         if reaction_type not in VALID_REACTIONS:
             return jsonify({'success': False, 'error': f'Reacción inválida. Válidas: {VALID_REACTIONS}'}), 400
         
-        session_id = request.headers.get('X-Session-ID') or request.cookies.get('session_id')
-        if not session_id:
-            import uuid
+        # Obtener identificador del usuario
+        user_id, session_id = get_user_identifier()
+        
+        # Si no hay ningún identificador, generar session_id
+        if not user_id and not session_id:
             session_id = str(uuid.uuid4())
         
+        # ═══════════════════════════════════════════════════════════════
+        # ELIMINAR REACCIÓN EXISTENTE (si existe)
+        # ═══════════════════════════════════════════════════════════════
+        if user_id:
+            # Usuario autenticado - eliminar por usuario_id
+            db.session.execute(text("""
+                DELETE FROM video_reacciones 
+                WHERE video_id = :video_id AND usuario_id = :user_id
+            """), {'video_id': video_id, 'user_id': user_id})
+        elif session_id:
+            # Usuario anónimo - eliminar por session_id
+            db.session.execute(text("""
+                DELETE FROM video_reacciones 
+                WHERE video_id = :video_id AND session_id = :session_id
+            """), {'video_id': video_id, 'session_id': session_id})
+        
+        # ═══════════════════════════════════════════════════════════════
+        # AGREGAR NUEVA REACCIÓN (solo si action='add')
+        # ═══════════════════════════════════════════════════════════════
         if action == 'add':
             db.session.execute(text("""
-                INSERT INTO video_reacciones (video_id, session_id, tipo_reaccion)
-                VALUES (:video_id, :session_id, :tipo)
-                ON CONFLICT (video_id, session_id) 
-                DO UPDATE SET tipo_reaccion = EXCLUDED.tipo_reaccion, created_at = NOW()
-            """), {'video_id': video_id, 'session_id': session_id, 'tipo': reaction_type})
-        else:
-            db.session.execute(text(
-                "DELETE FROM video_reacciones WHERE video_id = :video_id AND session_id = :session_id"
-            ), {'video_id': video_id, 'session_id': session_id})
+                INSERT INTO video_reacciones (video_id, usuario_id, session_id, tipo_reaccion, created_at)
+                VALUES (:video_id, :user_id, :session_id, :reaction_type, NOW())
+            """), {
+                'video_id': video_id,
+                'user_id': user_id,
+                'session_id': session_id if not user_id else None,
+                'reaction_type': reaction_type
+            })
         
         db.session.commit()
         
+        # ═══════════════════════════════════════════════════════════════
+        # OBTENER CONTEOS ACTUALIZADOS
+        # ═══════════════════════════════════════════════════════════════
         result = db.session.execute(text("""
             SELECT tipo_reaccion, COUNT(*) FROM video_reacciones
             WHERE video_id = :video_id GROUP BY tipo_reaccion
         """), {'video_id': video_id})
         
-        counts = {row[0]: row[1] for row in result.fetchall()}
+        counts = {r: 0 for r in VALID_REACTIONS}
+        for row in result.fetchall():
+            if row[0] in VALID_REACTIONS:
+                counts[row[0]] = row[1]
         
         return jsonify({
             'success': True,
             'action': action,
             'reaction_type': reaction_type,
             'counts': counts,
-            'session_id': session_id
+            'user_id': user_id,
+            'session_id': session_id if not user_id else None
         })
         
     except Exception as e:
         db.session.rollback()
         print(f"❌ Error en reacción: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -576,22 +694,22 @@ def get_reactions(video_id):
         counts = {r: 0 for r in VALID_REACTIONS}
         total = 0
         for row in result.fetchall():
-            counts[row[0]] = row[1]
-            total += row[1]
+            if row[0] in VALID_REACTIONS:
+                counts[row[0]] = row[1]
+                total += row[1]
         
-        session_id = request.headers.get('X-Session-ID') or request.cookies.get('session_id')
-        user_reaction = None
-        if session_id:
-            ur_result = db.session.execute(text(
-                "SELECT tipo_reaccion FROM video_reacciones WHERE video_id = :video_id AND session_id = :session_id"
-            ), {'video_id': video_id, 'session_id': session_id})
-            row = ur_result.fetchone()
-            if row:
-                user_reaction = row[0]
+        # Obtener user_reaction
+        user_id, session_id = get_user_identifier()
+        user_reaction = get_user_reaction_for_video(video_id, user_id, session_id)
         
         return jsonify({
             'success': True,
-            'data': {'video_id': video_id, 'total': total, 'counts': counts, 'user_reaction': user_reaction}
+            'data': {
+                'video_id': video_id, 
+                'total': total, 
+                'counts': counts, 
+                'user_reaction': user_reaction
+            }
         })
         
     except Exception as e:
