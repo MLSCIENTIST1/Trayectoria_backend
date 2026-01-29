@@ -8,6 +8,7 @@ Endpoint para scroll infinito de videos con badges y métricas
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timedelta
 import random
+from src.models import db
 
 # Crear Blueprint
 videos_api = Blueprint('videos_api', __name__)
