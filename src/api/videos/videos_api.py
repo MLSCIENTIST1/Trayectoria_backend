@@ -121,10 +121,12 @@ def get_video_feed():
         
         videos = []
         for row in rows:
+            video_id = row[0]
             negocio_id = row[15]
             mostrar_badges = row[13]
             badges_ids = row[14]
             
+            # Obtener badges
             badges = []
             if mostrar_badges is not False:
                 badge_result = db.session.execute(text("""
@@ -140,8 +142,17 @@ def get_video_feed():
                         'descripcion': badge_row[2], 'icono': badge_row[3], 'color': badge_row[4]
                     })
             
+            # Obtener conteos de reacciones
+            reactions_result = db.session.execute(text("""
+                SELECT tipo_reaccion, COUNT(*) FROM video_reacciones
+                WHERE video_id = :video_id GROUP BY tipo_reaccion
+            """), {'video_id': video_id})
+            reactions = {r: 0 for r in VALID_REACTIONS}
+            for r_row in reactions_result.fetchall():
+                reactions[r_row[0]] = r_row[1]
+            
             videos.append({
-                'id': row[0],
+                'id': video_id,
                 'titulo': row[1],
                 'descripcion': row[2],
                 'video_url': row[3],
@@ -166,7 +177,8 @@ def get_video_feed():
                     'nombre': row[10] or 'Rendimiento',
                     'valor': row[11] or '---',
                     'tendencia': row[12] or 'neutral'
-                }
+                },
+                'reactions': reactions
             })
         
         # Contar total
@@ -226,6 +238,15 @@ def get_video(video_id):
         badges = [{'id': b[0], 'nombre': b[1], 'descripcion': b[2], 'icono': b[3], 'color': b[4]} 
                   for b in badge_result.fetchall()]
         
+        # Obtener reacciones
+        reactions_result = db.session.execute(text("""
+            SELECT tipo_reaccion, COUNT(*) FROM video_reacciones
+            WHERE video_id = :video_id GROUP BY tipo_reaccion
+        """), {'video_id': video_id})
+        reactions = {r: 0 for r in VALID_REACTIONS}
+        for r_row in reactions_result.fetchall():
+            reactions[r_row[0]] = r_row[1]
+        
         return jsonify({
             'success': True,
             'data': {
@@ -253,7 +274,8 @@ def get_video(video_id):
                     'nombre': row[10] or 'Rendimiento',
                     'valor': row[11] or '---',
                     'tendencia': row[12] or 'neutral'
-                }
+                },
+                'reactions': reactions
             }
         })
         
@@ -413,12 +435,21 @@ def get_negocio_videos(negocio_id):
         
         videos = []
         for row in result.fetchall():
+            reactions_result = db.session.execute(text("""
+                SELECT tipo_reaccion, COUNT(*) FROM video_reacciones
+                WHERE video_id = :video_id GROUP BY tipo_reaccion
+            """), {'video_id': row[0]})
+            reactions = {r: 0 for r in VALID_REACTIONS}
+            for r_row in reactions_result.fetchall():
+                reactions[r_row[0]] = r_row[1]
+            
             videos.append({
                 'id': row[0], 'titulo': row[1], 'descripcion': row[2],
                 'video_url': row[3], 'fuente': row[4], 'url_thumbnail': row[5],
                 'categoria': row[6], 'hashtags': row[7] or [], 'duracion_segundos': row[8],
                 'calidad': row[9], 'vistas': row[10] or 0, 'likes': row[11] or 0,
                 'metrica': {'nombre': row[12], 'valor': row[13], 'tendencia': row[14]} if row[12] else None,
+                'reactions': reactions,
                 'destacado': row[15], 'activo': row[16],
                 'fecha': row[17].isoformat() if row[17] else None
             })
