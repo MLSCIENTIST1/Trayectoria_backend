@@ -128,7 +128,7 @@ def get_video_feed():
             badges = []
             if mostrar_badges is not False:
                 badge_result = db.session.execute(text("""
-                    SELECT b.id, b.nombre, b.descripcion, b.icono, b.color
+                    SELECT b.id, b.nombre, b.descripcion, b.emoji, b.color_primario
                     FROM negocio_badges_obtenidos nb
                     JOIN badges b ON nb.badge_id = b.id
                     WHERE nb.negocio_id = :negocio_id AND nb.activo = true LIMIT 3
@@ -217,7 +217,7 @@ def get_video(video_id):
             return jsonify({'success': False, 'error': 'Video no encontrado'}), 404
         
         badge_result = db.session.execute(text("""
-            SELECT b.id, b.nombre, b.descripcion, b.icono, b.color
+            SELECT b.id, b.nombre, b.descripcion, b.emoji, b.color_primario
             FROM negocio_badges_obtenidos nb
             JOIN badges b ON nb.badge_id = b.id
             WHERE nb.negocio_id = :negocio_id AND nb.activo = true LIMIT 3
@@ -363,7 +363,7 @@ def get_negocio_badges_for_video(negocio_id):
     """Obtiene los badges de un negocio para el editor de video"""
     try:
         result = db.session.execute(text("""
-            SELECT b.id, b.nombre, b.descripcion, b.icono, b.color_primario, nb.nivel
+            SELECT b.id, b.nombre, b.descripcion, b.emoji, b.color_primario, nb.nivel
             FROM negocio_badges_obtenidos nb
             JOIN badges b ON nb.badge_id = b.id
             WHERE nb.negocio_id = :negocio_id AND nb.activo = true
