@@ -256,9 +256,9 @@ def get_video_feed():
             badges = []
             if mostrar_badges is not False:
                 badge_result = db.session.execute(text("""
-                    SELECT b.id, b.nombre, b.descripcion, b.emoji, b.color
+                    SELECT b.id, b.nombre, b.descripcion, b.icono, b.color
                     FROM negocio_badges_obtenidos nb
-                    JOIN badges b ON nb.badge_id = b.id
+                    JOIN negocio_badges b ON nb.badge_id = b.id
                     WHERE nb.negocio_id = :negocio_id AND nb.activo = true LIMIT 3
                 """), {'negocio_id': negocio_id})
                 
@@ -375,9 +375,9 @@ def get_video(video_id):
         metrica_tipo = row[20] if len(row) > 20 else None
         
         badge_result = db.session.execute(text("""
-            SELECT b.id, b.nombre, b.descripcion, b.emoji, b.color
+            SELECT b.id, b.nombre, b.descripcion, b.icono, b.color
             FROM negocio_badges_obtenidos nb
-            JOIN badges b ON nb.badge_id = b.id
+            JOIN negocio_badges b ON nb.badge_id = b.id
             WHERE nb.negocio_id = :negocio_id AND nb.activo = true LIMIT 3
         """), {'negocio_id': negocio_id})
         
@@ -548,9 +548,9 @@ def get_negocio_badges_for_video(negocio_id):
     """Obtiene los badges de un negocio para el editor de video"""
     try:
         result = db.session.execute(text("""
-            SELECT b.id, b.nombre, b.descripcion, b.emoji, b.color, nb.nivel
+            SELECT b.id, b.nombre, b.descripcion, b.icono, b.color, nb.nivel
             FROM negocio_badges_obtenidos nb
-            JOIN badges b ON nb.badge_id = b.id
+            JOIN negocio_badges b ON nb.badge_id = b.id
             WHERE nb.negocio_id = :negocio_id AND nb.activo = true
             ORDER BY nb.fecha_obtencion DESC
         """), {'negocio_id': negocio_id})
