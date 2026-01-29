@@ -69,6 +69,11 @@ from src.models.compradores.pedido import Pedido, PedidoHistorial
 from .password_reset_token import PasswordResetToken
 
 # ==========================================
+# MODELOS DE ADMINISTRACIÓN
+# ==========================================
+from .administrador import Administrador
+
+# ==========================================
 # EXPORTACIÓN
 # ==========================================
 __all__ = [
@@ -121,5 +126,8 @@ __all__ = [
     "PedidoHistorial",
     
     # Password Reset
-    "PasswordResetToken"
+    "PasswordResetToken",
+    
+    # Administración
+    "Administrador"
 ]

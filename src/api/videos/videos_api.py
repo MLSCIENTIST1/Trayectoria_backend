@@ -12,6 +12,50 @@ import random
 # Crear Blueprint
 # IMPORTANTE: El nombre debe coincidir con lo registrado en __init__.py
 videos_api = Blueprint('videos_api', __name__)
+ALLOWED_ORIGINS = [
+    "https://tuko.pages.dev",
+    "https://tukomercio.pages.dev",
+    "https://trayectoria-rxdc1.web.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:5500",
+    "http://localhost:5500"
+]
+
+@videos_api.before_request
+def handle_preflight():
+    """Maneja las peticiones OPTIONS (preflight CORS)"""
+    if request.method == 'OPTIONS':
+        origin = request.headers.get('Origin', '')
+        
+        response = jsonify({'status': 'ok'})
+        
+        if origin in ALLOWED_ORIGINS or origin.endswith('.pages.dev'):
+            response.headers['Access-Control-Allow-Origin'] = origin
+        else:
+            response.headers['Access-Control-Allow-Origin'] = ALLOWED_ORIGINS[0]
+        
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Session-ID'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Max-Age'] = '3600'
+        
+        return response, 200
+
+@videos_api.after_request
+def add_cors_headers(response):
+    """Agrega headers CORS a todas las respuestas"""
+    origin = request.headers.get('Origin', '')
+    
+    if origin in ALLOWED_ORIGINS or origin.endswith('.pages.dev'):
+        response.headers['Access-Control-Allow-Origin'] = origin
+    else:
+        response.headers['Access-Control-Allow-Origin'] = ALLOWED_ORIGINS[0]
+    
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Session-ID'
+    
+    return response
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ENDPOINT: GET /api/videos/feed
