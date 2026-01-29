@@ -287,7 +287,7 @@ def upload_video():
         
         # Verificar negocio
         negocio_check = db.session.execute(text(
-            "SELECT id_negocio FROM negocios WHERE id_negocio = :id AND visible = true"
+            "SELECT id_negocio FROM negocios WHERE id_negocio = :id AND activo = true"
         ), {'id': data['negocio_id']})
         
         if not negocio_check.fetchone():
