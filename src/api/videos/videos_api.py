@@ -92,7 +92,7 @@ def get_video_feed():
                 n.categoria, n.verificado, n.ciudad
             FROM negocio_videos v
             JOIN negocios n ON v.negocio_id = n.id_negocio
-            WHERE v.visible = true AND n.visible = true
+            WHERE v.visible = true AND n.activo = true
         """
         
         params = {}
