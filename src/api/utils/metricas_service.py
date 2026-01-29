@@ -188,6 +188,7 @@ class MetricasService:
             logger.error(f"❌ Error calculando métricas para negocio {negocio_id}: {e}")
             import traceback
             traceback.print_exc()
+            db.session.rollback()  # ← CRÍTICO: limpiar transacción fallida
             return MetricasService._get_metricas_vacias()
     
     
@@ -233,6 +234,7 @@ class MetricasService:
             
         except Exception as e:
             logger.error(f"Error obteniendo stats servicio: {e}")
+            db.session.rollback()  # ← CRÍTICO: limpiar transacción fallida
             return {
                 'total': 0, 'completados': 0, 'cancelados': 0,
                 'promedio_calificacion': None, 'cinco_estrellas': 0,
@@ -291,6 +293,7 @@ class MetricasService:
             
         except Exception as e:
             logger.error(f"Error obteniendo stats simplificados: {e}")
+            db.session.rollback()  # ← CRÍTICO: limpiar transacción fallida
             return {
                 'total': 0, 'completados': 0, 'cancelados': 0,
                 'promedio_calificacion': None, 'cinco_estrellas': 0,
@@ -313,6 +316,7 @@ class MetricasService:
                 return dias // 365
             return 0
         except:
+            db.session.rollback()
             return 0
     
     
@@ -329,6 +333,7 @@ class MetricasService:
                 return (datetime.now().date() - row[0].date()).days
             return 0
         except:
+            db.session.rollback()
             return 0
     
     

@@ -265,7 +265,7 @@ def get_video_feed():
                 for badge_row in badge_result.fetchall():
                     badges.append({
                         'id': badge_row[0], 'nombre': badge_row[1],
-                        'descripcion': badge_row[2], 'icono': badge_row[3], 'color': badge_row[4]
+                        'descripcion': badge_row[2], 'icono': badge_row[3] or 'bi-award', 'color': badge_row[4] or '#a855f7'
                     })
             
             # Obtener conteos de reacciones
@@ -341,6 +341,7 @@ def get_video_feed():
         print(f"❌ Error en feed: {e}")
         import traceback
         traceback.print_exc()
+        db.session.rollback()  # ← CRÍTICO: limpiar transacción fallida
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -381,7 +382,7 @@ def get_video(video_id):
             WHERE nb.negocio_id = :negocio_id AND nb.activo = true LIMIT 3
         """), {'negocio_id': negocio_id})
         
-        badges = [{'id': b[0], 'nombre': b[1], 'descripcion': b[2], 'icono': b[3], 'color': b[4]} 
+        badges = [{'id': b[0], 'nombre': b[1], 'descripcion': b[2], 'icono': b[3] or 'bi-award', 'color': b[4] or '#a855f7'} 
                   for b in badge_result.fetchall()]
         
         # Obtener reacciones
