@@ -273,7 +273,7 @@ def upload_video():
         if not data:
             return jsonify({'success': False, 'error': 'No se recibieron datos'}), 400
         
-        required_fields = ['negocio_id', 'titulo', 'url_video']
+        required_fields = ['negocio_id', 'titulo', 'video_url']
         for field in required_fields:
             if not data.get(field):
                 return jsonify({'success': False, 'error': f'Campo requerido: {field}'}), 400
@@ -319,9 +319,9 @@ def upload_video():
             'negocio_id': data['negocio_id'],
             'titulo': titulo,
             'descripcion': data.get('descripcion', '').strip()[:500],
-            'url_video': data.get('url_video', '').strip(),
+            'url_video': data.get('video_url', '').strip(),
             'fuente': data.get('fuente', 'cloudinary'),
-            'url_thumbnail': data.get('url_thumbnail'),
+            'url_thumbnail': data.get('thumbnail_url'),
             'categoria': data.get('categoria'),
             'hashtags': hashtags_str,
             'mostrar_badges': data.get('mostrar_badges', True),
