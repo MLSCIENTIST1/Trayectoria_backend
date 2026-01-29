@@ -53,6 +53,9 @@ class Negocio(db.Model):
     # 🎨 STORE DESIGNER - Configuración JSON
     # ==========================================
     config_tienda = sa.Column(JSONB, default={}, nullable=True)
+
+    verificado = sa.Column(sa.Boolean, default=False, nullable=False)  # Negocio verificado
+    ciudad = sa.Column(sa.String(100), nullable=True)  # Ciudad para rankings/filtros
     
     # ==========================================
     # 🆕 QR DEL NEGOCIO
@@ -280,6 +283,9 @@ class Negocio(db.Model):
             "ciudad_id": self.ciudad_id,
             "usuario_id": self.usuario_id,
             "activo": self.activo,
+
+            "verificado": self.verificado,
+            "ciudad": self.ciudad,
             
             # Micrositio
             "tiene_pagina": self.tiene_pagina,
