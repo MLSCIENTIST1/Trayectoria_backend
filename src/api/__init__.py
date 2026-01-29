@@ -1,7 +1,7 @@
 """
-BizFlow Studio - Registro de APIs v2.14
+BizFlow Studio - Registro de APIs v2.15
 Sistema de carga segura de blueprints
-Actualizado: Admin API para gestión de challenges y administradores
+Actualizado: Contratos Admin API + Métricas Service para Fase 0.5
 """
 
 import traceback
@@ -21,11 +21,11 @@ def register_api(app):
     """
     
     print("=" * 70)
-    print("🔌 REGISTER_API: INICIANDO REGISTRO DE BLUEPRINTS v2.14")
+    print("🔌 REGISTER_API: INICIANDO REGISTRO DE BLUEPRINTS v2.15")
     print("=" * 70)
     
     logger.info("="*70)
-    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.14")
+    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.15")
     logger.info("="*70)
     
     # ==========================================
@@ -37,7 +37,7 @@ def register_api(app):
         return jsonify({
             "status": "online", 
             "message": "BizFlow Studio API operativa",
-            "version": "2.14.0"
+            "version": "2.15.0"
         }), 200
     
     logger.info("✅ Ruta de salud global registrada: /api/health")
@@ -433,6 +433,37 @@ def register_api(app):
     print("=" * 70)
     
     # ==========================================
+    # 📊 CONTRATOS ADMIN API (Fase 0.5 - Métricas)
+    # ==========================================
+    print("\n" + "=" * 70)
+    print("📊📊📊 SECCIÓN: CONTRATOS ADMIN API (Fase 0.5) 📊📊📊")
+    print("=" * 70)
+    logger.info("\n📊 Cargando módulo de contratos admin para métricas...")
+    
+    print("📊 Intentando cargar: src.api.utils.contratos_admin_api")
+    print("📊 Blueprint esperado: contratos_admin_api")
+    print("📊 Prefix: /api/admin/contratos")
+    print("📊 Endpoints disponibles:")
+    print("   → POST   /api/admin/contratos - Crear contrato")
+    print("   → GET    /api/admin/contratos - Listar contratos")
+    print("   → GET    /api/admin/contratos/<id> - Obtener contrato")
+    print("   → PUT    /api/admin/contratos/<id> - Actualizar contrato")
+    print("   → DELETE /api/admin/contratos/<id> - Eliminar contrato")
+    print("   → GET    /api/admin/contratos/estadisticas/<negocio_id> - Stats")
+    print("   → POST   /api/admin/contratos/seed/<negocio_id> - Crear datos prueba")
+    
+    # Contratos Admin API - /api/admin/contratos/*
+    if safe_register('src.api.utils.contratos_admin_api', 'contratos_admin_api', 'Contratos Admin API', prefix='/api/admin/contratos'):
+        success_count += 1
+        print("📊 ✅✅✅ CONTRATOS ADMIN API CARGADO EXITOSAMENTE ✅✅✅")
+    else:
+        fail_count += 1
+        print("📊 ❌❌❌ CONTRATOS ADMIN API FALLÓ AL CARGAR ❌❌❌")
+        logger.warning("⚠️  Módulo de Contratos Admin no cargado")
+    
+    print("=" * 70)
+    
+    # ==========================================
     # 💬 NOTIFICACIONES Y CHAT
     # ==========================================
     print("\n" + "=" * 50)
@@ -589,6 +620,19 @@ def register_api(app):
     
     if not admin_encontrado:
         print("   ❌ NO SE ENCONTRARON RUTAS DE ADMIN")
+    
+    # 📊 Listar rutas de Contratos Admin
+    print("\n📊 Verificando rutas de Contratos Admin API:")
+    logger.info("\n📊 Rutas de Contratos Admin API:")
+    contratos_admin_encontrado = False
+    for rule in app.url_map.iter_rules():
+        if '/admin/contratos' in rule.rule:
+            print(f"   ✅ ENCONTRADA: {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
+            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
+            contratos_admin_encontrado = True
+    
+    if not contratos_admin_encontrado:
+        print("   ❌ NO SE ENCONTRARON RUTAS DE CONTRATOS ADMIN")
     
     # Listar rutas de compradores y pedidos
     logger.info("\n🛒 Rutas de compradores y pedidos registradas:")
