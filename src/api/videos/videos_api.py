@@ -144,7 +144,7 @@ def get_video_feed():
                 'id': row[0],
                 'titulo': row[1],
                 'descripcion': row[2],
-                'url_video': row[3],
+                'video_url': row[3],
                 'thumbnail': row[4],
                 'duracion_segundos': row[5],
                 'calidad': row[6] or 'HD',
@@ -232,7 +232,7 @@ def get_video(video_id):
                 'id': row[0],
                 'titulo': row[1],
                 'descripcion': row[2],
-                'url_video': row[3],
+                'video_url': row[3],
                 'thumbnail': row[4],
                 'duracion_segundos': row[5],
                 'calidad': row[6] or 'HD',
@@ -415,7 +415,7 @@ def get_negocio_videos(negocio_id):
         for row in result.fetchall():
             videos.append({
                 'id': row[0], 'titulo': row[1], 'descripcion': row[2],
-                'url_video': row[3], 'fuente': row[4], 'url_thumbnail': row[5],
+                'video_url': row[3], 'fuente': row[4], 'url_thumbnail': row[5],
                 'categoria': row[6], 'hashtags': row[7] or [], 'duracion_segundos': row[8],
                 'calidad': row[9], 'vistas': row[10] or 0, 'likes': row[11] or 0,
                 'metrica': {'nombre': row[12], 'valor': row[13], 'tendencia': row[14]} if row[12] else None,
