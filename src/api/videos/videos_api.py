@@ -128,16 +128,16 @@ def get_video_feed():
             badges = []
             if mostrar_badges is not False:
                 badge_result = db.session.execute(text("""
-                    SELECT cb.id, cb.nombre, cb.descripcion, cb.icono, cb.color
+                    SELECT b.id, b.nombre, b.descripcion, b.icono, b.color
                     FROM negocio_badges nb
-                    JOIN catalogo_badges cb ON nb.badge_id = cb.id
-                    WHERE nb.negocio_id = :negocio_id AND nb.visible = true LIMIT 3
+                    JOIN badges b ON nb.badge_id = b.id
+                    WHERE nb.negocio_id = :negocio_id AND nb.activo = true LIMIT 3
                 """), {'negocio_id': negocio_id})
                 
                 for badge_row in badge_result.fetchall():
                     badges.append({
                         'id': badge_row[0], 'nombre': badge_row[1],
-                        'descripcion': badge_row[2], 'icono': badge_row[3], 'color': badge_row[4]
+                        'descripcion': badge_row[2], 'icono': badge_row[3], 'color': 
                     })
             
             videos.append({
@@ -217,13 +217,13 @@ def get_video(video_id):
             return jsonify({'success': False, 'error': 'Video no encontrado'}), 404
         
         badge_result = db.session.execute(text("""
-            SELECT cb.id, cb.nombre, cb.descripcion, cb.icono, cb.color
+            SELECT b.id, b.nombre, b.descripcion, b.icono, b.color
             FROM negocio_badges nb
-            JOIN catalogo_badges cb ON nb.badge_id = cb.id
-            WHERE nb.negocio_id = :negocio_id AND nb.visible = true LIMIT 3
+            JOIN badges b ON nb.badge_id = b.id
+            WHERE nb.negocio_id = :negocio_id AND nb.activo = true LIMIT 3
         """), {'negocio_id': row[13]})
         
-        badges = [{'id': b[0], 'nombre': b[1], 'descripcion': b[2], 'icono': b[3], 'color': b[4]} 
+        badges = [{'id': b[0], 'nombre': b[1], 'descripcion': b[2], 'icono': b[3], 'color': } 
                   for b in badge_result.fetchall()]
         
         return jsonify({
@@ -363,10 +363,10 @@ def get_negocio_badges_for_video(negocio_id):
     """Obtiene los badges de un negocio para el editor de video"""
     try:
         result = db.session.execute(text("""
-            SELECT cb.id, cb.nombre, cb.descripcion, cb.icono, cb.color, nb.nivel
+            SELECT b.id, b.nombre, b.descripcion, b.icono, b.color_primario, nb.nivel
             FROM negocio_badges nb
-            JOIN catalogo_badges cb ON nb.badge_id = cb.id
-            WHERE nb.negocio_id = :negocio_id AND nb.visible = true
+            JOIN badges b ON nb.badge_id = b.id
+            WHERE nb.negocio_id = :negocio_id AND nb.activo = true
             ORDER BY nb.fecha_obtencion DESC
         """), {'negocio_id': negocio_id})
         
@@ -374,7 +374,7 @@ def get_negocio_badges_for_video(negocio_id):
         for row in result.fetchall():
             badges.append({
                 'id': row[0], 'nombre': row[1], 'descripcion': row[2],
-                'icono': row[3] or 'bi-award', 'color': row[4] or '#a855f7', 'nivel': row[5] or 1
+                'icono': row[3] or 'bi-award', 'color':  or '#a855f7', 'nivel': row[5] or 1
             })
         
         return jsonify({'success': True, 'data': {'badges': badges, 'total': len(badges)}})
