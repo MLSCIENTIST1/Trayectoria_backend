@@ -129,7 +129,7 @@ def get_video_feed():
             if mostrar_badges is not False:
                 badge_result = db.session.execute(text("""
                     SELECT b.id, b.nombre, b.descripcion, b.icono, b.color
-                    FROM negocio_badges nb
+                    FROM negocio_badges_obtenidos nb
                     JOIN badges b ON nb.badge_id = b.id
                     WHERE nb.negocio_id = :negocio_id AND nb.activo = true LIMIT 3
                 """), {'negocio_id': negocio_id})
@@ -218,7 +218,7 @@ def get_video(video_id):
         
         badge_result = db.session.execute(text("""
             SELECT b.id, b.nombre, b.descripcion, b.icono, b.color
-            FROM negocio_badges nb
+            FROM negocio_badges_obtenidos nb
             JOIN badges b ON nb.badge_id = b.id
             WHERE nb.negocio_id = :negocio_id AND nb.activo = true LIMIT 3
         """), {'negocio_id': row[13]})
@@ -364,7 +364,7 @@ def get_negocio_badges_for_video(negocio_id):
     try:
         result = db.session.execute(text("""
             SELECT b.id, b.nombre, b.descripcion, b.icono, b.color_primario, nb.nivel
-            FROM negocio_badges nb
+            FROM negocio_badges_obtenidos nb
             JOIN badges b ON nb.badge_id = b.id
             WHERE nb.negocio_id = :negocio_id AND nb.activo = true
             ORDER BY nb.fecha_obtencion DESC
