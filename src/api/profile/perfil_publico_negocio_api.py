@@ -4,7 +4,7 @@ API PERFIL PÚBLICO NEGOCIO - BizScore
 Endpoint: GET /api/negocio/perfil-publico/<slug>
 Ubicación: src/api/profile/perfil_publico_negocio_api.py
 
-VERSIÓN 2.0 - Solo datos reales
+VERSIÓN 2.1 - Integrado con MetricasService
 ═══════════════════════════════════════════════════════════════════════════════
 """
 
@@ -23,6 +23,14 @@ from datetime import datetime, timedelta
 # Modelos base
 from src.models.colombia_data import Negocio, Sucursal
 from src.models import db
+
+# ✅ IMPORTAR METRICAS SERVICE
+try:
+    from src.api.utils.metricas_service import MetricasService
+    print("✅ MetricasService importado")
+except Exception as e:
+    print(f"⚠️ MetricasService no disponible: {e}")
+    MetricasService = None
 
 # Modelos opcionales (pueden no existir las tablas)
 try:
@@ -92,8 +100,10 @@ def get_perfil_publico(slug):
         badges = obtener_badges_negocio(id_negocio)
         videos = obtener_videos_negocio(id_negocio)
         
-        # 4. PLACEHOLDERS (pendientes de implementar)
-        stats = obtener_estadisticas_placeholder()
+        # ✅ ESTADÍSTICAS REALES desde MetricasService
+        stats = obtener_estadisticas_reales(id_negocio)
+        
+        # 4. CALCULAR BIZSCORE Y ETAPAS
         etapas = obtener_etapas_placeholder()
         bizscore = calcular_bizscore(stats, etapas)
         resenas = obtener_resenas_placeholder()
@@ -121,7 +131,7 @@ def get_perfil_publico(slug):
                 'config': {
                     'color_primario': negocio.color_tema or '#a855f7',
                     'color_secundario': '#22d3ee',
-                    'mostrar_estadisticas': False,  # Pendiente
+                    'mostrar_estadisticas': stats.get('total_contratos', 0) > 0,
                     'mostrar_videos': len(videos) > 0,
                     'mostrar_resenas': False,  # Pendiente
                     'badges_destacados': [],
@@ -136,7 +146,7 @@ def get_perfil_publico(slug):
             }
         }
         
-        print(f"   ✅ Respuesta: {len(badges)} badges, {len(videos)} videos")
+        print(f"   ✅ Respuesta: {len(badges)} badges, {len(videos)} videos, {stats.get('total_contratos', 0)} contratos")
         return jsonify(response), 200
         
     except Exception as e:
@@ -154,6 +164,60 @@ def get_perfil_publico(slug):
 # ═══════════════════════════════════════════════════════════════════════════════
 # FUNCIONES DE DATOS REALES
 # ═══════════════════════════════════════════════════════════════════════════════
+
+def obtener_estadisticas_reales(id_negocio):
+    """
+    ✅ NUEVO v2.1: Obtiene estadísticas REALES usando MetricasService.
+    """
+    if not MetricasService:
+        print("   ⚠️ MetricasService no disponible, usando placeholder")
+        return obtener_estadisticas_placeholder()
+    
+    try:
+        # Obtener métricas calculadas
+        metricas = MetricasService.calcular_metricas_negocio(id_negocio)
+        
+        # Extraer valores raw
+        tasa_exito_raw = metricas.get('tasa_exito', {}).get('valor_raw', 0) or 0
+        satisfaccion_raw = metricas.get('satisfaccion', {}).get('valor_raw', 0) or 0
+        proyectos_raw = metricas.get('proyectos_completados', {}).get('valor_raw', 0) or 0
+        recurrentes_raw = metricas.get('clientes_recurrentes', {}).get('valor_raw', 0) or 0
+        entregas_raw = metricas.get('entregas_anticipadas', {}).get('valor_raw', 0) or 0
+        
+        # Calcular total de contratos (completados + en progreso)
+        # Por ahora usamos proyectos_completados como total
+        total_contratos = proyectos_raw
+        
+        stats = {
+            'total_contratos': total_contratos,
+            'contratos_exitosos': proyectos_raw,
+            'tasa_exito': tasa_exito_raw,
+            'disputas': 0,  # TODO: implementar contador de disputas
+            'sin_disputas': True,
+            'clientes_recurrentes': recurrentes_raw,
+            'tasa_recomendacion': int(satisfaccion_raw * 20) if satisfaccion_raw else 0,  # Convertir 5★ a %
+            'tiempo_promedio_dias': None,
+            'entregas_anticipadas': entregas_raw,
+            'satisfaccion': satisfaccion_raw,
+            # Valores formateados para UI
+            'metricas_formateadas': {
+                'tasa_exito': metricas.get('tasa_exito', {}).get('valor', '---'),
+                'satisfaccion': metricas.get('satisfaccion', {}).get('valor', '---'),
+                'proyectos': metricas.get('proyectos_completados', {}).get('valor', '---'),
+                'recurrentes': metricas.get('clientes_recurrentes', {}).get('valor', '---'),
+                'entregas': metricas.get('entregas_anticipadas', {}).get('valor', '---')
+            }
+        }
+        
+        print(f"   ✅ Estadísticas reales: {total_contratos} contratos, {tasa_exito_raw}% éxito, {recurrentes_raw}% recurrentes")
+        return stats
+        
+    except Exception as e:
+        print(f"   ⚠️ Error obteniendo estadísticas reales: {e}")
+        import traceback
+        traceback.print_exc()
+        return obtener_estadisticas_placeholder()
+
 
 def obtener_badges_negocio(id_negocio):
     """Obtiene los badges del negocio desde la BD."""
@@ -285,7 +349,7 @@ def get_telefono(negocio, sucursal):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def obtener_estadisticas_placeholder():
-    """Estadísticas - TODO: conectar con service_ratings."""
+    """Estadísticas placeholder cuando MetricasService no está disponible."""
     return {
         'total_contratos': 0,
         'contratos_exitosos': 0,
@@ -304,24 +368,34 @@ def obtener_etapas_placeholder():
 
 
 def calcular_bizscore(stats, etapas):
-    """Calcula el BizScore."""
-    if not etapas:
+    """Calcula el BizScore basado en estadísticas reales."""
+    total_contratos = stats.get('total_contratos', 0)
+    
+    # Si no hay contratos, no hay score
+    if total_contratos == 0:
         return {
             'valor': 0,
-            'nivel': 'Sin calificaciones',
+            'nivel': 'Sin actividad',
             'percentil': 0
         }
     
-    promedio_etapas = sum(e.get('score', 0) for e in etapas) / len(etapas)
-    score_etapas = promedio_etapas * 0.40
-    score_exito = stats.get('tasa_exito', 0) * 0.25
-    score_recomendacion = stats.get('tasa_recomendacion', 0) * 0.20
-    score_disputas = 10 if stats.get('sin_disputas', True) else max(0, 10 - (stats.get('disputas', 0) * 2))
-    score_recurrentes = min(5, stats.get('clientes_recurrentes', 0) * 0.5)
+    # Calcular score basado en métricas reales
+    tasa_exito = stats.get('tasa_exito', 0)
+    satisfaccion = stats.get('satisfaccion', 0)
+    recurrentes = stats.get('clientes_recurrentes', 0)
+    entregas = stats.get('entregas_anticipadas', 0)
     
-    score_total = round(score_etapas + score_exito + score_recomendacion + score_disputas + score_recurrentes, 0)
+    # Pesos para cada métrica
+    score_exito = tasa_exito * 0.30  # 30% del score
+    score_satisfaccion = (satisfaccion / 5 * 100) * 0.30 if satisfaccion else 0  # 30%
+    score_recurrentes = min(recurrentes, 50) * 0.20  # 20% (max 50% recurrentes = 10 puntos)
+    score_entregas = entregas * 0.10  # 10%
+    score_volumen = min(total_contratos, 100) * 0.10  # 10% (max 100 contratos = 10 puntos)
+    
+    score_total = round(score_exito + score_satisfaccion + score_recurrentes + score_entregas + score_volumen, 0)
     score_total = min(100, max(0, score_total))
     
+    # Determinar nivel
     if score_total >= 90:
         nivel = 'Excelente'
         percentil = 95
@@ -334,14 +408,18 @@ def calcular_bizscore(stats, etapas):
     elif score_total >= 60:
         nivel = 'Regular'
         percentil = 50
-    else:
+    elif score_total >= 40:
         nivel = 'En Desarrollo'
         percentil = 30
+    else:
+        nivel = 'Iniciando'
+        percentil = 15
     
     return {
         'valor': int(score_total),
         'nivel': nivel,
-        'percentil': percentil
+        'percentil': percentil,
+        'descripcion': f'Basado en {total_contratos} contratos completados'
     }
 
 
@@ -383,5 +461,5 @@ def listar_negocios_publicos():
 
 # ═══════════════════════════════════════════════════════════════════════════════
 print("=" * 70)
-print("🎯 PERFIL_PUBLICO_NEGOCIO_API v2.0 CARGADO - Solo datos reales")
+print("🎯 PERFIL_PUBLICO_NEGOCIO_API v2.1 CARGADO - Con MetricasService")
 print("=" * 70)
