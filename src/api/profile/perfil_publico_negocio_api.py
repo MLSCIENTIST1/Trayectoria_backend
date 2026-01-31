@@ -137,7 +137,14 @@ def get_perfil_publico(slug):
                     'badges_destacados': [],
                     'video_destacado_id': None
                 },
-                'score': bizscore,
+                'score': {
+                    **bizscore,
+                    'total_contratos': stats.get('total_contratos', 0),
+                    'tasa_exito': stats.get('tasa_exito', 0),
+                    'clientes_recurrentes': stats.get('clientes_recurrentes', 0),
+                    'satisfaccion': stats.get('satisfaccion', 0),
+                    'entregas_anticipadas': stats.get('entregas_anticipadas', 0)
+                },
                 'estadisticas': stats,
                 'etapas': etapas,
                 'badges': badges,
