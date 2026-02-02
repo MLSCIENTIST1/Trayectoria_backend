@@ -1,7 +1,7 @@
 """
-BizFlow Studio - Registro de APIs v2.15
+BizFlow Studio - Registro de APIs v2.16
 Sistema de carga segura de blueprints
-Actualizado: Contratos Admin API + Métricas Service para Fase 0.5
+Actualizado: BadgeVerificationService para asignación automática de badges
 """
 
 import traceback
@@ -21,11 +21,11 @@ def register_api(app):
     """
     
     print("=" * 70)
-    print("🔌 REGISTER_API: INICIANDO REGISTRO DE BLUEPRINTS v2.15")
+    print("🔌 REGISTER_API: INICIANDO REGISTRO DE BLUEPRINTS v2.16")
     print("=" * 70)
     
     logger.info("="*70)
-    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.15")
+    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.16")
     logger.info("="*70)
     
     # ==========================================
@@ -37,7 +37,7 @@ def register_api(app):
         return jsonify({
             "status": "online", 
             "message": "BizFlow Studio API operativa",
-            "version": "2.15.0"
+            "version": "2.16.0"
         }), 200
     
     logger.info("✅ Ruta de salud global registrada: /api/health")
@@ -464,6 +464,33 @@ def register_api(app):
     print("=" * 70)
     
     # ==========================================
+    # 🎖️ BADGE VERIFICATION SERVICE (Fase 0.5 - Auto-badges)
+    # ==========================================
+    print("\n" + "=" * 70)
+    print("🎖️🎖️🎖️ SECCIÓN: BADGE VERIFICATION SERVICE (Fase 0.5) 🎖️🎖️🎖️")
+    print("=" * 70)
+    logger.info("\n🎖️ Cargando módulo de verificación automática de badges...")
+    
+    print("🎖️ Intentando cargar: src.api.utils.badge_verification_service")
+    print("🎖️ Blueprint esperado: badge_verification_bp")
+    print("🎖️ Prefix: /api/admin/badges")
+    print("🎖️ Endpoints disponibles:")
+    print("   → GET  /api/admin/badges/verificar/<negocio_id> - Verificar badges de un negocio")
+    print("   → POST /api/admin/badges/verificar-todos - Verificar todos los negocios")
+    print("   → GET  /api/admin/badges/status/<negocio_id> - Estado y progreso de badges")
+    
+    # Badge Verification Service - /api/admin/badges/*
+    if safe_register('src.api.utils.badge_verification_service', 'badge_verification_bp', 'Badge Verification Service', prefix='/api/admin/badges'):
+        success_count += 1
+        print("🎖️ ✅✅✅ BADGE VERIFICATION SERVICE CARGADO EXITOSAMENTE ✅✅✅")
+    else:
+        fail_count += 1
+        print("🎖️ ❌❌❌ BADGE VERIFICATION SERVICE FALLÓ AL CARGAR ❌❌❌")
+        logger.warning("⚠️  Módulo de Badge Verification no cargado")
+    
+    print("=" * 70)
+    
+    # ==========================================
     # 💬 NOTIFICACIONES Y CHAT
     # ==========================================
     print("\n" + "=" * 50)
@@ -633,6 +660,19 @@ def register_api(app):
     
     if not contratos_admin_encontrado:
         print("   ❌ NO SE ENCONTRARON RUTAS DE CONTRATOS ADMIN")
+    
+    # 🎖️ Listar rutas de Badge Verification
+    print("\n🎖️ Verificando rutas de Badge Verification:")
+    logger.info("\n🎖️ Rutas de Badge Verification:")
+    badge_verificacion_encontrado = False
+    for rule in app.url_map.iter_rules():
+        if '/admin/badges' in rule.rule:
+            print(f"   ✅ ENCONTRADA: {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
+            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
+            badge_verificacion_encontrado = True
+    
+    if not badge_verificacion_encontrado:
+        print("   ❌ NO SE ENCONTRARON RUTAS DE BADGE VERIFICATION")
     
     # Listar rutas de compradores y pedidos
     logger.info("\n🛒 Rutas de compradores y pedidos registradas:")
