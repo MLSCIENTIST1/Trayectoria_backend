@@ -407,3 +407,73 @@ class BadgeVerificationService:
 def verificar_badges_negocio(negocio_id: int) -> dict:
     """Wrapper para usar sin instanciar la clase."""
     return BadgeVerificationService.verificar_badges(negocio_id)
+
+# ═══════════════════════════════════════════════════════════════════════
+# BLUEPRINT - ENDPOINTS ADMIN PARA BADGES
+# ═══════════════════════════════════════════════════════════════════════
+from flask import Blueprint, jsonify
+
+badge_verification_bp = Blueprint('badge_verification', __name__)
+
+
+@badge_verification_bp.route('/verificar/<int:negocio_id>', methods=['GET'])
+def verificar_badges_endpoint(negocio_id):
+    """
+    GET /api/admin/badges/verificar/<negocio_id>
+    Ejecuta verificación de badges para un negocio.
+    """
+    try:
+        resultado = BadgeVerificationService.verificar_badges(negocio_id)
+        return jsonify({
+            'status': 'success',
+            'data': resultado
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@badge_verification_bp.route('/status/<int:negocio_id>', methods=['GET'])
+def badge_status_endpoint(negocio_id):
+    """
+    GET /api/admin/badges/status/<negocio_id>
+    Muestra badges obtenidos y progreso hacia los siguientes.
+    """
+    try:
+        metricas = BadgeVerificationService._calcular_metricas_para_badges(negocio_id)
+        badges_catalogo = BadgeVerificationService._get_catalogo_badges()
+        badges_obtenidos = BadgeVerificationService._get_badges_obtenidos(negocio_id)
+        
+        status = []
+        for badge in badges_catalogo:
+            valor_actual = metricas.get(badge['criterio_tipo'])
+            valor_requerido = badge['criterio_valor']
+            obtenido = badge['id'] in badges_obtenidos
+            
+            progreso = 0
+            if valor_actual is not None and valor_requerido > 0:
+                progreso = min(100, round((valor_actual / valor_requerido) * 100))
+            
+            status.append({
+                'codigo': badge['codigo'],
+                'nombre': badge['nombre'],
+                'nivel': badge['nivel'],
+                'obtenido': obtenido,
+                'valor_actual': valor_actual,
+                'valor_requerido': valor_requerido,
+                'progreso': 100 if obtenido else progreso
+            })
+        
+        return jsonify({
+            'status': 'success',
+            'negocio_id': negocio_id,
+            'total_obtenidos': len(badges_obtenidos),
+            'badges': status
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
