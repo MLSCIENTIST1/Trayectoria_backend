@@ -1,6 +1,6 @@
 """
 ═══════════════════════════════════════════════════════════════════════════════
-TUKOMERCIO - BadgeVerificationService v1.0
+TUKOMERCIO - BadgeVerificationService v1.1
 Verificación y asignación automática de badges para negocios
 ═══════════════════════════════════════════════════════════════════════════════
 
@@ -9,7 +9,7 @@ USO:
     
     # Verificar todos los badges de un negocio
     resultado = BadgeVerificationService.verificar_badges(negocio_id=4)
-    # → {'verificados': 17, 'nuevos': ['perfeccionista', 'veterano'], 'total_obtenidos': 10}
+    # → {'verificados': 21, 'nuevos': ['perfeccionista', 'veterano'], 'total_obtenidos': 10}
     
     # Llamar después de:
     # - Completar un servicio
@@ -25,6 +25,10 @@ CRITERIOS SOPORTADOS:
     ✅ contratos_sin_disputa  → COUNT completados sin disputa
     ✅ videos_subidos         → COUNT videos del negocio
     ✅ verificado             → negocio.verificado
+    ✅ cuenta_creada          → Siempre 1 (badge de bienvenida)
+    ✅ perfil_completo        → logo + descripcion + whatsapp
+    ✅ tiene_direccion        → Tiene dirección
+    ✅ tiene_whatsapp         → Tiene WhatsApp
     ⚠️ tiempo_respuesta_hrs  → Pendiente (no hay campo aún)
     ⚠️ percentil             → Pendiente (requiere comparación entre negocios)
 """
@@ -245,6 +249,54 @@ class BadgeVerificationService:
                 metricas['verificado'] = 1 if (row and row[0]) else 0
             except Exception:
                 metricas['verificado'] = 0
+            
+            # ═══════════════════════════════════════════
+            # BADGES BÁSICOS (NO dependen de ventas)
+            # ═══════════════════════════════════════════
+            
+            # Cuenta creada (siempre 1 si existe el negocio)
+            metricas['cuenta_creada'] = 1
+            
+            # Perfil completo (tiene logo + descripción + whatsapp)
+            try:
+                result = db.session.execute(text("""
+                    SELECT 
+                        CASE WHEN logo_url IS NOT NULL AND logo_url != '' THEN 1 ELSE 0 END +
+                        CASE WHEN descripcion IS NOT NULL AND descripcion != '' THEN 1 ELSE 0 END +
+                        CASE WHEN whatsapp IS NOT NULL AND whatsapp != '' THEN 1 ELSE 0 END
+                        as campos_completos
+                    FROM negocios 
+                    WHERE id_negocio = :nid
+                """), {'nid': negocio_id})
+                row = result.fetchone()
+                # Perfil completo = 3 campos llenos (logo + descripcion + whatsapp)
+                metricas['perfil_completo'] = 1 if (row and row[0] >= 3) else 0
+            except Exception:
+                metricas['perfil_completo'] = 0
+            
+            # Tiene dirección
+            try:
+                result = db.session.execute(text("""
+                    SELECT CASE WHEN direccion IS NOT NULL AND direccion != '' THEN 1 ELSE 0 END
+                    FROM negocios 
+                    WHERE id_negocio = :nid
+                """), {'nid': negocio_id})
+                row = result.fetchone()
+                metricas['tiene_direccion'] = row[0] if row else 0
+            except Exception:
+                metricas['tiene_direccion'] = 0
+            
+            # Tiene WhatsApp
+            try:
+                result = db.session.execute(text("""
+                    SELECT CASE WHEN whatsapp IS NOT NULL AND whatsapp != '' THEN 1 ELSE 0 END
+                    FROM negocios 
+                    WHERE id_negocio = :nid
+                """), {'nid': negocio_id})
+                row = result.fetchone()
+                metricas['tiene_whatsapp'] = row[0] if row else 0
+            except Exception:
+                metricas['tiene_whatsapp'] = 0
             
             # ═══════════════════════════════════════════
             # NO SOPORTADOS AÚN (retorna None → se skipean)
