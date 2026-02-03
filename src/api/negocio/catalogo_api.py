@@ -2267,11 +2267,19 @@ def catalogo_publico(negocio_id):
                 campos_publicos['envio_gratis'] = getattr(p, 'badge_envio_gratis', False)
                 
                 # Calcular si tiene descuento
-                precio_original = getattr(p, 'precio_original', None)
-                if precio_original and precio_original > p.precio:
-                    campos_publicos['tiene_descuento'] = True
-                    campos_publicos['descuento_porcentaje'] = round(((precio_original - p.precio) / precio_original) * 100)
-                else:
+                # Calcular si tiene descuento
+                try:
+                    precio_original = getattr(p, 'precio_original', None)
+                    precio_actual = float(p.precio) if p.precio else 0
+                    
+                    if precio_original and float(precio_original) > precio_actual and precio_actual > 0:
+                        precio_orig_float = float(precio_original)
+                        campos_publicos['tiene_descuento'] = True
+                        campos_publicos['descuento_porcentaje'] = round(((precio_orig_float - precio_actual) / precio_orig_float) * 100)
+                    else:
+                        campos_publicos['tiene_descuento'] = False
+                        campos_publicos['descuento_porcentaje'] = 0
+                except Exception:
                     campos_publicos['tiene_descuento'] = False
                     campos_publicos['descuento_porcentaje'] = 0
                 
