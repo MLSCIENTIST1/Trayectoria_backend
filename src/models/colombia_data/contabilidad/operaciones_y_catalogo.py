@@ -1031,7 +1031,7 @@ class ProductoCatalogo(db.Model):
             "fecha_actualizacion": self.fecha_actualizacion.strftime('%Y-%m-%d %H:%M:%S') if self.fecha_actualizacion else None,
             "updated_at": self.fecha_actualizacion.isoformat() if self.fecha_actualizacion else None
         }
-
+        
     def serialize(self):
         """Alias de to_dict() para compatibilidad"""
         return self.to_dict()

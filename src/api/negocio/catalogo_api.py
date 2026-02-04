@@ -701,8 +701,17 @@ def guardar_producto_catalogo():
 @cross_origin(supports_credentials=True)
 def actualizar_producto(id_producto):
     """PUT/PATCH /api/producto/actualizar/{id}"""
+    producto = ProductoCatalogo.query.filter_by(id_producto=id_producto, usuario_id=int(user_id)).first()
+    if not producto:
+        return jsonify({"success": False, "message": "Producto no encontrado"}), 404
+
+    # DEBUG: Verificar modelo
+    logger.info(f"🔍 DEBUG MODELO - hasattr personalizacion_activa: {hasattr(producto, 'personalizacion_activa')}")
+    logger.info(f"🔍 DEBUG MODELO - hasattr personalizacion_config: {hasattr(producto, 'personalizacion_config')}")
+    logger.info(f"🔍 DEBUG MODELO - Valor actual: {getattr(producto, 'personalizacion_activa', 'NO EXISTE')}")
+    
     if request.method == 'OPTIONS':
-        return jsonify({"success": True}), 200
+            return jsonify({"success": True}), 200
 
     user_id = get_authorized_user_id()
     if not user_id:
@@ -759,15 +768,25 @@ def actualizar_producto(id_producto):
                 producto.badge_envio_gratis = badges_data.get('envio_gratis', False)
 
         # ★ v3.5: Actualizar personalización
-        if 'personalizacion_activa' in data or 'personalizacion_config' in data:
-            personalizacion_activa, personalizacion_config = procesar_personalizacion_desde_request(data)
-            
-            if hasattr(producto, 'personalizacion_activa'):
-                producto.personalizacion_activa = personalizacion_activa
-            if hasattr(producto, 'personalizacion_config'):
-                producto.personalizacion_config = json.dumps(personalizacion_config)
-            
-            logger.info(f"🎨 Personalización actualizada: activa={personalizacion_activa}")
+    logger.info(f"🎨 DEBUG - Claves en data: {list(data.keys())}")
+    logger.info(f"🎨 DEBUG - personalizacion_activa en data: {'personalizacion_activa' in data}")
+    logger.info(f"🎨 DEBUG - Valor recibido: {data.get('personalizacion_activa')}")
+
+    if 'personalizacion_activa' in data or 'personalizacion_config' in data:
+        personalizacion_activa, personalizacion_config = procesar_personalizacion_desde_request(data)
+        
+        logger.info(f"🎨 DEBUG - Procesado: activa={personalizacion_activa}, config={personalizacion_config}")
+        
+        if hasattr(producto, 'personalizacion_activa'):
+            producto.personalizacion_activa = personalizacion_activa
+            logger.info(f"🎨 DEBUG - Asignado a producto: {producto.personalizacion_activa}")
+        else:
+            logger.warning(f"🎨 DEBUG - ¡El modelo NO tiene personalizacion_activa!")
+        
+        if hasattr(producto, 'personalizacion_config'):
+            producto.personalizacion_config = json.dumps(personalizacion_config)
+        
+        logger.info(f"🎨 Personalización actualizada: activa={personalizacion_activa}")
 
         # Videos
         if 'youtube_links' in data or 'videos' in data:
