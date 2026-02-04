@@ -1,8 +1,7 @@
 # ============================================
-# catalogo_api.py - VERSIÓN v3.4 COMPLETA
-# Conectado con Inventario PRO v2.3 + BizContext
-# ACTUALIZADO: Soporte para badges_data JSON
-# CORREGIDO: Error 500 en categorías
+# catalogo_api.py - VERSIÓN v3.5 COMPLETA
+# Conectado con Inventario PRO v2.4 + BizContext
+# ACTUALIZADO: Soporte para Personalización de Productos
 # ============================================
 
 import cloudinary
@@ -54,7 +53,6 @@ catalogo_api_bp = Blueprint('catalogo_api_bp', __name__)
 def get_authorized_user_id():
     """
     Obtiene el ID del usuario autenticado (Header prioritario)
-    ★ v3.4: Mejorado manejo de errores
     """
     try:
         header_id = request.headers.get('X-User-ID')
@@ -79,21 +77,16 @@ def get_biz_context():
     """
     Obtiene el contexto de negocio desde headers o query params.
     Compatible con BizContext.js del frontend.
-    
-    ★ v3.4: CORREGIDO - Manejo robusto de request.json
     """
     negocio_id = None
     sucursal_id = None
     
     try:
-        # 1. Primero intentar headers
         negocio_id = request.headers.get('X-Business-ID') or request.headers.get('X-Negocio-ID')
         
-        # 2. Si no hay en headers, buscar en query params
         if not negocio_id:
             negocio_id = request.args.get('negocio_id')
         
-        # 3. Si no hay en query params, buscar en JSON body (solo si es JSON válido)
         if not negocio_id:
             try:
                 if request.is_json and request.content_length and request.content_length > 0:
@@ -101,9 +94,8 @@ def get_biz_context():
                     if json_data and isinstance(json_data, dict):
                         negocio_id = json_data.get('negocio_id')
             except Exception:
-                pass  # Ignorar errores de parsing JSON
+                pass
         
-        # 4. Si no hay en JSON, buscar en form data
         if not negocio_id:
             try:
                 if request.form:
@@ -111,7 +103,6 @@ def get_biz_context():
             except Exception:
                 pass
         
-        # Sucursal ID con la misma lógica
         sucursal_id = request.headers.get('X-Sucursal-ID')
         
         if not sucursal_id:
@@ -133,7 +124,6 @@ def get_biz_context():
             except Exception:
                 pass
         
-        # Convertir a int si es posible
         result = {
             'negocio_id': None,
             'sucursal_id': None
@@ -163,8 +153,6 @@ def get_biz_context():
 def parse_json_field(value, default=None):
     """
     Helper para parsear campos que pueden venir como JSON string o ya parseados.
-    Evita el problema de doble encoding.
-    ★ v3.4: Mejorado manejo de errores
     """
     if default is None:
         default = []
@@ -201,15 +189,8 @@ def parse_json_field(value, default=None):
 
 def procesar_badges_desde_request(data):
     """
-    ★ v3.3: Procesa los badges enviados desde el frontend Inventario PRO v2.3.
-    
-    El frontend envía un FormData con:
-    - badges: JSON string con todos los badges manuales (9 badges + personalizado)
-    
-    Returns:
-        dict: Diccionario de badges para guardar en badges_data
+    Procesa los badges enviados desde el frontend Inventario PRO v2.3.
     """
-    # Estructura por defecto con los 9 badges manuales + personalizado
     badges_default = {
         'destacado': False,
         'envio_gratis': False,
@@ -228,7 +209,6 @@ def procesar_badges_desde_request(data):
     badges_raw = data.get('badges')
     
     if badges_raw is None:
-        # Si no viene el campo badges, intentar leer badges individuales (legacy)
         return {
             'destacado': data.get('destacado', False) in [True, 'true', '1', 1],
             'envio_gratis': data.get('envio_gratis', False) in [True, 'true', '1', 1],
@@ -241,7 +221,6 @@ def procesar_badges_desde_request(data):
             'badge_personalizado': data.get('badge_personalizado') or None
         }
     
-    # Parsear JSON si viene como string
     if isinstance(badges_raw, str):
         try:
             badges_raw = json.loads(badges_raw)
@@ -251,7 +230,6 @@ def procesar_badges_desde_request(data):
     if not isinstance(badges_raw, dict):
         return badges_default
     
-    # Retornar badges procesados con valores booleanos correctos
     return {
         'destacado': bool(badges_raw.get('destacado', False)),
         'envio_gratis': bool(badges_raw.get('envio_gratis', False)),
@@ -263,6 +241,97 @@ def procesar_badges_desde_request(data):
         'eco_friendly': bool(badges_raw.get('eco_friendly', False)),
         'badge_personalizado': badges_raw.get('badge_personalizado') or None
     }
+
+
+def procesar_personalizacion_desde_request(data):
+    """
+    ★ v3.5 NUEVO: Procesa la configuración de personalización desde el request.
+    
+    El frontend envía:
+    - personalizacion_activa: boolean
+    - personalizacion_config: JSON string o dict con la configuración
+    
+    Returns:
+        tuple: (activa: bool, config: dict)
+    """
+    # Valor por defecto de la configuración
+    config_default = {
+        "permite_imagen": True,
+        "permite_texto": True,
+        "imagen_requerida": False,
+        "texto_requerido": False,
+        "max_size_mb": 5,
+        "formatos": ["png", "jpg", "jpeg", "pdf"],
+        "max_caracteres": 100,
+        "instrucciones": "Sube tu diseño en alta resolución (mínimo 300 DPI)",
+        "placeholder_texto": "Escribe tu nombre o frase",
+        "costo_adicional": 0
+    }
+    
+    if not data:
+        return False, config_default
+    
+    # Verificar si está activa
+    activa = data.get('personalizacion_activa', False)
+    if isinstance(activa, str):
+        activa = activa.lower() in ['true', '1', 'yes', 'si']
+    else:
+        activa = bool(activa)
+    
+    # Si no está activa, retornar defaults
+    if not activa:
+        return False, config_default
+    
+    # Parsear configuración
+    config_raw = data.get('personalizacion_config')
+    
+    if config_raw is None:
+        # Intentar leer campos individuales
+        config = {
+            'permite_imagen': data.get('permite_imagen', True) in [True, 'true', '1', 1],
+            'permite_texto': data.get('permite_texto', True) in [True, 'true', '1', 1],
+            'imagen_requerida': data.get('imagen_requerida', False) in [True, 'true', '1', 1],
+            'texto_requerido': data.get('texto_requerido', False) in [True, 'true', '1', 1],
+            'max_size_mb': int(data.get('max_size_mb', 5) or 5),
+            'formatos': data.get('formatos', ['png', 'jpg', 'jpeg', 'pdf']),
+            'max_caracteres': int(data.get('max_caracteres', 100) or 100),
+            'instrucciones': str(data.get('instrucciones', config_default['instrucciones']))[:500],
+            'placeholder_texto': str(data.get('placeholder_texto', config_default['placeholder_texto']))[:100],
+            'costo_adicional': float(data.get('costo_adicional', 0) or 0)
+        }
+        return True, config
+    
+    # Parsear JSON si viene como string
+    if isinstance(config_raw, str):
+        try:
+            config_raw = json.loads(config_raw)
+        except:
+            return True, config_default
+    
+    if not isinstance(config_raw, dict):
+        return True, config_default
+    
+    # Sanitizar configuración
+    config = {
+        'permite_imagen': bool(config_raw.get('permite_imagen', True)),
+        'permite_texto': bool(config_raw.get('permite_texto', True)),
+        'imagen_requerida': bool(config_raw.get('imagen_requerida', False)),
+        'texto_requerido': bool(config_raw.get('texto_requerido', False)),
+        'max_size_mb': min(int(config_raw.get('max_size_mb', 5) or 5), 20),
+        'formatos': config_raw.get('formatos', ['png', 'jpg', 'jpeg', 'pdf']),
+        'max_caracteres': min(int(config_raw.get('max_caracteres', 100) or 100), 500),
+        'instrucciones': str(config_raw.get('instrucciones', ''))[:500],
+        'placeholder_texto': str(config_raw.get('placeholder_texto', ''))[:100],
+        'costo_adicional': max(float(config_raw.get('costo_adicional', 0) or 0), 0)
+    }
+    
+    # Validar formatos
+    formatos_validos = ['png', 'jpg', 'jpeg', 'pdf', 'svg', 'ai', 'psd', 'eps']
+    config['formatos'] = [f.lower() for f in config['formatos'] if f.lower() in formatos_validos]
+    if not config['formatos']:
+        config['formatos'] = ['png', 'jpg', 'jpeg']
+    
+    return True, config
 
 
 def require_auth(f):
@@ -279,20 +348,17 @@ def require_auth(f):
 
 def safe_to_dict(obj, fallback_fields=None):
     """
-    ★ v3.4 NUEVO: Convierte un objeto SQLAlchemy a dict de forma segura.
-    Si el objeto tiene to_dict(), lo usa. Si no, construye manualmente.
+    Convierte un objeto SQLAlchemy a dict de forma segura.
     """
     if obj is None:
         return None
     
-    # Intentar usar to_dict() si existe
     if hasattr(obj, 'to_dict'):
         try:
             return obj.to_dict()
         except Exception as e:
             logger.warning(f"⚠️ Error en to_dict(): {e}")
     
-    # Fallback: construir dict manualmente
     if fallback_fields:
         result = {}
         for field in fallback_fields:
@@ -302,7 +368,6 @@ def safe_to_dict(obj, fallback_fields=None):
                 result[field] = None
         return result
     
-    # Si no hay fallback_fields, intentar __dict__
     try:
         result = {}
         for key in obj.__dict__:
@@ -322,9 +387,10 @@ def health_check():
     return jsonify({
         "status": "online", 
         "module": "catalogo",
-        "version": "3.4",
+        "version": "3.5",
         "cloudinary": "configured",
-        "badges_support": "v2.3_json"
+        "badges_support": "v2.3_json",
+        "personalizacion_support": "v1.0"
     }), 200
 
 
@@ -352,6 +418,7 @@ def obtener_mis_productos():
     - stock_filter: 'in_stock', 'low_stock', 'out_of_stock'
     - search: Búsqueda por nombre/SKU/barcode
     - sort: 'newest', 'name_asc', 'price_desc', etc.
+    - personalizable: 'true' para filtrar solo personalizables
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -384,6 +451,12 @@ def obtener_mis_productos():
             query = query.filter(ProductoCatalogo.stock > 0, ProductoCatalogo.stock <= 10)
         elif stock_filter == 'out_of_stock':
             query = query.filter(ProductoCatalogo.stock == 0)
+        
+        # ★ v3.5: Filtro por productos personalizables
+        personalizable = request.args.get('personalizable')
+        if personalizable and personalizable.lower() in ['true', '1', 'yes']:
+            if hasattr(ProductoCatalogo, 'personalizacion_activa'):
+                query = query.filter(ProductoCatalogo.personalizacion_activa == True)
         
         search = request.args.get('search', '').strip()
         if search:
@@ -427,6 +500,15 @@ def obtener_mis_productos():
                 d['imagenes'] = parse_json_field(p.imagenes, [])
                 d['videos'] = parse_json_field(p.videos, [])
                 d['youtube_links'] = d['videos']
+                
+                # ★ v3.5: Incluir info de personalización
+                d['personalizable'] = getattr(p, 'personalizacion_activa', False) or False
+                d['personalizacion_activa'] = d['personalizable']
+                if d['personalizable'] and hasattr(p, 'get_personalizacion_config'):
+                    d['personalizacion_config'] = p.get_personalizacion_config()
+                else:
+                    d['personalizacion_config'] = None
+                
                 data_final.append(d)
             except Exception as e:
                 logger.warning(f"⚠️ Error procesando producto {getattr(p, 'id_producto', '?')}: {e}")
@@ -446,514 +528,7 @@ def obtener_mis_productos():
 
 
 # ============================================
-# 13. LISTAR CATEGORÍAS - ★ CORREGIDO v3.4
-# ============================================
-
-@catalogo_api_bp.route('/categorias', methods=['GET', 'OPTIONS'])
-@cross_origin(supports_credentials=True)
-def listar_categorias():
-    """
-    GET /api/categorias
-    
-    ★ v3.4: CORREGIDO - Manejo robusto de errores
-    Lee categorías desde la tabla categorias_producto
-    
-    Query params:
-    - negocio_id: Filtrar por negocio (requerido si no viene en headers)
-    """
-    if request.method == 'OPTIONS':
-        response = jsonify({"success": True})
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-User-ID,X-Business-ID,X-Negocio-ID,X-Sucursal-ID')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,OPTIONS')
-        return response, 200
-
-    try:
-        # Obtener user_id
-        user_id = get_authorized_user_id()
-        if not user_id:
-            logger.warning("⚠️ GET /categorias: Usuario no autorizado")
-            return jsonify({
-                "success": False, 
-                "message": "No autorizado",
-                "categorias": []
-            }), 401
-
-        # Obtener contexto de negocio
-        ctx = get_biz_context()
-        negocio_id = ctx.get('negocio_id')
-        
-        logger.info(f"📂 GET /categorias - User: {user_id}, Negocio: {negocio_id}")
-        
-        if not negocio_id:
-            logger.warning("⚠️ GET /categorias: negocio_id no proporcionado")
-            return jsonify({
-                "success": False, 
-                "message": "negocio_id es requerido. Envíelo como query param o header X-Business-ID",
-                "categorias": []
-            }), 400
-        
-        # ★ CONSULTAR CATEGORÍAS CON MANEJO DE ERRORES
-        categorias_list = []
-        
-        try:
-            categorias_db = CategoriaProducto.query.filter_by(
-                negocio_id=negocio_id,
-                usuario_id=int(user_id)
-            ).order_by(
-                CategoriaProducto.orden.asc() if hasattr(CategoriaProducto, 'orden') else CategoriaProducto.id_categoria.asc(),
-                CategoriaProducto.id_categoria.asc()
-            ).all()
-            
-            logger.info(f"📂 Encontradas {len(categorias_db)} categorías en BD")
-            
-        except Exception as e:
-            logger.error(f"❌ Error consultando categorias_producto: {e}")
-            categorias_db = []
-        
-        # Contar productos por categoría (con manejo de errores)
-        productos_por_cat = {}
-        try:
-            productos = ProductoCatalogo.query.filter_by(
-                negocio_id=negocio_id,
-                usuario_id=int(user_id),
-                activo=True
-            ).all()
-            
-            for p in productos:
-                cat_nombre = p.categoria or 'Sin categoría'
-                productos_por_cat[cat_nombre] = productos_por_cat.get(cat_nombre, 0) + 1
-                
-        except Exception as e:
-            logger.warning(f"⚠️ Error contando productos por categoría: {e}")
-            productos = []
-        
-        # Formatear respuesta de categorías
-        for cat in categorias_db:
-            try:
-                # Obtener campos de forma segura
-                cat_id = getattr(cat, 'id_categoria', None)
-                cat_nombre = getattr(cat, 'nombre', 'Sin nombre')
-                cat_icono = getattr(cat, 'icono', '📦')
-                cat_color = getattr(cat, 'color', '#6366f1')
-                cat_orden = getattr(cat, 'orden', 0)
-                cat_activo = getattr(cat, 'activo', True)
-                cat_featured = getattr(cat, 'featured', False) or getattr(cat, 'destacada', False)
-                
-                cat_dict = {
-                    'id': cat_id,
-                    'id_categoria': cat_id,
-                    'nombre': cat_nombre,
-                    'icono': cat_icono or '📦',
-                    'color': cat_color or '#6366f1',
-                    'orden': cat_orden or 0,
-                    'activo': cat_activo if cat_activo is not None else True,
-                    'count': productos_por_cat.get(cat_nombre, 0),
-                    'featured': bool(cat_featured),
-                    'source': 'database'
-                }
-                
-                categorias_list.append(cat_dict)
-                
-            except Exception as e:
-                logger.warning(f"⚠️ Error procesando categoría: {e}")
-                continue
-        
-        # Si no hay categorías en BD, buscar en productos existentes
-        if not categorias_list and productos:
-            logger.info("📂 No hay categorías en BD, extrayendo de productos...")
-            categorias_de_productos = set()
-            for p in productos:
-                if p.categoria:
-                    categorias_de_productos.add(p.categoria)
-            
-            for idx, nombre in enumerate(sorted(categorias_de_productos)):
-                categorias_list.append({
-                    'id': None,
-                    'id_categoria': None,
-                    'nombre': nombre,
-                    'icono': '📦',
-                    'color': '#6b7280',
-                    'orden': idx,
-                    'activo': True,
-                    'count': productos_por_cat.get(nombre, 0),
-                    'featured': False,
-                    'source': 'productos'
-                })
-        
-        logger.info(f"✅ GET /categorias: {len(categorias_list)} categorías para negocio {negocio_id}")
-
-        return jsonify({
-            "success": True,
-            "total": len(categorias_list),
-            "categorias": categorias_list,
-            "source": "database" if any(c.get('source') == 'database' for c in categorias_list) else "productos"
-        }), 200
-
-    except Exception as e:
-        logger.error(f"❌ Error en GET /categorias: {traceback.format_exc()}")
-        return jsonify({
-            "success": False, 
-            "message": f"Error interno: {str(e)}", 
-            "categorias": []
-        }), 500
-
-
-# ============================================
-# 14. CREAR CATEGORÍA (POST) - ★ v3.4
-# ============================================
-
-@catalogo_api_bp.route('/categorias', methods=['POST'])
-@cross_origin(supports_credentials=True)
-def crear_categoria():
-    """
-    POST /api/categorias
-    
-    ★ v3.4: Crea una nueva categoría en la tabla categorias_producto
-    
-    Body JSON:
-    {
-        "nombre": "Mi Categoría",
-        "icono": "📦",
-        "color": "#6366f1",
-        "negocio_id": 123,
-        "featured": false
-    }
-    """
-    user_id = get_authorized_user_id()
-    if not user_id:
-        return jsonify({"success": False, "message": "No autorizado"}), 401
-
-    try:
-        # Obtener datos del body
-        data = None
-        try:
-            data = request.get_json(silent=True)
-        except Exception:
-            pass
-        
-        if not data:
-            return jsonify({"success": False, "message": "No se enviaron datos JSON válidos"}), 400
-        
-        nombre = (data.get('nombre') or data.get('name', '')).strip()
-        if not nombre:
-            return jsonify({"success": False, "message": "El nombre es requerido"}), 400
-        
-        ctx = get_biz_context()
-        negocio_id = data.get('negocio_id') or ctx.get('negocio_id')
-        
-        if not negocio_id:
-            return jsonify({"success": False, "message": "negocio_id es requerido"}), 400
-        
-        negocio_id = int(negocio_id)
-        user_id_int = int(user_id)
-        
-        # Verificar si ya existe
-        try:
-            existente = CategoriaProducto.query.filter_by(
-                negocio_id=negocio_id,
-                usuario_id=user_id_int,
-                nombre=nombre
-            ).first()
-            
-            if existente:
-                return jsonify({
-                    "success": False, 
-                    "message": f"Ya existe una categoría con el nombre '{nombre}'",
-                    "categoria": {
-                        'id': existente.id_categoria,
-                        'nombre': existente.nombre
-                    }
-                }), 409
-        except Exception as e:
-            logger.warning(f"⚠️ Error verificando categoría existente: {e}")
-        
-        # Obtener el orden máximo actual
-        max_orden = 0
-        try:
-            result = db.session.query(db.func.max(CategoriaProducto.orden)).filter_by(
-                negocio_id=negocio_id,
-                usuario_id=user_id_int
-            ).scalar()
-            max_orden = result or 0
-        except Exception as e:
-            logger.warning(f"⚠️ Error obteniendo max orden: {e}")
-        
-        # Crear nueva categoría
-        nueva_categoria = CategoriaProducto(
-            nombre=nombre,
-            icono=data.get('icono') or data.get('icon') or '📦',
-            color=data.get('color') or '#6366f1',
-            negocio_id=negocio_id,
-            usuario_id=user_id_int,
-            orden=max_orden + 1,
-            activo=True
-        )
-        
-        # Campos opcionales
-        if hasattr(nueva_categoria, 'featured'):
-            nueva_categoria.featured = data.get('featured', False) in [True, 'true', '1', 1]
-        if hasattr(nueva_categoria, 'destacada'):
-            nueva_categoria.destacada = data.get('featured', False) in [True, 'true', '1', 1]
-        
-        db.session.add(nueva_categoria)
-        db.session.commit()
-        
-        # Preparar respuesta
-        cat_dict = {
-            'id': nueva_categoria.id_categoria,
-            'id_categoria': nueva_categoria.id_categoria,
-            'nombre': nueva_categoria.nombre,
-            'icono': nueva_categoria.icono,
-            'color': nueva_categoria.color,
-            'orden': getattr(nueva_categoria, 'orden', 0),
-            'activo': getattr(nueva_categoria, 'activo', True)
-        }
-        
-        logger.info(f"✅ Categoría creada: {nombre} (ID: {nueva_categoria.id_categoria})")
-
-        return jsonify({
-            "success": True,
-            "message": f"Categoría '{nombre}' creada",
-            "categoria": cat_dict,
-            "id": nueva_categoria.id_categoria,
-            "id_categoria": nueva_categoria.id_categoria
-        }), 201
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"❌ Error crear categoría: {traceback.format_exc()}")
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-# ============================================
-# 15. ACTUALIZAR CATEGORÍA
-# ============================================
-
-@catalogo_api_bp.route('/categorias/<int:id_categoria>', methods=['PUT', 'PATCH', 'OPTIONS'])
-@cross_origin(supports_credentials=True)
-def actualizar_categoria(id_categoria):
-    """
-    PUT/PATCH /api/categorias/{id}
-    
-    Actualiza una categoría existente.
-    También actualiza los productos que usan esta categoría si cambia el nombre.
-    """
-    if request.method == 'OPTIONS':
-        return jsonify({"success": True}), 200
-
-    user_id = get_authorized_user_id()
-    if not user_id:
-        return jsonify({"success": False, "message": "No autorizado"}), 401
-
-    try:
-        categoria = CategoriaProducto.query.filter_by(
-            id_categoria=id_categoria, 
-            usuario_id=int(user_id)
-        ).first()
-        
-        if not categoria:
-            return jsonify({"success": False, "message": "Categoría no encontrada"}), 404
-
-        data = request.get_json(silent=True)
-        if not data:
-            return jsonify({"success": False, "message": "No se enviaron datos"}), 400
-        
-        nombre_anterior = categoria.nombre
-        productos_afectados = 0
-        
-        # Actualizar campos
-        if 'nombre' in data or 'name' in data:
-            nuevo_nombre = (data.get('nombre') or data.get('name', '')).strip()
-            if nuevo_nombre and nuevo_nombre != nombre_anterior:
-                categoria.nombre = nuevo_nombre
-                
-                # Actualizar productos que usan esta categoría
-                try:
-                    productos_afectados = ProductoCatalogo.query.filter_by(
-                        usuario_id=int(user_id), 
-                        categoria=nombre_anterior
-                    ).update({'categoria': nuevo_nombre})
-                except Exception as e:
-                    logger.warning(f"⚠️ Error actualizando productos: {e}")
-        
-        if 'icono' in data or 'icon' in data:
-            categoria.icono = data.get('icono') or data.get('icon')
-        
-        if 'color' in data:
-            categoria.color = data['color']
-        
-        if 'orden' in data:
-            try:
-                categoria.orden = int(data['orden'])
-            except (ValueError, TypeError):
-                pass
-        
-        if 'activo' in data:
-            categoria.activo = data['activo'] in [True, 'true', '1', 1]
-        
-        if 'featured' in data:
-            if hasattr(categoria, 'featured'):
-                categoria.featured = data['featured'] in [True, 'true', '1', 1]
-            if hasattr(categoria, 'destacada'):
-                categoria.destacada = data['featured'] in [True, 'true', '1', 1]
-
-        db.session.commit()
-        
-        cat_dict = {
-            'id': categoria.id_categoria,
-            'id_categoria': categoria.id_categoria,
-            'nombre': categoria.nombre,
-            'icono': getattr(categoria, 'icono', '📦'),
-            'color': getattr(categoria, 'color', '#6366f1'),
-            'orden': getattr(categoria, 'orden', 0),
-            'activo': getattr(categoria, 'activo', True)
-        }
-        
-        logger.info(f"✅ Categoría actualizada: {categoria.nombre} (ID: {id_categoria})")
-
-        return jsonify({
-            "success": True, 
-            "message": "Categoría actualizada", 
-            "categoria": cat_dict,
-            "productos_afectados": productos_afectados
-        }), 200
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"❌ Error actualizar categoría: {traceback.format_exc()}")
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-# ============================================
-# 16. ELIMINAR CATEGORÍA
-# ============================================
-
-@catalogo_api_bp.route('/categorias/<int:id_categoria>', methods=['DELETE', 'OPTIONS'])
-@cross_origin(supports_credentials=True)
-def eliminar_categoria(id_categoria):
-    """
-    DELETE /api/categorias/{id}
-    
-    Elimina una categoría. Los productos con esta categoría 
-    quedan con categoría vacía o 'Sin categoría'.
-    """
-    if request.method == 'OPTIONS':
-        return jsonify({"success": True}), 200
-
-    user_id = get_authorized_user_id()
-    if not user_id:
-        return jsonify({"success": False, "message": "No autorizado"}), 401
-
-    try:
-        categoria = CategoriaProducto.query.filter_by(
-            id_categoria=id_categoria, 
-            usuario_id=int(user_id)
-        ).first()
-        
-        if not categoria:
-            return jsonify({"success": False, "message": "Categoría no encontrada"}), 404
-
-        nombre = categoria.nombre
-        productos_afectados = 0
-        
-        # Actualizar productos que usan esta categoría
-        try:
-            productos_afectados = ProductoCatalogo.query.filter_by(
-                usuario_id=int(user_id), 
-                categoria=nombre
-            ).update({'categoria': ''})
-        except Exception as e:
-            logger.warning(f"⚠️ Error actualizando productos huérfanos: {e}")
-        
-        db.session.delete(categoria)
-        db.session.commit()
-        
-        logger.info(f"🗑️ Categoría eliminada: {nombre} (ID: {id_categoria})")
-
-        return jsonify({
-            "success": True, 
-            "message": f"Categoría '{nombre}' eliminada", 
-            "productos_afectados": productos_afectados
-        }), 200
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"❌ Error eliminar categoría: {traceback.format_exc()}")
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-# ============================================
-# 16.1 REORDENAR CATEGORÍAS - ★ v3.4
-# ============================================
-
-@catalogo_api_bp.route('/categorias/reordenar', methods=['POST', 'OPTIONS'])
-@cross_origin(supports_credentials=True)
-def reordenar_categorias():
-    """
-    POST /api/categorias/reordenar
-    
-    Actualiza el orden de múltiples categorías.
-    
-    Body JSON:
-    {
-        "orden": [
-            {"id": 1, "orden": 0},
-            {"id": 2, "orden": 1},
-            {"id": 3, "orden": 2}
-        ]
-    }
-    """
-    if request.method == 'OPTIONS':
-        return jsonify({"success": True}), 200
-
-    user_id = get_authorized_user_id()
-    if not user_id:
-        return jsonify({"success": False, "message": "No autorizado"}), 401
-
-    try:
-        data = request.get_json(silent=True)
-        if not data or 'orden' not in data:
-            return jsonify({"success": False, "message": "Se requiere lista de orden"}), 400
-        
-        orden_list = data['orden']
-        actualizados = 0
-        
-        for item in orden_list:
-            cat_id = item.get('id') or item.get('id_categoria')
-            nuevo_orden = item.get('orden', 0)
-            
-            if cat_id:
-                try:
-                    categoria = CategoriaProducto.query.filter_by(
-                        id_categoria=int(cat_id),
-                        usuario_id=int(user_id)
-                    ).first()
-                    
-                    if categoria and hasattr(categoria, 'orden'):
-                        categoria.orden = nuevo_orden
-                        actualizados += 1
-                except Exception as e:
-                    logger.warning(f"⚠️ Error reordenando categoría {cat_id}: {e}")
-        
-        db.session.commit()
-        
-        logger.info(f"✅ {actualizados} categorías reordenadas")
-
-        return jsonify({
-            "success": True,
-            "message": f"{actualizados} categorías reordenadas",
-            "actualizados": actualizados
-        }), 200
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"❌ Error reordenar categorías: {traceback.format_exc()}")
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-# ============================================
-# 2. GUARDAR PRODUCTO (Crear nuevo) - v3.4
+# 2. GUARDAR PRODUCTO (Crear nuevo) - v3.5
 # ============================================
 
 @catalogo_api_bp.route('/catalogo/producto/guardar', methods=['POST', 'OPTIONS'])
@@ -973,6 +548,8 @@ def guardar_producto_catalogo():
     - youtube_links o videos (JSON string)
     - imagenes (JSON string) - URLs existentes
     - badges (JSON string) - badges manuales v2.3
+    - ★ personalizacion_activa (boolean) - v3.5
+    - ★ personalizacion_config (JSON string) - v3.5
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -1036,6 +613,9 @@ def guardar_producto_catalogo():
         # PROCESAR BADGES
         badges_data = procesar_badges_desde_request(data)
         
+        # ★ v3.5: PROCESAR PERSONALIZACIÓN
+        personalizacion_activa, personalizacion_config = procesar_personalizacion_desde_request(data)
+        
         # CONTEXTO
         negocio_id = ctx.get('negocio_id') or int(data.get('negocio_id') or 1)
         sucursal_id = ctx.get('sucursal_id') or int(data.get('sucursal_id') or 1)
@@ -1080,6 +660,12 @@ def guardar_producto_catalogo():
             except:
                 pass
         
+        # ★ v3.5: Asignar personalización
+        if hasattr(nuevo_prod, 'personalizacion_activa'):
+            nuevo_prod.personalizacion_activa = personalizacion_activa
+        if hasattr(nuevo_prod, 'personalizacion_config'):
+            nuevo_prod.personalizacion_config = json.dumps(personalizacion_config)
+        
         db.session.add(nuevo_prod)
         db.session.commit()
 
@@ -1087,8 +673,10 @@ def guardar_producto_catalogo():
         producto_dict['id'] = nuevo_prod.id_producto
         producto_dict['imagenes'] = galeria_urls
         producto_dict['videos'] = videos
+        producto_dict['personalizable'] = personalizacion_activa
+        producto_dict['personalizacion_config'] = personalizacion_config if personalizacion_activa else None
         
-        logger.info(f"✅ PRODUCTO CREADO: {nombre} - ID: {nuevo_prod.id_producto}")
+        logger.info(f"✅ PRODUCTO CREADO: {nombre} - ID: {nuevo_prod.id_producto} | Personalizable: {personalizacion_activa}")
 
         return jsonify({
             "success": True,
@@ -1106,7 +694,7 @@ def guardar_producto_catalogo():
 
 
 # ============================================
-# 3. ACTUALIZAR PRODUCTO - v3.4
+# 3. ACTUALIZAR PRODUCTO - v3.5
 # ============================================
 
 @catalogo_api_bp.route('/producto/actualizar/<int:id_producto>', methods=['PUT', 'PATCH', 'OPTIONS'])
@@ -1170,6 +758,17 @@ def actualizar_producto(id_producto):
             if hasattr(producto, 'badge_envio_gratis'):
                 producto.badge_envio_gratis = badges_data.get('envio_gratis', False)
 
+        # ★ v3.5: Actualizar personalización
+        if 'personalizacion_activa' in data or 'personalizacion_config' in data:
+            personalizacion_activa, personalizacion_config = procesar_personalizacion_desde_request(data)
+            
+            if hasattr(producto, 'personalizacion_activa'):
+                producto.personalizacion_activa = personalizacion_activa
+            if hasattr(producto, 'personalizacion_config'):
+                producto.personalizacion_config = json.dumps(personalizacion_config)
+            
+            logger.info(f"🎨 Personalización actualizada: activa={personalizacion_activa}")
+
         # Videos
         if 'youtube_links' in data or 'videos' in data:
             videos_raw = data.get('youtube_links') or data.get('videos') or '[]'
@@ -1224,6 +823,8 @@ def actualizar_producto(id_producto):
         producto_dict['id'] = producto.id_producto
         producto_dict['imagenes'] = galeria_actual
         producto_dict['videos'] = parse_json_field(producto.videos, [])
+        producto_dict['personalizable'] = getattr(producto, 'personalizacion_activa', False)
+        producto_dict['personalizacion_config'] = parse_json_field(getattr(producto, 'personalizacion_config', '{}'), {}) if producto_dict['personalizable'] else None
 
         logger.info(f"✅ Producto {id_producto} actualizado")
 
@@ -1295,6 +896,16 @@ def obtener_producto(id_producto):
         data['imagenes'] = parse_json_field(producto.imagenes, [])
         data['videos'] = parse_json_field(producto.videos, [])
         data['youtube_links'] = data['videos']
+        
+        # ★ v3.5: Incluir personalización
+        data['personalizable'] = getattr(producto, 'personalizacion_activa', False)
+        data['personalizacion_activa'] = data['personalizable']
+        if data['personalizable'] and hasattr(producto, 'get_personalizacion_config'):
+            data['personalizacion_config'] = producto.get_personalizacion_config()
+        elif data['personalizable']:
+            data['personalizacion_config'] = parse_json_field(getattr(producto, 'personalizacion_config', '{}'), {})
+        else:
+            data['personalizacion_config'] = None
 
         return jsonify({"success": True, "producto": data}), 200
 
@@ -1368,7 +979,7 @@ def edicion_rapida(id_producto):
 
 
 # ============================================
-# 7. DUPLICAR PRODUCTO
+# 7. DUPLICAR PRODUCTO - v3.5 (copia personalización)
 # ============================================
 
 @catalogo_api_bp.route('/producto/duplicar/<int:id_producto>', methods=['POST', 'OPTIONS'])
@@ -1406,6 +1017,7 @@ def duplicar_producto(id_producto):
             badges_data=original.badges_data if hasattr(original, 'badges_data') else None
         )
         
+        # Copiar badges legacy
         if hasattr(duplicado, 'badge_destacado') and hasattr(original, 'badge_destacado'):
             duplicado.badge_destacado = original.badge_destacado
         if hasattr(duplicado, 'badge_mas_vendido') and hasattr(original, 'badge_mas_vendido'):
@@ -1413,11 +1025,18 @@ def duplicar_producto(id_producto):
         if hasattr(duplicado, 'badge_envio_gratis') and hasattr(original, 'badge_envio_gratis'):
             duplicado.badge_envio_gratis = original.badge_envio_gratis
         
+        # ★ v3.5: Copiar personalización
+        if hasattr(original, 'personalizacion_activa') and hasattr(duplicado, 'personalizacion_activa'):
+            duplicado.personalizacion_activa = original.personalizacion_activa
+        if hasattr(original, 'personalizacion_config') and hasattr(duplicado, 'personalizacion_config'):
+            duplicado.personalizacion_config = original.personalizacion_config
+        
         db.session.add(duplicado)
         db.session.commit()
 
         producto_dict = safe_to_dict(duplicado, ['id_producto', 'nombre', 'precio', 'stock', 'categoria'])
         producto_dict['id'] = duplicado.id_producto
+        producto_dict['personalizable'] = getattr(duplicado, 'personalizacion_activa', False)
 
         logger.info(f"📋 Producto duplicado: {original.nombre} → {duplicado.nombre}")
 
@@ -1519,7 +1138,6 @@ def ajustar_stock(id_producto):
 
         producto.stock = nuevo_stock
         
-        # Registrar movimiento
         try:
             movimiento = MovimientoStock(
                 producto_id=id_producto,
@@ -1663,7 +1281,7 @@ def obtener_alertas_stock():
 
 
 # ============================================
-# 12. ESTADÍSTICAS DE INVENTARIO
+# 12. ESTADÍSTICAS DE INVENTARIO - v3.5
 # ============================================
 
 @catalogo_api_bp.route('/inventario/estadisticas', methods=['GET', 'OPTIONS'])
@@ -1692,6 +1310,9 @@ def estadisticas_inventario():
         stock_bajo = len([p for p in productos if 0 < p.stock <= stock_bajo_threshold])
         sin_stock = len([p for p in productos if p.stock == 0])
         
+        # ★ v3.5: Contar personalizables
+        personalizables = len([p for p in productos if getattr(p, 'personalizacion_activa', False)])
+        
         valor_total = sum((p.precio * p.stock) for p in productos)
         costo_total = sum((p.costo * p.stock) for p in productos)
         
@@ -1707,6 +1328,7 @@ def estadisticas_inventario():
                 "en_stock": en_stock,
                 "stock_bajo": stock_bajo,
                 "sin_stock": sin_stock,
+                "personalizables": personalizables,
                 "valor_inventario": round(valor_total, 2),
                 "costo_inventario": round(costo_total, 2),
                 "ganancia_potencial": round(valor_total - costo_total, 2)
@@ -1721,7 +1343,364 @@ def estadisticas_inventario():
 
 
 # ============================================
-# 17. AGREGAR IMÁGENES A GALERÍA
+# 13-16. CATEGORÍAS (sin cambios mayores)
+# ============================================
+
+@catalogo_api_bp.route('/categorias', methods=['GET', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def listar_categorias():
+    """GET /api/categorias"""
+    if request.method == 'OPTIONS':
+        response = jsonify({"success": True})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-User-ID,X-Business-ID,X-Negocio-ID,X-Sucursal-ID')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,OPTIONS')
+        return response, 200
+
+    try:
+        user_id = get_authorized_user_id()
+        if not user_id:
+            return jsonify({"success": False, "message": "No autorizado", "categorias": []}), 401
+
+        ctx = get_biz_context()
+        negocio_id = ctx.get('negocio_id')
+        
+        if not negocio_id:
+            return jsonify({"success": False, "message": "negocio_id es requerido", "categorias": []}), 400
+        
+        categorias_list = []
+        
+        try:
+            categorias_db = CategoriaProducto.query.filter_by(
+                negocio_id=negocio_id,
+                usuario_id=int(user_id)
+            ).order_by(
+                CategoriaProducto.orden.asc() if hasattr(CategoriaProducto, 'orden') else CategoriaProducto.id_categoria.asc(),
+                CategoriaProducto.id_categoria.asc()
+            ).all()
+        except Exception as e:
+            logger.error(f"❌ Error consultando categorias_producto: {e}")
+            categorias_db = []
+        
+        productos_por_cat = {}
+        try:
+            productos = ProductoCatalogo.query.filter_by(
+                negocio_id=negocio_id,
+                usuario_id=int(user_id),
+                activo=True
+            ).all()
+            
+            for p in productos:
+                cat_nombre = p.categoria or 'Sin categoría'
+                productos_por_cat[cat_nombre] = productos_por_cat.get(cat_nombre, 0) + 1
+        except Exception as e:
+            productos = []
+        
+        for cat in categorias_db:
+            try:
+                cat_dict = {
+                    'id': getattr(cat, 'id_categoria', None),
+                    'id_categoria': getattr(cat, 'id_categoria', None),
+                    'nombre': getattr(cat, 'nombre', 'Sin nombre'),
+                    'icono': getattr(cat, 'icono', '📦') or '📦',
+                    'color': getattr(cat, 'color', '#6366f1') or '#6366f1',
+                    'orden': getattr(cat, 'orden', 0) or 0,
+                    'activo': getattr(cat, 'activo', True) if getattr(cat, 'activo', True) is not None else True,
+                    'count': productos_por_cat.get(getattr(cat, 'nombre', ''), 0),
+                    'featured': bool(getattr(cat, 'featured', False)),
+                    'source': 'database'
+                }
+                categorias_list.append(cat_dict)
+            except Exception as e:
+                continue
+        
+        if not categorias_list and productos:
+            categorias_de_productos = set()
+            for p in productos:
+                if p.categoria:
+                    categorias_de_productos.add(p.categoria)
+            
+            for idx, nombre in enumerate(sorted(categorias_de_productos)):
+                categorias_list.append({
+                    'id': None,
+                    'id_categoria': None,
+                    'nombre': nombre,
+                    'icono': '📦',
+                    'color': '#6b7280',
+                    'orden': idx,
+                    'activo': True,
+                    'count': productos_por_cat.get(nombre, 0),
+                    'featured': False,
+                    'source': 'productos'
+                })
+
+        return jsonify({
+            "success": True,
+            "total": len(categorias_list),
+            "categorias": categorias_list,
+            "source": "database" if any(c.get('source') == 'database' for c in categorias_list) else "productos"
+        }), 200
+
+    except Exception as e:
+        logger.error(f"❌ Error en GET /categorias: {traceback.format_exc()}")
+        return jsonify({"success": False, "message": str(e), "categorias": []}), 500
+
+
+@catalogo_api_bp.route('/categorias', methods=['POST'])
+@cross_origin(supports_credentials=True)
+def crear_categoria():
+    """POST /api/categorias"""
+    user_id = get_authorized_user_id()
+    if not user_id:
+        return jsonify({"success": False, "message": "No autorizado"}), 401
+
+    try:
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({"success": False, "message": "No se enviaron datos JSON válidos"}), 400
+        
+        nombre = (data.get('nombre') or data.get('name', '')).strip()
+        if not nombre:
+            return jsonify({"success": False, "message": "El nombre es requerido"}), 400
+        
+        ctx = get_biz_context()
+        negocio_id = data.get('negocio_id') or ctx.get('negocio_id')
+        
+        if not negocio_id:
+            return jsonify({"success": False, "message": "negocio_id es requerido"}), 400
+        
+        negocio_id = int(negocio_id)
+        user_id_int = int(user_id)
+        
+        try:
+            existente = CategoriaProducto.query.filter_by(
+                negocio_id=negocio_id,
+                usuario_id=user_id_int,
+                nombre=nombre
+            ).first()
+            
+            if existente:
+                return jsonify({
+                    "success": False, 
+                    "message": f"Ya existe una categoría con el nombre '{nombre}'",
+                    "categoria": {'id': existente.id_categoria, 'nombre': existente.nombre}
+                }), 409
+        except Exception:
+            pass
+        
+        max_orden = 0
+        try:
+            result = db.session.query(db.func.max(CategoriaProducto.orden)).filter_by(
+                negocio_id=negocio_id,
+                usuario_id=user_id_int
+            ).scalar()
+            max_orden = result or 0
+        except Exception:
+            pass
+        
+        nueva_categoria = CategoriaProducto(
+            nombre=nombre,
+            icono=data.get('icono') or data.get('icon') or '📦',
+            color=data.get('color') or '#6366f1',
+            negocio_id=negocio_id,
+            usuario_id=user_id_int,
+            orden=max_orden + 1,
+            activo=True
+        )
+        
+        if hasattr(nueva_categoria, 'featured'):
+            nueva_categoria.featured = data.get('featured', False) in [True, 'true', '1', 1]
+        
+        db.session.add(nueva_categoria)
+        db.session.commit()
+        
+        cat_dict = {
+            'id': nueva_categoria.id_categoria,
+            'id_categoria': nueva_categoria.id_categoria,
+            'nombre': nueva_categoria.nombre,
+            'icono': nueva_categoria.icono,
+            'color': nueva_categoria.color,
+            'orden': getattr(nueva_categoria, 'orden', 0),
+            'activo': getattr(nueva_categoria, 'activo', True)
+        }
+
+        return jsonify({
+            "success": True,
+            "message": f"Categoría '{nombre}' creada",
+            "categoria": cat_dict,
+            "id": nueva_categoria.id_categoria
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@catalogo_api_bp.route('/categorias/<int:id_categoria>', methods=['PUT', 'PATCH', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def actualizar_categoria(id_categoria):
+    """PUT/PATCH /api/categorias/{id}"""
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    user_id = get_authorized_user_id()
+    if not user_id:
+        return jsonify({"success": False, "message": "No autorizado"}), 401
+
+    try:
+        categoria = CategoriaProducto.query.filter_by(id_categoria=id_categoria, usuario_id=int(user_id)).first()
+        if not categoria:
+            return jsonify({"success": False, "message": "Categoría no encontrada"}), 404
+
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({"success": False, "message": "No se enviaron datos"}), 400
+        
+        nombre_anterior = categoria.nombre
+        productos_afectados = 0
+        
+        if 'nombre' in data or 'name' in data:
+            nuevo_nombre = (data.get('nombre') or data.get('name', '')).strip()
+            if nuevo_nombre and nuevo_nombre != nombre_anterior:
+                categoria.nombre = nuevo_nombre
+                try:
+                    productos_afectados = ProductoCatalogo.query.filter_by(
+                        usuario_id=int(user_id), 
+                        categoria=nombre_anterior
+                    ).update({'categoria': nuevo_nombre})
+                except Exception:
+                    pass
+        
+        if 'icono' in data or 'icon' in data:
+            categoria.icono = data.get('icono') or data.get('icon')
+        if 'color' in data:
+            categoria.color = data['color']
+        if 'orden' in data:
+            try:
+                categoria.orden = int(data['orden'])
+            except:
+                pass
+        if 'activo' in data:
+            categoria.activo = data['activo'] in [True, 'true', '1', 1]
+        if 'featured' in data:
+            if hasattr(categoria, 'featured'):
+                categoria.featured = data['featured'] in [True, 'true', '1', 1]
+
+        db.session.commit()
+        
+        cat_dict = {
+            'id': categoria.id_categoria,
+            'id_categoria': categoria.id_categoria,
+            'nombre': categoria.nombre,
+            'icono': getattr(categoria, 'icono', '📦'),
+            'color': getattr(categoria, 'color', '#6366f1'),
+            'orden': getattr(categoria, 'orden', 0),
+            'activo': getattr(categoria, 'activo', True)
+        }
+
+        return jsonify({
+            "success": True, 
+            "message": "Categoría actualizada", 
+            "categoria": cat_dict,
+            "productos_afectados": productos_afectados
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@catalogo_api_bp.route('/categorias/<int:id_categoria>', methods=['DELETE', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def eliminar_categoria(id_categoria):
+    """DELETE /api/categorias/{id}"""
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    user_id = get_authorized_user_id()
+    if not user_id:
+        return jsonify({"success": False, "message": "No autorizado"}), 401
+
+    try:
+        categoria = CategoriaProducto.query.filter_by(id_categoria=id_categoria, usuario_id=int(user_id)).first()
+        if not categoria:
+            return jsonify({"success": False, "message": "Categoría no encontrada"}), 404
+
+        nombre = categoria.nombre
+        productos_afectados = 0
+        
+        try:
+            productos_afectados = ProductoCatalogo.query.filter_by(
+                usuario_id=int(user_id), 
+                categoria=nombre
+            ).update({'categoria': ''})
+        except Exception:
+            pass
+        
+        db.session.delete(categoria)
+        db.session.commit()
+
+        return jsonify({
+            "success": True, 
+            "message": f"Categoría '{nombre}' eliminada", 
+            "productos_afectados": productos_afectados
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@catalogo_api_bp.route('/categorias/reordenar', methods=['POST', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def reordenar_categorias():
+    """POST /api/categorias/reordenar"""
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    user_id = get_authorized_user_id()
+    if not user_id:
+        return jsonify({"success": False, "message": "No autorizado"}), 401
+
+    try:
+        data = request.get_json(silent=True)
+        if not data or 'orden' not in data:
+            return jsonify({"success": False, "message": "Se requiere lista de orden"}), 400
+        
+        actualizados = 0
+        
+        for item in data['orden']:
+            cat_id = item.get('id') or item.get('id_categoria')
+            nuevo_orden = item.get('orden', 0)
+            
+            if cat_id:
+                try:
+                    categoria = CategoriaProducto.query.filter_by(
+                        id_categoria=int(cat_id),
+                        usuario_id=int(user_id)
+                    ).first()
+                    
+                    if categoria and hasattr(categoria, 'orden'):
+                        categoria.orden = nuevo_orden
+                        actualizados += 1
+                except Exception:
+                    pass
+        
+        db.session.commit()
+
+        return jsonify({
+            "success": True,
+            "message": f"{actualizados} categorías reordenadas",
+            "actualizados": actualizados
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+# ============================================
+# 17-24. IMÁGENES, VIDEOS, BÚSQUEDA, IMPORT/EXPORT
 # ============================================
 
 @catalogo_api_bp.route('/producto/<int:id_producto>/imagenes', methods=['POST', 'OPTIONS'])
@@ -1763,16 +1742,12 @@ def agregar_imagenes(id_producto):
         producto.imagenes = json.dumps(galeria_completa)
         db.session.commit()
 
-        return jsonify({"success": True, "message": f"{len(nuevas_urls)} imágenes agregadas", "imagenes": galeria_completa, "total": len(galeria_completa)}), 201
+        return jsonify({"success": True, "message": f"{len(nuevas_urls)} imágenes agregadas", "imagenes": galeria_completa}), 201
 
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": str(e)}), 500
 
-
-# ============================================
-# 18. ELIMINAR IMAGEN DE GALERÍA
-# ============================================
 
 @catalogo_api_bp.route('/producto/<int:id_producto>/imagenes/<int:index>', methods=['DELETE', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
@@ -1795,7 +1770,7 @@ def eliminar_imagen(id_producto, index):
         if index < 0 or index >= len(galeria):
             return jsonify({"success": False, "message": "Índice de imagen inválido"}), 400
         
-        imagen_eliminada = galeria.pop(index)
+        galeria.pop(index)
         producto.imagenes = json.dumps(galeria)
         
         if index == 0 and galeria:
@@ -1811,10 +1786,6 @@ def eliminar_imagen(id_producto, index):
         db.session.rollback()
         return jsonify({"success": False, "message": str(e)}), 500
 
-
-# ============================================
-# 19. AGREGAR VIDEO YOUTUBE
-# ============================================
 
 @catalogo_api_bp.route('/producto/<int:id_producto>/videos', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
@@ -1860,16 +1831,12 @@ def agregar_video(id_producto):
         producto.videos = json.dumps(todos_videos)
         db.session.commit()
 
-        return jsonify({"success": True, "message": f"{len(videos_unicos)} video(s) agregado(s)", "videos": todos_videos, "total": len(todos_videos)}), 201
+        return jsonify({"success": True, "message": f"{len(videos_unicos)} video(s) agregado(s)", "videos": todos_videos}), 201
 
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": str(e)}), 500
 
-
-# ============================================
-# 20. ELIMINAR VIDEO
-# ============================================
 
 @catalogo_api_bp.route('/producto/<int:id_producto>/videos/<int:index>', methods=['DELETE', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
@@ -1892,20 +1859,16 @@ def eliminar_video(id_producto, index):
         if index < 0 or index >= len(videos):
             return jsonify({"success": False, "message": "Índice de video inválido"}), 400
         
-        video_eliminado = videos.pop(index)
+        videos.pop(index)
         producto.videos = json.dumps(videos)
         db.session.commit()
 
-        return jsonify({"success": True, "message": "Video eliminado", "video_eliminado": video_eliminado, "videos": videos}), 200
+        return jsonify({"success": True, "message": "Video eliminado", "videos": videos}), 200
 
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": str(e)}), 500
 
-
-# ============================================
-# 21. BUSCAR POR CÓDIGO
-# ============================================
 
 @catalogo_api_bp.route('/producto/buscar-codigo', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
@@ -1939,7 +1902,7 @@ def buscar_por_codigo():
         ).first()
         
         if not producto:
-            return jsonify({"success": False, "encontrado": False, "message": "Producto no encontrado", "codigo": codigo}), 404
+            return jsonify({"success": False, "encontrado": False, "message": "Producto no encontrado"}), 404
 
         producto_dict = safe_to_dict(producto, ['id_producto', 'nombre', 'precio', 'stock', 'categoria'])
         producto_dict['id'] = producto.id_producto
@@ -1949,10 +1912,6 @@ def buscar_por_codigo():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
-
-# ============================================
-# 22. BÚSQUEDA GLOBAL
-# ============================================
 
 @catalogo_api_bp.route('/productos/buscar', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
@@ -1992,7 +1951,8 @@ def buscar_productos():
         resultados = [{
             "id": p.id_producto, "nombre": p.nombre, "sku": p.referencia_sku,
             "barcode": p.codigo_barras, "categoria": p.categoria,
-            "precio": p.precio, "stock": p.stock, "imagen_url": p.imagen_url
+            "precio": p.precio, "stock": p.stock, "imagen_url": p.imagen_url,
+            "personalizable": getattr(p, 'personalizacion_activa', False)
         } for p in productos]
 
         return jsonify({"success": True, "termino": q, "total": len(resultados), "productos": resultados}), 200
@@ -2000,10 +1960,6 @@ def buscar_productos():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
-
-# ============================================
-# 23. IMPORTAR PRODUCTOS
-# ============================================
 
 @catalogo_api_bp.route('/productos/importar', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
@@ -2107,10 +2063,6 @@ def importar_productos():
         return jsonify({"success": False, "message": str(e)}), 500
 
 
-# ============================================
-# 24. EXPORTAR PRODUCTOS
-# ============================================
-
 @catalogo_api_bp.route('/productos/exportar', methods=['GET', 'POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def exportar_productos():
@@ -2152,7 +2104,8 @@ def exportar_productos():
             'nombre': lambda p: p.nombre, 'sku': lambda p: p.referencia_sku or '',
             'codigo_barras': lambda p: p.codigo_barras or '', 'categoria': lambda p: p.categoria or '',
             'precio': lambda p: p.precio, 'costo': lambda p: p.costo,
-            'stock': lambda p: p.stock, 'descripcion': lambda p: p.descripcion or ''
+            'stock': lambda p: p.stock, 'descripcion': lambda p: p.descripcion or '',
+            'personalizable': lambda p: 'Si' if getattr(p, 'personalizacion_activa', False) else 'No'
         }
 
         datos = []
@@ -2185,7 +2138,7 @@ def exportar_productos():
 
 
 # ============================================
-# 25. CATÁLOGO PÚBLICO (Sin auth) - v3.4
+# 25. CATÁLOGO PÚBLICO (Sin auth) - v3.5
 # ============================================
 
 @catalogo_api_bp.route('/productos/publicos/<int:negocio_id>', methods=['GET', 'OPTIONS'])
@@ -2194,7 +2147,7 @@ def catalogo_publico(negocio_id):
     """
     GET /api/productos/publicos/{negocio_id}
     
-    Catálogo público con BADGES CALCULADOS
+    ★ v3.5: Incluye información de personalización para la tienda pública
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -2204,20 +2157,22 @@ def catalogo_publico(negocio_id):
         
         query = ProductoCatalogo.query.filter_by(negocio_id=negocio_id, activo=True, estado_publicacion=True)
         
-        # Filtro por categoría
         categoria = request.args.get('categoria')
         if categoria:
             query = query.filter_by(categoria=categoria)
         
-        # Búsqueda
         search = request.args.get('search', '').strip()
         if search:
             query = query.filter(ProductoCatalogo.nombre.ilike(f"%{search}%"))
         
-        # Límite
+        # ★ v3.5: Filtro por personalizables
+        personalizable = request.args.get('personalizable')
+        if personalizable and personalizable.lower() in ['true', '1', 'yes']:
+            if hasattr(ProductoCatalogo, 'personalizacion_activa'):
+                query = query.filter(ProductoCatalogo.personalizacion_activa == True)
+        
         limit = min(int(request.args.get('limit', 100)), 500)
         
-        # Ordenamiento
         sort = request.args.get('sort', 'newest')
         if sort == 'price_asc':
             query = query.order_by(ProductoCatalogo.precio.asc())
@@ -2233,15 +2188,13 @@ def catalogo_publico(negocio_id):
         datos_publicos = []
         for p in productos:
             try:
-                producto_dict = safe_to_dict(p, ['id_producto', 'nombre', 'descripcion', 'precio', 'categoria', 'imagen_url', 'stock', 'referencia_sku'])
-                
                 campos_publicos = {
                     "id": p.id_producto,
                     "id_producto": p.id_producto,
                     "nombre": p.nombre,
                     "descripcion": p.descripcion,
-                    "precio": p.precio,
-                    "precio_original": getattr(p, 'precio_original', None),
+                    "precio": float(p.precio) if p.precio else 0,
+                    "precio_original": float(p.precio_original) if getattr(p, 'precio_original', None) else None,
                     "categoria": p.categoria,
                     "imagen_url": p.imagen_url,
                     "imagenes": parse_json_field(p.imagenes, []),
@@ -2262,12 +2215,10 @@ def catalogo_publico(negocio_id):
                 else:
                     campos_publicos['badges'] = {}
                 
-                # Badges legacy
                 campos_publicos['destacado'] = getattr(p, 'badge_destacado', False)
                 campos_publicos['envio_gratis'] = getattr(p, 'badge_envio_gratis', False)
                 
-                # Calcular si tiene descuento
-                # Calcular si tiene descuento
+                # Calcular descuento
                 try:
                     precio_original = getattr(p, 'precio_original', None)
                     precio_actual = float(p.precio) if p.precio else 0
@@ -2282,6 +2233,42 @@ def catalogo_publico(negocio_id):
                 except Exception:
                     campos_publicos['tiene_descuento'] = False
                     campos_publicos['descuento_porcentaje'] = 0
+                
+                # ★ v3.5: PERSONALIZACIÓN PARA TIENDA PÚBLICA
+                campos_publicos['personalizable'] = getattr(p, 'personalizacion_activa', False) or False
+                campos_publicos['personalizacion_activa'] = campos_publicos['personalizable']
+                
+                if campos_publicos['personalizable']:
+                    if hasattr(p, 'get_personalizacion_config'):
+                        campos_publicos['personalizacion_config'] = p.get_personalizacion_config()
+                    else:
+                        config_raw = parse_json_field(getattr(p, 'personalizacion_config', '{}'), {})
+                        # Merge con defaults
+                        config_default = {
+                            "permite_imagen": True,
+                            "permite_texto": True,
+                            "imagen_requerida": False,
+                            "texto_requerido": False,
+                            "max_size_mb": 5,
+                            "formatos": ["png", "jpg", "jpeg", "pdf"],
+                            "max_caracteres": 100,
+                            "instrucciones": "Sube tu diseño en alta resolución",
+                            "placeholder_texto": "Escribe tu nombre o frase",
+                            "costo_adicional": 0
+                        }
+                        for key, val in config_default.items():
+                            if key not in config_raw:
+                                config_raw[key] = val
+                        campos_publicos['personalizacion_config'] = config_raw
+                    
+                    # Calcular precio con personalización
+                    costo_pers = campos_publicos['personalizacion_config'].get('costo_adicional', 0) or 0
+                    campos_publicos['costo_personalizacion'] = float(costo_pers)
+                    campos_publicos['precio_con_personalizacion'] = campos_publicos['precio'] + float(costo_pers)
+                else:
+                    campos_publicos['personalizacion_config'] = None
+                    campos_publicos['costo_personalizacion'] = 0
+                    campos_publicos['precio_con_personalizacion'] = campos_publicos['precio']
                 
                 datos_publicos.append(campos_publicos)
             except Exception as e:
@@ -2312,17 +2299,13 @@ def catalogo_publico(negocio_id):
 
 
 # ============================================
-# 26. ACTUALIZAR BADGES DE PRODUCTO - v3.4
+# 26-27. BADGES ENDPOINTS
 # ============================================
 
 @catalogo_api_bp.route('/producto/<int:id_producto>/badges', methods=['PATCH', 'PUT', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def actualizar_badges_producto(id_producto):
-    """
-    PATCH/PUT /api/producto/{id}/badges
-    
-    Actualiza los 9 badges manuales + badge personalizado
-    """
+    """PATCH/PUT /api/producto/{id}/badges"""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
 
@@ -2339,9 +2322,6 @@ def actualizar_badges_producto(id_producto):
         if not data:
             return jsonify({"success": False, "message": "No se enviaron datos"}), 400
 
-        logger.info(f"🏷️ Actualizando badges de producto {id_producto}")
-
-        # Procesar badges
         if hasattr(producto, 'set_badges_manuales'):
             producto.set_badges_manuales(data)
         else:
@@ -2363,7 +2343,6 @@ def actualizar_badges_producto(id_producto):
             if hasattr(producto, 'badge_envio_gratis'):
                 producto.badge_envio_gratis = badges_data['envio_gratis']
         
-        # Precio original
         if 'precio_original' in data:
             try:
                 producto.precio_original = float(data['precio_original']) if data['precio_original'] else None
@@ -2371,8 +2350,6 @@ def actualizar_badges_producto(id_producto):
                 producto.precio_original = None
 
         db.session.commit()
-
-        logger.info(f"✅ Badges actualizados para producto {id_producto}")
 
         return jsonify({
             "success": True,
@@ -2386,22 +2363,13 @@ def actualizar_badges_producto(id_producto):
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"❌ Error actualizando badges: {traceback.format_exc()}")
         return jsonify({"success": False, "message": str(e)}), 500
 
-
-# ============================================
-# 27. ACTUALIZAR BADGES MASIVO - v3.4
-# ============================================
 
 @catalogo_api_bp.route('/productos/badges/masivo', methods=['PATCH', 'PUT', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def actualizar_badges_masivo():
-    """
-    PATCH/PUT /api/productos/badges/masivo
-    
-    Actualiza badges de múltiples productos
-    """
+    """PATCH/PUT /api/productos/badges/masivo"""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
 
@@ -2419,11 +2387,6 @@ def actualizar_badges_masivo():
         
         if not producto_ids:
             return jsonify({"success": False, "message": "No se especificaron productos"}), 400
-        
-        if not badges_update:
-            return jsonify({"success": False, "message": "No se especificaron badges"}), 400
-
-        logger.info(f"🏷️ Actualización masiva de badges para {len(producto_ids)} productos")
 
         productos = ProductoCatalogo.query.filter(
             ProductoCatalogo.id_producto.in_(producto_ids),
@@ -2453,12 +2416,10 @@ def actualizar_badges_masivo():
                     producto.badge_envio_gratis = badges_update['envio_gratis'] in [True, 'true', '1', 1]
                 
                 actualizados += 1
-            except Exception as e:
-                logger.warning(f"⚠️ Error actualizando producto {getattr(producto, 'id_producto', '?')}: {e}")
+            except Exception:
+                pass
 
         db.session.commit()
-
-        logger.info(f"✅ {actualizados} productos actualizados")
 
         return jsonify({
             "success": True,
@@ -2468,12 +2429,325 @@ def actualizar_badges_masivo():
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"❌ Error actualización masiva: {traceback.format_exc()}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
 # ============================================
-# FIN DEL ARCHIVO - catalogo_api.py v3.4
-# Soporte completo para badges_data JSON
-# CORREGIDO: Error 500 en categorías
+# ★ 28. PERSONALIZACIÓN ENDPOINTS - v3.5 NUEVO
+# ============================================
+
+@catalogo_api_bp.route('/producto/<int:id_producto>/personalizacion', methods=['PATCH', 'PUT', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def actualizar_personalizacion_producto(id_producto):
+    """
+    PATCH/PUT /api/producto/{id}/personalizacion
+    
+    ★ v3.5 NUEVO: Actualiza la configuración de personalización de un producto
+    
+    Body JSON:
+    {
+        "personalizacion_activa": true,
+        "personalizacion_config": {
+            "permite_imagen": true,
+            "permite_texto": true,
+            "imagen_requerida": false,
+            "texto_requerido": false,
+            "max_size_mb": 5,
+            "formatos": ["png", "jpg", "jpeg", "pdf"],
+            "max_caracteres": 100,
+            "instrucciones": "Sube tu diseño en alta resolución",
+            "placeholder_texto": "Escribe tu nombre o frase",
+            "costo_adicional": 5000
+        }
+    }
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    user_id = get_authorized_user_id()
+    if not user_id:
+        return jsonify({"success": False, "message": "No autorizado"}), 401
+
+    try:
+        producto = ProductoCatalogo.query.filter_by(id_producto=id_producto, usuario_id=int(user_id)).first()
+        if not producto:
+            return jsonify({"success": False, "message": "Producto no encontrado"}), 404
+
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({"success": False, "message": "No se enviaron datos"}), 400
+
+        logger.info(f"🎨 Actualizando personalización de producto {id_producto}")
+
+        personalizacion_activa, personalizacion_config = procesar_personalizacion_desde_request(data)
+        
+        if hasattr(producto, 'personalizacion_activa'):
+            producto.personalizacion_activa = personalizacion_activa
+        
+        if hasattr(producto, 'personalizacion_config'):
+            producto.personalizacion_config = json.dumps(personalizacion_config)
+        
+        # Usar método del modelo si existe
+        if hasattr(producto, 'set_personalizacion_config') and personalizacion_activa:
+            producto.set_personalizacion_config(personalizacion_config)
+
+        db.session.commit()
+
+        logger.info(f"✅ Personalización actualizada: activa={personalizacion_activa}")
+
+        return jsonify({
+            "success": True,
+            "message": f"Personalización {'activada' if personalizacion_activa else 'desactivada'}",
+            "producto": {
+                "id": producto.id_producto,
+                "nombre": producto.nombre,
+                "personalizable": personalizacion_activa,
+                "personalizacion_config": personalizacion_config if personalizacion_activa else None
+            }
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error actualizando personalización: {traceback.format_exc()}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@catalogo_api_bp.route('/producto/<int:id_producto>/personalizacion/toggle', methods=['POST', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def toggle_personalizacion_producto(id_producto):
+    """
+    POST /api/producto/{id}/personalizacion/toggle
+    
+    ★ v3.5 NUEVO: Activa/desactiva personalización de un producto
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    user_id = get_authorized_user_id()
+    if not user_id:
+        return jsonify({"success": False, "message": "No autorizado"}), 401
+
+    try:
+        producto = ProductoCatalogo.query.filter_by(id_producto=id_producto, usuario_id=int(user_id)).first()
+        if not producto:
+            return jsonify({"success": False, "message": "Producto no encontrado"}), 404
+
+        # Toggle
+        estado_actual = getattr(producto, 'personalizacion_activa', False) or False
+        nuevo_estado = not estado_actual
+        
+        if hasattr(producto, 'personalizacion_activa'):
+            producto.personalizacion_activa = nuevo_estado
+        
+        # Si se activa y no tiene config, establecer defaults
+        if nuevo_estado and hasattr(producto, 'personalizacion_config'):
+            config_actual = parse_json_field(getattr(producto, 'personalizacion_config', '{}'), {})
+            if not config_actual:
+                config_default = {
+                    "permite_imagen": True,
+                    "permite_texto": True,
+                    "imagen_requerida": False,
+                    "texto_requerido": False,
+                    "max_size_mb": 5,
+                    "formatos": ["png", "jpg", "jpeg", "pdf"],
+                    "max_caracteres": 100,
+                    "instrucciones": "Sube tu diseño en alta resolución (mínimo 300 DPI)",
+                    "placeholder_texto": "Escribe tu nombre o frase",
+                    "costo_adicional": 0
+                }
+                producto.personalizacion_config = json.dumps(config_default)
+
+        db.session.commit()
+
+        logger.info(f"🎨 Personalización toggle: Producto {id_producto} -> {nuevo_estado}")
+
+        return jsonify({
+            "success": True,
+            "message": f"Personalización {'activada' if nuevo_estado else 'desactivada'}",
+            "producto": {
+                "id": producto.id_producto,
+                "nombre": producto.nombre,
+                "personalizable": nuevo_estado
+            }
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@catalogo_api_bp.route('/personalizacion/upload', methods=['POST', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def upload_personalizacion():
+    """
+    POST /api/personalizacion/upload
+    
+    ★ v3.5 NUEVO: Sube una imagen de personalización del CLIENTE a Cloudinary
+    
+    Este endpoint es para que los CLIENTES de la tienda suban sus diseños.
+    NO requiere autenticación (es público).
+    
+    FormData:
+    - archivo: El archivo a subir (imagen/PDF)
+    - negocio_id: ID del negocio
+    - producto_id: ID del producto (opcional)
+    - cliente_nombre: Nombre del cliente (opcional)
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    try:
+        # Obtener archivo
+        archivo = request.files.get('archivo') or request.files.get('file') or request.files.get('imagen')
+        
+        if not archivo or not archivo.filename:
+            return jsonify({"success": False, "message": "No se recibió archivo"}), 400
+        
+        # Validar extensión
+        extension = archivo.filename.rsplit('.', 1)[-1].lower() if '.' in archivo.filename else ''
+        formatos_permitidos = ['png', 'jpg', 'jpeg', 'pdf', 'svg']
+        
+        if extension not in formatos_permitidos:
+            return jsonify({
+                "success": False, 
+                "message": f"Formato no permitido. Usa: {', '.join(formatos_permitidos)}"
+            }), 400
+        
+        # Validar tamaño (máximo 20MB)
+        archivo.seek(0, 2)  # Ir al final
+        size_mb = archivo.tell() / (1024 * 1024)
+        archivo.seek(0)  # Volver al inicio
+        
+        if size_mb > 20:
+            return jsonify({
+                "success": False, 
+                "message": f"Archivo muy grande ({size_mb:.1f}MB). Máximo: 20MB"
+            }), 400
+        
+        # Datos adicionales
+        negocio_id = request.form.get('negocio_id', 'unknown')
+        producto_id = request.form.get('producto_id', 'general')
+        cliente_nombre = request.form.get('cliente_nombre', 'cliente')
+        
+        # Limpiar nombre para public_id
+        cliente_limpio = re.sub(r'[^a-zA-Z0-9]', '', cliente_nombre[:20])
+        timestamp = int(time.time())
+        
+        public_id = f"pers_{negocio_id}_{producto_id}_{cliente_limpio}_{timestamp}"
+        
+        # Subir a Cloudinary
+        try:
+            upload_result = cloudinary.uploader.upload(
+                archivo,
+                folder=f"personalizaciones/{negocio_id}",
+                public_id=public_id,
+                overwrite=True,
+                resource_type="auto",
+                tags=[f"negocio_{negocio_id}", f"producto_{producto_id}", "personalizacion"]
+            )
+            
+            url = upload_result.get('secure_url')
+            public_id_final = upload_result.get('public_id')
+            
+            logger.info(f"✅ Personalización subida: {url}")
+            
+            return jsonify({
+                "success": True,
+                "message": "Archivo subido exitosamente",
+                "url": url,
+                "public_id": public_id_final,
+                "formato": extension,
+                "size_mb": round(size_mb, 2),
+                "negocio_id": negocio_id,
+                "producto_id": producto_id
+            }), 201
+            
+        except Exception as e:
+            logger.error(f"❌ Error subiendo a Cloudinary: {e}")
+            return jsonify({
+                "success": False, 
+                "message": f"Error subiendo archivo: {str(e)}"
+            }), 500
+
+    except Exception as e:
+        logger.error(f"❌ Error en upload personalización: {traceback.format_exc()}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@catalogo_api_bp.route('/productos/personalizables/<int:negocio_id>', methods=['GET', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def obtener_productos_personalizables(negocio_id):
+    """
+    GET /api/productos/personalizables/{negocio_id}
+    
+    ★ v3.5 NUEVO: Lista todos los productos personalizables de un negocio
+    Endpoint público para la tienda
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    try:
+        query = ProductoCatalogo.query.filter_by(
+            negocio_id=negocio_id, 
+            activo=True, 
+            estado_publicacion=True
+        )
+        
+        # Filtrar solo personalizables
+        if hasattr(ProductoCatalogo, 'personalizacion_activa'):
+            query = query.filter(ProductoCatalogo.personalizacion_activa == True)
+        else:
+            return jsonify({
+                "success": True,
+                "total": 0,
+                "productos": [],
+                "message": "Personalización no habilitada en este sistema"
+            }), 200
+        
+        productos = query.order_by(ProductoCatalogo.id_producto.desc()).all()
+        
+        datos = []
+        for p in productos:
+            try:
+                config = None
+                if hasattr(p, 'get_personalizacion_config'):
+                    config = p.get_personalizacion_config()
+                else:
+                    config = parse_json_field(getattr(p, 'personalizacion_config', '{}'), {})
+                
+                costo_pers = config.get('costo_adicional', 0) if config else 0
+                
+                datos.append({
+                    "id": p.id_producto,
+                    "nombre": p.nombre,
+                    "descripcion": p.descripcion,
+                    "precio": float(p.precio or 0),
+                    "precio_con_personalizacion": float(p.precio or 0) + float(costo_pers),
+                    "costo_personalizacion": float(costo_pers),
+                    "categoria": p.categoria,
+                    "imagen_url": p.imagen_url,
+                    "imagenes": parse_json_field(p.imagenes, []),
+                    "en_stock": (p.stock or 0) > 0,
+                    "personalizacion_config": config
+                })
+            except Exception as e:
+                logger.warning(f"⚠️ Error procesando producto {getattr(p, 'id_producto', '?')}: {e}")
+
+        return jsonify({
+            "success": True,
+            "negocio_id": negocio_id,
+            "total": len(datos),
+            "productos": datos
+        }), 200
+
+    except Exception as e:
+        logger.error(f"❌ Error obteniendo personalizables: {traceback.format_exc()}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+# ============================================
+# FIN DEL ARCHIVO - catalogo_api.py v3.5
+# Soporte completo para:
+# - badges_data JSON (v2.3)
+# - Personalización de productos (v2.4)
 # ============================================

@@ -1,7 +1,7 @@
 """
 BizFlow Studio - Modelos de Contabilidad y Catálogo
 Operaciones financieras y gestión de productos
-ACTUALIZADO: Inventario PRO v2.3 - Sistema de Badges con badges_data JSON
+ACTUALIZADO: Inventario PRO v2.4 - Sistema de Badges + Personalización de Productos
 """
 
 import sqlalchemy as sa
@@ -360,12 +360,16 @@ class ProductoReview(db.Model):
 
 
 # ==========================================
-# MODELO: PRODUCTO CATÁLOGO (INVENTARIO PRO v2.3)
+# MODELO: PRODUCTO CATÁLOGO (INVENTARIO PRO v2.4)
 # ==========================================
 class ProductoCatalogo(db.Model):
     """
     Modelo para gestión de productos en el catálogo/inventario.
-    ACTUALIZADO v2.3: Sistema de Badges con columna badges_data (JSON)
+    ACTUALIZADO v2.4: Sistema de Badges + Personalización de Productos
+    
+    ★ NUEVO v2.4: PERSONALIZACIÓN
+    - personalizacion_activa: Permite que el cliente suba diseños/textos
+    - personalizacion_config: JSON con configuración (formatos, tamaños, etc.)
     
     BADGES AUTOMÁTICOS (calculados en calcular_badges):
     - nuevo: fecha_creacion < 30 días
@@ -459,6 +463,26 @@ class ProductoCatalogo(db.Model):
     badges_data = sa.Column(sa.Text, nullable=True, default='{}')
     
     # ==========================================
+    # ★ PERSONALIZACIÓN DE PRODUCTOS (v2.4 - NUEVO)
+    # ==========================================
+    # Permite que el cliente suba diseños/textos personalizados
+    personalizacion_activa = sa.Column(sa.Boolean, default=False)
+    personalizacion_config = sa.Column(sa.Text, nullable=True, default='{}')
+    # Config JSON estructura:
+    # {
+    #   "permite_imagen": true,
+    #   "permite_texto": true,
+    #   "imagen_requerida": false,
+    #   "texto_requerido": false,
+    #   "max_size_mb": 5,
+    #   "formatos": ["png", "jpg", "jpeg", "pdf"],
+    #   "max_caracteres": 100,
+    #   "instrucciones": "Sube tu diseño en alta resolución (mínimo 300 DPI)",
+    #   "placeholder_texto": "Escribe tu nombre o frase",
+    #   "costo_adicional": 0
+    # }
+    
+    # ==========================================
     # PROMOCIONES PROGRAMADAS
     # ==========================================
     promo_inicio = sa.Column(sa.DateTime, nullable=True)
@@ -549,6 +573,19 @@ class ProductoCatalogo(db.Model):
                 self.badges_data = '{}'
         else:
             self.badges_data = '{}'
+        
+        # ★ Personalización v2.4
+        self.personalizacion_activa = kwargs.get('personalizacion_activa', False)
+        personalizacion_config = kwargs.get('personalizacion_config')
+        if personalizacion_config:
+            if isinstance(personalizacion_config, dict):
+                self.personalizacion_config = json.dumps(personalizacion_config)
+            elif isinstance(personalizacion_config, str):
+                self.personalizacion_config = personalizacion_config
+            else:
+                self.personalizacion_config = '{}'
+        else:
+            self.personalizacion_config = '{}'
     
     # ==========================================
     # HELPER PARA PARSEAR JSON
@@ -645,6 +682,92 @@ class ProductoCatalogo(db.Model):
             'badge_personalizado': badges_dict.get('badge_personalizado') or None
         }
         self.badges_data = json.dumps(badges_flex)
+    
+    # ==========================================
+    # ★ MÉTODOS DE PERSONALIZACIÓN v2.4
+    # ==========================================
+    def get_personalizacion_config(self):
+        """
+        Obtiene la configuración de personalización del producto.
+        Retorna configuración por defecto si no está definida.
+        """
+        config_default = {
+            "permite_imagen": True,
+            "permite_texto": True,
+            "imagen_requerida": False,
+            "texto_requerido": False,
+            "max_size_mb": 5,
+            "formatos": ["png", "jpg", "jpeg", "pdf"],
+            "max_caracteres": 100,
+            "instrucciones": "Sube tu diseño en alta resolución",
+            "placeholder_texto": "Escribe tu nombre o frase",
+            "costo_adicional": 0
+        }
+        
+        if not self.personalizacion_activa:
+            return None
+        
+        config = self._parse_json_field(self.personalizacion_config, {})
+        
+        # Merge con defaults
+        for key, value in config_default.items():
+            if key not in config:
+                config[key] = value
+        
+        return config
+    
+    def set_personalizacion_config(self, config_dict):
+        """
+        Guarda la configuración de personalización.
+        Valida y sanitiza los valores.
+        """
+        if not config_dict:
+            self.personalizacion_config = '{}'
+            return
+        
+        if isinstance(config_dict, str):
+            try:
+                config_dict = json.loads(config_dict)
+            except:
+                self.personalizacion_config = '{}'
+                return
+        
+        if not isinstance(config_dict, dict):
+            self.personalizacion_config = '{}'
+            return
+        
+        # Sanitizar valores
+        config_limpio = {
+            'permite_imagen': bool(config_dict.get('permite_imagen', True)),
+            'permite_texto': bool(config_dict.get('permite_texto', True)),
+            'imagen_requerida': bool(config_dict.get('imagen_requerida', False)),
+            'texto_requerido': bool(config_dict.get('texto_requerido', False)),
+            'max_size_mb': min(int(config_dict.get('max_size_mb', 5)), 20),  # Max 20MB
+            'formatos': config_dict.get('formatos', ['png', 'jpg', 'jpeg', 'pdf']),
+            'max_caracteres': min(int(config_dict.get('max_caracteres', 100)), 500),  # Max 500 chars
+            'instrucciones': str(config_dict.get('instrucciones', ''))[:500],  # Max 500 chars
+            'placeholder_texto': str(config_dict.get('placeholder_texto', ''))[:100],
+            'costo_adicional': max(float(config_dict.get('costo_adicional', 0)), 0)  # No negativo
+        }
+        
+        # Validar formatos permitidos
+        formatos_validos = ['png', 'jpg', 'jpeg', 'pdf', 'svg', 'ai', 'psd', 'eps']
+        config_limpio['formatos'] = [f.lower() for f in config_limpio['formatos'] if f.lower() in formatos_validos]
+        if not config_limpio['formatos']:
+            config_limpio['formatos'] = ['png', 'jpg', 'jpeg']
+        
+        self.personalizacion_config = json.dumps(config_limpio)
+    
+    def es_personalizable(self):
+        """Verifica si el producto permite personalización."""
+        return bool(self.personalizacion_activa)
+    
+    def get_costo_personalizacion(self):
+        """Obtiene el costo adicional por personalización."""
+        if not self.personalizacion_activa:
+            return 0
+        config = self.get_personalizacion_config()
+        return config.get('costo_adicional', 0) if config else 0
     
     # ==========================================
     # MÉTODOS DE STOCK
@@ -817,7 +940,7 @@ class ProductoCatalogo(db.Model):
     def to_dict(self):
         """
         Serializa el producto a diccionario.
-        Compatible con Inventario PRO v2.3 y Tienda Pública.
+        Compatible con Inventario PRO v2.4 y Tienda Pública.
         """
         imagenes_lista = self._parse_json_field(self.imagenes, [])
         videos_lista = self._parse_json_field(self.videos, [])
@@ -885,6 +1008,12 @@ class ProductoCatalogo(db.Model):
             "total_ventas": badges["total_ventas"],
             "ventas_30_dias": badges["ventas_30_dias"],
             "visitas_7_dias": badges["visitas_7_dias"],
+            
+            # ★ PERSONALIZACIÓN (v2.4)
+            "personalizable": self.es_personalizable(),
+            "personalizacion_activa": bool(self.personalizacion_activa),
+            "personalizacion_config": self.get_personalizacion_config(),
+            "costo_personalizacion": self.get_costo_personalizacion(),
             
             # ESTADO
             "activo": self.activo,
