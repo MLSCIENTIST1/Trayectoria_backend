@@ -697,21 +697,16 @@ def guardar_producto_catalogo():
 # 3. ACTUALIZAR PRODUCTO - v3.5
 # ============================================
 
+# ============================================
+# 3. ACTUALIZAR PRODUCTO - v3.5 CORREGIDO
+# ============================================
+
 @catalogo_api_bp.route('/producto/actualizar/<int:id_producto>', methods=['PUT', 'PATCH', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def actualizar_producto(id_producto):
     """PUT/PATCH /api/producto/actualizar/{id}"""
-    producto = ProductoCatalogo.query.filter_by(id_producto=id_producto, usuario_id=int(user_id)).first()
-    if not producto:
-        return jsonify({"success": False, "message": "Producto no encontrado"}), 404
-
-    # DEBUG: Verificar modelo
-    logger.info(f"🔍 DEBUG MODELO - hasattr personalizacion_activa: {hasattr(producto, 'personalizacion_activa')}")
-    logger.info(f"🔍 DEBUG MODELO - hasattr personalizacion_config: {hasattr(producto, 'personalizacion_config')}")
-    logger.info(f"🔍 DEBUG MODELO - Valor actual: {getattr(producto, 'personalizacion_activa', 'NO EXISTE')}")
-    
     if request.method == 'OPTIONS':
-            return jsonify({"success": True}), 200
+        return jsonify({"success": True}), 200
 
     user_id = get_authorized_user_id()
     if not user_id:
@@ -722,10 +717,17 @@ def actualizar_producto(id_producto):
         if not producto:
             return jsonify({"success": False, "message": "Producto no encontrado"}), 404
 
+        # DEBUG: Verificar modelo
+        logger.info(f"🔍 DEBUG MODELO - hasattr personalizacion_activa: {hasattr(producto, 'personalizacion_activa')}")
+        logger.info(f"🔍 DEBUG MODELO - Valor actual en BD: {getattr(producto, 'personalizacion_activa', 'NO EXISTE')}")
+
         is_form = 'multipart/form-data' in (request.content_type or '')
         data = request.form.to_dict() if is_form else (request.get_json(silent=True) or {})
 
         logger.info(f"📝 ACTUALIZANDO PRODUCTO ID: {id_producto}")
+        logger.info(f"🎨 DEBUG - Claves en data: {list(data.keys())}")
+        logger.info(f"🎨 DEBUG - personalizacion_activa en data: {'personalizacion_activa' in data}")
+        logger.info(f"🎨 DEBUG - Valor recibido: {data.get('personalizacion_activa')}")
 
         # Campos básicos
         if 'nombre' in data:
@@ -768,25 +770,21 @@ def actualizar_producto(id_producto):
                 producto.badge_envio_gratis = badges_data.get('envio_gratis', False)
 
         # ★ v3.5: Actualizar personalización
-    logger.info(f"🎨 DEBUG - Claves en data: {list(data.keys())}")
-    logger.info(f"🎨 DEBUG - personalizacion_activa en data: {'personalizacion_activa' in data}")
-    logger.info(f"🎨 DEBUG - Valor recibido: {data.get('personalizacion_activa')}")
-
-    if 'personalizacion_activa' in data or 'personalizacion_config' in data:
-        personalizacion_activa, personalizacion_config = procesar_personalizacion_desde_request(data)
-        
-        logger.info(f"🎨 DEBUG - Procesado: activa={personalizacion_activa}, config={personalizacion_config}")
-        
-        if hasattr(producto, 'personalizacion_activa'):
-            producto.personalizacion_activa = personalizacion_activa
-            logger.info(f"🎨 DEBUG - Asignado a producto: {producto.personalizacion_activa}")
-        else:
-            logger.warning(f"🎨 DEBUG - ¡El modelo NO tiene personalizacion_activa!")
-        
-        if hasattr(producto, 'personalizacion_config'):
-            producto.personalizacion_config = json.dumps(personalizacion_config)
-        
-        logger.info(f"🎨 Personalización actualizada: activa={personalizacion_activa}")
+        if 'personalizacion_activa' in data or 'personalizacion_config' in data:
+            personalizacion_activa, personalizacion_config = procesar_personalizacion_desde_request(data)
+            
+            logger.info(f"🎨 DEBUG - Procesado: activa={personalizacion_activa}, config={personalizacion_config}")
+            
+            if hasattr(producto, 'personalizacion_activa'):
+                producto.personalizacion_activa = personalizacion_activa
+                logger.info(f"🎨 DEBUG - Asignado a producto: {producto.personalizacion_activa}")
+            else:
+                logger.warning(f"🎨 DEBUG - ¡El modelo NO tiene personalizacion_activa!")
+            
+            if hasattr(producto, 'personalizacion_config'):
+                producto.personalizacion_config = json.dumps(personalizacion_config)
+            
+            logger.info(f"🎨 Personalización actualizada: activa={personalizacion_activa}")
 
         # Videos
         if 'youtube_links' in data or 'videos' in data:
@@ -845,7 +843,7 @@ def actualizar_producto(id_producto):
         producto_dict['personalizable'] = getattr(producto, 'personalizacion_activa', False)
         producto_dict['personalizacion_config'] = parse_json_field(getattr(producto, 'personalizacion_config', '{}'), {}) if producto_dict['personalizable'] else None
 
-        logger.info(f"✅ Producto {id_producto} actualizado")
+        logger.info(f"✅ Producto {id_producto} actualizado | Personalización: {producto_dict['personalizable']}")
 
         return jsonify({"success": True, "message": "Producto actualizado", "producto": producto_dict}), 200
 
@@ -853,7 +851,6 @@ def actualizar_producto(id_producto):
         db.session.rollback()
         logger.error(f"❌ Error actualizar: {traceback.format_exc()}")
         return jsonify({"success": False, "message": str(e)}), 500
-
 
 # ============================================
 # 4. ELIMINAR PRODUCTO
