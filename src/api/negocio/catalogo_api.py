@@ -2667,7 +2667,130 @@ def toggle_personalizacion_producto(id_producto):
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": str(e)}), 500
+# ============================================
+# ★ 29. REGISTRAR VISTA DE PRODUCTO (PÚBLICO)
+# ============================================
 
+@catalogo_api_bp.route('/producto/<int:id_producto>/vista', methods=['POST', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def registrar_vista_producto(id_producto):
+    """
+    POST /api/producto/{id}/vista
+    
+    ★ NUEVO: Registra una vista del producto (endpoint PÚBLICO, sin auth)
+    Incrementa visitas_7_dias en ProductoCatalogo y registra en ProductoEstadisticas
+    
+    Se llama desde el frontend cuando alguien abre el detalle del producto.
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    try:
+        producto = ProductoCatalogo.query.filter_by(id_producto=id_producto, activo=True).first()
+        if not producto:
+            return jsonify({"success": False, "message": "Producto no encontrado"}), 404
+
+        # Incrementar contador en el producto
+        producto.visitas_7_dias = (producto.visitas_7_dias or 0) + 1
+        
+        # Registrar en estadísticas diarias
+        try:
+            from datetime import date
+            hoy = date.today()
+            
+            estadistica = ProductoEstadisticas.query.filter_by(
+                producto_id=id_producto,
+                fecha=hoy
+            ).first()
+            
+            if estadistica:
+                estadistica.visitas = (estadistica.visitas or 0) + 1
+            else:
+                estadistica = ProductoEstadisticas(
+                    producto_id=id_producto,
+                    negocio_id=producto.negocio_id,
+                    fecha=hoy,
+                    visitas=1,
+                    agregados_carrito=0,
+                    compras=0,
+                    ingresos=0
+                )
+                db.session.add(estadistica)
+        except Exception as e:
+            logger.warning(f"⚠️ No se pudo registrar estadística diaria: {e}")
+        
+        db.session.commit()
+        
+        logger.debug(f"👁️ Vista registrada: Producto {id_producto} | Total: {producto.visitas_7_dias}")
+        
+        return jsonify({
+            "success": True,
+            "visitas": producto.visitas_7_dias
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error registrando vista: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@catalogo_api_bp.route('/producto/<int:id_producto>/estadisticas', methods=['GET', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def obtener_estadisticas_producto(id_producto):
+    """
+    GET /api/producto/{id}/estadisticas
+    
+    ★ NUEVO: Obtiene estadísticas de un producto (requiere auth)
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    user_id = get_authorized_user_id()
+    if not user_id:
+        return jsonify({"success": False, "message": "No autorizado"}), 401
+
+    try:
+        producto = ProductoCatalogo.query.filter_by(
+            id_producto=id_producto, 
+            usuario_id=int(user_id)
+        ).first()
+        
+        if not producto:
+            return jsonify({"success": False, "message": "Producto no encontrado"}), 404
+
+        # Obtener estadísticas de los últimos 30 días
+        from datetime import date, timedelta
+        fecha_inicio = date.today() - timedelta(days=30)
+        
+        estadisticas = ProductoEstadisticas.query.filter(
+            ProductoEstadisticas.producto_id == id_producto,
+            ProductoEstadisticas.fecha >= fecha_inicio
+        ).order_by(ProductoEstadisticas.fecha.desc()).all()
+        
+        # Calcular totales
+        total_visitas = sum(e.visitas or 0 for e in estadisticas)
+        total_carrito = sum(e.agregados_carrito or 0 for e in estadisticas)
+        total_compras = sum(e.compras or 0 for e in estadisticas)
+        total_ingresos = sum(float(e.ingresos or 0) for e in estadisticas)
+        
+        return jsonify({
+            "success": True,
+            "producto_id": id_producto,
+            "producto_nombre": producto.nombre,
+            "resumen": {
+                "visitas_7_dias": producto.visitas_7_dias or 0,
+                "visitas_30_dias": total_visitas,
+                "agregados_carrito_30_dias": total_carrito,
+                "compras_30_dias": total_compras,
+                "ingresos_30_dias": round(total_ingresos, 2),
+                "tasa_conversion": round((total_compras / total_visitas * 100), 1) if total_visitas > 0 else 0
+            },
+            "diario": [e.to_dict() for e in estadisticas]
+        }), 200
+
+    except Exception as e:
+        logger.error(f"❌ Error obteniendo estadísticas: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
 
 @catalogo_api_bp.route('/personalizacion/upload', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
