@@ -80,6 +80,7 @@
 """
 BizFlow Studio - API de Registro de Usuarios
 Con validación flexible de ciudades (case-insensitive, sin acentos)
+v1.9 - Agregado: validación y registro de aceptación de términos
 """
 
 from src.models.database import db
@@ -88,6 +89,7 @@ from src.models.colombia_data.colombia_data import Colombia
 import logging
 import unicodedata
 import re
+from datetime import datetime
 from flask import Blueprint, jsonify, request
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import func
@@ -183,6 +185,7 @@ def register_user():
     """
     API para registrar nuevos usuarios.
     Soporta búsqueda flexible de ciudades (sin importar mayúsculas/acentos).
+    v1.9: Valida y registra aceptación de términos de uso.
     """
     # Manejar preflight CORS
     if request.method == 'OPTIONS':
@@ -208,6 +211,13 @@ def register_user():
         if missing_fields:
             logger.warning(f"Campos faltantes: {missing_fields}")
             return jsonify({'error': f"Faltan datos requeridos: {', '.join(missing_fields)}"}), 400
+
+        # ──────────────────────────────────────────────
+        # 2.5 Validar aceptación de términos (v1.9)
+        # ──────────────────────────────────────────────
+        if not data.get('acepto_terminos'):
+            logger.warning("Registro rechazado: no aceptó términos de uso")
+            return jsonify({'error': 'Debes aceptar los términos de uso y la política de datos para registrarte'}), 400
 
         # 3. Normalizar correo
         correo = data['correo'].strip().lower()
@@ -257,6 +267,20 @@ def register_user():
 
         logger.info(f"Ciudad encontrada: {ciudad_obj.ciudad_nombre} (ID: {ciudad_obj.ciudad_id})")
 
+        # ──────────────────────────────────────────────
+        # 8.5 Preparar fecha de aceptación de términos (v1.9)
+        # ──────────────────────────────────────────────
+        # Usar la fecha enviada por el frontend, o la actual del servidor
+        fecha_aceptacion = datetime.utcnow()
+        if data.get('fecha_aceptacion_terminos'):
+            try:
+                fecha_aceptacion = datetime.fromisoformat(
+                    data['fecha_aceptacion_terminos'].replace('Z', '+00:00')
+                )
+            except (ValueError, AttributeError):
+                # Si el formato es inválido, usar la del servidor
+                fecha_aceptacion = datetime.utcnow()
+
         # 9. Crear la instancia del Usuario
         new_user = Usuario(
             nombre=data['nombre'].strip().title(),
@@ -265,7 +289,9 @@ def register_user():
             profesion=data['profesion'].strip(),
             cedula=cedula,
             celular=str(data['celular']).strip(),
-            ciudad=ciudad_obj.ciudad_id
+            ciudad=ciudad_obj.ciudad_id,
+            acepto_terminos=True,
+            fecha_aceptacion_terminos=fecha_aceptacion
         )
 
         # 10. Hashear y asignar la contraseña
@@ -278,7 +304,7 @@ def register_user():
         db.session.add(new_user)
         db.session.commit()
 
-        logger.info(f"✅ Usuario registrado: {new_user.correo} (ID: {new_user.id_usuario})")
+        logger.info(f"✅ Usuario registrado: {new_user.correo} (ID: {new_user.id_usuario}) | Términos aceptados: {fecha_aceptacion.isoformat()}")
         
         return jsonify({
             'success': True,

@@ -79,6 +79,7 @@
 """
 BizFlow Studio - Modelo de Usuario
 Optimizado para Flask-Login y autenticación segura
+v1.9 - Agregado: acepto_terminos, fecha_aceptacion_terminos
 """
 
 import bcrypt
@@ -111,7 +112,7 @@ class Usuario(db.Model, UserMixin):
     profesion = Column(String(100), nullable=False)
     cedula = Column(BigInteger, nullable=False, unique=True, index=True)
     celular = Column(BigInteger, nullable=False)
-    foto_url = Column(String(500), nullable=True)  # ← NUEVO: URL de foto de perfil (Cloudinary)
+    foto_url = Column(String(500), nullable=True)  # URL de foto de perfil (Cloudinary)
     
     # ==========================================
     # ESTADO Y VALIDACIÓN
@@ -132,6 +133,12 @@ class Usuario(db.Model, UserMixin):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)  # CRÍTICO para tracking de sesiones
+
+    # ==========================================
+    # TÉRMINOS Y CONSENTIMIENTO (v1.9)
+    # ==========================================
+    acepto_terminos = Column(Boolean, default=False, nullable=False)
+    fecha_aceptacion_terminos = Column(DateTime, nullable=True)
     
     # ==========================================
     # RELACIONES
@@ -199,7 +206,8 @@ class Usuario(db.Model, UserMixin):
     # CONSTRUCTOR
     # ==========================================
     def __init__(self, nombre, apellidos, correo, profesion, cedula, celular, 
-                 ciudad=None, validate=False, black_list=False):
+                 ciudad=None, validate=False, black_list=False,
+                 acepto_terminos=False, fecha_aceptacion_terminos=None):
         self.nombre = nombre
         self.apellidos = apellidos
         self.correo = correo.lower().strip()  # Normalizar correo
@@ -211,6 +219,8 @@ class Usuario(db.Model, UserMixin):
         self.black_list = black_list
         self.active = True
         self.created_at = datetime.utcnow()
+        self.acepto_terminos = acepto_terminos
+        self.fecha_aceptacion_terminos = fecha_aceptacion_terminos
 
     # ==========================================
     # MÉTODOS DE AUTENTICACIÓN (CRÍTICOS)
@@ -334,7 +344,7 @@ class Usuario(db.Model, UserMixin):
             "activo": self.active,
             "validado": self.validate,
             "ciudad_id": self.ciudad_id,
-            "foto_url": self.foto_url,  # ← NUEVO: incluir foto_url en serialización
+            "foto_url": self.foto_url,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
         
@@ -342,6 +352,8 @@ class Usuario(db.Model, UserMixin):
             data["cedula"] = self.cedula
             data["last_login"] = self.last_login.isoformat() if self.last_login else None
             data["updated_at"] = self.updated_at.isoformat() if self.updated_at else None
+            data["acepto_terminos"] = self.acepto_terminos
+            data["fecha_aceptacion_terminos"] = self.fecha_aceptacion_terminos.isoformat() if self.fecha_aceptacion_terminos else None
         
         return data
     
