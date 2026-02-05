@@ -2295,7 +2295,8 @@ def catalogo_publico(negocio_id):
                     "sku": p.referencia_sku,
                     "stock": p.stock,
                     "en_stock": (p.stock or 0) > 0,
-                    "activo": True
+                    "activo": True,
+                    "visitas_7_dias": getattr(p, 'visitas_7_dias', 0) or 0,
                 }
                 
                 # Badges
