@@ -1,0 +1,54 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * TUKOMERCIO - Estilos Propietarios
+ * © 2024-2026 Carlos Eduardo Huérfano Bermúdez. Todos los derechos reservados.
+ *
+ * CONFIDENCIAL - Prohibida su reproducción sin autorización.
+ * Protegido por: Ley 23/1982 (Colombia), Decisión Andina 351, Convenio de Berna.
+ * Contacto: carlos-5100@hotmail.com
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+```
+
+---
+
+### 📄 Archivo LICENSE (para la raíz del repo)
+
+Crea un archivo llamado `LICENSE` o `LICENSE.md` en la raíz:
+```
+LICENCIA PROPIETARIA - TUKOMERCIO
+
+© 2024-2026 Carlos Eduardo Huérfano Bermúdez. Todos los derechos reservados.
+
+Este software y su código fuente son CONFIDENCIALES y PROPIETARIOS.
+
+TÉRMINOS:
+
+1. NO se otorga ninguna licencia para usar, copiar, modificar o distribuir
+   este software sin autorización ESCRITA del titular.
+
+2. El acceso al código fuente NO implica permiso de uso.
+
+3. Queda PROHIBIDO:
+   - Copiar o reproducir el código, total o parcialmente
+   - Crear obras derivadas
+   - Distribuir o sublicenciar
+   - Usar para productos competidores
+   - Realizar ingeniería inversa
+
+PROTECCIÓN LEGAL:
+
+Este software está protegido por:
+- Ley 23 de 1982 (Derechos de Autor - Colombia)
+- Ley 1915 de 2018 (Colombia)
+- Decisión Andina 351 de 1993
+- Convenio de Berna
+- Tratado OMPI sobre Derecho de Autor
+
+La infracción de estos derechos está penada con prisión de 4 a 8 años
+y multa según el Código Penal Colombiano (Art. 271).
+
+CONTACTO:
+carlos-5100@hotmail.com
+
+Bogotá, Colombia
