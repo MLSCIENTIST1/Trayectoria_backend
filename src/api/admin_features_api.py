@@ -20,7 +20,7 @@
 
 from flask import Blueprint, jsonify, request, g
 from src.extensions import db
-from src.models.feature_models import FeatureFlag, Plan, PlanFeature, NegocioPlan
+from src.models.feature_models_fixed import FeatureFlag, Plan, PlanFeature, NegocioPlan
 from sqlalchemy import text
 from datetime import datetime
 
@@ -486,7 +486,7 @@ def check_feature(feature_key):
     if not negocio_id:
         return jsonify({'error': 'negocio_id requerido'}), 400
     
-    from src.models.feature_models import check_negocio_feature
+    from src.models.feature_models_fixed import check_negocio_feature
     result = check_negocio_feature(int(negocio_id), feature_key)
     
     return jsonify(result)
