@@ -336,8 +336,10 @@ def serialize_negocio(negocio, include_sucursales=False):
         "qr_url": f"/api/negocio/{negocio.id_negocio}/qr" if getattr(negocio, 'slug', None) else None
     }
     
-    if negocio.ciudad:
-        data["ciudad_nombre"] = negocio.ciudad.ciudad_nombre
+    if negocio.ciudad_rel and hasattr(negocio.ciudad_rel, 'ciudad_nombre'):
+        data["ciudad_nombre"] = negocio.ciudad_rel.ciudad_nombre
+    else:
+        data["ciudad_nombre"] = negocio.ciudad
     
     if include_sucursales:
         sucursales = Sucursal.query.filter_by(negocio_id=negocio.id_negocio, activo=True).all()
