@@ -284,6 +284,14 @@ def register_api(app):
     print("   → /api/n/<slug> - Perfil público (donde apunta el QR)")
     print("   → /api/qr/generate - Generar QR genérico")
     print("   → /api/qr/health - Health check del módulo")
+    print("\n" + "=" * 70)
+    print("🎛️🎛️🎛️ SECCIÓN: FEATURE FLAGS + PLANES API 🎛️🎛️🎛️")
+    print("=" * 70)
+    
+    if safe_register('src.api.admin_features_api', 'admin_features_bp', 'Feature Flags + Planes API', prefix=None):
+        success_count += 1
+    else:
+        fail_count += 1
     
     # Las rutas ya incluyen /api/ en el blueprint
     if safe_register('src.api.negocio.qr_generator_api', 'qr_generator_bp', 'QR Generator v2.0 (Página+Perfil)', prefix=None):

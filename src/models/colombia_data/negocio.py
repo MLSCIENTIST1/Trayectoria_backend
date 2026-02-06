@@ -8,85 +8,27 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #
 # TUKOMERCIO - Plataforma de Comercio Electrónico, Gamificación y Gestión Empresarial
-# Anteriormente conocido como: Trayectoria / BizFlow Studio
-#
-# ═══════════════════════════════════════════════════════════════════════════════
-# AVISO DE PROPIEDAD INTELECTUAL Y DERECHOS DE AUTOR
-# ═══════════════════════════════════════════════════════════════════════════════
 #
 # © 2024-2026 Carlos Eduardo Huérfano Bermúdez. Todos los derechos reservados.
-#
-# TITULAR DE DERECHOS:
-#   Nombre:     Carlos Eduardo Huérfano Bermúdez
-#   C.C.:       1.064.986.917 (Cereté, Córdoba, Colombia)
-#   Contacto:   carlos-5100@hotmail.com | +57 322 818 8375
-#   Ubicación:  Bogotá D.C., Colombia
-#
-# INFORMACIÓN DEL PROYECTO:
-#   Nombre:     TuKomercio
-#   Inicio:     Julio 24, 2024
-#   Repositorio: github.com/routeres (routeres@gmail.com)
+# C.C.: 1.064.986.917 (Cereté, Córdoba, Colombia)
+# Contacto: carlos-5100@hotmail.com | +57 322 818 8375
 #
 # ═══════════════════════════════════════════════════════════════════════════════
-# TÉRMINOS DE USO Y RESTRICCIONES
-# ═══════════════════════════════════════════════════════════════════════════════
-#
-# Este código fuente es CONFIDENCIAL y constituye un SECRETO COMERCIAL.
-#
-# QUEDA ESTRICTAMENTE PROHIBIDO sin autorización ESCRITA del titular:
-#
-#   1. Copiar, reproducir o duplicar este código, total o parcialmente
-#   2. Modificar, adaptar o crear obras derivadas
-#   3. Distribuir, publicar, sublicenciar o transferir a terceros
-#   4. Usar para desarrollo de productos competidores
-#   5. Realizar ingeniería inversa, descompilar o desensamblar
-#   6. Remover o alterar este aviso de propiedad intelectual
-#
-# El acceso a este código NO otorga ninguna licencia implícita o explícita.
-#
-# ═══════════════════════════════════════════════════════════════════════════════
-# PROTECCIÓN LEGAL
-# ═══════════════════════════════════════════════════════════════════════════════
-#
-# Este software está protegido por:
-#
-#   • Ley 23 de 1982 - Derechos de Autor (Colombia)
-#   • Ley 1915 de 2018 - Modernización Derechos de Autor (Colombia)
-#   • Decisión Andina 351 de 1993 - Régimen Común sobre Derecho de Autor
-#   • Convenio de Berna para la Protección de Obras Literarias y Artísticas
-#   • Tratado OMPI sobre Derecho de Autor (WCT)
-#   • Acuerdo ADPIC/TRIPS - Organización Mundial del Comercio
-#
-# SANCIONES POR INFRACCIÓN:
-#   • Civiles: Indemnización por daños y perjuicios (Art. 57, Ley 23/1982)
-#   • Penales: Prisión de 4 a 8 años y multa (Art. 271, Código Penal Colombiano)
-#
-# ═══════════════════════════════════════════════════════════════════════════════
-# JURISDICCIÓN
-# ═══════════════════════════════════════════════════════════════════════════════
-#
-# Cualquier disputa será resuelta exclusivamente por los tribunales de
-# Bogotá D.C., Colombia, bajo las leyes de la República de Colombia.
-#
-# ═══════════════════════════════════════════════════════════════════════════════
-#
-# Para solicitar autorización de uso: carlos-5100@hotmail.com
-#
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-
 
 """
 BizFlow Studio - Modelo de Negocio
 Gestión de negocios con soporte para micrositios
 
-VERSIÓN 2.5 - Incluye:
+VERSIÓN 2.6 - Incluye:
 - whatsapp, tipo_pagina, logo_url
 - config_tienda (JSONB) para Store Designer
-- 🆕 QR del negocio (qr_negocio_url, qr_negocio_data)
-- 🆕 Perfil público (perfil_publico)
-- 🔄 URL actualizada para perfil público
+- QR del negocio (qr_negocio_url, qr_negocio_data)
+- Perfil público (perfil_publico)
+- 🆕 Email del negocio
+- 🆕 Horario de atención (JSONB)
+- 🆕 Video portafolio
+- 🆕 Redes sociales (JSONB)
+- 🆕 Sitio web externo
 """
 
 import sqlalchemy as sa
@@ -98,8 +40,8 @@ from datetime import datetime
 
 class Negocio(db.Model):
     """
-    Modelo para gestión de negocios (empresas/comercios) en BizFlow.
-    Incluye soporte para micrositios personalizados y QR automático.
+    Modelo para gestión de negocios (empresas/comercios) en TuKomercio.
+    Incluye soporte para micrositios personalizados, QR automático y redes sociales.
     """
     __tablename__ = 'negocios'
 
@@ -112,6 +54,41 @@ class Negocio(db.Model):
     direccion = sa.Column(sa.String(255), nullable=True)
     telefono = sa.Column(sa.String(20), nullable=True)
     categoria = sa.Column(sa.String(100), nullable=True, index=True)
+    
+    # ==========================================
+    # 🆕 CONTACTO EXTENDIDO (v2.6)
+    # ==========================================
+    email = sa.Column(sa.String(255), nullable=True)
+    sitio_web = sa.Column(sa.String(500), nullable=True)  # URL externa del negocio
+    
+    # ==========================================
+    # 🆕 HORARIO DE ATENCIÓN (v2.6)
+    # ==========================================
+    # Formato JSONB: {
+    #   "lunes": {"abre": "08:00", "cierra": "18:00", "cerrado": false},
+    #   "martes": {"abre": "08:00", "cierra": "18:00", "cerrado": false},
+    #   ...
+    #   "domingo": {"abre": null, "cierra": null, "cerrado": true}
+    # }
+    horario_atencion = sa.Column(JSONB, default={}, nullable=True)
+    
+    # ==========================================
+    # 🆕 VIDEO PORTAFOLIO (v2.6)
+    # ==========================================
+    video_portafolio = sa.Column(sa.Text, nullable=True)  # URL de YouTube/Vimeo
+    
+    # ==========================================
+    # 🆕 REDES SOCIALES (v2.6)
+    # ==========================================
+    # Formato JSONB: {
+    #   "instagram": "@minegocio",
+    #   "facebook": "minegocio",
+    #   "tiktok": "@minegocio",
+    #   "twitter": "@minegocio",
+    #   "linkedin": "minegocio",
+    #   "youtube": "minegocio"
+    # }
+    redes_sociales = sa.Column(JSONB, default={}, nullable=True)
     
     # ==========================================
     # MICROSITIO / PÁGINA WEB
@@ -133,15 +110,15 @@ class Negocio(db.Model):
     # ==========================================
     config_tienda = sa.Column(JSONB, default={}, nullable=True)
 
-    verificado = sa.Column(sa.Boolean, default=False, nullable=False)  # Negocio verificado
-    ciudad = sa.Column(sa.String(100), nullable=True)  # Ciudad para rankings/filtros
+    verificado = sa.Column(sa.Boolean, default=False, nullable=False)
+    ciudad = sa.Column(sa.String(100), nullable=True)
     
     # ==========================================
-    # 🆕 QR DEL NEGOCIO
+    # QR DEL NEGOCIO
     # ==========================================
-    qr_negocio_url = sa.Column(sa.Text, nullable=True)  # URL del QR en Cloudinary
-    qr_negocio_data = sa.Column(sa.String(300), nullable=True)  # Dato codificado en el QR
-    perfil_publico = sa.Column(sa.Boolean, default=True, nullable=False)  # Visible públicamente
+    qr_negocio_url = sa.Column(sa.Text, nullable=True)
+    qr_negocio_data = sa.Column(sa.String(300), nullable=True)
+    perfil_publico = sa.Column(sa.Boolean, default=True, nullable=False)
     
     # ==========================================
     # METADATA
@@ -168,7 +145,7 @@ class Negocio(db.Model):
     # ==========================================
     # RELACIONES
     # ==========================================
-    ciudad = relationship("Colombia", foreign_keys=[ciudad_id])
+    ciudad_rel = relationship("Colombia", foreign_keys=[ciudad_id])
     dueno = relationship("Usuario", foreign_keys=[usuario_id])
     
     sucursales = relationship(
@@ -206,6 +183,16 @@ class Negocio(db.Model):
         self.telefono = kwargs.get('telefono')
         self.categoria = kwargs.get('categoria', 'General')
         self.ciudad_id = kwargs.get('ciudad_id')
+        self.ciudad = kwargs.get('ciudad')
+        
+        # 🆕 Contacto extendido (v2.6)
+        self.email = kwargs.get('email')
+        self.sitio_web = kwargs.get('sitio_web')
+        
+        # 🆕 Horario y redes (v2.6)
+        self.horario_atencion = kwargs.get('horario_atencion', {})
+        self.video_portafolio = kwargs.get('video_portafolio')
+        self.redes_sociales = kwargs.get('redes_sociales', {})
         
         # Campos de micrositio
         self.whatsapp = kwargs.get('whatsapp')
@@ -218,10 +205,13 @@ class Negocio(db.Model):
         # Store Designer
         self.config_tienda = kwargs.get('config_tienda', {})
         
-        # 🆕 QR y perfil público
+        # QR y perfil público
         self.qr_negocio_url = kwargs.get('qr_negocio_url')
         self.qr_negocio_data = kwargs.get('qr_negocio_data')
         self.perfil_publico = kwargs.get('perfil_publico', True)
+        
+        # Verificado
+        self.verificado = kwargs.get('verificado', False)
         
         # Generar slug si no se proporciona
         if not kwargs.get('slug'):
@@ -277,46 +267,24 @@ class Negocio(db.Model):
         return None
     
     # ==========================================
-    # 🆕 MÉTODOS DE QR Y PERFIL PÚBLICO
+    # MÉTODOS DE QR Y PERFIL PÚBLICO
     # ==========================================
     
     def get_url_perfil_publico(self, base_url="https://tuko.pages.dev"):
-        """
-        Obtiene la URL del perfil público del negocio.
-        Esta es la URL que se codifica en el QR.
-        
-        Args:
-            base_url (str): URL base de la plataforma
-            
-        Returns:
-            str: URL del perfil público
-        """
+        """Obtiene la URL del perfil público del negocio."""
         if self.slug:
             return f"{base_url}/negocio/negocio_perfil.html?slug={self.slug}"
         return None
     
     def generar_qr_data(self, base_url="https://tuko.pages.dev"):
-        """
-        Genera el dato que se codificará en el QR.
-        
-        Args:
-            base_url (str): URL base de la plataforma
-            
-        Returns:
-            str: URL a codificar en el QR
-        """
+        """Genera el dato que se codificará en el QR."""
         url = self.get_url_perfil_publico(base_url)
         if url:
             self.qr_negocio_data = url
         return url
     
     def set_qr_url(self, url):
-        """
-        Establece la URL del QR almacenado (Cloudinary).
-        
-        Args:
-            url (str): URL de la imagen QR
-        """
+        """Establece la URL del QR almacenado (Cloudinary)."""
         self.qr_negocio_url = url
     
     def tiene_qr(self):
@@ -346,6 +314,142 @@ class Negocio(db.Model):
         return url
     
     # ==========================================
+    # 🆕 MÉTODOS DE REDES SOCIALES (v2.6)
+    # ==========================================
+    
+    def get_social_link(self, red):
+        """
+        Genera el link completo para una red social.
+        
+        Args:
+            red (str): Nombre de la red (instagram, facebook, tiktok, twitter, linkedin, youtube)
+            
+        Returns:
+            str: URL completa o None
+        """
+        if not self.redes_sociales or red not in self.redes_sociales:
+            return None
+        
+        username = self.redes_sociales.get(red, '').strip()
+        if not username:
+            return None
+        
+        # Limpiar @ si lo tiene
+        username = username.lstrip('@')
+        
+        base_urls = {
+            'instagram': f'https://instagram.com/{username}',
+            'facebook': f'https://facebook.com/{username}',
+            'tiktok': f'https://tiktok.com/@{username}',
+            'twitter': f'https://twitter.com/{username}',
+            'linkedin': f'https://linkedin.com/company/{username}',
+            'youtube': f'https://youtube.com/@{username}'
+        }
+        
+        return base_urls.get(red)
+    
+    def get_all_social_links(self):
+        """Obtiene todos los links de redes sociales configurados."""
+        if not self.redes_sociales:
+            return {}
+        
+        links = {}
+        for red in ['instagram', 'facebook', 'tiktok', 'twitter', 'linkedin', 'youtube']:
+            link = self.get_social_link(red)
+            if link:
+                links[red] = link
+        
+        return links
+    
+    # ==========================================
+    # 🆕 MÉTODOS DE HORARIO (v2.6)
+    # ==========================================
+    
+    def get_horario_dia(self, dia):
+        """
+        Obtiene el horario de un día específico.
+        
+        Args:
+            dia (str): Día de la semana (lunes, martes, etc.)
+            
+        Returns:
+            dict: {'abre': '08:00', 'cierra': '18:00', 'cerrado': False}
+        """
+        if not self.horario_atencion:
+            return None
+        
+        return self.horario_atencion.get(dia.lower())
+    
+    def esta_abierto_hoy(self):
+        """Verifica si el negocio está abierto hoy (básico, sin hora exacta)."""
+        from datetime import datetime
+        
+        dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
+        hoy = dias[datetime.now().weekday()]
+        
+        horario = self.get_horario_dia(hoy)
+        if not horario:
+            return None  # No hay horario configurado
+        
+        return not horario.get('cerrado', True)
+    
+    def get_horario_texto(self):
+        """Obtiene el horario en formato legible."""
+        if not self.horario_atencion:
+            return "Horario no configurado"
+        
+        dias_orden = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
+        lineas = []
+        
+        for dia in dias_orden:
+            horario = self.horario_atencion.get(dia, {})
+            if horario.get('cerrado', True):
+                lineas.append(f"{dia.capitalize()}: Cerrado")
+            else:
+                abre = horario.get('abre', '--:--')
+                cierra = horario.get('cierra', '--:--')
+                lineas.append(f"{dia.capitalize()}: {abre} - {cierra}")
+        
+        return '\n'.join(lineas)
+    
+    # ==========================================
+    # 🆕 MÉTODOS DE VIDEO PORTAFOLIO (v2.6)
+    # ==========================================
+    
+    def get_video_embed_url(self):
+        """Convierte URL de video a formato embed."""
+        if not self.video_portafolio:
+            return None
+        
+        url = self.video_portafolio.strip()
+        
+        # YouTube
+        if 'youtube.com/watch' in url:
+            video_id = url.split('v=')[1].split('&')[0] if 'v=' in url else None
+            if video_id:
+                return f'https://www.youtube.com/embed/{video_id}'
+        
+        if 'youtu.be/' in url:
+            video_id = url.split('youtu.be/')[1].split('?')[0]
+            return f'https://www.youtube.com/embed/{video_id}'
+        
+        if 'youtube.com/shorts/' in url:
+            video_id = url.split('shorts/')[1].split('?')[0]
+            return f'https://www.youtube.com/embed/{video_id}'
+        
+        # Vimeo
+        if 'vimeo.com/' in url:
+            video_id = url.split('vimeo.com/')[1].split('?')[0]
+            return f'https://player.vimeo.com/video/{video_id}'
+        
+        # Si ya es embed o no reconocido, devolver como está
+        return url
+    
+    def tiene_video(self):
+        """Verifica si el negocio tiene video portafolio."""
+        return bool(self.video_portafolio)
+    
+    # ==========================================
     # SERIALIZACIÓN
     # ==========================================
     
@@ -360,11 +464,28 @@ class Negocio(db.Model):
             "telefono": self.telefono,
             "categoria": self.categoria,
             "ciudad_id": self.ciudad_id,
+            "ciudad": self.ciudad,
             "usuario_id": self.usuario_id,
             "activo": self.activo,
-
             "verificado": self.verificado,
-            "ciudad": self.ciudad,
+            
+            # 🆕 Contacto extendido (v2.6)
+            "email": self.email,
+            "sitio_web": self.sitio_web,
+            
+            # 🆕 Horario (v2.6)
+            "horario_atencion": self.horario_atencion or {},
+            "horario_texto": self.get_horario_texto(),
+            "abierto_hoy": self.esta_abierto_hoy(),
+            
+            # 🆕 Video portafolio (v2.6)
+            "video_portafolio": self.video_portafolio,
+            "video_embed_url": self.get_video_embed_url(),
+            "tiene_video": self.tiene_video(),
+            
+            # 🆕 Redes sociales (v2.6)
+            "redes_sociales": self.redes_sociales or {},
+            "social_links": self.get_all_social_links(),
             
             # Micrositio
             "tiene_pagina": self.tiene_pagina,
@@ -382,7 +503,7 @@ class Negocio(db.Model):
             # Store Designer
             "config_tienda": self.config_tienda or {},
             
-            # 🆕 QR del negocio
+            # QR del negocio
             "qr_negocio_url": self.qr_negocio_url,
             "qr_negocio_data": self.qr_negocio_data,
             "perfil_publico": self.perfil_publico,
@@ -394,12 +515,12 @@ class Negocio(db.Model):
             "fecha_actualizacion": self.fecha_actualizacion.isoformat() if self.fecha_actualizacion else None
         }
         
-        # Ciudad
-        if self.ciudad:
-            data["nombre_ciudad"] = self.ciudad.ciudad_nombre
-            data["departamento"] = getattr(self.ciudad, 'departamento', None)
+        # Ciudad desde relación
+        if hasattr(self, 'ciudad_rel') and self.ciudad_rel:
+            data["nombre_ciudad"] = self.ciudad_rel.ciudad_nombre
+            data["departamento"] = getattr(self.ciudad_rel, 'departamento', None)
         else:
-            data["nombre_ciudad"] = None
+            data["nombre_ciudad"] = self.ciudad
             data["departamento"] = None
         
         # Relaciones opcionales
