@@ -9,7 +9,7 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 from datetime import datetime
-from src.models import db  # Ajusta según tu import (puede ser from app import db)
+from src.models.database import db  # Ajusta según tu import (puede ser from app import db)
 
 
 class FeatureFlag(db.Model):

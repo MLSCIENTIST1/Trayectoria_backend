@@ -76,9 +76,9 @@
 
 
 """
-BizFlow Studio - Registro de APIs v2.16
+BizFlow Studio - Registro de APIs v2.17
 Sistema de carga segura de blueprints
-Actualizado: BadgeVerificationService para asignación automática de badges
+Actualizado: Feature Flags + Planes de Suscripción
 """
 
 import traceback
@@ -98,11 +98,11 @@ def register_api(app):
     """
     
     print("=" * 70)
-    print("🔌 REGISTER_API: INICIANDO REGISTRO DE BLUEPRINTS v2.16")
+    print("🔌 REGISTER_API: INICIANDO REGISTRO DE BLUEPRINTS v2.17")
     print("=" * 70)
     
     logger.info("="*70)
-    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.16")
+    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.17")
     logger.info("="*70)
     
     # ==========================================
@@ -114,7 +114,7 @@ def register_api(app):
         return jsonify({
             "status": "online", 
             "message": "BizFlow Studio API operativa",
-            "version": "2.16.0"
+            "version": "2.17.0"
         }), 200
     
     logger.info("✅ Ruta de salud global registrada: /api/health")
@@ -133,7 +133,6 @@ def register_api(app):
         print(f"   📦 Prefix: {prefix}")
         
         try:
-            # Importar el módulo
             print(f"   🔄 Importando módulo '{module_path}'...")
             module = __import__(module_path, fromlist=[bp_name])
             print(f"   ✅ Módulo importado exitosamente")
@@ -142,7 +141,6 @@ def register_api(app):
             blueprint = getattr(module, bp_name)
             print(f"   ✅ Blueprint obtenido: {blueprint}")
             
-            # Registrar el blueprint
             print(f"   🔄 Registrando blueprint en la app...")
             if prefix:
                 app.register_blueprint(blueprint, url_prefix=prefix)
@@ -188,11 +186,9 @@ def register_api(app):
     
     auth_loaded = False
     
-    # Opción 1: src.api.auth.auth_system
     if safe_register('src.api.auth.auth_system', 'auth_bp', 'Auth System (api/auth)', prefix=None):
         success_count += 1
         auth_loaded = True
-    # Opción 2: src.routes.auth_system_api
     elif safe_register('src.routes.auth_system_api', 'auth_bp', 'Auth System (routes)', prefix=None):
         success_count += 1
         auth_loaded = True
@@ -225,7 +221,6 @@ def register_api(app):
     
     negocio_loaded = False
     
-    # Intentar cargar negocio_completo_api.py
     try:
         print("🔄 Intentando cargar negocio_completo_api directamente...")
         from src.api.negocio.negocio_completo_api import negocio_api_bp
@@ -239,7 +234,6 @@ def register_api(app):
         print(f"❌ Error importando negocio_completo_api: {e}")
         traceback.print_exc()
         
-        # Fallback: intentar negocio_api.py
         try:
             from src.api.negocio.negocio_completo_api import negocio_api_bp
             app.register_blueprint(negocio_api_bp, url_prefix='/api')
@@ -284,16 +278,7 @@ def register_api(app):
     print("   → /api/n/<slug> - Perfil público (donde apunta el QR)")
     print("   → /api/qr/generate - Generar QR genérico")
     print("   → /api/qr/health - Health check del módulo")
-    print("\n" + "=" * 70)
-    print("🎛️🎛️🎛️ SECCIÓN: FEATURE FLAGS + PLANES API 🎛️🎛️🎛️")
-    print("=" * 70)
     
-    if safe_register('src.api.admin_features_api', 'admin_features_bp', 'Feature Flags + Planes API', prefix=None):
-        success_count += 1
-    else:
-        fail_count += 1
-    
-    # Las rutas ya incluyen /api/ en el blueprint
     if safe_register('src.api.negocio.qr_generator_api', 'qr_generator_bp', 'QR Generator v2.0 (Página+Perfil)', prefix=None):
         success_count += 1
         print("🔲 ✅✅✅ QR GENERATOR v2.0 CARGADO EXITOSAMENTE ✅✅✅")
@@ -425,18 +410,12 @@ def register_api(app):
     print("=" * 70)
     logger.info("\n🎯 Cargando módulo de perfil público BizScore...")
     
-    print("🎯 Intentando cargar: src.api.profile.perfil_publico_negocio_api")
-    print("🎯 Blueprint esperado: perfil_publico_negocio_bp")
-    print("🎯 Prefix: None (rutas incluyen /api/)")
-    
-    # Perfil público del negocio - /api/negocio/perfil-publico/<slug>
     if safe_register('src.api.profile.perfil_publico_negocio_api', 'perfil_publico_negocio_bp', 'Perfil Público Negocio', prefix=None):
         success_count += 1
         print("🎯 ✅✅✅ PERFIL PÚBLICO NEGOCIO CARGADO EXITOSAMENTE ✅✅✅")
     else:
         fail_count += 1
         print("🎯 ❌❌❌ PERFIL PÚBLICO NEGOCIO FALLÓ AL CARGAR ❌❌❌")
-        logger.warning("⚠️  Módulo de perfil público no cargado")
     
     print("=" * 70)
     
@@ -448,18 +427,12 @@ def register_api(app):
     print("=" * 70)
     logger.info("\n🎬 Cargando módulo de feed de videos...")
     
-    print("🎬 Intentando cargar: src.api.videos.videos_api")
-    print("🎬 Blueprint esperado: videos_api")
-    print("🎬 Prefix: /api/videos")
-    
-    # Feed de videos - /api/videos/feed, /api/videos/<id>, etc.
     if safe_register('src.api.videos.videos_api', 'videos_api', 'Feed de Videos', prefix='/api/videos'):
         success_count += 1
         print("🎬 ✅✅✅ FEED DE VIDEOS CARGADO EXITOSAMENTE ✅✅✅")
     else:
         fail_count += 1
         print("🎬 ❌❌❌ FEED DE VIDEOS FALLÓ AL CARGAR ❌❌❌")
-        logger.warning("⚠️  Módulo de feed de videos no cargado")
     
     print("=" * 70)
     
@@ -471,18 +444,12 @@ def register_api(app):
     print("=" * 70)
     logger.info("\n🏆 Cargando módulo de Challenge viral...")
     
-    print("🏆 Intentando cargar: src.api.challenge_api")
-    print("🏆 Blueprint esperado: challenge_bp")
-    print("🏆 Prefix: None (rutas ya incluyen /api/challenge)")
-    
-    # Challenge API - /api/challenge/active, /api/challenge/votar, etc.
     if safe_register('src.api.challenge_api', 'challenge_bp', 'Challenge #MiNegocioEn15Segundos', prefix=None):
         success_count += 1
         print("🏆 ✅✅✅ CHALLENGE API CARGADO EXITOSAMENTE ✅✅✅")
     else:
         fail_count += 1
         print("🏆 ❌❌❌ CHALLENGE API FALLÓ AL CARGAR ❌❌❌")
-        logger.warning("⚠️  Módulo de Challenge no cargado")
     
     print("=" * 70)
     
@@ -494,9 +461,6 @@ def register_api(app):
     print("=" * 70)
     logger.info("\n🔐 Cargando módulo de administración...")
     
-    print("🔐 Intentando cargar: src.api.admin_api")
-    print("🔐 Blueprint esperado: admin_bp")
-    print("🔐 Prefix: None (rutas ya incluyen /api/admin)")
     print("🔐 Endpoints disponibles:")
     print("   → /api/admin/check - Verificar si es admin")
     print("   → /api/admin/list - Listar administradores")
@@ -506,14 +470,43 @@ def register_api(app):
     print("   → /api/admin/participaciones - Gestionar participaciones")
     print("   → /api/admin/stats - Estadísticas generales")
     
-    # Admin API - /api/admin/check, /api/admin/challenges, etc.
     if safe_register('src.api.admin_api', 'admin_bp', 'Admin API', prefix=None):
         success_count += 1
         print("🔐 ✅✅✅ ADMIN API CARGADO EXITOSAMENTE ✅✅✅")
     else:
         fail_count += 1
         print("🔐 ❌❌❌ ADMIN API FALLÓ AL CARGAR ❌❌❌")
-        logger.warning("⚠️  Módulo de Admin no cargado")
+    
+    print("=" * 70)
+    
+    # ==========================================
+    # 🎛️ FEATURE FLAGS + PLANES API
+    # ==========================================
+    print("\n" + "=" * 70)
+    print("🎛️🎛️🎛️ SECCIÓN: FEATURE FLAGS + PLANES API 🎛️🎛️🎛️")
+    print("=" * 70)
+    logger.info("\n🎛️ Cargando módulo de Feature Flags y Planes de Suscripción...")
+    
+    print("🎛️ Endpoints disponibles:")
+    print("   → GET    /api/admin/features - Listar features")
+    print("   → PUT    /api/admin/features/<id>/toggle - Toggle feature")
+    print("   → PUT    /api/admin/features/<id> - Editar feature")
+    print("   → POST   /api/admin/features - Crear feature")
+    print("   → GET    /api/admin/planes - Listar planes")
+    print("   → PUT    /api/admin/planes/<id>/features - Actualizar features de plan")
+    print("   → PUT    /api/admin/negocios/<id>/plan - Asignar plan a negocio")
+    print("   → GET    /api/admin/negocios/planes - Listar negocios con plan")
+    print("   → GET    /api/features/my - Features del negocio actual")
+    print("   → GET    /api/features/check/<key> - Verificar acceso a feature")
+    print("   → GET    /api/planes - Listar planes públicos")
+    
+    if safe_register('src.api.admin_features_api', 'admin_features_bp', 'Feature Flags + Planes API', prefix=None):
+        success_count += 1
+        print("🎛️ ✅✅✅ FEATURE FLAGS + PLANES API CARGADO EXITOSAMENTE ✅✅✅")
+    else:
+        fail_count += 1
+        print("🎛️ ❌❌❌ FEATURE FLAGS + PLANES API FALLÓ AL CARGAR ❌❌❌")
+        logger.warning("⚠️  Módulo de Feature Flags no cargado")
     
     print("=" * 70)
     
@@ -525,9 +518,6 @@ def register_api(app):
     print("=" * 70)
     logger.info("\n📊 Cargando módulo de contratos admin para métricas...")
     
-    print("📊 Intentando cargar: src.api.utils.contratos_admin_api")
-    print("📊 Blueprint esperado: contratos_admin_api")
-    print("📊 Prefix: /api/admin/contratos")
     print("📊 Endpoints disponibles:")
     print("   → POST   /api/admin/contratos - Crear contrato")
     print("   → GET    /api/admin/contratos - Listar contratos")
@@ -537,14 +527,12 @@ def register_api(app):
     print("   → GET    /api/admin/contratos/estadisticas/<negocio_id> - Stats")
     print("   → POST   /api/admin/contratos/seed/<negocio_id> - Crear datos prueba")
     
-    # Contratos Admin API - /api/admin/contratos/*
     if safe_register('src.api.utils.contratos_admin_api', 'contratos_admin_api', 'Contratos Admin API', prefix='/api/admin/contratos'):
         success_count += 1
         print("📊 ✅✅✅ CONTRATOS ADMIN API CARGADO EXITOSAMENTE ✅✅✅")
     else:
         fail_count += 1
         print("📊 ❌❌❌ CONTRATOS ADMIN API FALLÓ AL CARGAR ❌❌❌")
-        logger.warning("⚠️  Módulo de Contratos Admin no cargado")
     
     print("=" * 70)
     
@@ -556,22 +544,17 @@ def register_api(app):
     print("=" * 70)
     logger.info("\n🎖️ Cargando módulo de verificación automática de badges...")
     
-    print("🎖️ Intentando cargar: src.api.utils.badge_verification_service")
-    print("🎖️ Blueprint esperado: badge_verification_bp")
-    print("🎖️ Prefix: /api/admin/badges")
     print("🎖️ Endpoints disponibles:")
-    print("   → GET  /api/admin/badges/verificar/<negocio_id> - Verificar badges de un negocio")
-    print("   → POST /api/admin/badges/verificar-todos - Verificar todos los negocios")
-    print("   → GET  /api/admin/badges/status/<negocio_id> - Estado y progreso de badges")
+    print("   → GET  /api/admin/badges/verificar/<negocio_id> - Verificar badges")
+    print("   → POST /api/admin/badges/verificar-todos - Verificar todos")
+    print("   → GET  /api/admin/badges/status/<negocio_id> - Estado badges")
     
-    # Badge Verification Service - /api/admin/badges/*
     if safe_register('src.api.utils.badge_verification_service', 'badge_verification_bp', 'Badge Verification Service', prefix='/api/admin/badges'):
         success_count += 1
         print("🎖️ ✅✅✅ BADGE VERIFICATION SERVICE CARGADO EXITOSAMENTE ✅✅✅")
     else:
         fail_count += 1
         print("🎖️ ❌❌❌ BADGE VERIFICATION SERVICE FALLÓ AL CARGAR ❌❌❌")
-        logger.warning("⚠️  Módulo de Badge Verification no cargado")
     
     print("=" * 70)
     
@@ -594,8 +577,6 @@ def register_api(app):
         else:
             fail_count += 1
     
-    # 🔔 Notificaciones para Negocios (campanita BizFlow)
-    # Nota: prefix=None porque las rutas ya incluyen /api/
     if safe_register('src.api.notifications.notifications_negocio_api', 'notifications_negocio_bp', 'Notificaciones Negocio', prefix=None):
         success_count += 1
     else:
@@ -662,146 +643,69 @@ def register_api(app):
     logger.info(f"   📦 Total:     {success_count + fail_count}")
     logger.info("="*70)
     
-    # Listar rutas registradas para negocios
+    # ==========================================
+    # 🔍 VERIFICACIÓN DE RUTAS
+    # ==========================================
+    
+    # Rutas de negocios
     logger.info("\n📍 Rutas de negocios registradas:")
     for rule in app.url_map.iter_rules():
         if 'negocio' in rule.rule or 'sucursal' in rule.rule or 'mis_negocios' in rule.rule:
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     
-    # 🔲 Listar rutas de QR
+    # Rutas de QR
     print("\n🔲 Verificando rutas de QR Generator v2.0:")
-    logger.info("\n🔲 Rutas de QR registradas:")
-    qr_encontrado = False
     for rule in app.url_map.iter_rules():
         if '/qr' in rule.rule or '/n/' in rule.rule:
-            print(f"   ✅ ENCONTRADA: {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
-            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
-            qr_encontrado = True
+            print(f"   ✅ {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     
-    if not qr_encontrado:
-        print("   ❌ NO SE ENCONTRARON RUTAS DE QR")
-    
-    # 🎯 Listar rutas de perfil público
-    print("\n🎯 Verificando rutas de perfil público BizScore:")
-    logger.info("\n🎯 Rutas de perfil público BizScore:")
-    perfil_publico_encontrado = False
-    for rule in app.url_map.iter_rules():
-        if 'perfil-publico' in rule.rule:
-            print(f"   ✅ ENCONTRADA: {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
-            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
-            perfil_publico_encontrado = True
-    
-    if not perfil_publico_encontrado:
-        print("   ❌ NO SE ENCONTRARON RUTAS DE PERFIL PÚBLICO")
-    
-    # 🎬 Listar rutas de videos
-    print("\n🎬 Verificando rutas de feed de videos:")
-    logger.info("\n🎬 Rutas de feed de videos:")
-    videos_encontrado = False
-    for rule in app.url_map.iter_rules():
-        if '/videos' in rule.rule:
-            print(f"   ✅ ENCONTRADA: {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
-            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
-            videos_encontrado = True
-    
-    if not videos_encontrado:
-        print("   ❌ NO SE ENCONTRARON RUTAS DE VIDEOS")
-    
-    # 🏆 Listar rutas de Challenge
-    print("\n🏆 Verificando rutas de Challenge:")
-    logger.info("\n🏆 Rutas de Challenge #MiNegocioEn15Segundos:")
-    challenge_encontrado = False
-    for rule in app.url_map.iter_rules():
-        if '/challenge' in rule.rule:
-            print(f"   ✅ ENCONTRADA: {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
-            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
-            challenge_encontrado = True
-    
-    if not challenge_encontrado:
-        print("   ❌ NO SE ENCONTRARON RUTAS DE CHALLENGE")
-    
-    # 🔐 Listar rutas de Admin
+    # Rutas de Admin
     print("\n🔐 Verificando rutas de Admin API:")
-    logger.info("\n🔐 Rutas de Admin API:")
-    admin_encontrado = False
     for rule in app.url_map.iter_rules():
         if '/admin' in rule.rule:
-            print(f"   ✅ ENCONTRADA: {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
-            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
-            admin_encontrado = True
+            print(f"   ✅ {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     
-    if not admin_encontrado:
-        print("   ❌ NO SE ENCONTRARON RUTAS DE ADMIN")
-    
-    # 📊 Listar rutas de Contratos Admin
-    print("\n📊 Verificando rutas de Contratos Admin API:")
-    logger.info("\n📊 Rutas de Contratos Admin API:")
-    contratos_admin_encontrado = False
+    # Rutas de Features y Planes
+    print("\n🎛️ Verificando rutas de Feature Flags + Planes:")
+    features_encontrado = False
     for rule in app.url_map.iter_rules():
-        if '/admin/contratos' in rule.rule:
+        if '/features' in rule.rule or '/planes' in rule.rule:
             print(f"   ✅ ENCONTRADA: {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
-            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
-            contratos_admin_encontrado = True
+            features_encontrado = True
     
-    if not contratos_admin_encontrado:
-        print("   ❌ NO SE ENCONTRARON RUTAS DE CONTRATOS ADMIN")
+    if not features_encontrado:
+        print("   ❌ NO SE ENCONTRARON RUTAS DE FEATURES/PLANES")
     
-    # 🎖️ Listar rutas de Badge Verification
-    print("\n🎖️ Verificando rutas de Badge Verification:")
-    logger.info("\n🎖️ Rutas de Badge Verification:")
-    badge_verificacion_encontrado = False
-    for rule in app.url_map.iter_rules():
-        if '/admin/badges' in rule.rule:
-            print(f"   ✅ ENCONTRADA: {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
-            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
-            badge_verificacion_encontrado = True
-    
-    if not badge_verificacion_encontrado:
-        print("   ❌ NO SE ENCONTRARON RUTAS DE BADGE VERIFICATION")
-    
-    # Listar rutas de compradores y pedidos
-    logger.info("\n🛒 Rutas de compradores y pedidos registradas:")
+    # Rutas de compradores y pedidos
+    logger.info("\n🛒 Rutas de compradores y pedidos:")
     for rule in app.url_map.iter_rules():
         if 'comprador' in rule.rule or 'pedido' in rule.rule:
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     
-    # Listar rutas de checkout/tiendas
-    logger.info("\n🏪 Rutas de checkout/tiendas registradas:")
+    # Rutas de checkout/tiendas
+    logger.info("\n🏪 Rutas de checkout/tiendas:")
     for rule in app.url_map.iter_rules():
         if 'tienda' in rule.rule or 'checkout' in rule.rule:
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     
-    # Listar rutas de recuperación de contraseña
-    logger.info("\n🔑 Rutas de recuperación de contraseña registradas:")
+    # Rutas de recuperación
+    logger.info("\n🔑 Rutas de recuperación de contraseña:")
     for rule in app.url_map.iter_rules():
         if 'reset' in rule.rule or 'forgot' in rule.rule:
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     
-    # Listar rutas de avatar/perfil
-    logger.info("\n📸 Rutas de avatar registradas:")
-    for rule in app.url_map.iter_rules():
-        if 'avatar' in rule.rule:
-            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
-    
-    # Listar rutas de notificaciones
-    logger.info("\n🔔 Rutas de notificaciones registradas:")
-    for rule in app.url_map.iter_rules():
-        if 'notification' in rule.rule:
-            logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
-
-    if fail_count > 0:
-        logger.warning(f"⚠️  {fail_count} módulo(s) no se cargaron. Revisa los logs.")
-        print(f"⚠️  {fail_count} módulo(s) no se cargaron. Revisa los logs.")
-    else:
-        logger.info("🎉 Todos los módulos cargados exitosamente")
-        print("🎉 Todos los módulos cargados exitosamente")
-    
-    # Listar rutas de trayectoria
-    logger.info("\n🎯 Rutas de trayectoria registradas:")
+    # Rutas de trayectoria
+    logger.info("\n🎯 Rutas de trayectoria:")
     for rule in app.url_map.iter_rules():
         if 'scores' in rule.rule or 'stages' in rule.rule or 'badges' in rule.rule or 'metrics' in rule.rule or 'portfolio' in rule.rule:
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
-    logger.info("")
+    
+    if fail_count > 0:
+        logger.warning(f"⚠️  {fail_count} módulo(s) no se cargaron. Revisa los logs.")
+        print(f"\n⚠️  {fail_count} módulo(s) no se cargaron. Revisa los logs.")
+    else:
+        logger.info("🎉 Todos los módulos cargados exitosamente")
+        print("\n🎉 Todos los módulos cargados exitosamente")
     
     print("\n" + "=" * 70)
     print("🔌 REGISTER_API: FINALIZADO")
