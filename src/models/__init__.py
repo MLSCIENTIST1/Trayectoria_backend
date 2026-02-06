@@ -150,7 +150,7 @@ from .password_reset_token import PasswordResetToken
 # ==========================================
 from .administrador import Administrador
 
-from src.models.feature_models_fixed import FeatureFlag, Plan, PlanFeature, NegocioPlan
+from src.models.feature_models import FeatureFlag, Plan, PlanFeature, NegocioPlan
 
 
 # ==========================================

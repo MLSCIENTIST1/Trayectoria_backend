@@ -6,7 +6,7 @@
 from flask import Blueprint, request, jsonify, g, make_response
 from flask_login import current_user, login_required
 from functools import wraps
-from src.models.database import db
+from src.models import db
 from src.models.feature_models import FeatureFlag, Plan, PlanFeature, NegocioPlan
 from sqlalchemy import text
 from datetime import datetime

@@ -19,7 +19,7 @@
 
 from functools import wraps
 from flask import jsonify, g, request
-from src.models.feature_models_fixed import check_negocio_feature
+from src.models.feature_models import check_negocio_feature
 
 import logging
 logger = logging.getLogger(__name__)
