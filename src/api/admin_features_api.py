@@ -19,7 +19,7 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 from flask import Blueprint, jsonify, request, g
-from src..models import db
+from src.models import db
 from src.models.feature_models_fixed import FeatureFlag, Plan, PlanFeature, NegocioPlan
 from sqlalchemy import text
 from datetime import datetime
