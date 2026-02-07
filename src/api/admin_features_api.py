@@ -277,56 +277,88 @@ def list_negocios_with_plans():
 @admin_features_bp.route('/api/features/my', methods=['GET', 'OPTIONS'])
 def get_my_features():
     negocio_id = request.headers.get('X-Negocio-Id') or request.args.get('negocio_id')
-    if not negocio_id and current_user.is_authenticated:
-        result = db.session.execute(text("SELECT id_negocio FROM negocios WHERE usuario_id = :uid LIMIT 1"), {'uid': current_user.id}).fetchone()
-        if result:
-            negocio_id = result[0]
+    
+    # Intentar obtener negocio del usuario autenticado
+    if not negocio_id:
+        try:
+            if current_user and hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
+                result = db.session.execute(
+                    text("SELECT id_negocio FROM negocios WHERE usuario_id = :uid LIMIT 1"),
+                    {'uid': current_user.id}
+                ).fetchone()
+                if result:
+                    negocio_id = result[0]
+        except Exception as e:
+            logger.warning(f"⚠️ get_my_features: No se pudo obtener usuario: {e}")
 
-    # Si hay negocio, obtener su plan; si no, plan = None (sin negocio)
+    # Obtener plan del negocio (None si no tiene negocio)
     plan_key = None
     if negocio_id:
-        negocio = db.session.execute(text("SELECT plan_key FROM negocios WHERE id_negocio = :nid"), {'nid': int(negocio_id)}).fetchone()
-        plan_key = (negocio[0] if negocio else None) or 'basic'
+        try:
+            negocio = db.session.execute(
+                text("SELECT plan_key FROM negocios WHERE id_negocio = :nid"),
+                {'nid': int(negocio_id)}
+            ).fetchone()
+            plan_key = (negocio[0] if negocio else None) or 'basic'
+        except Exception as e:
+            logger.warning(f"⚠️ get_my_features: Error consultando negocio {negocio_id}: {e}")
+            plan_key = 'basic'
 
+    # Obtener TODAS las features visibles
     all_features = FeatureFlag.query.filter_by(visible=True).order_by(FeatureFlag.orden).all()
 
-    # Obtener features del plan (vacío si no hay negocio/plan)
+    # Obtener features incluidas en el plan (vacío si no hay plan)
     plan_feature_map = {}
     if plan_key:
-        plan_features = db.session.query(FeatureFlag.key, PlanFeature.limite, PlanFeature.config_json).join(
-            PlanFeature, PlanFeature.feature_id == FeatureFlag.id
-        ).join(Plan, Plan.id == PlanFeature.plan_id).filter(Plan.key == plan_key).all()
-        plan_feature_map = {pf[0]: {'limite': pf[1], 'config': pf[2]} for pf in plan_features}
+        try:
+            plan_features = db.session.query(
+                FeatureFlag.key, PlanFeature.limite, PlanFeature.config_json
+            ).join(
+                PlanFeature, PlanFeature.feature_id == FeatureFlag.id
+            ).join(
+                Plan, Plan.id == PlanFeature.plan_id
+            ).filter(Plan.key == plan_key).all()
+            plan_feature_map = {pf[0]: {'limite': pf[1], 'config': pf[2]} for pf in plan_features}
+        except Exception as e:
+            logger.warning(f"⚠️ get_my_features: Error consultando plan_features: {e}")
 
+    # Construir respuesta
     features_response = []
     for f in all_features:
         in_plan = f.key in plan_feature_map
 
-        # Si activo_global=false → disabled (oculto para TODOS, con o sin negocio)
-        # Si activo_global=true pero no tiene negocio → upgrade
-        # Si activo_global=true y tiene negocio pero no en plan → upgrade
-        # Si activo_global=true y en plan → allowed
         if not f.activo_global:
+            # Desactivado globalmente → oculto para TODOS
+            allowed = False
             locked_reason = 'disabled'
-            allowed = False
         elif not plan_key:
-            # Sin negocio: mostrar como upgrade (no ocultar)
-            locked_reason = 'upgrade'
+            # Sin negocio → mostrar con candado
             allowed = False
+            locked_reason = 'upgrade'
         elif in_plan:
-            locked_reason = None
+            # Activo y en su plan → permitido
             allowed = True
+            locked_reason = None
         else:
-            locked_reason = 'upgrade'
+            # Activo pero no en su plan → candado
             allowed = False
+            locked_reason = 'upgrade'
 
         features_response.append({
-            'key': f.key, 'nombre': f.nombre, 'categoria': f.categoria, 'icono': f.icono,
+            'key': f.key,
+            'nombre': f.nombre,
+            'categoria': f.categoria,
+            'icono': f.icono,
             'allowed': allowed,
             'limite': plan_feature_map[f.key]['limite'] if in_plan else None,
             'locked_reason': locked_reason
         })
-    return jsonify({'success': True, 'plan': plan_key or 'none', 'features': features_response})
+
+    return jsonify({
+        'success': True,
+        'plan': plan_key or 'none',
+        'features': features_response
+    })
 
 
 @admin_features_bp.route('/api/features/check/<feature_key>', methods=['GET', 'OPTIONS'])
