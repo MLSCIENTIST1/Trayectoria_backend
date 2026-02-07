@@ -96,6 +96,7 @@ from flask_login import current_user
 from src.models.colombia_data.negocio import Negocio
 
 from src.models.database import db
+from src.models.feature_required import check_limit
 from src.models.colombia_data.contabilidad.operaciones_y_catalogo import (
     ProductoCatalogo, 
     TransaccionOperativa,
@@ -643,7 +644,14 @@ def guardar_producto_catalogo():
         nombre = data.get('nombre', '').strip()
         if not nombre:
             return jsonify({"success": False, "message": "El nombre es requerido"}), 400
-        
+
+        # ═══ VALIDAR LÍMITE DE PRODUCTOS POR PLAN ═══
+        negocio_id_check = ctx.get('negocio_id') or data.get('negocio_id')
+        if negocio_id_check:
+            limit_error = check_limit('crear_producto', int(negocio_id_check), ProductoCatalogo, 'negocio_id')
+            if limit_error:
+                return limit_error
+            
         logger.info(f"📦 CREANDO PRODUCTO: {nombre} | User: {user_id} | Negocio: {ctx.get('negocio_id')}")
         
         # PROCESAR IMAGEN PRINCIPAL
@@ -1561,6 +1569,9 @@ def crear_categoria():
         
         if not negocio_id:
             return jsonify({"success": False, "message": "negocio_id es requerido"}), 400
+        limit_error = check_limit('crear_categoria', negocio_id, CategoriaProducto, 'negocio_id')
+        if limit_error:
+            return limit_error
         
         negocio_id = int(negocio_id)
         user_id_int = int(user_id)
