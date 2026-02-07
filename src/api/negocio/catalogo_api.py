@@ -96,7 +96,7 @@ from flask_login import current_user
 from src.models.colombia_data.negocio import Negocio
 
 from src.models.database import db
-from src.models.feature_required import check_limit
+from src.models.feature_models import check_limit
 from src.models.colombia_data.contabilidad.operaciones_y_catalogo import (
     ProductoCatalogo, 
     TransaccionOperativa,
@@ -609,6 +609,10 @@ def obtener_mis_productos():
 # 2. GUARDAR PRODUCTO (Crear nuevo) - v3.5
 # ============================================
 
+# ============================================
+# 2. GUARDAR PRODUCTO (Crear nuevo) - v3.6 CON PLAN GATING
+# ============================================
+
 @catalogo_api_bp.route('/catalogo/producto/guardar', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def guardar_producto_catalogo():
@@ -626,8 +630,8 @@ def guardar_producto_catalogo():
     - youtube_links o videos (JSON string)
     - imagenes (JSON string) - URLs existentes
     - badges (JSON string) - badges manuales v2.3
-    - ★ personalizacion_activa (boolean) - v3.5
-    - ★ personalizacion_config (JSON string) - v3.5
+    - personalizacion_activa (boolean) - v3.5
+    - personalizacion_config (JSON string) - v3.5
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -704,7 +708,52 @@ def guardar_producto_catalogo():
         # CONTEXTO
         negocio_id = ctx.get('negocio_id') or int(data.get('negocio_id') or 1)
         sucursal_id = ctx.get('sucursal_id') or int(data.get('sucursal_id') or 1)
-        
+
+        # ═══════════════════════════════════════════════════════════════
+        # ★ v3.6: VALIDAR SUB-FEATURES POR PLAN (sanitización silenciosa)
+        # Si el plan no incluye la feature, limpiamos el dato sin rechazar
+        # ═══════════════════════════════════════════════════════════════
+        nid = int(negocio_id) if negocio_id else None
+        if nid:
+            # Badges manuales → requiere inv_badges_manuales (pro+)
+            if not check_feature_access('inv_badges_manuales', nid):
+                badges_data = {
+                    'destacado': False, 'envio_gratis': False, 'pre_orden': False,
+                    'edicion_limitada': False, 'oferta_flash': False, 'combo': False,
+                    'garantia_extendida': False, 'eco_friendly': False,
+                    'badge_personalizado': None
+                }
+                logger.info(f"🔒 Badges manuales bloqueados por plan")
+
+            # Personalización → requiere inv_personalizacion (premium+)
+            if not check_feature_access('inv_personalizacion', nid):
+                personalizacion_activa = False
+                personalizacion_config = {}
+                logger.info(f"🔒 Personalización bloqueada por plan")
+
+            # Videos → requiere inv_videos (premium+)
+            if not check_feature_access('inv_videos', nid):
+                videos = []
+                logger.info(f"🔒 Videos bloqueados por plan")
+
+            # Galería multi-imagen → requiere inv_galeria_multi (pro+)
+            if not check_feature_access('inv_galeria_multi', nid):
+                if len(galeria_urls) > 1:
+                    galeria_urls = galeria_urls[:1]
+                    logger.info(f"🔒 Galería limitada a 1 imagen por plan")
+
+            # Código de barras → requiere inv_codigo_barras (pro+)
+            if not check_feature_access('inv_codigo_barras', nid):
+                data['barcode'] = ''
+                data['codigo_barras'] = ''
+                logger.info(f"🔒 Código de barras bloqueado por plan")
+
+            # Costo de compra → requiere inv_costo_compra (pro+)
+            if not check_feature_access('inv_costo_compra', nid):
+                data['costo'] = '0'
+                logger.info(f"🔒 Costo de compra bloqueado por plan")
+        # ═══ FIN VALIDACIÓN SUB-FEATURES ═══
+
         # CREAR PRODUCTO
         nuevo_prod = ProductoCatalogo(
             nombre=nombre,
@@ -779,11 +828,7 @@ def guardar_producto_catalogo():
 
 
 # ============================================
-# 3. ACTUALIZAR PRODUCTO - v3.5
-# ============================================
-
-# ============================================
-# 3. ACTUALIZAR PRODUCTO - v3.5 CORREGIDO
+# 3. ACTUALIZAR PRODUCTO - v3.6 CON PLAN GATING
 # ============================================
 
 @catalogo_api_bp.route('/producto/actualizar/<int:id_producto>', methods=['PUT', 'PATCH', 'OPTIONS'])
@@ -802,17 +847,11 @@ def actualizar_producto(id_producto):
         if not producto:
             return jsonify({"success": False, "message": "Producto no encontrado"}), 404
 
-        # DEBUG: Verificar modelo
-        logger.info(f"🔍 DEBUG MODELO - hasattr personalizacion_activa: {hasattr(producto, 'personalizacion_activa')}")
-        logger.info(f"🔍 DEBUG MODELO - Valor actual en BD: {getattr(producto, 'personalizacion_activa', 'NO EXISTE')}")
-
         is_form = 'multipart/form-data' in (request.content_type or '')
         data = request.form.to_dict() if is_form else (request.get_json(silent=True) or {})
+        ctx = get_biz_context()
 
         logger.info(f"📝 ACTUALIZANDO PRODUCTO ID: {id_producto}")
-        logger.info(f"🎨 DEBUG - Claves en data: {list(data.keys())}")
-        logger.info(f"🎨 DEBUG - personalizacion_activa en data: {'personalizacion_activa' in data}")
-        logger.info(f"🎨 DEBUG - Valor recibido: {data.get('personalizacion_activa')}")
 
         # Campos básicos
         if 'nombre' in data:
@@ -858,13 +897,8 @@ def actualizar_producto(id_producto):
         if 'personalizacion_activa' in data or 'personalizacion_config' in data:
             personalizacion_activa, personalizacion_config = procesar_personalizacion_desde_request(data)
             
-            logger.info(f"🎨 DEBUG - Procesado: activa={personalizacion_activa}, config={personalizacion_config}")
-            
             if hasattr(producto, 'personalizacion_activa'):
                 producto.personalizacion_activa = personalizacion_activa
-                logger.info(f"🎨 DEBUG - Asignado a producto: {producto.personalizacion_activa}")
-            else:
-                logger.warning(f"🎨 DEBUG - ¡El modelo NO tiene personalizacion_activa!")
             
             if hasattr(producto, 'personalizacion_config'):
                 producto.personalizacion_config = json.dumps(personalizacion_config)
@@ -919,11 +953,66 @@ def actualizar_producto(id_producto):
         if galeria_actual:
             producto.imagen_url = galeria_actual[0]
 
+        # ═══════════════════════════════════════════════════════════════
+        # ★ v3.6: VALIDAR SUB-FEATURES POR PLAN (sanitización silenciosa)
+        # Limpiamos datos que el plan no permite ANTES del commit
+        # ═══════════════════════════════════════════════════════════════
+        nid = ctx.get('negocio_id') or producto.negocio_id
+        if nid:
+            nid = int(nid)
+
+            # Badges manuales → requiere inv_badges_manuales (pro+)
+            if not check_feature_access('inv_badges_manuales', nid):
+                producto.badges_data = json.dumps({
+                    'destacado': False, 'envio_gratis': False, 'pre_orden': False,
+                    'edicion_limitada': False, 'oferta_flash': False, 'combo': False,
+                    'garantia_extendida': False, 'eco_friendly': False,
+                    'badge_personalizado': None
+                })
+                if hasattr(producto, 'badge_destacado'):
+                    producto.badge_destacado = False
+                if hasattr(producto, 'badge_envio_gratis'):
+                    producto.badge_envio_gratis = False
+                logger.info(f"🔒 Badges manuales sanitizados por plan")
+
+            # Personalización → requiere inv_personalizacion (premium+)
+            if not check_feature_access('inv_personalizacion', nid):
+                if hasattr(producto, 'personalizacion_activa'):
+                    producto.personalizacion_activa = False
+                if hasattr(producto, 'personalizacion_config'):
+                    producto.personalizacion_config = json.dumps({})
+                logger.info(f"🔒 Personalización sanitizada por plan")
+
+            # Videos → requiere inv_videos (premium+)
+            if not check_feature_access('inv_videos', nid):
+                producto.videos = json.dumps([])
+                logger.info(f"🔒 Videos sanitizados por plan")
+
+            # Galería multi-imagen → requiere inv_galeria_multi (pro+)
+            if not check_feature_access('inv_galeria_multi', nid):
+                galeria_check = parse_json_field(producto.imagenes, [])
+                if len(galeria_check) > 1:
+                    galeria_check = galeria_check[:1]
+                    producto.imagenes = json.dumps(galeria_check)
+                    producto.imagen_url = galeria_check[0] if galeria_check else producto.imagen_url
+                    logger.info(f"🔒 Galería limitada a 1 imagen por plan")
+
+            # Código de barras → requiere inv_codigo_barras (pro+)
+            if not check_feature_access('inv_codigo_barras', nid):
+                producto.codigo_barras = ''
+                logger.info(f"🔒 Código de barras sanitizado por plan")
+
+            # Costo de compra → requiere inv_costo_compra (pro+)
+            if not check_feature_access('inv_costo_compra', nid):
+                producto.costo = 0
+                logger.info(f"🔒 Costo de compra sanitizado por plan")
+        # ═══ FIN VALIDACIÓN SUB-FEATURES ═══
+
         db.session.commit()
 
         producto_dict = safe_to_dict(producto, ['id_producto', 'nombre', 'precio', 'stock', 'categoria'])
         producto_dict['id'] = producto.id_producto
-        producto_dict['imagenes'] = galeria_actual
+        producto_dict['imagenes'] = parse_json_field(producto.imagenes, [])
         producto_dict['videos'] = parse_json_field(producto.videos, [])
         producto_dict['personalizable'] = getattr(producto, 'personalizacion_activa', False)
         producto_dict['personalizacion_config'] = parse_json_field(getattr(producto, 'personalizacion_config', '{}'), {}) if producto_dict['personalizable'] else None
@@ -936,7 +1025,6 @@ def actualizar_producto(id_producto):
         db.session.rollback()
         logger.error(f"❌ Error actualizar: {traceback.format_exc()}")
         return jsonify({"success": False, "message": str(e)}), 500
-
 # ============================================
 # 4. ELIMINAR PRODUCTO
 # ============================================
