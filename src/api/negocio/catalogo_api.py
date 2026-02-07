@@ -96,7 +96,7 @@ from flask_login import current_user
 from src.models.colombia_data.negocio import Negocio
 
 from src.models.database import db
-from src.models.feature_models import check_limit
+from src.models.feature_models import check_limit, check_feature_access
 from src.models.colombia_data.contabilidad.operaciones_y_catalogo import (
     ProductoCatalogo, 
     TransaccionOperativa,
