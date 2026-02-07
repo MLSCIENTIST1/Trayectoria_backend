@@ -281,28 +281,52 @@ def get_my_features():
         result = db.session.execute(text("SELECT id_negocio FROM negocios WHERE usuario_id = :uid LIMIT 1"), {'uid': current_user.id}).fetchone()
         if result:
             negocio_id = result[0]
-    if not negocio_id:
-        return jsonify({'error': 'negocio_id requerido'}), 400
-    
-    negocio = db.session.execute(text("SELECT plan_key FROM negocios WHERE id_negocio = :nid"), {'nid': int(negocio_id)}).fetchone()
-    plan_key = (negocio[0] if negocio else None) or 'basic'
-    
+
+    # Si hay negocio, obtener su plan; si no, plan = None (sin negocio)
+    plan_key = None
+    if negocio_id:
+        negocio = db.session.execute(text("SELECT plan_key FROM negocios WHERE id_negocio = :nid"), {'nid': int(negocio_id)}).fetchone()
+        plan_key = (negocio[0] if negocio else None) or 'basic'
+
     all_features = FeatureFlag.query.filter_by(visible=True).order_by(FeatureFlag.orden).all()
-    plan_features = db.session.query(FeatureFlag.key, PlanFeature.limite, PlanFeature.config_json).join(
-        PlanFeature, PlanFeature.feature_id == FeatureFlag.id
-    ).join(Plan, Plan.id == PlanFeature.plan_id).filter(Plan.key == plan_key).all()
-    plan_feature_map = {pf[0]: {'limite': pf[1], 'config': pf[2]} for pf in plan_features}
-    
+
+    # Obtener features del plan (vacío si no hay negocio/plan)
+    plan_feature_map = {}
+    if plan_key:
+        plan_features = db.session.query(FeatureFlag.key, PlanFeature.limite, PlanFeature.config_json).join(
+            PlanFeature, PlanFeature.feature_id == FeatureFlag.id
+        ).join(Plan, Plan.id == PlanFeature.plan_id).filter(Plan.key == plan_key).all()
+        plan_feature_map = {pf[0]: {'limite': pf[1], 'config': pf[2]} for pf in plan_features}
+
     features_response = []
     for f in all_features:
         in_plan = f.key in plan_feature_map
+
+        # Si activo_global=false → disabled (oculto para TODOS, con o sin negocio)
+        # Si activo_global=true pero no tiene negocio → upgrade
+        # Si activo_global=true y tiene negocio pero no en plan → upgrade
+        # Si activo_global=true y en plan → allowed
+        if not f.activo_global:
+            locked_reason = 'disabled'
+            allowed = False
+        elif not plan_key:
+            # Sin negocio: mostrar como upgrade (no ocultar)
+            locked_reason = 'upgrade'
+            allowed = False
+        elif in_plan:
+            locked_reason = None
+            allowed = True
+        else:
+            locked_reason = 'upgrade'
+            allowed = False
+
         features_response.append({
             'key': f.key, 'nombre': f.nombre, 'categoria': f.categoria, 'icono': f.icono,
-            'allowed': f.activo_global and in_plan,
+            'allowed': allowed,
             'limite': plan_feature_map[f.key]['limite'] if in_plan else None,
-            'locked_reason': None if (f.activo_global and in_plan) else 'disabled' if not f.activo_global else 'upgrade'
+            'locked_reason': locked_reason
         })
-    return jsonify({'success': True, 'plan': plan_key, 'features': features_response})
+    return jsonify({'success': True, 'plan': plan_key or 'none', 'features': features_response})
 
 
 @admin_features_bp.route('/api/features/check/<feature_key>', methods=['GET', 'OPTIONS'])
