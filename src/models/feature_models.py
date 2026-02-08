@@ -2,25 +2,18 @@
 # TUKOMERCIO - Modelos: Feature Flags + Planes
 # ═══════════════════════════════════════════════════════════════════════════════
 #
-# INSTRUCCIONES:
-# 1. Coloca este archivo en: src/models/feature_models.py
-# 2. Importa en tu app o en tu models/__init__.py
-# 3. Los modelos usan tu mismo `db` de SQLAlchemy
+# Archivo: src/models/feature_models.py
+# Versión: 2.0 — con check_feature_access + check_limit
 # ═══════════════════════════════════════════════════════════════════════════════
 
 from datetime import datetime
-from src.models.database import db  # Ajusta según tu import (puede ser from app import db)
+from src.models.database import db
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 class FeatureFlag(db.Model):
-    """
-    Feature Flag - Cada funcionalidad controlable de la app.
-    
-    Uso rápido:
-        feature = FeatureFlag.query.filter_by(key='cartera').first()
-        if feature and feature.activo_global:
-            # La feature está encendida globalmente
-    """
     __tablename__ = 'feature_flags'
     
     id              = db.Column(db.Integer, primary_key=True)
@@ -35,7 +28,6 @@ class FeatureFlag(db.Model):
     created_at      = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at      = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relación con plan_features
     plan_features   = db.relationship('PlanFeature', back_populates='feature', lazy='dynamic')
     
     def to_dict(self):
@@ -57,13 +49,6 @@ class FeatureFlag(db.Model):
 
 
 class Plan(db.Model):
-    """
-    Plan de suscripción (Basic, Pro, Premium, Delux).
-    
-    Uso rápido:
-        plan = Plan.query.filter_by(key='pro').first()
-        features_del_plan = plan.get_feature_keys()  # ['store_designer', 'gastos', ...]
-    """
     __tablename__ = 'planes'
     
     id              = db.Column(db.Integer, primary_key=True)
@@ -78,23 +63,19 @@ class Plan(db.Model):
     activo          = db.Column(db.Boolean, default=True)
     created_at      = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Relaciones
     plan_features   = db.relationship('PlanFeature', back_populates='plan', lazy='dynamic')
     negocios_plan   = db.relationship('NegocioPlan', back_populates='plan', lazy='dynamic')
     
     def get_feature_keys(self):
-        """Retorna lista de keys de features incluidas en este plan"""
         return [pf.feature.key for pf in self.plan_features.all() if pf.feature]
     
     def has_feature(self, feature_key):
-        """¿Este plan incluye esta feature?"""
         return PlanFeature.query.join(FeatureFlag).filter(
             PlanFeature.plan_id == self.id,
             FeatureFlag.key == feature_key
         ).first() is not None
     
     def get_feature_limit(self, feature_key):
-        """Obtener el límite de una feature en este plan (None = ilimitado)"""
         pf = PlanFeature.query.join(FeatureFlag).filter(
             PlanFeature.plan_id == self.id,
             FeatureFlag.key == feature_key
@@ -132,25 +113,17 @@ class Plan(db.Model):
 
 
 class PlanFeature(db.Model):
-    """
-    Relación Plan ↔ Feature con límites opcionales.
-    
-    Ejemplo: PlanFeature(plan_id=1, feature_id=3, limite=15)
-    Significa: "Basic puede usar 'products' con máximo 15 productos"
-    """
     __tablename__ = 'plan_features'
     
     id              = db.Column(db.Integer, primary_key=True)
     plan_id         = db.Column(db.Integer, db.ForeignKey('planes.id', ondelete='CASCADE'), nullable=False)
     feature_id      = db.Column(db.Integer, db.ForeignKey('feature_flags.id', ondelete='CASCADE'), nullable=False)
-    limite          = db.Column(db.Integer)          # NULL = ilimitado
+    limite          = db.Column(db.Integer)
     config_json     = db.Column(db.JSON, default={})
     
-    # Relaciones
     plan            = db.relationship('Plan', back_populates='plan_features')
     feature         = db.relationship('FeatureFlag', back_populates='plan_features')
     
-    # Unique constraint
     __table_args__  = (db.UniqueConstraint('plan_id', 'feature_id'),)
     
     def __repr__(self):
@@ -158,13 +131,6 @@ class PlanFeature(db.Model):
 
 
 class NegocioPlan(db.Model):
-    """
-    Historial de planes asignados a un negocio.
-    Solo 1 registro debe tener activo=TRUE por negocio.
-    
-    Uso:
-        plan_activo = NegocioPlan.query.filter_by(negocio_id=5, activo=True).first()
-    """
     __tablename__ = 'negocio_plan'
     
     id              = db.Column(db.Integer, primary_key=True)
@@ -177,7 +143,6 @@ class NegocioPlan(db.Model):
     notas           = db.Column(db.Text)
     created_at      = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Relación
     plan            = db.relationship('Plan', back_populates='negocios_plan')
     
     def to_dict(self):
@@ -194,21 +159,14 @@ class NegocioPlan(db.Model):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# HELPER: Función para verificar features de un negocio
+# HELPERS: Funciones de verificación de features
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def check_negocio_feature(negocio_id, feature_key):
     """
     Verifica si un negocio tiene acceso a una feature.
-    Retorna: { allowed: bool, limite: int|None, reason: str }
-    
-    Uso:
-        result = check_negocio_feature(5, 'cartera')
-        if result['allowed']:
-            # Tiene acceso
-            limite = result['limite']  # None = ilimitado, 15 = max 15
+    Retorna: { allowed: bool, limite: int|None, reason: str, current_plan: str }
     """
-    # 1. Verificar feature flag global
     feature = FeatureFlag.query.filter_by(key=feature_key).first()
     if not feature:
         return {'allowed': False, 'limite': None, 'reason': 'feature_not_found'}
@@ -216,7 +174,6 @@ def check_negocio_feature(negocio_id, feature_key):
     if not feature.activo_global:
         return {'allowed': False, 'limite': None, 'reason': 'feature_disabled_global'}
     
-    # 2. Obtener plan del negocio (importar modelo dinámicamente para evitar circular imports)
     from sqlalchemy import text
     result = db.session.execute(
         text("SELECT plan_key FROM negocios WHERE id_negocio = :nid"),
@@ -228,7 +185,6 @@ def check_negocio_feature(negocio_id, feature_key):
     
     plan_key = result[0] or 'basic'
     
-    # 3. Verificar si el plan incluye la feature
     plan_feature = PlanFeature.query.join(Plan).join(FeatureFlag).filter(
         Plan.key == plan_key,
         FeatureFlag.key == feature_key
@@ -243,3 +199,92 @@ def check_negocio_feature(negocio_id, feature_key):
         'config': plan_feature.config_json,
         'current_plan': plan_key
     }
+
+
+def check_feature_access(feature_key, negocio_id):
+    """
+    Verificación SIMPLE: ¿el negocio tiene acceso a esta feature?
+    Retorna: True o False
+    
+    Uso:
+        if not check_feature_access('inv_videos', negocio_id):
+            videos = []
+    """
+    try:
+        result = check_negocio_feature(int(negocio_id), feature_key)
+        return result.get('allowed', False)
+    except Exception as e:
+        logger.warning(f"⚠️ check_feature_access('{feature_key}', {negocio_id}): {e}")
+        return True  # Fail-open
+
+
+def check_limit(feature_key, negocio_id, model_class, filter_column):
+    """
+    Verifica si el negocio alcanzó el límite de una feature.
+    
+    Retorna:
+        None → permitido
+        (Response, status_code) → bloqueado, retornar directo
+    
+    Uso:
+        limit_error = check_limit('crear_producto', negocio_id, ProductoCatalogo, 'negocio_id')
+        if limit_error:
+            return limit_error
+    """
+    from flask import jsonify
+    
+    try:
+        result = check_negocio_feature(int(negocio_id), feature_key)
+        
+        if not result.get('allowed', False):
+            reason = result.get('reason', 'unknown')
+            
+            if reason == 'feature_not_found':
+                logger.warning(f"⚠️ check_limit: feature '{feature_key}' no encontrada en BD")
+                return None  # Fail-open
+            
+            if reason == 'feature_disabled_global':
+                return jsonify({
+                    'success': False,
+                    'error': 'FEATURE_DISABLED',
+                    'message': 'Esta funcionalidad no está disponible actualmente',
+                    'feature': feature_key
+                }), 403
+            
+            return jsonify({
+                'success': False,
+                'error': 'PLAN_UPGRADE_REQUIRED',
+                'message': 'Tu plan actual no incluye esta funcionalidad',
+                'feature': feature_key,
+                'current_plan': result.get('current_plan', 'basic')
+            }), 403
+        
+        # Verificar límite
+        limite = result.get('limite')
+        if limite is None:
+            return None  # Ilimitado
+        
+        try:
+            count = model_class.query.filter(
+                getattr(model_class, filter_column) == int(negocio_id)
+            ).count()
+        except Exception as e:
+            logger.warning(f"⚠️ check_limit count error: {e}")
+            return None  # Fail-open
+        
+        if count >= limite:
+            return jsonify({
+                'success': False,
+                'error': 'LIMIT_REACHED',
+                'message': f'Has alcanzado el límite de tu plan ({count}/{limite})',
+                'feature': feature_key,
+                'current_count': count,
+                'limit': limite,
+                'current_plan': result.get('current_plan', 'basic')
+            }), 403
+        
+        return None  # Dentro del límite
+        
+    except Exception as e:
+        logger.warning(f"⚠️ check_limit('{feature_key}', {negocio_id}): {e}")
+        return None  # Fail-open
