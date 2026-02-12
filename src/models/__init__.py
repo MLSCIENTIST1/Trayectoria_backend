@@ -152,6 +152,10 @@ from .administrador import Administrador
 
 from src.models.feature_models import FeatureFlag, Plan, PlanFeature, NegocioPlan
 
+# ==========================================
+# MODELOS DE mecalink
+# ==========================================
+from .mecalink_model import MecalinkModel
 
 # ==========================================
 # EXPORTACIÓN
@@ -216,4 +220,8 @@ __all__ = [
     "Plan",
     "PlanFeature",
     "NegocioPlan",
+
+
+# mecalink
+    "mecalink_model.py"
 ]

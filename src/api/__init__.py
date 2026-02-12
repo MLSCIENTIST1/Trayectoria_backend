@@ -76,9 +76,9 @@
 
 
 """
-BizFlow Studio - Registro de APIs v2.17
+BizFlow Studio - Registro de APIs v2.18
 Sistema de carga segura de blueprints
-Actualizado: Feature Flags + Planes de Suscripción
+Actualizado: MecaLink - Mecánicos a Domicilio
 """
 
 import traceback
@@ -98,11 +98,11 @@ def register_api(app):
     """
     
     print("=" * 70)
-    print("🔌 REGISTER_API: INICIANDO REGISTRO DE BLUEPRINTS v2.17")
+    print("🔌 REGISTER_API: INICIANDO REGISTRO DE BLUEPRINTS v2.18")
     print("=" * 70)
     
     logger.info("="*70)
-    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.17")
+    logger.info("🔌 INICIANDO REGISTRO DE BLUEPRINTS v2.18")
     logger.info("="*70)
     
     # ==========================================
@@ -114,7 +114,7 @@ def register_api(app):
         return jsonify({
             "status": "online", 
             "message": "BizFlow Studio API operativa",
-            "version": "2.17.0"
+            "version": "2.18.0"
         }), 200
     
     logger.info("✅ Ruta de salud global registrada: /api/health")
@@ -260,7 +260,6 @@ def register_api(app):
         success_count += 1
     else:
         fail_count += 1
-    
     # ==========================================
     # 🔲 GENERADOR DE QR v2.0 (Página + Negocio)
     # ==========================================
@@ -557,6 +556,37 @@ def register_api(app):
         print("🎖️ ❌❌❌ BADGE VERIFICATION SERVICE FALLÓ AL CARGAR ❌❌❌")
     
     print("=" * 70)
+    # ==========================================
+    # 🔧 MECALINK - Mecánicos a Domicilio
+    # ==========================================
+    print("\n" + "=" * 70)
+    print("🔧🔧🔧 SECCIÓN: MECALINK - Mecánicos a Domicilio 🔧🔧🔧")
+    print("=" * 70)
+    logger.info("\n🔧 Cargando módulo MecaLink...")
+    
+    print("🔧 Endpoints disponibles:")
+    print("   → GET  /api/mecalink/health - Health check")
+    print("   → GET  /api/mecalink/servicios - Lista de servicios")
+    print("   → GET  /api/mecalink/buscar - Buscar mecánicos por ciudad/zona/servicio")
+    print("   → GET  /api/mecalink/perfil/<id> - Perfil público de mecánico")
+    print("   → GET  /api/mecalink/perfil/slug/<slug> - Perfil por slug del negocio")
+    print("   → GET  /api/mecalink/mi-perfil - Mi perfil (auth)")
+    print("   → PUT  /api/mecalink/mi-perfil - Actualizar mi perfil (auth)")
+    print("   → GET  /api/mecalink/mis-estadisticas - Dashboard del mecánico (auth)")
+    print("   → POST /api/mecalink/calificar/<id> - Calificar mecánico (auth)")
+    print("   → GET  /api/mecalink/admin/pendientes - Listar pendientes (admin)")
+    print("   → POST /api/mecalink/admin/verificar/<id> - Verificar mecánico (admin)")
+    print("   → POST /api/mecalink/admin/suspender/<id> - Suspender mecánico (admin)")
+    
+    if safe_register('src.api.mecalink.mecalink_api', 'mecalink_bp', 'MecaLink - Mecánicos a Domicilio', prefix='/api/mecalink'):
+        success_count += 1
+        print("🔧 ✅✅✅ MECALINK API CARGADO EXITOSAMENTE ✅✅✅")
+    else:
+        fail_count += 1
+        print("🔧 ❌❌❌ MECALINK API FALLÓ AL CARGAR ❌❌❌")
+        logger.warning("⚠️  Módulo MecaLink no cargado - Verifica que existe src/api/mecalink/mecalink_api.py")
+    
+    print("=" * 70)
     
     # ==========================================
     # 💬 NOTIFICACIONES Y CHAT
@@ -675,6 +705,17 @@ def register_api(app):
     
     if not features_encontrado:
         print("   ❌ NO SE ENCONTRARON RUTAS DE FEATURES/PLANES")
+    
+    # Rutas de MecaLink
+    print("\n🔧 Verificando rutas de MecaLink:")
+    mecalink_encontrado = False
+    for rule in app.url_map.iter_rules():
+        if '/mecalink' in rule.rule:
+            print(f"   ✅ {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
+            mecalink_encontrado = True
+    
+    if not mecalink_encontrado:
+        print("   ❌ NO SE ENCONTRARON RUTAS DE MECALINK")
     
     # Rutas de compradores y pedidos
     logger.info("\n🛒 Rutas de compradores y pedidos:")

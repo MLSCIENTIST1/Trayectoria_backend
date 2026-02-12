@@ -1,84 +1,17 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-# ███████╗██╗   ██╗██╗  ██╗ ██████╗ ███╗   ███╗███████╗██████╗  ██████╗██╗ ██████╗ 
-# ╚══██╔══╝██║   ██║██║ ██╔╝██╔═══██╗████╗ ████║██╔════╝██╔══██╗██╔════╝██║██╔═══██╗
-#    ██║   ██║   ██║█████╔╝ ██║   ██║██╔████╔██║█████╗  ██████╔╝██║     ██║██║   ██║
-#    ██║   ██║   ██║██╔═██╗ ██║   ██║██║╚██╔╝██║██╔══╝  ██╔══██╗██║     ██║██║   ██║
-#    ██║   ╚██████╔╝██║  ██╗╚██████╔╝██║ ╚═╝ ██║███████╗██║  ██║╚██████╗██║╚██████╔╝
-#    ╚═╝    ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝ ╚═════╝╚═╝ ╚═════╝ 
-# ═══════════════════════════════════════════════════════════════════════════════
-#
-# TUKOMERCIO - Plataforma de Comercio Electrónico, Gamificación y Gestión Empresarial
-# Anteriormente conocido como: Trayectoria / BizFlow Studio
-#
-# ═══════════════════════════════════════════════════════════════════════════════
-# AVISO DE PROPIEDAD INTELECTUAL Y DERECHOS DE AUTOR
-# ═══════════════════════════════════════════════════════════════════════════════
+# TUKOMERCIO - API de Gestión de Negocios y Sucursales
+# VERSIÓN 2.5 - Integración MecaLink
 #
 # © 2024-2026 Carlos Eduardo Huérfano Bermúdez. Todos los derechos reservados.
-#
-# TITULAR DE DERECHOS:
-#   Nombre:     Carlos Eduardo Huérfano Bermúdez
-#   C.C.:       1.064.986.917 (Cereté, Córdoba, Colombia)
-#   Contacto:   carlos-5100@hotmail.com | +57 322 818 8375
-#   Ubicación:  Bogotá D.C., Colombia
-#
-# INFORMACIÓN DEL PROYECTO:
-#   Nombre:     TuKomercio
-#   Inicio:     Julio 24, 2024
-#   Repositorio: github.com/routeres (routeres@gmail.com)
-#
 # ═══════════════════════════════════════════════════════════════════════════════
-# TÉRMINOS DE USO Y RESTRICCIONES
-# ═══════════════════════════════════════════════════════════════════════════════
-#
-# Este código fuente es CONFIDENCIAL y constituye un SECRETO COMERCIAL.
-#
-# QUEDA ESTRICTAMENTE PROHIBIDO sin autorización ESCRITA del titular:
-#
-#   1. Copiar, reproducir o duplicar este código, total o parcialmente
-#   2. Modificar, adaptar o crear obras derivadas
-#   3. Distribuir, publicar, sublicenciar o transferir a terceros
-#   4. Usar para desarrollo de productos competidores
-#   5. Realizar ingeniería inversa, descompilar o desensamblar
-#   6. Remover o alterar este aviso de propiedad intelectual
-#
-# El acceso a este código NO otorga ninguna licencia implícita o explícita.
-#
-# ═══════════════════════════════════════════════════════════════════════════════
-# PROTECCIÓN LEGAL
-# ═══════════════════════════════════════════════════════════════════════════════
-#
-# Este software está protegido por:
-#
-#   • Ley 23 de 1982 - Derechos de Autor (Colombia)
-#   • Ley 1915 de 2018 - Modernización Derechos de Autor (Colombia)
-#   • Decisión Andina 351 de 1993 - Régimen Común sobre Derecho de Autor
-#   • Convenio de Berna para la Protección de Obras Literarias y Artísticas
-#   • Tratado OMPI sobre Derecho de Autor (WCT)
-#   • Acuerdo ADPIC/TRIPS - Organización Mundial del Comercio
-#
-# SANCIONES POR INFRACCIÓN:
-#   • Civiles: Indemnización por daños y perjuicios (Art. 57, Ley 23/1982)
-#   • Penales: Prisión de 4 a 8 años y multa (Art. 271, Código Penal Colombiano)
-#
-# ═══════════════════════════════════════════════════════════════════════════════
-# JURISDICCIÓN
-# ═══════════════════════════════════════════════════════════════════════════════
-#
-# Cualquier disputa será resuelta exclusivamente por los tribunales de
-# Bogotá D.C., Colombia, bajo las leyes de la República de Colombia.
-#
-# ═══════════════════════════════════════════════════════════════════════════════
-#
-# Para solicitar autorización de uso: carlos-5100@hotmail.com
-#
-# ═══════════════════════════════════════════════════════════════════════════════
-
 
 """
 BizFlow Studio - API de Gestión de Negocios y Sucursales
 Sistema completo para multi-tenancy (múltiples negocios por usuario)
-ACTUALIZADO v2.4: Generación automática de QR al registrar/actualizar negocio
+
+VERSIÓN 2.5:
+- v2.4: Generación automática de QR al registrar/actualizar negocio
+- v2.5: Integración MecaLink - Mecánicos a Domicilio
 """
 
 import logging
@@ -105,19 +38,11 @@ negocio_api_bp = Blueprint('negocio_api_bp', __name__)
 # 📱 QR AUTO-GENERATION (v2.4)
 # ==========================================
 
-QR_BASE_URL = "https://tukomercio.com"  # 🔧 Cambiar por tu dominio en producción
+QR_BASE_URL = "https://tukomercio.com"
 
 def auto_generar_qr_negocio(negocio, commit=True):
     """
     Genera automáticamente el QR para un negocio.
-    Llamar después de crear o actualizar el negocio.
-    
-    Args:
-        negocio: Instancia del modelo Negocio
-        commit: Si hacer commit a la DB (default True)
-        
-    Returns:
-        dict: {success, qr_data, qr_base64} o {success: False, error}
     """
     try:
         import qrcode
@@ -131,14 +56,11 @@ def auto_generar_qr_negocio(negocio, commit=True):
         return {"success": False, "error": "Negocio no proporcionado"}
     
     try:
-        # Asegurar que tiene slug
         if not negocio.slug:
             negocio.slug = generar_slug(negocio.nombre_negocio)
         
-        # URL del perfil público
         qr_data = f"{QR_BASE_URL}/n/{negocio.slug}"
         
-        # Generar imagen QR
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_M,
@@ -150,13 +72,11 @@ def auto_generar_qr_negocio(negocio, commit=True):
         
         img = qr.make_image(fill_color="black", back_color="white")
         
-        # Convertir a base64
         buffer = io.BytesIO()
         img.save(buffer, format='PNG')
         buffer.seek(0)
         qr_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
         
-        # Guardar en el negocio (si el modelo tiene el campo)
         if hasattr(negocio, 'qr_negocio_data'):
             negocio.qr_negocio_data = qr_data
         
@@ -178,6 +98,52 @@ def auto_generar_qr_negocio(negocio, commit=True):
     except Exception as e:
         logger.error(f"❌ Error generando QR automático: {e}")
         return {"success": False, "error": str(e)}
+
+
+# ==========================================
+# 🔧 MECALINK INTEGRATION (v2.5)
+# ==========================================
+
+def crear_perfil_mecalink(negocio_id, mecalink_data, ciudad=None):
+    """
+    Crea el perfil MecaLink para un negocio de tipo mecánico a domicilio.
+    
+    Esta función se llama desde registrar_negocio cuando la categoría es 'mecanico_domicilio'.
+    
+    Args:
+        negocio_id (int): ID del negocio recién creado
+        mecalink_data (dict): Datos específicos de MecaLink
+        ciudad (str): Ciudad del negocio
+    
+    Returns:
+        dict: {success: True/False, perfil: MecanicoMecalink o None, error: str}
+    """
+    try:
+        from src.models.mecalink_model import MecanicoMecalink
+    except ImportError:
+        logger.warning("⚠️ Modelo MecanicoMecalink no disponible")
+        return {"success": False, "error": "Módulo MecaLink no instalado", "perfil": None}
+    
+    try:
+        perfil = MecanicoMecalink(
+            negocio_id=negocio_id,
+            zonas_texto=mecalink_data.get('zonas'),
+            servicios=mecalink_data.get('servicios', []),
+            disponibilidad_texto=mecalink_data.get('disponibilidad'),
+            tiene_vehiculo=mecalink_data.get('tiene_vehiculo') in ('si', 'true', True, '1'),
+            tiene_herramientas=mecalink_data.get('tiene_herramientas', 'algunas'),
+            experiencia=mecalink_data.get('experiencia', 'menos_1'),
+            ciudad_operacion=ciudad
+        )
+        
+        db.session.add(perfil)
+        logger.info(f"🔧 Perfil MecaLink creado para negocio {negocio_id}")
+        
+        return {"success": True, "perfil": perfil, "error": None}
+        
+    except Exception as e:
+        logger.error(f"❌ Error creando perfil MecaLink: {e}")
+        return {"success": False, "perfil": None, "error": str(e)}
 
 
 # ==========================================
@@ -241,20 +207,10 @@ def buscar_ciudad_flexible(nombre_ciudad):
 
 def get_current_user_id():
     """
-    🔐 ACTUALIZADO v2.3: Obtiene el ID del usuario con DETECCIÓN DE COLISIONES.
-    
-    Igual que catalogo_api.py - Prioriza el header X-User-ID cuando hay
-    discrepancia para evitar fugas de datos por cookies viejas.
-    
-    ORDEN DE PRIORIDAD:
-    1. JWT Token (Authorization: Bearer xxx) - Para iframes
-    2. Header X-User-ID vs Flask-Login - CON DETECCIÓN DE COLISIÓN
-    3. Flask-Login solo si no hay header
+    🔐 Obtiene el ID del usuario con DETECCIÓN DE COLISIONES.
     """
     
-    # ==========================================
     # 1. INTENTAR JWT PRIMERO (para iframes/Designer)
-    # ==========================================
     try:
         from src.auth_jwt import get_user_id_from_jwt
         jwt_user_id = get_user_id_from_jwt()
@@ -266,9 +222,7 @@ def get_current_user_id():
     except Exception as e:
         logger.debug(f"⚠️ Error verificando JWT: {e}")
     
-    # ==========================================
     # 2. OBTENER IDs DE AMBAS FUENTES
-    # ==========================================
     header_id = request.headers.get('X-User-ID')
     session_id = None
     
@@ -277,21 +231,15 @@ def get_current_user_id():
     
     logger.debug(f"🔍 [IDENTIDAD] Header X-User-ID: {header_id} | Sesión Flask: {session_id}")
     
-    # ==========================================
-    # 3. 🚨 DETECCIÓN DE COLISIÓN (CRÍTICO PARA SEGURIDAD)
-    # ==========================================
+    # 3. DETECCIÓN DE COLISIÓN
     if header_id and session_id and header_id != session_id:
         logger.warning(f"⚠️ ¡COLISIÓN DE SESIÓN DETECTADA!")
         logger.warning(f"   Header X-User-ID: {header_id}")
         logger.warning(f"   Sesión Flask: {session_id}")
         logger.warning(f"   → Usando Header (más reciente del frontend)")
-        # Priorizar el header porque viene del frontend actualizado
-        # La cookie puede estar desactualizada
         return int(header_id)
     
-    # ==========================================
     # 4. RETORNAR EL QUE EXISTA
-    # ==========================================
     if header_id and header_id.isdigit():
         logger.debug(f"✅ Usuario via X-User-ID header: {header_id}")
         return int(header_id)
@@ -328,10 +276,10 @@ def serialize_negocio(negocio, include_sucursales=False):
         "logo_url": getattr(negocio, 'logo_url', None),
         "url_sitio": f"/tienda/{negocio.slug}" if getattr(negocio, 'tiene_pagina', False) and getattr(negocio, 'slug', None) else None,
         
-        # 🎨 Store Designer
+        # Store Designer
         "config_tienda": getattr(negocio, 'config_tienda', {}) or {},
         
-        # 📱 QR Data (v2.4)
+        # QR Data
         "qr_negocio_data": getattr(negocio, 'qr_negocio_data', None),
         "qr_url": f"/api/negocio/{negocio.id_negocio}/qr" if getattr(negocio, 'slug', None) else None
     }
@@ -381,8 +329,8 @@ def negocio_health():
     return jsonify({
         "status": "online",
         "module": "negocios_sucursales",
-        "version": "2.4.0",  # 🆕 Actualizado - QR auto-generation
-        "features": ["micrositios", "tienda_online", "config_tienda", "jwt_auth", "collision_detection", "qr_auto_generation"]
+        "version": "2.5.0",
+        "features": ["micrositios", "tienda_online", "config_tienda", "jwt_auth", "collision_detection", "qr_auto_generation", "mecalink_integration"]
     }), 200
 
 
@@ -395,7 +343,6 @@ def obtener_mis_negocios():
     
     user_id = get_current_user_id()
     
-    # Log detallado para debugging
     logger.info(f"📋 GET /mis_negocios - user_id resuelto: {user_id}")
     logger.info(f"   Headers: X-User-ID={request.headers.get('X-User-ID')}")
     logger.info(f"   Flask current_user.is_authenticated: {current_user.is_authenticated}")
@@ -422,12 +369,10 @@ def obtener_mis_negocios():
         
         logger.info(f"✅ Negocios obtenidos para usuario {user_id}: {len(data)}")
         
-        # Debug: mostrar IDs de negocios encontrados
         if data:
             logger.info(f"   IDs: {[n['id_negocio'] for n in data]}")
         else:
             logger.warning(f"⚠️ Usuario {user_id} no tiene negocios registrados")
-            # Verificar si el usuario existe en la BD
             all_negocios = Negocio.query.filter_by(activo=True).limit(5).all()
             logger.info(f"   Muestra de negocios en BD: {[(n.id_negocio, n.usuario_id) for n in all_negocios]}")
         
@@ -435,7 +380,7 @@ def obtener_mis_negocios():
             "success": True,
             "data": data,
             "total": len(data),
-            "debug_user_id": user_id  # Para debugging en frontend
+            "debug_user_id": user_id
         }), 200
         
     except Exception as e:
@@ -461,9 +406,7 @@ def obtener_negocio(negocio_id):
         ).first()
         
         if not negocio:
-            # Log para debugging
             logger.warning(f"⚠️ Negocio {negocio_id} no encontrado para usuario {user_id}")
-            # Verificar si existe pero pertenece a otro usuario
             otro = Negocio.query.filter_by(id_negocio=negocio_id).first()
             if otro:
                 logger.warning(f"   Negocio existe pero pertenece a usuario {otro.usuario_id}")
@@ -522,7 +465,22 @@ def obtener_negocio_por_slug(slug):
 def registrar_negocio():
     """
     Registra un nuevo negocio para el usuario autenticado.
-    🆕 v2.4: Genera QR automáticamente al crear el negocio.
+    
+    v2.4: Genera QR automáticamente al crear el negocio.
+    v2.5: Si categoría es 'mecanico_domicilio', crea perfil MecaLink.
+    
+    Body JSON adicional para MecaLink:
+    {
+        "categoria": "mecanico_domicilio",
+        "mecalink_data": {
+            "zonas": "Usme, Ciudad Bolívar, Tunjuelito",
+            "servicios": ["cambio_aceite", "diagnostico_scanner"],
+            "disponibilidad": "Lunes a Sábado 7am-6pm",
+            "tiene_vehiculo": "si",
+            "tiene_herramientas": "completas",
+            "experiencia": "3_5"
+        }
+    }
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -549,12 +507,14 @@ def registrar_negocio():
             return jsonify({"success": False, "error": f"Ya tienes un negocio llamado '{nombre_negocio}'"}), 409
         
         ciudad_id = data.get('ciudad_id')
-        if not ciudad_id and data.get('ciudad'):
-            ciudad_obj = buscar_ciudad_flexible(data['ciudad'])
+        ciudad_nombre = data.get('ciudad', '')
+        
+        if not ciudad_id and ciudad_nombre:
+            ciudad_obj = buscar_ciudad_flexible(ciudad_nombre)
             if ciudad_obj:
                 ciudad_id = ciudad_obj.ciudad_id
             else:
-                return jsonify({"success": False, "error": f"Ciudad '{data['ciudad']}' no encontrada"}), 400
+                return jsonify({"success": False, "error": f"Ciudad '{ciudad_nombre}' no encontrada"}), 400
         
         if not ciudad_id:
             return jsonify({"success": False, "error": "La ciudad es requerida"}), 400
@@ -566,6 +526,7 @@ def registrar_negocio():
             slug_final = f"{base_slug}-{contador}"
             contador += 1
         
+        # Crear el negocio
         nuevo_negocio = Negocio(
             nombre_negocio=nombre_negocio,
             usuario_id=user_id,
@@ -574,28 +535,52 @@ def registrar_negocio():
             telefono=data.get('telefono', ''),
             categoria=data.get('categoria') or data.get('tipoNegocio', 'General'),
             ciudad_id=ciudad_id,
+            ciudad=ciudad_nombre,
             slug=slug_final,
-            config_tienda=data.get('config_tienda', {})
+            config_tienda=data.get('config_tienda', {}),
+            whatsapp=data.get('whatsapp', '')
         )
         
         db.session.add(nuevo_negocio)
         db.session.flush()  # Para obtener el ID antes del commit
         
+        # Crear sucursal principal
         sucursal_principal = Sucursal(
             nombre_sucursal="Principal",
             negocio_id=nuevo_negocio.id_negocio,
             direccion=data.get('direccion', ''),
-            ciudad=data.get('ciudad', ''),
+            ciudad=ciudad_nombre,
             telefono=data.get('telefono', ''),
             es_principal=True,
             activo=True
         )
         
         db.session.add(sucursal_principal)
+        
+        # ==========================================
+        # 🔧 INTEGRACIÓN MECALINK (v2.5)
+        # ==========================================
+        mecalink_result = None
+        categoria = data.get('categoria', '').lower()
+        
+        if categoria == 'mecanico_domicilio' and data.get('mecalink_data'):
+            logger.info(f"🔧 Detectada categoría mecánico a domicilio - Creando perfil MecaLink")
+            
+            mecalink_result = crear_perfil_mecalink(
+                negocio_id=nuevo_negocio.id_negocio,
+                mecalink_data=data['mecalink_data'],
+                ciudad=ciudad_nombre
+            )
+            
+            if mecalink_result['success']:
+                logger.info(f"🔧 Perfil MecaLink creado exitosamente")
+            else:
+                logger.warning(f"⚠️ Error creando perfil MecaLink: {mecalink_result.get('error')}")
+        
         db.session.commit()
         
         # ==========================================
-        # 🆕 GENERAR QR AUTOMÁTICAMENTE (v2.4)
+        # 📱 GENERAR QR AUTOMÁTICAMENTE (v2.4)
         # ==========================================
         qr_result = auto_generar_qr_negocio(nuevo_negocio, commit=True)
         
@@ -606,15 +591,22 @@ def registrar_negocio():
         
         logger.info(f"✅ Negocio creado: {nombre_negocio} (ID: {nuevo_negocio.id_negocio}, slug: {slug_final}) por usuario {user_id}")
         
-        # Respuesta con datos del QR incluidos
+        # Construir respuesta
         response_data = {
             "negocio": serialize_negocio(nuevo_negocio),
             "sucursal_principal": serialize_sucursal(sucursal_principal),
-            # 🆕 QR Data
             "qr_generated": qr_result.get('success', False),
             "qr_data": qr_result.get('qr_data'),
             "qr_url": f"/api/negocio/{nuevo_negocio.id_negocio}/qr" if qr_result.get('success') else None
         }
+        
+        # 🔧 Agregar datos de MecaLink si aplica
+        if mecalink_result:
+            response_data["mecalink"] = {
+                "created": mecalink_result['success'],
+                "error": mecalink_result.get('error'),
+                "perfil_id": mecalink_result['perfil'].id if mecalink_result.get('perfil') else None
+            }
         
         return jsonify({
             "success": True,
@@ -633,8 +625,7 @@ def registrar_negocio():
 def actualizar_negocio(negocio_id):
     """
     Actualiza un negocio existente.
-    🔐 Soporta autenticación via JWT (para Store Designer en iframe)
-    🆕 v2.4: Regenera QR si cambia el slug
+    v2.4: Regenera QR si cambia el slug
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
@@ -657,7 +648,6 @@ def actualizar_negocio(negocio_id):
         
         logger.info(f"📝 Actualizando negocio {negocio_id} por usuario {user_id}")
         
-        # 🆕 Guardar slug anterior para detectar cambios
         slug_anterior = negocio.slug
         
         # Campos básicos
@@ -702,7 +692,7 @@ def actualizar_negocio(negocio_id):
         if 'logo_url' in data:
             negocio.logo_url = data['logo_url']
         
-        # 🎨 CONFIG_TIENDA - STORE DESIGNER
+        # CONFIG_TIENDA - STORE DESIGNER
         if 'config_tienda' in data:
             negocio.config_tienda = data['config_tienda']
             logger.info(f"🎨 Config tienda actualizada para negocio {negocio_id}")
@@ -724,9 +714,7 @@ def actualizar_negocio(negocio_id):
         
         db.session.commit()
         
-        # ==========================================
-        # 🆕 REGENERAR QR SI CAMBIÓ EL SLUG (v2.4)
-        # ==========================================
+        # REGENERAR QR SI CAMBIÓ EL SLUG
         qr_regenerated = False
         if negocio.slug and negocio.slug != slug_anterior:
             qr_result = auto_generar_qr_negocio(negocio, commit=True)
@@ -1467,16 +1455,13 @@ def obtener_contexto_actual():
 
 
 # ==========================================
-# 🔍 ENDPOINT DE DEBUG (solo en desarrollo)
+# 🔍 ENDPOINT DE DEBUG
 # ==========================================
 
 @negocio_api_bp.route('/debug/session', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def debug_session():
-    """
-    🔍 ENDPOINT DE DEBUG - Muestra información de la sesión actual.
-    NOTA: Desactivar en producción o agregar protección.
-    """
+    """🔍 ENDPOINT DE DEBUG - Muestra información de la sesión actual."""
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
     
@@ -1490,7 +1475,6 @@ def debug_session():
     
     resolved_user_id = get_current_user_id()
     
-    # Detectar colisión
     collision_detected = False
     if header_user_id and flask_user_id and header_user_id != flask_user_id:
         collision_detected = True
