@@ -525,7 +525,20 @@ def registrar_negocio():
         while Negocio.query.filter_by(slug=slug_final).first():
             slug_final = f"{base_slug}-{contador}"
             contador += 1
-        
+        # ★ FIX: Heredar plan del usuario (el más alto de sus otros negocios)
+        plan_heredado = 'basic'
+        try:
+            mejor_negocio = Negocio.query.filter_by(
+                usuario_id=user_id, activo=True
+            ).filter(
+                Negocio.plan_key.isnot(None)
+            ).first()
+            
+            if mejor_negocio and mejor_negocio.plan_key:
+                plan_heredado = mejor_negocio.plan_key
+                logger.info(f"📋 Plan heredado de negocio existente: {plan_heredado}")
+        except Exception as e:
+            logger.warning(f"⚠️ Error heredando plan: {e}")
         # Crear el negocio
         nuevo_negocio = Negocio(
             nombre_negocio=nombre_negocio,
@@ -539,6 +552,7 @@ def registrar_negocio():
             slug=slug_final,
             config_tienda=data.get('config_tienda', {}),
             whatsapp=data.get('whatsapp', '')
+            plan_key=plan_heredado
         )
         
         db.session.add(nuevo_negocio)
