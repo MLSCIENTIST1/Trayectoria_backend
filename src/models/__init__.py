@@ -155,7 +155,7 @@ from src.models.feature_models import FeatureFlag, Plan, PlanFeature, NegocioPla
 # ==========================================
 # MODELOS DE mecalink
 # ==========================================
-from .mecalink_model import MecalinkModel
+from .mecalink_model import MecanicoMecalink
 
 # ==========================================
 # EXPORTACIÓN
@@ -223,5 +223,5 @@ __all__ = [
 
 
 # mecalink
-    "mecalink_model.py"
+    "MecanicoMecalink"
 ]
