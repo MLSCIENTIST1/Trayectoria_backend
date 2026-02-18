@@ -41,7 +41,8 @@ def handle_preflight():
             response.headers['Access-Control-Allow-Origin'] = origin
             response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, PUT, DELETE'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, Accept'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, Accept, X-User-ID, X-Business-ID, X-Negocio-Id'
+
         response.headers['Access-Control-Max-Age'] = '3600'
         return response
 
