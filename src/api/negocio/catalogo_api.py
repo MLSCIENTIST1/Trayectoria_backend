@@ -1538,7 +1538,7 @@ def estadisticas_inventario():
 @catalogo_api_bp.route('/categorias', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def listar_categorias():
-    """GET /api/categorias"""
+    """GET /api/categorias - Público si se pasa negocio_id, autenticado si no"""
     if request.method == 'OPTIONS':
         response = jsonify({"success": True})
         response.headers.add('Access-Control-Allow-Origin', '*')
@@ -1547,23 +1547,44 @@ def listar_categorias():
         return response, 200
 
     try:
-        user_id = get_authorized_user_id()
-        if not user_id:
-            return jsonify({"success": False, "message": "No autorizado", "categorias": []}), 401
+        # ★ FIX: Intentar auth pero NO fallar si no hay token
+        user_id = None
+        try:
+            user_id = get_authorized_user_id()
+        except Exception:
+            pass
 
-        ctx = get_biz_context()
-        negocio_id = ctx.get('negocio_id')
+        # Obtener negocio_id de múltiples fuentes
+        negocio_id = (
+            request.args.get('negocio_id') or 
+            request.headers.get('X-Business-ID') or
+            request.headers.get('X-Negocio-ID')
+        )
+        
+        # Si hay usuario autenticado, intentar obtener del contexto también
+        if not negocio_id and user_id:
+            ctx = get_biz_context()
+            negocio_id = ctx.get('negocio_id')
         
         if not negocio_id:
             return jsonify({"success": False, "message": "negocio_id es requerido", "categorias": []}), 400
         
+        negocio_id = int(negocio_id)
         categorias_list = []
         
+        # ★ FIX: Consultar SIN filtrar por usuario_id (las categorías son del negocio)
         try:
-            categorias_db = CategoriaProducto.query.filter_by(
-                negocio_id=negocio_id,
-                usuario_id=int(user_id)
-            ).order_by(
+            query = CategoriaProducto.query.filter_by(negocio_id=negocio_id)
+            
+            # Si hay usuario autenticado, filtrar por usuario también (panel admin)
+            if user_id:
+                query = query.filter_by(usuario_id=int(user_id))
+            
+            # Solo mostrar activas en acceso público
+            if not user_id and hasattr(CategoriaProducto, 'activo'):
+                query = query.filter(CategoriaProducto.activo == True)
+            
+            categorias_db = query.order_by(
                 CategoriaProducto.orden.asc() if hasattr(CategoriaProducto, 'orden') else CategoriaProducto.id_categoria.asc(),
                 CategoriaProducto.id_categoria.asc()
             ).all()
@@ -1571,13 +1592,17 @@ def listar_categorias():
             logger.error(f"❌ Error consultando categorias_producto: {e}")
             categorias_db = []
         
+        # Contar productos por categoría
         productos_por_cat = {}
         try:
-            productos = ProductoCatalogo.query.filter_by(
+            prod_query = ProductoCatalogo.query.filter_by(
                 negocio_id=negocio_id,
-                usuario_id=int(user_id),
                 activo=True
-            ).all()
+            )
+            if user_id:
+                prod_query = prod_query.filter_by(usuario_id=int(user_id))
+            
+            productos = prod_query.all()
             
             for p in productos:
                 cat_nombre = p.categoria or 'Sin categoría'
@@ -1603,6 +1628,7 @@ def listar_categorias():
             except Exception as e:
                 continue
         
+        # Fallback: generar categorías de los productos si no hay en BD
         if not categorias_list and productos:
             categorias_de_productos = set()
             for p in productos:
