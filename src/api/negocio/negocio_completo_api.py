@@ -551,7 +551,7 @@ def registrar_negocio():
             ciudad=ciudad_nombre,
             slug=slug_final,
             config_tienda=data.get('config_tienda', {}),
-            whatsapp=data.get('whatsapp', '')
+            whatsapp=data.get('whatsapp', ''),
             plan_key=plan_heredado
         )
         
