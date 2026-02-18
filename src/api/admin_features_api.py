@@ -360,7 +360,31 @@ def get_my_features():
         'features': features_response
     })
 
-
+@admin_features_bp.route('/api/features/negocio/<int:negocio_id>', methods=['GET', 'OPTIONS'])
+def get_negocio_plan(negocio_id):
+    """
+    Endpoint público para consultar el plan de un negocio.
+    Usado por el Store Designer para el plan gating.
+    """
+    try:
+        negocio = db.session.execute(
+            text("SELECT plan_key FROM negocios WHERE id_negocio = :nid"),
+            {'nid': negocio_id}
+        ).fetchone()
+        
+        if not negocio:
+            return jsonify({'error': 'Negocio no encontrado'}), 404
+        
+        plan_key = negocio[0] or 'basic'
+        
+        return jsonify({
+            'success': True,
+            'plan': plan_key,
+            'plan_key': plan_key
+        })
+    except Exception as e:
+        logger.error(f"Error obteniendo plan de negocio {negocio_id}: {e}")
+        return jsonify({'plan': 'basic', 'plan_key': 'basic'})
 @admin_features_bp.route('/api/features/check/<feature_key>', methods=['GET', 'OPTIONS'])
 def check_feature(feature_key):
     negocio_id = request.args.get('negocio_id') or request.headers.get('X-Negocio-Id')
