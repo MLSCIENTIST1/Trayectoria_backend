@@ -588,6 +588,29 @@ def register_api(app):
     
     print("=" * 70)
     
+
+    # ==========================================
+    # 🛍️ DROPSHIPPING - Mastershop / Dropi
+    # ==========================================
+    print("\n" + "=" * 70)
+    print("🛍️🛍️🛍️ SECCIÓN: DROPSHIPPING MULTI-PROVEEDOR 🛍️🛍️🛍️")
+    print("=" * 70)
+    logger.info("\n🛍️ Cargando módulo de Dropshipping...")
+    
+    print("🛍️ Endpoints disponibles:")
+    print("   → POST /api/dropshipping/importar - Importar CSV/JSON")
+    print("   → POST /api/dropshipping/conectar/<proveedor> - Conectar API")
+    print("   → POST /api/dropshipping/sincronizar/<proveedor> - Sincronizar")
+    print("   → GET  /api/dropshipping/estado - Estado proveedores")
+    
+    if safe_register('src.api.dropshipping.dropshipping_api', 'dropshipping_bp', 'Dropshipping Multi-Proveedor', prefix='/api'):
+        success_count += 1
+        print("🛍️ ✅✅✅ DROPSHIPPING API CARGADO EXITOSAMENTE ✅✅✅")
+    else:
+        fail_count += 1
+        print("🛍️ ❌❌❌ DROPSHIPPING API FALLÓ AL CARGAR ❌❌❌")
+    
+    print("=" * 70)
     # ==========================================
     # 💬 NOTIFICACIONES Y CHAT
     # ==========================================
