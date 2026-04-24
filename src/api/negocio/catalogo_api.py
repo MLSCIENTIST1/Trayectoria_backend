@@ -2364,33 +2364,43 @@ def exportar_productos():
 def catalogo_publico(negocio_id):
     """
     GET /api/productos/publicos/{negocio_id}
-    
-    ★ v3.5: Incluye información de personalización para la tienda pública
+ 
+    Params:
+    - categoria: filtrar por categoría
+    - search: búsqueda por nombre
+    - personalizable: 'true' solo personalizables
+    - sort: newest | price_asc | price_desc | name_asc
+    - limit: productos por página (default 50, max 500)
+    - offset: desde qué producto empezar (para paginación)
+    - pagina: número de página (alternativa a offset, empieza en 1)
     """
     if request.method == 'OPTIONS':
         return jsonify({"success": True}), 200
-
+ 
     try:
-        logger.info(f"🛍️ Cargando catálogo público para negocio: {negocio_id}")
-        
-        query = ProductoCatalogo.query.filter_by(negocio_id=negocio_id, activo=True, estado_publicacion=True)
-        
+        logger.info(f"🛍️ Catálogo público negocio: {negocio_id}")
+ 
+        query = ProductoCatalogo.query.filter_by(
+            negocio_id=negocio_id,
+            activo=True,
+            estado_publicacion=True
+        )
+ 
+        # Filtros
         categoria = request.args.get('categoria')
         if categoria:
             query = query.filter_by(categoria=categoria)
-        
+ 
         search = request.args.get('search', '').strip()
         if search:
             query = query.filter(ProductoCatalogo.nombre.ilike(f"%{search}%"))
-        
-        # ★ v3.5: Filtro por personalizables
+ 
         personalizable = request.args.get('personalizable')
         if personalizable and personalizable.lower() in ['true', '1', 'yes']:
             if hasattr(ProductoCatalogo, 'personalizacion_activa'):
                 query = query.filter(ProductoCatalogo.personalizacion_activa == True)
-        
-        limit = min(int(request.args.get('limit', 100)), 500)
-        
+ 
+        # Ordenamiento
         sort = request.args.get('sort', 'newest')
         if sort == 'price_asc':
             query = query.order_by(ProductoCatalogo.precio.asc())
@@ -2400,123 +2410,129 @@ def catalogo_publico(negocio_id):
             query = query.order_by(ProductoCatalogo.nombre.asc())
         else:
             query = query.order_by(ProductoCatalogo.id_producto.desc())
-        
-        productos = query.limit(limit).all()
-        
+ 
+        # Total ANTES de paginar (para el frontend saber cuántos hay)
+        total = query.count()
+ 
+        # Paginación
+        limit  = min(int(request.args.get('limit', 50)), 500)
+        pagina = int(request.args.get('pagina', 1))
+        offset = int(request.args.get('offset', (pagina - 1) * limit))
+ 
+        productos = query.offset(offset).limit(limit).all()
+ 
         datos_publicos = []
         for p in productos:
             try:
-                campos_publicos = {
-                    "id": p.id_producto,
-                    "id_producto": p.id_producto,
-                    "nombre": p.nombre,
-                    "descripcion": p.descripcion,
-                    "precio": float(p.precio) if p.precio else 0,
+                campos = {
+                    "id":            p.id_producto,
+                    "id_producto":   p.id_producto,
+                    "nombre":        p.nombre,
+                    "descripcion":   p.descripcion,
+                    "precio":        float(p.precio) if p.precio else 0,
                     "precio_original": float(p.precio_original) if getattr(p, 'precio_original', None) else None,
-                    "categoria": p.categoria,
-                    "imagen_url": p.imagen_url,
-                    "imagenes": parse_json_field(p.imagenes, []),
-                    "videos": parse_json_field(p.videos, []),
-                    "sku": p.referencia_sku,
-                    "stock": p.stock,
-                    "en_stock": (p.stock or 0) > 0,
-                    "activo": True,
+                    "categoria":     p.categoria,
+                    "imagen_url":    p.imagen_url,
+                    "imagenes":      parse_json_field(p.imagenes, []),
+                    "videos":        parse_json_field(p.videos, []),
+                    "sku":           p.referencia_sku,
+                    "stock":         p.stock,
+                    "en_stock":      (p.stock or 0) > 0,
+                    "activo":        True,
                     "visitas_7_dias": getattr(p, 'visitas_7_dias', 0) or 0,
                 }
-                
+ 
                 # Badges
                 if hasattr(p, 'badges_data') and p.badges_data:
                     try:
-                        badges = json.loads(p.badges_data) if isinstance(p.badges_data, str) else p.badges_data
-                        campos_publicos['badges'] = badges
+                        campos['badges'] = json.loads(p.badges_data) if isinstance(p.badges_data, str) else p.badges_data
                     except:
-                        campos_publicos['badges'] = {}
+                        campos['badges'] = {}
                 else:
-                    campos_publicos['badges'] = {}
-                
-                campos_publicos['destacado'] = getattr(p, 'badge_destacado', False)
-                campos_publicos['envio_gratis'] = getattr(p, 'badge_envio_gratis', False)
-                
-                # Calcular descuento
+                    campos['badges'] = {}
+ 
+                campos['destacado']   = getattr(p, 'badge_destacado', False)
+                campos['envio_gratis'] = getattr(p, 'badge_envio_gratis', False)
+ 
+                # Descuento
                 try:
-                    precio_original = getattr(p, 'precio_original', None)
-                    precio_actual = float(p.precio) if p.precio else 0
-                    
-                    if precio_original and float(precio_original) > precio_actual and precio_actual > 0:
-                        precio_orig_float = float(precio_original)
-                        campos_publicos['tiene_descuento'] = True
-                        campos_publicos['descuento_porcentaje'] = round(((precio_orig_float - precio_actual) / precio_orig_float) * 100)
+                    precio_orig = getattr(p, 'precio_original', None)
+                    precio_act  = float(p.precio) if p.precio else 0
+                    if precio_orig and float(precio_orig) > precio_act > 0:
+                        campos['tiene_descuento']       = True
+                        campos['descuento_porcentaje']  = round(((float(precio_orig) - precio_act) / float(precio_orig)) * 100)
                     else:
-                        campos_publicos['tiene_descuento'] = False
-                        campos_publicos['descuento_porcentaje'] = 0
-                except Exception:
-                    campos_publicos['tiene_descuento'] = False
-                    campos_publicos['descuento_porcentaje'] = 0
-                
-                # ★ v3.5: PERSONALIZACIÓN PARA TIENDA PÚBLICA
-                campos_publicos['personalizable'] = getattr(p, 'personalizacion_activa', False) or False
-                campos_publicos['personalizacion_activa'] = campos_publicos['personalizable']
-                
-                if campos_publicos['personalizable']:
+                        campos['tiene_descuento']       = False
+                        campos['descuento_porcentaje']  = 0
+                except:
+                    campos['tiene_descuento']      = False
+                    campos['descuento_porcentaje'] = 0
+ 
+                # Personalización
+                campos['personalizable']        = getattr(p, 'personalizacion_activa', False) or False
+                campos['personalizacion_activa'] = campos['personalizable']
+ 
+                if campos['personalizable']:
                     if hasattr(p, 'get_personalizacion_config'):
-                        campos_publicos['personalizacion_config'] = p.get_personalizacion_config()
+                        config = p.get_personalizacion_config()
                     else:
-                        config_raw = parse_json_field(getattr(p, 'personalizacion_config', '{}'), {})
-                        # Merge con defaults
-                        config_default = {
-                            "permite_imagen": True,
-                            "permite_texto": True,
-                            "imagen_requerida": False,
-                            "texto_requerido": False,
-                            "max_size_mb": 5,
-                            "formatos": ["png", "jpg", "jpeg", "pdf"],
+                        config = parse_json_field(getattr(p, 'personalizacion_config', '{}'), {})
+                        defaults = {
+                            "permite_imagen": True, "permite_texto": True,
+                            "imagen_requerida": False, "texto_requerido": False,
+                            "max_size_mb": 5, "formatos": ["png", "jpg", "jpeg", "pdf"],
                             "max_caracteres": 100,
                             "instrucciones": "Sube tu diseño en alta resolución",
                             "placeholder_texto": "Escribe tu nombre o frase",
                             "costo_adicional": 0
                         }
-                        for key, val in config_default.items():
-                            if key not in config_raw:
-                                config_raw[key] = val
-                        campos_publicos['personalizacion_config'] = config_raw
-                    
-                    # Calcular precio con personalización
-                    costo_pers = campos_publicos['personalizacion_config'].get('costo_adicional', 0) or 0
-                    campos_publicos['costo_personalizacion'] = float(costo_pers)
-                    campos_publicos['precio_con_personalizacion'] = campos_publicos['precio'] + float(costo_pers)
+                        for k, v in defaults.items():
+                            if k not in config:
+                                config[k] = v
+ 
+                    costo_pers = config.get('costo_adicional', 0) or 0
+                    campos['personalizacion_config']       = config
+                    campos['costo_personalizacion']        = float(costo_pers)
+                    campos['precio_con_personalizacion']   = campos['precio'] + float(costo_pers)
                 else:
-                    campos_publicos['personalizacion_config'] = None
-                    campos_publicos['costo_personalizacion'] = 0
-                    campos_publicos['precio_con_personalizacion'] = campos_publicos['precio']
-                
-                datos_publicos.append(campos_publicos)
+                    campos['personalizacion_config']     = None
+                    campos['costo_personalizacion']      = 0
+                    campos['precio_con_personalizacion'] = campos['precio']
+ 
+                datos_publicos.append(campos)
+ 
             except Exception as e:
-                logger.warning(f"⚠️ Error procesando producto público {getattr(p, 'id_producto', '?')}: {e}")
-
-        # Obtener categorías disponibles
+                logger.warning(f"⚠️ Error procesando producto {getattr(p, 'id_producto', '?')}: {e}")
+ 
+        # Categorías disponibles
         try:
-            categorias = db.session.query(ProductoCatalogo.categoria).filter_by(
+            cats = db.session.query(ProductoCatalogo.categoria).filter_by(
                 negocio_id=negocio_id, activo=True, estado_publicacion=True
             ).distinct().all()
-            categorias_list = [c[0] for c in categorias if c[0]]
+            categorias_list = [c[0] for c in cats if c[0]]
         except:
             categorias_list = []
-
-        logger.info(f"✅ Catálogo público: {len(datos_publicos)} productos")
-
+ 
+        paginas_totales = (total + limit - 1) // limit if limit > 0 else 1
+ 
+        logger.info(f"✅ Catálogo público: {len(datos_publicos)}/{total} productos | página {pagina}/{paginas_totales}")
+ 
         return jsonify({
-            "success": True,
-            "negocio_id": negocio_id,
-            "total": len(datos_publicos),
-            "categorias": categorias_list,
-            "productos": datos_publicos
+            "success":        True,
+            "negocio_id":     negocio_id,
+            "total":          total,
+            "limit":          limit,
+            "offset":         offset,
+            "pagina":         pagina,
+            "paginas_totales": paginas_totales,
+            "hay_mas":        (offset + limit) < total,
+            "categorias":     categorias_list,
+            "productos":      datos_publicos
         }), 200
-
+ 
     except Exception as e:
         logger.error(f"❌ Error catálogo público: {traceback.format_exc()}")
         return jsonify({"success": False, "message": str(e)}), 500
-
-
 # ============================================
 # 26-27. BADGES ENDPOINTS
 # ============================================

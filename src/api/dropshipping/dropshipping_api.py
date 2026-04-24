@@ -47,17 +47,17 @@ PROVEEDORES = {
 def adaptar_mastershop(producto_raw):
     """Traduce producto de Mastershop al formato TuKomercio"""
     return {
-        'nombre': producto_raw.get('Nombre_del_Producto*') or producto_raw.get('name') or '',
-        'descripcion': producto_raw.get('Descripción*') or producto_raw.get('description') or '',
-        'precio': float(str(producto_raw.get('Precio_Sugerido') or producto_raw.get('Precio*') or 0).replace(',', '').replace('.', '') or 0),
-        'costo': float(str(producto_raw.get('costo') or 0).replace(',', '').replace('.', '') or 0),
-        'stock': 999,
-        'categoria': producto_raw.get('Categoría*') or 'General',
-        'imagen_url': producto_raw.get('imagen_url') or '',
+        'nombre': producto_raw.get('nombre') or producto_raw.get('name') or producto_raw.get('Nombre_del_Producto*') or '',
+        'descripcion': producto_raw.get('descripcion') or producto_raw.get('description') or producto_raw.get('Descripción*') or '',
+        'precio': float(str(producto_raw.get('precio') or producto_raw.get('price') or producto_raw.get('Precio*') or 0).replace(',', '').replace('.', '') or 0),
+        'costo': float(str(producto_raw.get('costo') or producto_raw.get('cost') or 0).replace(',', '').replace('.', '') or 0),
+        'stock': int(producto_raw.get('stock') or producto_raw.get('cantidad') or 99),
+        'categoria': producto_raw.get('categoria') or producto_raw.get('category') or producto_raw.get('Categoría*') or 'General',
+        'imagen_url': producto_raw.get('imagen_url') or producto_raw.get('image') or '',
         'imagenes': [],
-        'referencia_sku': producto_raw.get('SKU') or producto_raw.get('ID_Producto (opcional)') or 'SIN_SKU',
+        'referencia_sku': producto_raw.get('sku') or producto_raw.get('SKU') or 'SIN_SKU',
         'proveedor': 'mastershop',
-        'proveedor_id': str(producto_raw.get('ID_Producto (opcional)') or ''),
+        'proveedor_id': producto_raw.get('proveedor_id') or '',
     }
 
 def adaptar_dropi(producto_raw):
@@ -157,6 +157,7 @@ def guardar_producto_dropshipping(producto_adaptado, negocio_id, usuario_id, mar
 # ============================================
 
 @dropshipping_bp.route('/dropshipping/importar', methods=['POST', 'OPTIONS'])
+
 @cross_origin(supports_credentials=True)
 def importar_dropshipping():
     """
