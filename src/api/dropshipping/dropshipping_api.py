@@ -47,17 +47,17 @@ PROVEEDORES = {
 def adaptar_mastershop(producto_raw):
     """Traduce producto de Mastershop al formato TuKomercio"""
     return {
-        'nombre': producto_raw.get('name') or producto_raw.get('nombre') or '',
-        'descripcion': producto_raw.get('description') or producto_raw.get('descripcion') or '',
-        'precio': float(producto_raw.get('price') or producto_raw.get('precio') or 0),
-        'costo': float(producto_raw.get('cost') or producto_raw.get('costo') or 0),
-        'stock': int(producto_raw.get('stock') or producto_raw.get('inventory') or 99),
-        'categoria': producto_raw.get('category') or producto_raw.get('categoria') or 'General',
-        'imagen_url': producto_raw.get('image') or producto_raw.get('imagen_url') or producto_raw.get('thumbnail') or '',
-        'imagenes': producto_raw.get('images') or producto_raw.get('imagenes') or [],
-        'referencia_sku': producto_raw.get('sku') or producto_raw.get('id') or 'SIN_SKU',
+        'nombre': producto_raw.get('Nombre_del_Producto*') or producto_raw.get('name') or '',
+        'descripcion': producto_raw.get('Descripción*') or producto_raw.get('description') or '',
+        'precio': float(str(producto_raw.get('Precio_Sugerido') or producto_raw.get('Precio*') or 0).replace(',', '').replace('.', '') or 0),
+        'costo': float(str(producto_raw.get('costo') or 0).replace(',', '').replace('.', '') or 0),
+        'stock': 999,
+        'categoria': producto_raw.get('Categoría*') or 'General',
+        'imagen_url': producto_raw.get('imagen_url') or '',
+        'imagenes': [],
+        'referencia_sku': producto_raw.get('SKU') or producto_raw.get('ID_Producto (opcional)') or 'SIN_SKU',
         'proveedor': 'mastershop',
-        'proveedor_id': str(producto_raw.get('id') or ''),
+        'proveedor_id': str(producto_raw.get('ID_Producto (opcional)') or ''),
     }
 
 def adaptar_dropi(producto_raw):
