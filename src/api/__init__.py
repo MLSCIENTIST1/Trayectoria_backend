@@ -322,7 +322,7 @@ def register_api(app):
         logger.warning("⚠️  Módulo de checkout no cargado - Las tiendas no podrán procesar pedidos")
     
     # 📦 Pedidos API (Gestión de pedidos para el dueño)
-    if safe_register('src.api.tiendas.pedidos_api', 'pedidos_api_bp', 'Gestión de Pedidos'):
+    if safe_register('src.api.tiendas.pedidos_api', 'tiendas_pedidos_bp', 'Gestión de Pedidos (Tiendas)'):
         success_count += 1
     else:
         fail_count += 1

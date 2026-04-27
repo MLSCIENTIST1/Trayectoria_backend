@@ -288,6 +288,9 @@ class Pedido(db.Model):
     fecha_cancelacion = db.Column(db.DateTime)
     
     motivo_cancelacion = db.Column(db.Text)
+    numero_guia = db.Column(db.String(100), nullable=True)
+    transportadora = db.Column(db.String(50), nullable=True)
+    url_tracking = db.Column(db.String(500), nullable=True)
     
     # ==========================================
     # METADATA
@@ -337,8 +340,13 @@ class Pedido(db.Model):
     
     @property
     def puede_cancelar(self):
-        """Indica si el pedido puede ser cancelado."""
-        return self.estado in ['pendiente', 'confirmado']
+        """Indica si el pedido puede ser cancelado (antes de enviar)."""
+        return self.estado in ['pendiente', 'confirmado', 'preparando']
+ 
+    @property
+    def puede_registrar_devolucion(self):
+        """Indica si se puede registrar una devolución (ya fue enviado)."""
+        return self.estado in ['enviado', 'en_camino', 'entregado']
     
     @property
     def cliente_nombre(self):
@@ -410,7 +418,16 @@ class Pedido(db.Model):
         self.estado_pago = 'pagado'
         if referencia:
             self.referencia_pago = referencia
-    
+    def registrar_guia(self, numero_guia, transportadora, url_tracking=None, usuario_id=None):
+        """Registra la guía de envío y cambia estado a 'enviado'."""
+        self.numero_guia = numero_guia
+        self.transportadora = transportadora
+        self.url_tracking = url_tracking
+        self.cambiar_estado(
+            'enviado',
+            usuario_id=usuario_id,
+            comentario=f"Guía {numero_guia} - {transportadora}"
+        )
     # ==========================================
     # SERIALIZACIÓN
     # ==========================================
@@ -473,7 +490,13 @@ class Pedido(db.Model):
             'ciudad_envio': self.ciudad_envio,
             
             # Origen
+            # Guía de envío
+            'numero_guia': self.numero_guia,
+            'transportadora': self.transportadora,
+            'url_tracking': self.url_tracking,
+            'puede_registrar_devolucion': self.puede_registrar_devolucion,
             'origen': self.origen
+
         }
         
         if include_historial:
@@ -495,7 +518,9 @@ class Pedido(db.Model):
             'estado': self.estado,
             'estado_info': self.estado_info,
             'metodo_pago': self.metodo_pago,
-            'fecha_pedido': self.fecha_pedido.isoformat() if self.fecha_pedido else None
+            'fecha_pedido': self.fecha_pedido.isoformat() if self.fecha_pedido else None,
+            'numero_guia': self.numero_guia,
+            'transportadora': self.transportadora,
         }
     
     # ==========================================

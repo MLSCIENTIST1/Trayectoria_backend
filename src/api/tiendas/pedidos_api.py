@@ -74,12 +74,10 @@
 #
 # ═══════════════════════════════════════════════════════════════════════════════
 
-
-
-
 """
-TUKOMERCIO - Pedidos API v1.0
-Gestión de pedidos para el dueño del negocio
+TUKOMERCIO - Pedidos API v2.0
+Gestión completa de pedidos para el dueño del negocio
+★ NUEVO v2.0: Guías de envío, Devoluciones, Movimientos de stock
 Ubicación: src/api/tiendas/pedidos_api.py
 """
 
@@ -87,13 +85,25 @@ import logging
 from datetime import datetime
 from flask import Blueprint, request, jsonify
 from flask_cors import cross_origin
-from sqlalchemy import func
+from sqlalchemy import func, text
 from src.models.database import db
 from src.models.compradores.pedido import Pedido, PedidoHistorial
 
+# ★ NUEVO v2.0: Modelos para stock y contabilidad
+try:
+    from src.models.colombia_data.contabilidad.operaciones_y_catalogo import (
+        TransaccionOperativa,
+        MovimientoStock,
+        ProductoCatalogo
+    )
+    TIENE_TRANSACCIONES = True
+except ImportError:
+    TIENE_TRANSACCIONES = False
+    logging.warning("⚠️ Modelos contables no disponibles en pedidos_api")
+
 logger = logging.getLogger(__name__)
 
-pedidos_api_bp = Blueprint('pedidos_api_bp', __name__, url_prefix='/api')
+pedidos_api_bp = Blueprint('tiendas_pedidos_bp', __name__, url_prefix='/api')
 
 
 # ==========================================
@@ -118,35 +128,30 @@ def get_user_id():
 def listar_pedidos(negocio_id):
     """
     Lista todos los pedidos de un negocio.
-    
+
     GET /api/pedidos/negocio/{id}
     GET /api/pedidos/negocio/{id}?estado=pendiente
     GET /api/pedidos/negocio/{id}?limit=50&offset=0
     """
     try:
-        # Parámetros de filtro
         estado = request.args.get('estado')
         limit = request.args.get('limit', 100, type=int)
         offset = request.args.get('offset', 0, type=int)
-        orden = request.args.get('orden', 'desc')  # asc o desc
-        
-        # Query base
+        orden = request.args.get('orden', 'desc')
+
         query = Pedido.query.filter_by(negocio_id=negocio_id)
-        
-        # Filtrar por estado
+
         if estado and estado != 'todos':
             query = query.filter_by(estado=estado)
-        
-        # Ordenar
+
         if orden == 'asc':
             query = query.order_by(Pedido.fecha_pedido.asc())
         else:
             query = query.order_by(Pedido.fecha_pedido.desc())
-        
-        # Paginación
+
         total = query.count()
         pedidos = query.offset(offset).limit(limit).all()
-        
+
         return jsonify({
             "success": True,
             "pedidos": [p.to_dict_lista() for p in pedidos],
@@ -154,7 +159,7 @@ def listar_pedidos(negocio_id):
             "limit": limit,
             "offset": offset
         }), 200
-        
+
     except Exception as e:
         logger.error(f"Error listando pedidos: {e}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
@@ -167,21 +172,19 @@ def listar_pedidos(negocio_id):
 @cross_origin()
 def obtener_pedido(pedido_id):
     """
-    Obtiene el detalle completo de un pedido.
-    
     GET /api/pedidos/{id}
     """
     try:
         pedido = Pedido.query.get(pedido_id)
-        
+
         if not pedido:
             return jsonify({"success": False, "error": "Pedido no encontrado"}), 404
-        
+
         return jsonify({
             "success": True,
             "pedido": pedido.to_dict(include_historial=True)
         }), 200
-        
+
     except Exception as e:
         logger.error(f"Error obteniendo pedido: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
@@ -194,41 +197,37 @@ def obtener_pedido(pedido_id):
 @cross_origin()
 def cambiar_estado_pedido(pedido_id):
     """
-    Cambia el estado de un pedido.
-    
     PUT /api/pedidos/{id}/estado
     Body: { "estado": "enviado", "comentario": "Enviado con Servientrega" }
     """
     try:
         user_id = get_user_id()
         data = request.get_json() or {}
-        
+
         nuevo_estado = data.get('estado')
         comentario = data.get('comentario')
-        
+
         if not nuevo_estado:
             return jsonify({"success": False, "error": "Estado requerido"}), 400
-        
+
         pedido = Pedido.query.get(pedido_id)
-        
+
         if not pedido:
             return jsonify({"success": False, "error": "Pedido no encontrado"}), 404
-        
-        # Validar estado
+
         if nuevo_estado not in Pedido.ESTADOS:
             return jsonify({
-                "success": False, 
+                "success": False,
                 "error": f"Estado inválido. Válidos: {list(Pedido.ESTADOS.keys())}"
             }), 400
-        
-        # Cambiar estado
+
         estado_anterior = pedido.estado
         pedido.cambiar_estado(nuevo_estado, usuario_id=user_id, comentario=comentario)
-        
+
         db.session.commit()
-        
+
         logger.info(f"Pedido {pedido.codigo_pedido}: {estado_anterior} → {nuevo_estado}")
-        
+
         return jsonify({
             "success": True,
             "message": f"Estado actualizado a: {nuevo_estado}",
@@ -240,7 +239,7 @@ def cambiar_estado_pedido(pedido_id):
                 "estado_info": pedido.estado_info
             }
         }), 200
-        
+
     except ValueError as e:
         return jsonify({"success": False, "error": str(e)}), 400
     except Exception as e:
@@ -256,8 +255,6 @@ def cambiar_estado_pedido(pedido_id):
 @cross_origin()
 def cancelar_pedido(pedido_id):
     """
-    Cancela un pedido.
-    
     POST /api/pedidos/{id}/cancelar
     Body: { "motivo": "Cliente solicitó cancelación" }
     """
@@ -265,23 +262,69 @@ def cancelar_pedido(pedido_id):
         user_id = get_user_id()
         data = request.get_json() or {}
         motivo = data.get('motivo', 'Cancelado por el negocio')
-        
+
         pedido = Pedido.query.get(pedido_id)
-        
+
         if not pedido:
             return jsonify({"success": False, "error": "Pedido no encontrado"}), 404
-        
+
         if not pedido.puede_cancelar:
             return jsonify({
-                "success": False, 
+                "success": False,
                 "error": f"No se puede cancelar un pedido en estado: {pedido.estado}"
             }), 400
-        
+
+        estado_anterior = pedido.estado
         pedido.cancelar(motivo=motivo, usuario_id=user_id)
+
+        # ★ NUEVO v2.0: Revertir transacción y stock si ya estaba confirmado
+        if estado_anterior == 'confirmado' and TIENE_TRANSACCIONES:
+            try:
+                contra = TransaccionOperativa(
+                    negocio_id=pedido.negocio_id,
+                    usuario_id=user_id or 1,
+                    sucursal_id=pedido.sucursal_id or 1,
+                    tipo='DEVOLUCION',
+                    concepto=f"Cancelación Pedido #{pedido.codigo_pedido} - {pedido.cliente_nombre}",
+                    monto=float(pedido.total),
+                    categoria='Devoluciones',
+                    metodo_pago=pedido.metodo_pago or 'Efectivo',
+                    notas=f"Motivo: {motivo}"
+                )
+                db.session.add(contra)
+            except Exception as e:
+                logger.error(f"⚠️ Error en contra-transacción: {e}")
+
+            try:
+                for item in (pedido.productos or []):
+                    producto_id = item.get('id') or item.get('id_producto')
+                    cantidad = item.get('cantidad', 1)
+                    if not producto_id:
+                        continue
+                    producto = ProductoCatalogo.query.get(producto_id)
+                    if not producto:
+                        continue
+                    stock_anterior = producto.stock
+                    producto.stock = producto.stock + cantidad
+                    movimiento = MovimientoStock(
+                        producto_id=producto_id,
+                        usuario_id=user_id or 1,
+                        negocio_id=pedido.negocio_id,
+                        sucursal_id=pedido.sucursal_id or 1,
+                        tipo='ENTRADA',
+                        cantidad=cantidad,
+                        stock_anterior=stock_anterior,
+                        stock_nuevo=producto.stock,
+                        nota=f"Devolución por cancelación Pedido #{pedido.codigo_pedido}"
+                    )
+                    db.session.add(movimiento)
+            except Exception as e:
+                logger.error(f"⚠️ Error devolviendo stock: {e}")
+
         db.session.commit()
-        
+
         logger.info(f"Pedido {pedido.codigo_pedido} cancelado: {motivo}")
-        
+
         return jsonify({
             "success": True,
             "message": "Pedido cancelado",
@@ -292,7 +335,7 @@ def cancelar_pedido(pedido_id):
                 "motivo_cancelacion": motivo
             }
         }), 200
-        
+
     except ValueError as e:
         return jsonify({"success": False, "error": str(e)}), 400
     except Exception as e:
@@ -308,23 +351,21 @@ def cancelar_pedido(pedido_id):
 @cross_origin()
 def marcar_pagado(pedido_id):
     """
-    Marca un pedido como pagado.
-    
     POST /api/pedidos/{id}/pago
     Body: { "referencia": "TXN-123456" }
     """
     try:
         data = request.get_json() or {}
         referencia = data.get('referencia')
-        
+
         pedido = Pedido.query.get(pedido_id)
-        
+
         if not pedido:
             return jsonify({"success": False, "error": "Pedido no encontrado"}), 404
-        
+
         pedido.marcar_pagado(referencia=referencia)
         db.session.commit()
-        
+
         return jsonify({
             "success": True,
             "message": "Pago registrado",
@@ -334,7 +375,7 @@ def marcar_pagado(pedido_id):
                 "referencia_pago": pedido.referencia_pago
             }
         }), 200
-        
+
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error marcando pago: {e}")
@@ -348,40 +389,371 @@ def marcar_pagado(pedido_id):
 @cross_origin()
 def agregar_nota(pedido_id):
     """
-    Agrega una nota interna al pedido.
-    
     POST /api/pedidos/{id}/notas
     Body: { "nota": "Cliente solicitó entrega después de las 6pm" }
     """
     try:
         data = request.get_json() or {}
         nota = data.get('nota')
-        
+
         if not nota:
             return jsonify({"success": False, "error": "Nota requerida"}), 400
-        
+
         pedido = Pedido.query.get(pedido_id)
-        
+
         if not pedido:
             return jsonify({"success": False, "error": "Pedido no encontrado"}), 404
-        
-        # Concatenar nota si ya existe
+
         if pedido.notas_vendedor:
             pedido.notas_vendedor += f"\n[{datetime.now().strftime('%d/%m %H:%M')}] {nota}"
         else:
             pedido.notas_vendedor = f"[{datetime.now().strftime('%d/%m %H:%M')}] {nota}"
-        
+
         db.session.commit()
-        
+
         return jsonify({
             "success": True,
             "message": "Nota agregada",
             "notas": pedido.notas_vendedor
         }), 200
-        
+
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error agregando nota: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==========================================
+# ★ NUEVO v2.0: REGISTRAR GUÍA DE ENVÍO
+# ==========================================
+@pedidos_api_bp.route('/pedidos/<int:pedido_id>/enviar', methods=['POST'])
+@cross_origin()
+def registrar_guia(pedido_id):
+    """
+    POST /api/pedidos/{id}/enviar
+    Body: {
+        "numero_guia": "123456789",
+        "transportadora": "Interrapidísimo",
+        "url_tracking": "https://..." (opcional)
+    }
+    Registra la guía y cambia estado a 'enviado'.
+    """
+    try:
+        user_id = get_user_id()
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"success": False, "error": "Datos requeridos"}), 400
+
+        numero_guia = data.get('numero_guia', '').strip()
+        transportadora = data.get('transportadora', '').strip()
+        url_tracking = data.get('url_tracking', '').strip() or None
+
+        if not numero_guia:
+            return jsonify({"success": False, "error": "numero_guia es requerido"}), 400
+        if not transportadora:
+            return jsonify({"success": False, "error": "transportadora es requerido"}), 400
+
+        pedido = Pedido.query.get(pedido_id)
+        if not pedido:
+            return jsonify({"success": False, "error": "Pedido no encontrado"}), 404
+
+        if pedido.estado not in ['confirmado', 'preparando']:
+            return jsonify({
+                "success": False,
+                "error": f"No se puede registrar guía en estado '{pedido.estado}'. Debe estar confirmado o en preparación."
+            }), 400
+
+        pedido.registrar_guia(
+            numero_guia=numero_guia,
+            transportadora=transportadora,
+            url_tracking=url_tracking,
+            usuario_id=user_id
+        )
+
+        db.session.commit()
+
+        logger.info(f"🚚 Guía registrada: Pedido #{pedido.codigo_pedido} → {transportadora} {numero_guia}")
+
+        return jsonify({
+            "success": True,
+            "message": f"Guía {numero_guia} registrada. Pedido marcado como enviado.",
+            "pedido": {
+                "id": pedido.id_pedido,
+                "codigo": pedido.codigo_pedido,
+                "estado": pedido.estado,
+                "numero_guia": pedido.numero_guia,
+                "transportadora": pedido.transportadora,
+                "url_tracking": pedido.url_tracking,
+                "fecha_envio": pedido.fecha_envio.isoformat() if pedido.fecha_envio else None
+            }
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error registrando guía: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==========================================
+# ★ NUEVO v2.0: REGISTRAR DEVOLUCIÓN
+# ==========================================
+@pedidos_api_bp.route('/pedidos/<int:pedido_id>/devolucion', methods=['POST'])
+@cross_origin()
+def registrar_devolucion(pedido_id):
+    """
+    POST /api/pedidos/{id}/devolucion
+    Body: {
+        "motivo": "rechazo_cliente",
+        "notas": "El cliente no tenía el dinero",
+        "numero_guia_devolucion": "987654321" (opcional),
+        "transportadora": "Interrapidísimo" (opcional)
+    }
+    Motivos: rechazo_cliente | direccion_errada | producto_dañado |
+             cliente_no_tenia_dinero | otro
+    """
+    try:
+        user_id = get_user_id()
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"success": False, "error": "Datos requeridos"}), 400
+
+        motivo = data.get('motivo', 'otro')
+        notas = data.get('notas', '')
+        numero_guia_dev = data.get('numero_guia_devolucion', '').strip() or None
+        transportadora = data.get('transportadora', '').strip() or None
+
+        pedido = Pedido.query.get(pedido_id)
+        if not pedido:
+            return jsonify({"success": False, "error": "Pedido no encontrado"}), 404
+
+        if not pedido.puede_registrar_devolucion:
+            return jsonify({
+                "success": False,
+                "error": f"No se puede registrar devolución en estado '{pedido.estado}'. Debe estar enviado, en camino o entregado."
+            }), 400
+
+        # Insertar en tabla devoluciones
+        db.session.execute(text("""
+            INSERT INTO devoluciones
+                (pedido_id, negocio_id, numero_guia_devolucion, transportadora,
+                 motivo, estado, notas, fecha_solicitud, producto_reingresado)
+            VALUES
+                (:pedido_id, :negocio_id, :numero_guia, :transportadora,
+                 :motivo, 'en_transito', :notas, NOW(), false)
+        """), {
+            'pedido_id': pedido_id,
+            'negocio_id': pedido.negocio_id,
+            'numero_guia': numero_guia_dev,
+            'transportadora': transportadora or pedido.transportadora,
+            'motivo': motivo,
+            'notas': notas
+        })
+
+        # Cambiar estado del pedido
+        pedido.cambiar_estado(
+            'devuelto',
+            usuario_id=user_id,
+            comentario=f"Devolución registrada. Motivo: {motivo}. {notas}"
+        )
+
+        db.session.commit()
+
+        logger.info(f"↩️ Devolución registrada: Pedido #{pedido.codigo_pedido} - {motivo}")
+
+        return jsonify({
+            "success": True,
+            "message": "Devolución registrada. El pedido quedó marcado como devuelto.",
+            "pedido": {
+                "id": pedido.id_pedido,
+                "codigo": pedido.codigo_pedido,
+                "estado": pedido.estado,
+                "motivo_devolucion": motivo
+            }
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error registrando devolución: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==========================================
+# ★ NUEVO v2.0: RECIBIR DEVOLUCIÓN
+# ==========================================
+@pedidos_api_bp.route('/pedidos/devolucion/<int:devolucion_id>/recibir', methods=['POST'])
+@cross_origin()
+def recibir_devolucion(devolucion_id):
+    """
+    POST /api/pedidos/devolucion/{id}/recibir
+    Body: {
+        "reingresar_inventario": true,
+        "notas": "Producto en buen estado"
+    }
+    Si reingresar_inventario=true devuelve el stock.
+    Si reingresar_inventario=false solo da de baja (producto dañado).
+    """
+    try:
+        user_id = get_user_id()
+        data = request.get_json() or {}
+
+        reingresar = data.get('reingresar_inventario', True)
+        notas = data.get('notas', '')
+
+        # Obtener devolución con datos del pedido
+        result = db.session.execute(text("""
+            SELECT d.*, p.negocio_id, p.codigo_pedido, p.productos,
+                   p.sucursal_id, p.total, p.metodo_pago
+            FROM devoluciones d
+            JOIN pedidos p ON d.pedido_id = p.id_pedido
+            WHERE d.id_devolucion = :id
+        """), {'id': devolucion_id}).fetchone()
+
+        if not result:
+            return jsonify({"success": False, "error": "Devolución no encontrada"}), 404
+
+        if result.estado != 'en_transito':
+            return jsonify({
+                "success": False,
+                "error": f"La devolución ya fue procesada (estado: {result.estado})"
+            }), 400
+
+        negocio_id = result.negocio_id
+        nuevo_estado = 'reingresado_inventario' if reingresar else 'dado_de_baja'
+
+        # Actualizar devolución
+        db.session.execute(text("""
+            UPDATE devoluciones
+            SET estado = :estado,
+                fecha_recepcion = NOW(),
+                producto_reingresado = :reingresado,
+                notas = COALESCE(notas || ' | ', '') || :notas
+            WHERE id_devolucion = :id
+        """), {
+            'estado': nuevo_estado,
+            'reingresado': reingresar,
+            'notas': notas,
+            'id': devolucion_id
+        })
+
+        # Reingresar stock si aplica
+        if reingresar and TIENE_TRANSACCIONES:
+            import json
+            productos = result.productos
+            if isinstance(productos, str):
+                productos = json.loads(productos)
+
+            for item in (productos or []):
+                producto_id = item.get('id') or item.get('id_producto')
+                cantidad = item.get('cantidad', 1)
+                if not producto_id:
+                    continue
+                producto = ProductoCatalogo.query.get(producto_id)
+                if not producto:
+                    continue
+                stock_anterior = producto.stock
+                producto.stock = producto.stock + cantidad
+                movimiento = MovimientoStock(
+                    producto_id=producto_id,
+                    usuario_id=user_id or 1,
+                    negocio_id=negocio_id,
+                    sucursal_id=result.sucursal_id or 1,
+                    tipo='ENTRADA',
+                    cantidad=cantidad,
+                    stock_anterior=stock_anterior,
+                    stock_nuevo=producto.stock,
+                    nota=f"Reingreso por devolución ID#{devolucion_id}"
+                )
+                db.session.add(movimiento)
+                logger.info(f"📦 Stock reingresado {producto.nombre}: {stock_anterior} → {producto.stock}")
+
+        # Contra-transacción contable
+        if TIENE_TRANSACCIONES:
+            try:
+                contra = TransaccionOperativa(
+                    negocio_id=negocio_id,
+                    usuario_id=user_id or 1,
+                    sucursal_id=result.sucursal_id or 1,
+                    tipo='DEVOLUCION',
+                    concepto=f"Devolución recibida Pedido #{result.codigo_pedido}",
+                    monto=float(result.total),
+                    categoria='Devoluciones',
+                    metodo_pago=result.metodo_pago or 'Efectivo',
+                    notas=f"Motivo: {result.motivo}. {notas}"
+                )
+                db.session.add(contra)
+            except Exception as e:
+                logger.error(f"⚠️ Error registrando contra-transacción: {e}")
+
+        db.session.commit()
+
+        accion = "reingresado al inventario" if reingresar else "dado de baja"
+        logger.info(f"✅ Devolución #{devolucion_id} recibida y {accion}")
+
+        return jsonify({
+            "success": True,
+            "message": f"Devolución recibida. Producto {accion}.",
+            "devolucion_id": devolucion_id,
+            "estado": nuevo_estado,
+            "producto_reingresado": reingresar
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error recibiendo devolución: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==========================================
+# ★ NUEVO v2.0: LISTAR DEVOLUCIONES
+# ==========================================
+@pedidos_api_bp.route('/pedidos/negocio/<int:negocio_id>/devoluciones', methods=['GET'])
+@cross_origin()
+def listar_devoluciones(negocio_id):
+    """
+    GET /api/pedidos/negocio/{id}/devoluciones
+    """
+    try:
+        rows = db.session.execute(text("""
+            SELECT
+                d.id_devolucion, d.pedido_id, d.numero_guia_devolucion,
+                d.transportadora, d.motivo, d.estado, d.notas,
+                d.fecha_solicitud, d.fecha_recepcion, d.producto_reingresado,
+                p.codigo_pedido, p.total,
+                p.datos_comprador->>'nombre' as cliente_nombre,
+                p.datos_envio->>'ciudad' as ciudad
+            FROM devoluciones d
+            JOIN pedidos p ON d.pedido_id = p.id_pedido
+            WHERE d.negocio_id = :negocio_id
+            ORDER BY d.fecha_solicitud DESC
+        """), {'negocio_id': negocio_id}).fetchall()
+
+        devoluciones = [{
+            "id_devolucion": r.id_devolucion,
+            "pedido_id": r.pedido_id,
+            "codigo_pedido": r.codigo_pedido,
+            "cliente_nombre": r.cliente_nombre,
+            "ciudad": r.ciudad,
+            "total": float(r.total) if r.total else 0,
+            "numero_guia_devolucion": r.numero_guia_devolucion,
+            "transportadora": r.transportadora,
+            "motivo": r.motivo,
+            "estado": r.estado,
+            "notas": r.notas,
+            "producto_reingresado": r.producto_reingresado,
+            "fecha_solicitud": r.fecha_solicitud.isoformat() if r.fecha_solicitud else None,
+            "fecha_recepcion": r.fecha_recepcion.isoformat() if r.fecha_recepcion else None
+        } for r in rows]
+
+        return jsonify({
+            "success": True,
+            "devoluciones": devoluciones,
+            "total": len(devoluciones)
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error listando devoluciones: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -392,26 +764,19 @@ def agregar_nota(pedido_id):
 @cross_origin()
 def estadisticas_pedidos(negocio_id):
     """
-    Obtiene estadísticas de pedidos del negocio.
-    
     GET /api/pedidos/negocio/{id}/stats
     """
     try:
-        # Contar por estado
         stats_estado = db.session.query(
             Pedido.estado,
             func.count(Pedido.id_pedido).label('cantidad'),
             func.sum(Pedido.total).label('total')
-        ).filter_by(
-            negocio_id=negocio_id
-        ).group_by(
-            Pedido.estado
-        ).all()
-        
+        ).filter_by(negocio_id=negocio_id).group_by(Pedido.estado).all()
+
         por_estado = {}
         total_pedidos = 0
         total_ventas = 0
-        
+
         for estado, cantidad, total in stats_estado:
             por_estado[estado] = {
                 'cantidad': cantidad,
@@ -420,15 +785,13 @@ def estadisticas_pedidos(negocio_id):
             total_pedidos += cantidad
             if estado not in ['cancelado', 'devuelto']:
                 total_ventas += float(total or 0)
-        
-        # Pedidos de hoy
+
         hoy = datetime.now().date()
         pedidos_hoy = Pedido.query.filter(
             Pedido.negocio_id == negocio_id,
             func.date(Pedido.fecha_pedido) == hoy
         ).count()
-        
-        # Ventas de hoy (solo confirmados/entregados)
+
         ventas_hoy = db.session.query(
             func.sum(Pedido.total)
         ).filter(
@@ -436,7 +799,7 @@ def estadisticas_pedidos(negocio_id):
             func.date(Pedido.fecha_pedido) == hoy,
             Pedido.estado.in_(['confirmado', 'preparando', 'enviado', 'entregado'])
         ).scalar() or 0
-        
+
         return jsonify({
             "success": True,
             "stats": {
@@ -449,7 +812,7 @@ def estadisticas_pedidos(negocio_id):
                 }
             }
         }), 200
-        
+
     except Exception as e:
         logger.error(f"Error en estadísticas: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
@@ -462,41 +825,35 @@ def estadisticas_pedidos(negocio_id):
 @cross_origin()
 def historial_pedido(pedido_id):
     """
-    Obtiene el historial de cambios de un pedido.
-    
     GET /api/pedidos/{id}/historial
     """
     try:
         pedido = Pedido.query.get(pedido_id)
-        
+
         if not pedido:
             return jsonify({"success": False, "error": "Pedido no encontrado"}), 404
-        
+
         historial = PedidoHistorial.query.filter_by(
             pedido_id=pedido_id
-        ).order_by(
-            PedidoHistorial.fecha.desc()
-        ).all()
-        
+        ).order_by(PedidoHistorial.fecha.desc()).all()
+
         return jsonify({
             "success": True,
             "historial": [h.to_dict() for h in historial]
         }), 200
-        
+
     except Exception as e:
         logger.error(f"Error obteniendo historial: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
 # ==========================================
-# BUSCAR PEDIDO POR CÓDIGO
+# BUSCAR PEDIDO
 # ==========================================
 @pedidos_api_bp.route('/pedidos/buscar', methods=['GET'])
 @cross_origin()
 def buscar_pedido():
     """
-    Busca un pedido por código o teléfono del cliente.
-    
     GET /api/pedidos/buscar?codigo=PED-2024-0001
     GET /api/pedidos/buscar?telefono=3001234567&negocio_id=4
     """
@@ -504,34 +861,29 @@ def buscar_pedido():
         codigo = request.args.get('codigo')
         telefono = request.args.get('telefono')
         negocio_id = request.args.get('negocio_id', type=int)
-        
+
         if codigo:
             pedido = Pedido.query.filter_by(codigo_pedido=codigo).first()
             if pedido:
-                return jsonify({
-                    "success": True,
-                    "pedido": pedido.to_dict()
-                }), 200
+                return jsonify({"success": True, "pedido": pedido.to_dict()}), 200
             else:
                 return jsonify({"success": False, "error": "Pedido no encontrado"}), 404
-        
+
         if telefono:
             query = Pedido.query.filter(
                 Pedido.datos_comprador['telefono'].astext == telefono
             )
             if negocio_id:
                 query = query.filter_by(negocio_id=negocio_id)
-            
             pedidos = query.order_by(Pedido.fecha_pedido.desc()).limit(10).all()
-            
             return jsonify({
                 "success": True,
                 "pedidos": [p.to_dict_lista() for p in pedidos],
                 "total": len(pedidos)
             }), 200
-        
+
         return jsonify({"success": False, "error": "Proporciona código o teléfono"}), 400
-        
+
     except Exception as e:
         logger.error(f"Error buscando pedido: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
@@ -545,5 +897,5 @@ def pedidos_health():
     return jsonify({
         "status": "online",
         "module": "pedidos_api",
-        "version": "1.0.0"
+        "version": "2.0.0"
     }), 200
