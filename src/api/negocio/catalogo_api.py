@@ -2370,7 +2370,7 @@ def catalogo_publico(negocio_id):
     - search: búsqueda por nombre
     - personalizable: 'true' solo personalizables
     - sort: newest | price_asc | price_desc | name_asc
-    - limit: productos por página (default 50, max 500)
+    - limit: productos por página (default 50, max 2000)
     - offset: desde qué producto empezar (para paginación)
     - pagina: número de página (alternativa a offset, empieza en 1)
     """
@@ -2414,8 +2414,9 @@ def catalogo_publico(negocio_id):
         # Total ANTES de paginar (para el frontend saber cuántos hay)
         total = query.count()
  
-        # Paginación
-        limit  = min(int(request.args.get('limit', 50)), 500)
+        # Paginación — cap subido a 2000 para soportar catálogos medianos
+        # con scroll infinito en frontend (la tienda pagina en chunks de 36).
+        limit  = min(int(request.args.get('limit', 50)), 2000)
         pagina = int(request.args.get('pagina', 1))
         offset = int(request.args.get('offset', (pagina - 1) * limit))
  
