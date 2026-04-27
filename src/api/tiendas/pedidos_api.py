@@ -103,7 +103,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-pedidos_api_bp = Blueprint('tiendas_pedidos_bp', __name__, url_prefix='/api')
+tiendas_pedidos_bp = Blueprint('tiendas_pedidos_bp', __name__, url_prefix='/api')
 
 
 # ==========================================
@@ -123,7 +123,7 @@ def get_user_id():
 # ==========================================
 # LISTAR PEDIDOS DE UN NEGOCIO
 # ==========================================
-@pedidos_api_bp.route('/pedidos/negocio/<int:negocio_id>', methods=['GET'])
+@tiendas_pedidos_bp.route('/pedidos/negocio/<int:negocio_id>', methods=['GET'])
 @cross_origin()
 def listar_pedidos(negocio_id):
     """
@@ -168,7 +168,7 @@ def listar_pedidos(negocio_id):
 # ==========================================
 # OBTENER DETALLE DE UN PEDIDO
 # ==========================================
-@pedidos_api_bp.route('/pedidos/<int:pedido_id>', methods=['GET'])
+@tiendas_pedidos_bp.route('/pedidos/<int:pedido_id>', methods=['GET'])
 @cross_origin()
 def obtener_pedido(pedido_id):
     """
@@ -193,7 +193,7 @@ def obtener_pedido(pedido_id):
 # ==========================================
 # CAMBIAR ESTADO DE UN PEDIDO
 # ==========================================
-@pedidos_api_bp.route('/pedidos/<int:pedido_id>/estado', methods=['PUT', 'PATCH'])
+@tiendas_pedidos_bp.route('/pedidos/<int:pedido_id>/estado', methods=['PUT', 'PATCH'])
 @cross_origin()
 def cambiar_estado_pedido(pedido_id):
     """
@@ -251,7 +251,7 @@ def cambiar_estado_pedido(pedido_id):
 # ==========================================
 # CANCELAR PEDIDO
 # ==========================================
-@pedidos_api_bp.route('/pedidos/<int:pedido_id>/cancelar', methods=['POST'])
+@tiendas_pedidos_bp.route('/pedidos/<int:pedido_id>/cancelar', methods=['POST'])
 @cross_origin()
 def cancelar_pedido(pedido_id):
     """
@@ -347,7 +347,7 @@ def cancelar_pedido(pedido_id):
 # ==========================================
 # MARCAR COMO PAGADO
 # ==========================================
-@pedidos_api_bp.route('/pedidos/<int:pedido_id>/pago', methods=['POST'])
+@tiendas_pedidos_bp.route('/pedidos/<int:pedido_id>/pago', methods=['POST'])
 @cross_origin()
 def marcar_pagado(pedido_id):
     """
@@ -385,7 +385,7 @@ def marcar_pagado(pedido_id):
 # ==========================================
 # AGREGAR NOTA INTERNA
 # ==========================================
-@pedidos_api_bp.route('/pedidos/<int:pedido_id>/notas', methods=['POST'])
+@tiendas_pedidos_bp.route('/pedidos/<int:pedido_id>/notas', methods=['POST'])
 @cross_origin()
 def agregar_nota(pedido_id):
     """
@@ -426,7 +426,7 @@ def agregar_nota(pedido_id):
 # ==========================================
 # ★ NUEVO v2.0: REGISTRAR GUÍA DE ENVÍO
 # ==========================================
-@pedidos_api_bp.route('/pedidos/<int:pedido_id>/enviar', methods=['POST'])
+@tiendas_pedidos_bp.route('/pedidos/<int:pedido_id>/enviar', methods=['POST'])
 @cross_origin()
 def registrar_guia(pedido_id):
     """
@@ -498,7 +498,7 @@ def registrar_guia(pedido_id):
 # ==========================================
 # ★ NUEVO v2.0: REGISTRAR DEVOLUCIÓN
 # ==========================================
-@pedidos_api_bp.route('/pedidos/<int:pedido_id>/devolucion', methods=['POST'])
+@tiendas_pedidos_bp.route('/pedidos/<int:pedido_id>/devolucion', methods=['POST'])
 @cross_origin()
 def registrar_devolucion(pedido_id):
     """
@@ -582,7 +582,7 @@ def registrar_devolucion(pedido_id):
 # ==========================================
 # ★ NUEVO v2.0: RECIBIR DEVOLUCIÓN
 # ==========================================
-@pedidos_api_bp.route('/pedidos/devolucion/<int:devolucion_id>/recibir', methods=['POST'])
+@tiendas_pedidos_bp.route('/pedidos/devolucion/<int:devolucion_id>/recibir', methods=['POST'])
 @cross_origin()
 def recibir_devolucion(devolucion_id):
     """
@@ -708,7 +708,7 @@ def recibir_devolucion(devolucion_id):
 # ==========================================
 # ★ NUEVO v2.0: LISTAR DEVOLUCIONES
 # ==========================================
-@pedidos_api_bp.route('/pedidos/negocio/<int:negocio_id>/devoluciones', methods=['GET'])
+@tiendas_pedidos_bp.route('/pedidos/negocio/<int:negocio_id>/devoluciones', methods=['GET'])
 @cross_origin()
 def listar_devoluciones(negocio_id):
     """
@@ -760,7 +760,7 @@ def listar_devoluciones(negocio_id):
 # ==========================================
 # ESTADÍSTICAS DE PEDIDOS
 # ==========================================
-@pedidos_api_bp.route('/pedidos/negocio/<int:negocio_id>/stats', methods=['GET'])
+@tiendas_pedidos_bp.route('/pedidos/negocio/<int:negocio_id>/stats', methods=['GET'])
 @cross_origin()
 def estadisticas_pedidos(negocio_id):
     """
@@ -821,7 +821,7 @@ def estadisticas_pedidos(negocio_id):
 # ==========================================
 # HISTORIAL DE UN PEDIDO
 # ==========================================
-@pedidos_api_bp.route('/pedidos/<int:pedido_id>/historial', methods=['GET'])
+@tiendas_pedidos_bp.route('/pedidos/<int:pedido_id>/historial', methods=['GET'])
 @cross_origin()
 def historial_pedido(pedido_id):
     """
@@ -850,7 +850,7 @@ def historial_pedido(pedido_id):
 # ==========================================
 # BUSCAR PEDIDO
 # ==========================================
-@pedidos_api_bp.route('/pedidos/buscar', methods=['GET'])
+@tiendas_pedidos_bp.route('/pedidos/buscar', methods=['GET'])
 @cross_origin()
 def buscar_pedido():
     """
@@ -892,7 +892,7 @@ def buscar_pedido():
 # ==========================================
 # HEALTH CHECK
 # ==========================================
-@pedidos_api_bp.route('/pedidos/health', methods=['GET'])
+@tiendas_pedidos_bp.route('/pedidos/health', methods=['GET'])
 def pedidos_health():
     return jsonify({
         "status": "online",
