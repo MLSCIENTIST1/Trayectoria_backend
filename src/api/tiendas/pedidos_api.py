@@ -1057,6 +1057,9 @@ def crear_pedido_manual():
         if data.get('url_tracking'):
             pedido.url_tracking = data['url_tracking']
 
+        # Flush para obtener id_pedido antes de cualquier historial
+        db.session.flush()
+
         # ── Estado inicial: si no es 'pendiente', usamos cambiar_estado para
         #    que registre el cambio en el historial automáticamente ─────────
         if estado_inicial != 'pendiente':
@@ -1065,9 +1068,6 @@ def crear_pedido_manual():
                 usuario_id=get_user_id(),
                 comentario=f'Venta manual registrada (origen: {origen})'
             )
-
-        # Flush para obtener id_pedido antes del historial inicial
-        db.session.flush()
 
         # Registrar entrada inicial en historial (origen visible para auditoría)
         hist_inicial = PedidoHistorial(
