@@ -1079,6 +1079,63 @@ def crear_pedido_manual():
         )
         db.session.add(hist_inicial)
 
+        # ★ v2.2: Registrar transacción contable y descontar stock
+        if TIENE_TRANSACCIONES:
+            # Transacción operativa — aparece en contabilidad
+            try:
+                CATEGORIAS_ORIGEN = {
+                    'marketplace': 'Venta Marketplace',
+                    'whatsapp':    'Venta WhatsApp',
+                    'instagram':   'Venta Instagram',
+                    'local':       'Venta Local',
+                    'familia':     'Venta Familia/Amigos',
+                    'referido':    'Venta Referido',
+                    'web':         'Ventas Online',
+                }
+                categoria = CATEGORIAS_ORIGEN.get(origen, 'Venta Manual')
+                transaccion = TransaccionOperativa(
+                    negocio_id=int(negocio_id),
+                    usuario_id=get_user_id() or 1,
+                    sucursal_id=pedido.sucursal_id or 1,
+                    tipo='VENTA',
+                    concepto=f"Venta manual #{pedido.codigo_pedido} – {datos_comprador['nombre']}",
+                    monto=float(pedido.total or 0),
+                    categoria=categoria,
+                    metodo_pago=(data.get('metodo_pago') or 'efectivo').capitalize(),
+                )
+                db.session.add(transaccion)
+                logger.info(f"💰 Transacción contable registrada: ${pedido.total} [{categoria}]")
+            except Exception as e:
+                logger.error(f"⚠️ Error registrando transacción contable en venta manual: {e}")
+
+            # Descuento de inventario por producto
+            try:
+                for item in (productos or []):
+                    producto_id = item.get('id') or item.get('id_producto')
+                    cantidad = int(item.get('cantidad', 1))
+                    if not producto_id or cantidad <= 0:
+                        continue
+                    producto = ProductoCatalogo.query.get(producto_id)
+                    if not producto:
+                        continue
+                    stock_anterior = producto.stock
+                    producto.stock = max(0, producto.stock - cantidad)
+                    movimiento = MovimientoStock(
+                        producto_id=producto_id,
+                        usuario_id=get_user_id() or 1,
+                        negocio_id=int(negocio_id),
+                        sucursal_id=pedido.sucursal_id or 1,
+                        tipo='SALIDA',
+                        cantidad=cantidad,
+                        stock_anterior=stock_anterior,
+                        stock_nuevo=producto.stock,
+                        nota=f"Venta manual #{pedido.codigo_pedido} ({origen})",
+                    )
+                    db.session.add(movimiento)
+                    logger.info(f"📦 Stock {producto.nombre}: {stock_anterior} → {producto.stock}")
+            except Exception as e:
+                logger.error(f"⚠️ Error descontando stock en venta manual: {e}")
+
         db.session.commit()
 
         logger.info(
