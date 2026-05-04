@@ -558,7 +558,9 @@ class Pedido(db.Model):
         
         pedido = cls(
             codigo_pedido=codigo,
-            comprador_id=comprador.id_comprador if comprador else None,
+            comprador_id=(comprador.id_comprador if hasattr(comprador, 'id_comprador')
+                          else comprador.get('id_comprador') if isinstance(comprador, dict)
+                          else None),
             negocio_id=negocio_data['id'],
             direccion_id=direccion.id_direccion if hasattr(direccion, 'id_direccion') else None,
             
