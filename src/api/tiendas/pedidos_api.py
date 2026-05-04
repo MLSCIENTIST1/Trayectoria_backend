@@ -889,6 +889,226 @@ def buscar_pedido():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# ★ NUEVO v2.1: REGISTRO MANUAL DE VENTAS
+# ────────────────────────────────────────────────────────────────────────────
+# Permite registrar manualmente ventas que NO entraron por la tienda online:
+#   • Marketplace de Facebook
+#   • WhatsApp informal (sin pasar por el checkout web)
+#   • Ventas a familia / amigos / referidos
+#   • Ventas en local físico con envío
+#   • Ventas por Instagram
+#
+# A diferencia del POS (venta.html) que solo registra "Público General",
+# este endpoint acepta TODOS los datos del cliente, dirección, productos,
+# guía de envío y permite especificar el estado inicial (porque una venta
+# manual generalmente ya está confirmada o incluso enviada).
+# ════════════════════════════════════════════════════════════════════════════
+@tiendas_pedidos_bp.route('/pedidos/manual', methods=['POST', 'OPTIONS'])
+@cross_origin()
+def crear_pedido_manual():
+    """
+    POST /api/pedidos/manual
+
+    Body JSON esperado:
+    {
+        "negocio_id": 4,
+        "nombre_negocio": "Rodar",
+        "slug_negocio": "rodar",
+
+        "cliente": {
+            "nombre": "Juan Pérez",
+            "telefono": "+57 311 1234567",
+            "correo": "juan@email.com",         (opcional)
+            "documento": "1234567890"           (opcional)
+        },
+
+        "envio": {
+            "ciudad": "Buenaventura",
+            "departamento": "Valle del Cauca",
+            "direccion": "Cra 5 #12-34",
+            "barrio": "Centro",                  (opcional)
+            "referencias": "Frente al parque"   (opcional)
+        },
+
+        "productos": [
+            {"id": 12, "nombre": "Scanner V520",
+             "precio": 85000, "cantidad": 1,
+             "subtotal": 85000, "imagen_url": "...", "categoria": "..."}
+        ],
+
+        "subtotal": 85000,
+        "costo_envio": 7500,
+        "descuento": 0,                          (opcional)
+        "total": 92500,
+
+        "metodo_pago": "efectivo",
+        "estado_pago": "pendiente",              (opcional, default 'pendiente')
+
+        "origen": "marketplace",
+        "metodo_contacto": "whatsapp",           (opcional)
+        "notas_cliente": "Pidió empaque regalo", (opcional)
+        "notas_vendedor": "Conocido del barrio", (opcional)
+
+        "estado_inicial": "confirmado",          (opcional, default 'confirmado')
+        "numero_guia": "999888777",              (opcional)
+        "transportadora": "Interrapidisimo",     (opcional)
+        "url_tracking": "https://..."            (opcional)
+    }
+
+    Estados iniciales válidos: pendiente, confirmado, preparando, enviado, entregado
+    Orígenes válidos: web, whatsapp, app, marketplace, instagram, local, familia, referido, otro
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    try:
+        data = request.get_json(silent=True) or {}
+
+        # ── Validación mínima ───────────────────────────────────────────────
+        negocio_id = data.get('negocio_id')
+        if not negocio_id:
+            return jsonify({"success": False, "error": "negocio_id es requerido"}), 400
+
+        cliente_data = data.get('cliente') or {}
+        if not cliente_data.get('nombre'):
+            return jsonify({"success": False, "error": "cliente.nombre es requerido"}), 400
+
+        productos = data.get('productos') or []
+        if not productos or not isinstance(productos, list):
+            return jsonify({"success": False, "error": "productos debe ser una lista no vacía"}), 400
+
+        envio_data = data.get('envio') or {}
+
+        # ── Validar origen ──────────────────────────────────────────────────
+        ORIGENES_VALIDOS = {
+            'web', 'whatsapp', 'app',
+            'marketplace', 'instagram', 'local',
+            'familia', 'referido', 'otro'
+        }
+        origen = (data.get('origen') or 'otro').lower().strip()
+        if origen not in ORIGENES_VALIDOS:
+            origen = 'otro'
+
+        # ── Validar estado inicial ──────────────────────────────────────────
+        ESTADOS_INICIALES_VALIDOS = {
+            'pendiente', 'confirmado', 'preparando', 'enviado', 'entregado'
+        }
+        estado_inicial = (data.get('estado_inicial') or 'confirmado').lower().strip()
+        if estado_inicial not in ESTADOS_INICIALES_VALIDOS:
+            estado_inicial = 'confirmado'
+
+        # ── Snapshots simples (sin Comprador/DireccionComprador formales) ───
+        datos_comprador = {
+            'nombre':    cliente_data.get('nombre', '').strip(),
+            'telefono':  cliente_data.get('telefono', '').strip(),
+            'correo':    cliente_data.get('correo', '').strip(),
+            'documento': cliente_data.get('documento', '').strip(),
+        }
+
+        datos_envio = {
+            'tipo':          envio_data.get('tipo', 'domicilio'),
+            'ciudad':        envio_data.get('ciudad', '').strip(),
+            'departamento':  envio_data.get('departamento', '').strip(),
+            'direccion':     envio_data.get('direccion', '').strip(),
+            'barrio':        envio_data.get('barrio', '').strip(),
+            'referencias':   envio_data.get('referencias', '').strip(),
+        }
+
+        negocio_data = {
+            'id':     int(negocio_id),
+            'slug':   data.get('slug_negocio', 'PED'),
+            'nombre': data.get('nombre_negocio', ''),
+        }
+
+        # ── Crear pedido reutilizando el método del modelo ──────────────────
+        pedido = Pedido.crear_pedido(
+            comprador=datos_comprador,        # dict directo (acepta el método)
+            direccion=datos_envio,            # dict directo
+            negocio_data=negocio_data,
+            productos=productos,
+            subtotal=float(data.get('subtotal', 0)),
+            costo_envio=float(data.get('costo_envio', 0)),
+            total=float(data.get('total', 0)),
+            metodo_pago=data.get('metodo_pago', 'efectivo'),
+            notas_cliente=data.get('notas_cliente'),
+            metodo_contacto=data.get('metodo_contacto', 'whatsapp'),
+            origen=origen,
+        )
+
+        # ── Campos adicionales que el método base no setea ──────────────────
+        if data.get('descuento'):
+            try:
+                pedido.descuento = float(data.get('descuento', 0))
+            except (TypeError, ValueError):
+                pass
+
+        if data.get('estado_pago'):
+            pedido.estado_pago = data['estado_pago']
+
+        if data.get('notas_vendedor'):
+            pedido.notas_vendedor = data['notas_vendedor']
+
+        # Si trae guía/transportadora, las setea desde el inicio
+        if data.get('numero_guia'):
+            pedido.numero_guia = data['numero_guia']
+        if data.get('transportadora'):
+            pedido.transportadora = data['transportadora']
+        if data.get('url_tracking'):
+            pedido.url_tracking = data['url_tracking']
+
+        # ── Estado inicial: si no es 'pendiente', usamos cambiar_estado para
+        #    que registre el cambio en el historial automáticamente ─────────
+        if estado_inicial != 'pendiente':
+            pedido.cambiar_estado(
+                estado_inicial,
+                usuario_id=get_user_id(),
+                comentario=f'Venta manual registrada (origen: {origen})'
+            )
+
+        # Flush para obtener id_pedido antes del historial inicial
+        db.session.flush()
+
+        # Registrar entrada inicial en historial (origen visible para auditoría)
+        hist_inicial = PedidoHistorial(
+            pedido_id=pedido.id_pedido,
+            estado_anterior=None,
+            estado_nuevo=estado_inicial,
+            comentario=f'Venta manual creada · canal: {origen}',
+            usuario_id=get_user_id(),
+        )
+        db.session.add(hist_inicial)
+
+        db.session.commit()
+
+        logger.info(
+            f"✅ Venta manual creada: {pedido.codigo_pedido} "
+            f"(origen={origen}, estado={estado_inicial}, total={pedido.total})"
+        )
+
+        return jsonify({
+            "success": True,
+            "message": "Venta manual registrada correctamente",
+            "pedido": pedido.to_dict() if hasattr(pedido, 'to_dict') else {
+                "id_pedido": pedido.id_pedido,
+                "codigo_pedido": pedido.codigo_pedido,
+                "estado": pedido.estado,
+                "origen": pedido.origen,
+                "total": float(pedido.total) if pedido.total else 0,
+            }
+        }), 201
+
+    except ValueError as ve:
+        db.session.rollback()
+        logger.warning(f"Validación falló al crear venta manual: {ve}")
+        return jsonify({"success": False, "error": str(ve)}), 400
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error creando venta manual: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 # ==========================================
 # HEALTH CHECK
 # ==========================================
@@ -897,5 +1117,5 @@ def pedidos_health():
     return jsonify({
         "status": "online",
         "module": "pedidos_api",
-        "version": "2.0.0"
+        "version": "2.1.0"
     }), 200
