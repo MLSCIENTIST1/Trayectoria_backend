@@ -508,7 +508,8 @@ def obtener_mis_productos():
     try:
         ctx = get_biz_context()
         
-        logger.info(f"📦 Obteniendo productos - User: {user_id}, Negocio: {ctx['negocio_id']}")
+        total_en_bd = ProductoCatalogo.query.filter_by(usuario_id=int(user_id)).count()
+        logger.info(f"📦 Obteniendo productos - User: {user_id}, Negocio: {ctx['negocio_id']}, Total en BD para este usuario: {total_en_bd}")
         
         query = ProductoCatalogo.query.filter_by(usuario_id=int(user_id))
 
@@ -605,6 +606,7 @@ def obtener_mis_productos():
             "success": True,
             "data": data_final,
             "total": len(data_final),
+            "total_en_bd": total_en_bd,
             "context": ctx
         }), 200
         

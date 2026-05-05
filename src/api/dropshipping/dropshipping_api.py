@@ -12,12 +12,30 @@ import requests
 from datetime import datetime
 from flask import Blueprint, request, jsonify
 from flask_cors import cross_origin
+from flask_login import current_user
 from src.models.database import db
 from src.models.colombia_data.contabilidad.operaciones_y_catalogo import ProductoCatalogo
 
 logger = logging.getLogger(__name__)
 
 dropshipping_bp = Blueprint('dropshipping_bp', __name__)
+
+
+def _get_user_id():
+    """Lee usuario_id desde sesión o header X-User-ID (nunca del body)."""
+    if current_user and current_user.is_authenticated:
+        return current_user.id_usuario
+    uid = request.headers.get('X-User-ID')
+    return int(uid) if uid else None
+
+
+def _get_negocio_id(data):
+    """Lee negocio_id desde header > body > query param."""
+    nid = (request.headers.get('X-Business-ID') or
+           request.headers.get('X-Negocio-ID') or
+           data.get('negocio_id') or
+           request.args.get('negocio_id'))
+    return int(nid) if nid else None
 
 # ============================================
 # CONFIGURACIÓN DE PROVEEDORES
@@ -180,10 +198,15 @@ def importar_dropshipping():
         is_form = 'multipart/form-data' in (request.content_type or '')
         data = request.form.to_dict() if is_form else (request.get_json(silent=True) or {})
 
-        proveedor = data.get('proveedor', 'manual').lower()
-        negocio_id = int(data.get('negocio_id', 4))  # Default RODAR
-        usuario_id = int(data.get('usuario_id', 1))
-        markup = float(data.get('markup', 1.0))
+        proveedor  = data.get('proveedor', 'manual').lower()
+        negocio_id = _get_negocio_id(data)
+        usuario_id = _get_user_id()
+        markup     = float(data.get('markup', 1.0))
+
+        if not usuario_id:
+            return jsonify({"success": False, "message": "No autorizado"}), 401
+        if not negocio_id:
+            return jsonify({"success": False, "message": "negocio_id requerido"}), 400
 
         adaptador = ADAPTADORES.get(proveedor, adaptar_csv_generico)
         productos_raw = []
