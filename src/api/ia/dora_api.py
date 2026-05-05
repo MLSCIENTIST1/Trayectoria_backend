@@ -12,9 +12,22 @@ GROQ_MODEL = "llama-3.1-8b-instant"
 def get_groq_key():
     return os.environ.get("GROQ_API_KEY", "")
 
+def _resolve_negocio_id(negocio_id_param):
+    """Obtiene negocio_id del parámetro o del primer negocio del usuario autenticado."""
+    if negocio_id_param:
+        return int(negocio_id_param)
+    try:
+        from src.models.colombia_data.negocio import Negocio
+        negocio = Negocio.query.filter_by(usuario_id=current_user.id_usuario).first()
+        return negocio.id_negocio if negocio else None
+    except Exception:
+        return None
+
+
 def get_negocio_context(negocio_id):
     """Consulta la BD y devuelve contexto real del negocio para inyectar en el prompt."""
-    if not negocio_id:
+    nid = _resolve_negocio_id(negocio_id)
+    if not nid:
         return ""
     try:
         from src.models.colombia_data.contabilidad.operaciones_y_catalogo import (
@@ -22,25 +35,23 @@ def get_negocio_context(negocio_id):
         )
         from datetime import datetime, timedelta
 
-        # Productos del catálogo (top 15 activos por nombre)
         productos = (
             ProductoCatalogo.query
-            .filter_by(negocio_id=negocio_id, activo=True)
+            .filter_by(negocio_id=nid, activo=True)
             .order_by(ProductoCatalogo.total_ventas.desc())
             .limit(15)
             .all()
         )
         productos_list = [
-            f"- {p.nombre} | precio: ${p.precio:,.0f} | stock: {p.stock} | cat: {p.categoria}"
+            f"- {p.nombre} | precio: ${float(p.precio):,.0f} | stock: {p.stock} | cat: {p.categoria}"
             for p in productos
         ]
 
-        # Últimas 10 transacciones (ventas y gastos)
         hace_30_dias = datetime.utcnow() - timedelta(days=30)
         transacciones = (
             TransaccionOperativa.query
             .filter(
-                TransaccionOperativa.negocio_id == negocio_id,
+                TransaccionOperativa.negocio_id == nid,
                 TransaccionOperativa.fecha >= hace_30_dias
             )
             .order_by(TransaccionOperativa.fecha.desc())
@@ -48,18 +59,17 @@ def get_negocio_context(negocio_id):
             .all()
         )
         trans_list = [
-            f"- {t.tipo} | {t.concepto} | ${t.monto:,.0f} | {t.fecha.strftime('%d/%m') if t.fecha else '-'}"
+            f"- {t.tipo} | {t.concepto} | ${float(t.monto):,.0f} | {t.fecha.strftime('%d/%m/%Y %H:%M') if t.fecha else '-'}"
             for t in transacciones
         ]
 
-        # Alertas de stock activas
         alertas = (
             AlertaOperativa.query
-            .filter_by(negocio_id=negocio_id, completada=False)
+            .filter_by(negocio_id=nid, completada=False)
             .limit(5)
             .all()
         )
-        alertas_list = [f"- {a.mensaje}" for a in alertas if hasattr(a, 'mensaje')]
+        alertas_list = [f"- [{a.prioridad}] {a.tarea}" for a in alertas]
 
         partes = []
         if productos_list:
@@ -71,6 +81,8 @@ def get_negocio_context(negocio_id):
 
         return "\n\n".join(partes)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return ""
 
 
@@ -399,3 +411,99 @@ Responde de forma directa, práctica y en español colombiano. Máximo 3 oracion
         return jsonify({"error": error}), 500
 
     return jsonify({"reply": reply})
+
+
+@dora_bp.route('/ia/buscar-producto', methods=['POST'])
+@login_required
+def buscar_producto():
+    """Busca un producto por nombre (fuzzy) en el catálogo del negocio."""
+    data = request.get_json() or {}
+    nombre_busqueda = data.get('nombre', '').strip()
+    negocio_id = data.get('negocio_id')
+
+    if not nombre_busqueda:
+        return jsonify({"error": "Nombre requerido"}), 400
+
+    nid = _resolve_negocio_id(negocio_id)
+    if not nid:
+        return jsonify({"error": "Negocio no encontrado"}), 404
+
+    try:
+        from src.models.colombia_data.contabilidad.operaciones_y_catalogo import ProductoCatalogo
+
+        # Búsqueda insensible a mayúsculas con ILIKE
+        productos = (
+            ProductoCatalogo.query
+            .filter(
+                ProductoCatalogo.negocio_id == nid,
+                ProductoCatalogo.activo == True,
+                ProductoCatalogo.nombre.ilike(f'%{nombre_busqueda}%')
+            )
+            .limit(5)
+            .all()
+        )
+
+        if not productos:
+            return jsonify({"productos": [], "mensaje": f"No encontré ningún producto con '{nombre_busqueda}'"})
+
+        return jsonify({
+            "productos": [
+                {
+                    "id": p.id_producto,
+                    "nombre": p.nombre,
+                    "precio": float(p.precio),
+                    "stock": p.stock,
+                    "categoria": p.categoria,
+                    "stock_minimo": p.stock_minimo
+                }
+                for p in productos
+            ]
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@dora_bp.route('/ia/actualizar-stock', methods=['POST'])
+@login_required
+def actualizar_stock():
+    """Actualiza el stock de un producto. Requiere confirmación previa del usuario."""
+    data = request.get_json() or {}
+    producto_id = data.get('producto_id')
+    nuevo_stock = data.get('nuevo_stock')
+    negocio_id = data.get('negocio_id')
+
+    if producto_id is None or nuevo_stock is None:
+        return jsonify({"error": "producto_id y nuevo_stock son requeridos"}), 400
+
+    nid = _resolve_negocio_id(negocio_id)
+    if not nid:
+        return jsonify({"error": "Negocio no encontrado"}), 404
+
+    try:
+        from src.models.colombia_data.contabilidad.operaciones_y_catalogo import ProductoCatalogo
+        from src.models.database import db
+
+        producto = ProductoCatalogo.query.filter_by(
+            id_producto=int(producto_id),
+            negocio_id=nid
+        ).first()
+
+        if not producto:
+            return jsonify({"error": "Producto no encontrado o no pertenece a tu negocio"}), 404
+
+        stock_anterior = producto.stock
+        producto.stock = int(nuevo_stock)
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "producto": producto.nombre,
+            "stock_anterior": stock_anterior,
+            "stock_nuevo": producto.stock
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
