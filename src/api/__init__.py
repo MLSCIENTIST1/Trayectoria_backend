@@ -656,6 +656,34 @@ def register_api(app):
             fail_count += 1
     
     # ==========================================
+    # 🤖 DORA IA (Asistente Inteligente)
+    # ==========================================
+    print("\n" + "=" * 70)
+    print("🤖🤖🤖 SECCIÓN: DORA IA - ASISTENTE INTELIGENTE 🤖🤖🤖")
+    print("=" * 70)
+    logger.info("\n🤖 Cargando módulo Dora IA...")
+
+    print("🤖 Endpoints disponibles:")
+    print("   → POST /api/ia/chat                - Chat conversacional")
+    print("   → POST /api/ia/describir-producto  - Descripción de producto")
+    print("   → POST /api/ia/generar-promo        - Texto de promoción")
+    print("   → POST /api/ia/clasificar-gasto     - Clasificar gasto contable")
+    print("   → POST /api/ia/analizar-ventas      - Análisis de ventas")
+    print("   → POST /api/ia/sugerir-precio       - Sugerencia de precio")
+    print("   → POST /api/ia/generar-campana      - Paquete de marketing")
+    print("   → POST /api/ia/contexto-modulo      - Chat contextual por módulo")
+
+    if safe_register('src.api.ia.dora_api', 'dora_bp', 'Dora IA - Asistente Inteligente', prefix='/api'):
+        success_count += 1
+        print("🤖 ✅✅✅ DORA IA CARGADA EXITOSAMENTE ✅✅✅")
+    else:
+        fail_count += 1
+        print("🤖 ❌❌❌ DORA IA FALLÓ AL CARGAR ❌❌❌")
+        logger.warning("⚠️  Dora IA no cargada - Verifica GROQ_API_KEY y src/api/ia/dora_api.py")
+
+    print("=" * 70)
+
+    # ==========================================
     # 🎯 TRAYECTORIA (SCORES, BADGES, MÉTRICAS, PORTFOLIO)
     # ==========================================
     print("\n" + "=" * 50)
