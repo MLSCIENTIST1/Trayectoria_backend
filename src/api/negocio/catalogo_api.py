@@ -2440,6 +2440,8 @@ def catalogo_publico(negocio_id):
                     "stock":         p.stock,
                     "en_stock":      (p.stock or 0) > 0,
                     "activo":        True,
+                    "total_ventas":  getattr(p, 'total_ventas', 0) or 0,
+                    "ventas_30_dias": getattr(p, 'ventas_30_dias', 0) or 0,
                     "visitas_7_dias": getattr(p, 'visitas_7_dias', 0) or 0,
                 }
  
