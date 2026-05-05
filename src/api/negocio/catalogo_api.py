@@ -511,9 +511,15 @@ def obtener_mis_productos():
         logger.info(f"📦 Obteniendo productos - User: {user_id}, Negocio: {ctx['negocio_id']}")
         
         query = ProductoCatalogo.query.filter_by(usuario_id=int(user_id))
-        
+
         if ctx['negocio_id']:
-            query = query.filter_by(negocio_id=ctx['negocio_id'])
+            # ★ Incluir también productos legacy sin negocio_id (migración pendiente)
+            query = query.filter(
+                db.or_(
+                    ProductoCatalogo.negocio_id == ctx['negocio_id'],
+                    ProductoCatalogo.negocio_id == None
+                )
+            )
             
         if ctx['sucursal_id']:
             query = query.filter_by(sucursal_id=ctx['sucursal_id'])
@@ -602,6 +608,51 @@ def obtener_mis_productos():
         
     except Exception as e:
         logger.error(f"❌ Error en GET mis-productos: {traceback.format_exc()}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@catalogo_api_bp.route('/mis-productos/migrar-negocio', methods=['POST', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def migrar_negocio_productos():
+    """
+    POST /api/mis-productos/migrar-negocio
+    Asigna negocio_id a todos los productos del usuario que no lo tienen.
+    Body: { "negocio_id": 123 }
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    user_id = get_authorized_user_id()
+    if not user_id:
+        return jsonify({"success": False, "message": "No autorizado"}), 401
+
+    try:
+        ctx = get_biz_context()
+        negocio_id = ctx['negocio_id']
+        if not negocio_id:
+            return jsonify({"success": False, "message": "negocio_id requerido"}), 400
+
+        huerfanos = ProductoCatalogo.query.filter_by(
+            usuario_id=int(user_id)
+        ).filter(ProductoCatalogo.negocio_id == None).all()
+
+        count = len(huerfanos)
+        for p in huerfanos:
+            p.negocio_id = negocio_id
+
+        db.session.commit()
+        logger.info(f"✅ Migración: {count} productos → negocio {negocio_id} (user {user_id})")
+
+        return jsonify({
+            "success": True,
+            "migrados": count,
+            "negocio_id": negocio_id,
+            "message": f"{count} productos asignados al negocio correctamente"
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error en migración: {traceback.format_exc()}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
