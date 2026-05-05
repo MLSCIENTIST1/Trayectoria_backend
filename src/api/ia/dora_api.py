@@ -12,14 +12,78 @@ GROQ_MODEL = "llama-3.1-8b-instant"
 def get_groq_key():
     return os.environ.get("GROQ_API_KEY", "")
 
-def build_system_prompt(negocio_nombre=None, negocio_tipo=None, user_nombre=None):
+def get_negocio_context(negocio_id):
+    """Consulta la BD y devuelve contexto real del negocio para inyectar en el prompt."""
+    if not negocio_id:
+        return ""
+    try:
+        from src.models.colombia_data.contabilidad.operaciones_y_catalogo import (
+            ProductoCatalogo, TransaccionOperativa, AlertaOperativa
+        )
+        from datetime import datetime, timedelta
+
+        # Productos del catálogo (top 15 activos por nombre)
+        productos = (
+            ProductoCatalogo.query
+            .filter_by(negocio_id=negocio_id, activo=True)
+            .order_by(ProductoCatalogo.total_ventas.desc())
+            .limit(15)
+            .all()
+        )
+        productos_list = [
+            f"- {p.nombre} | precio: ${p.precio:,.0f} | stock: {p.stock} | cat: {p.categoria}"
+            for p in productos
+        ]
+
+        # Últimas 10 transacciones (ventas y gastos)
+        hace_30_dias = datetime.utcnow() - timedelta(days=30)
+        transacciones = (
+            TransaccionOperativa.query
+            .filter(
+                TransaccionOperativa.negocio_id == negocio_id,
+                TransaccionOperativa.fecha >= hace_30_dias
+            )
+            .order_by(TransaccionOperativa.fecha.desc())
+            .limit(10)
+            .all()
+        )
+        trans_list = [
+            f"- {t.tipo} | {t.concepto} | ${t.monto:,.0f} | {t.fecha.strftime('%d/%m') if t.fecha else '-'}"
+            for t in transacciones
+        ]
+
+        # Alertas de stock activas
+        alertas = (
+            AlertaOperativa.query
+            .filter_by(negocio_id=negocio_id, completada=False)
+            .limit(5)
+            .all()
+        )
+        alertas_list = [f"- {a.mensaje}" for a in alertas if hasattr(a, 'mensaje')]
+
+        partes = []
+        if productos_list:
+            partes.append("CATÁLOGO DE PRODUCTOS (activos, ordenados por ventas):\n" + "\n".join(productos_list))
+        if trans_list:
+            partes.append("ÚLTIMAS TRANSACCIONES (30 días):\n" + "\n".join(trans_list))
+        if alertas_list:
+            partes.append("ALERTAS ACTIVAS:\n" + "\n".join(alertas_list))
+
+        return "\n\n".join(partes)
+    except Exception as e:
+        return ""
+
+
+def build_system_prompt(negocio_nombre=None, negocio_tipo=None, user_nombre=None, negocio_context=""):
     nombre_tienda = negocio_nombre or "tu tienda"
     tipo = negocio_tipo or "tienda"
     nombre_usuario = user_nombre or "tendero"
 
+    context_block = f"\n\nDATA REAL DE {nombre_tienda.upper()}:\n{negocio_context}" if negocio_context else ""
+
     return f"""Eres Dora IA, la asistente inteligente de TuKomercio — la plataforma de e-commerce para tenderos colombianos.
 
-Tu misión es ayudar a {nombre_usuario}, dueño de {nombre_tienda} ({tipo}), a hacer crecer su negocio.
+Tu misión es ayudar a {nombre_usuario}, dueño de {nombre_tienda} ({tipo}), a hacer crecer su negocio.{context_block}
 
 CONOCES PERFECTAMENTE TuKomercio:
 - Designer: personalizador visual de la tienda (tipografía, colores, banners, redes sociales, testimonios, galería)
@@ -33,19 +97,17 @@ ESTILO DE RESPUESTA:
 - Sé concisa: máximo 3-4 oraciones por respuesta a menos que expliques algo complejo
 - Usa emojis con moderación (1-2 por respuesta)
 - Si el usuario pregunta cómo hacer algo en TuKomercio, da pasos concretos
-- Si pregunta sobre su negocio (ventas, precios, clientes), da consejos prácticos para tenderos colombianos
-- Si te preguntan algo que no sabes, admítelo y sugiere la mejor alternativa
+- Si preguntan por un producto específico, precio, stock o venta: usa SIEMPRE la data real de arriba
+- Si te preguntan algo que no está en la data real, dilo claramente y sugiere dónde encontrarlo
 
-CAPACIDADES ESPECIALES QUE PUEDES HACER:
+CAPACIDADES ESPECIALES:
 - Generar descripciones de productos para el catálogo
 - Analizar e interpretar cifras de ventas
 - Clasificar gastos en categorías contables
 - Crear textos de promociones y banners
 - Sugerir estrategias de precios para el mercado colombiano
-- Ayudar a configurar la tienda en el Designer
-- Responder preguntas sobre el negocio y el mercado local
 
-Recuerda: eres parte de TuKomercio, no eres ChatGPT ni otro asistente genérico. Eres Dora IA."""
+Recuerda: eres parte de TuKomercio. Tienes acceso a la data real del negocio — úsala."""
 
 
 def call_groq(messages, system_prompt):
@@ -92,14 +154,18 @@ def chat():
     messages = data.get('messages', [])
     negocio_nombre = data.get('negocio_nombre')
     negocio_tipo = data.get('negocio_tipo')
+    negocio_id = data.get('negocio_id')
 
     if not messages:
         return jsonify({"error": "No hay mensajes"}), 400
 
+    negocio_context = get_negocio_context(negocio_id)
+
     system_prompt = build_system_prompt(
         negocio_nombre=negocio_nombre,
         negocio_tipo=negocio_tipo,
-        user_nombre=getattr(current_user, 'nombre', None)
+        user_nombre=getattr(current_user, 'nombre', None),
+        negocio_context=negocio_context
     )
 
     reply, error = call_groq(messages, system_prompt)
