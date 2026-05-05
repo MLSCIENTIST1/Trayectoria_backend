@@ -512,8 +512,10 @@ def obtener_mis_productos():
         
         query = ProductoCatalogo.query.filter_by(usuario_id=int(user_id))
 
-        if ctx['negocio_id']:
-            # ★ Incluir también productos legacy sin negocio_id (migración pendiente)
+        # Filtro por negocio_id solo si se solicita explícitamente con strict=true
+        # Por defecto muestra TODOS los productos del usuario (inventario unificado)
+        strict = request.args.get('strict', 'false').lower() in ['true', '1']
+        if strict and ctx['negocio_id']:
             query = query.filter(
                 db.or_(
                     ProductoCatalogo.negocio_id == ctx['negocio_id'],
@@ -632,16 +634,28 @@ def migrar_negocio_productos():
         if not negocio_id:
             return jsonify({"success": False, "message": "negocio_id requerido"}), 400
 
-        huerfanos = ProductoCatalogo.query.filter_by(
-            usuario_id=int(user_id)
-        ).filter(ProductoCatalogo.negocio_id == None).all()
+        # force=true reasigna TODOS los productos del usuario (incluso los de otro negocio_id)
+        force = request.json.get('force', False) if request.is_json else False
 
-        count = len(huerfanos)
-        for p in huerfanos:
+        base_query = ProductoCatalogo.query.filter_by(usuario_id=int(user_id))
+        if force:
+            productos_a_migrar = base_query.filter(
+                db.or_(
+                    ProductoCatalogo.negocio_id == None,
+                    ProductoCatalogo.negocio_id != negocio_id
+                )
+            ).all()
+        else:
+            productos_a_migrar = base_query.filter(
+                ProductoCatalogo.negocio_id == None
+            ).all()
+
+        count = len(productos_a_migrar)
+        for p in productos_a_migrar:
             p.negocio_id = negocio_id
 
         db.session.commit()
-        logger.info(f"✅ Migración: {count} productos → negocio {negocio_id} (user {user_id})")
+        logger.info(f"✅ Migración{'(force)' if force else ''}: {count} productos → negocio {negocio_id} (user {user_id})")
 
         return jsonify({
             "success": True,
