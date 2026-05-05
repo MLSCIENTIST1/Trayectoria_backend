@@ -7,7 +7,7 @@ from flask_login import current_user, login_required
 dora_bp = Blueprint('dora', __name__)
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama3-8b-8192"
+GROQ_MODEL = "llama-3.1-8b-instant"
 
 def get_groq_key():
     return os.environ.get("GROQ_API_KEY", "")
@@ -72,10 +72,16 @@ def call_groq(messages, system_prompt):
     except requests.exceptions.Timeout:
         return None, "La IA tardó demasiado. Intenta de nuevo."
     except requests.exceptions.HTTPError as e:
+        try:
+            detail = resp.json().get('error', {}).get('message', '')
+        except Exception:
+            detail = ''
         if resp.status_code == 429:
             return None, "Límite de uso alcanzado. Intenta en unos segundos."
-        return None, f"Error de Groq: {resp.status_code}"
+        return None, f"Error de Groq {resp.status_code}: {detail}"
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return None, str(e)
 
 
