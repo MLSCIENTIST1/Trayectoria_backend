@@ -656,6 +656,33 @@ def register_api(app):
             fail_count += 1
     
     # ==========================================
+    # 🎮 GAMIFICACIÓN (Rachas · Misiones · Leaderboard · TuKoins)
+    # ==========================================
+    print("\n" + "=" * 70)
+    print("🎮🎮🎮 SECCIÓN: GAMIFICACIÓN v1.0 🎮🎮🎮")
+    print("=" * 70)
+    logger.info("\n🎮 Cargando módulo de Gamificación...")
+
+    print("🎮 Endpoints disponibles:")
+    print("   → GET/POST /api/gamificacion/dashboard        - Estado completo")
+    print("   → POST     /api/gamificacion/misiones/completar - Marcar misión manual")
+    print("   → GET      /api/gamificacion/leaderboard       - Ranking de negocios")
+    print("   → GET      /api/gamificacion/tukoins/<id>      - Balance y historial")
+    print("   → GET      /api/gamificacion/tienda            - Catálogo de ítems")
+    print("   → POST     /api/gamificacion/tienda/comprar    - Comprar ítem")
+    print("   → GET      /api/gamificacion/mis-items/<id>    - Ítems comprados")
+    print("   → POST     /api/gamificacion/xp/ganar          - Sumar XP (interno)")
+
+    if safe_register('src.api.gamificacion.gamificacion_api', 'gamificacion_bp', 'Gamificación v1.0', prefix='/api'):
+        success_count += 1
+        print("🎮 ✅✅✅ GAMIFICACIÓN CARGADA EXITOSAMENTE ✅✅✅")
+    else:
+        fail_count += 1
+        print("🎮 ❌❌❌ GAMIFICACIÓN FALLÓ AL CARGAR ❌❌❌")
+
+    print("=" * 70)
+
+    # ==========================================
     # 🤖 DORA IA (Asistente Inteligente)
     # ==========================================
     print("\n" + "=" * 70)

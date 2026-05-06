@@ -1,0 +1,1 @@
+# TuKomercio — Módulo de Gamificación

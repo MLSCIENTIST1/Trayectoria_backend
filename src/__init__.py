@@ -138,6 +138,15 @@ from src.models.trayectoria.user_badge import UserBadge
 from src.models.trayectoria.user_metric import UserMetric
 from src.models.trayectoria.portfolio_video import PortfolioVideo
 
+# 🎮 Gamificación v1.0
+from src.models.colombia_data.ratings.negocio_gamificacion import (
+    NegocioGamificacion,
+    NegocioMisionCompletada,
+    TuKoinTransaccion,
+    TiendaItem,
+    TiendaCompra,
+)
+
 # Configurar logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(
