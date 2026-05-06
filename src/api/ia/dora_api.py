@@ -465,6 +465,180 @@ def buscar_producto():
         return jsonify({"error": str(e)}), 500
 
 
+@dora_bp.route('/ia/auditar-categorias', methods=['POST'])
+@login_required
+def auditar_categorias():
+    """
+    Dora analiza los productos del negocio y detecta los que parecen
+    estar en la categoría equivocada. Devuelve una lista de sugerencias.
+    """
+    data = request.get_json() or {}
+    negocio_id = data.get('negocio_id')
+
+    nid = _resolve_negocio_id(negocio_id)
+    if not nid:
+        return jsonify({"error": "Negocio no encontrado"}), 404
+
+    try:
+        from src.models.colombia_data.contabilidad.operaciones_y_catalogo import ProductoCatalogo
+        import random
+
+        # Cargar todos los productos activos del negocio
+        todos = (
+            ProductoCatalogo.query
+            .filter_by(negocio_id=nid, activo=True)
+            .with_entities(
+                ProductoCatalogo.id_producto,
+                ProductoCatalogo.nombre,
+                ProductoCatalogo.categoria,
+            )
+            .all()
+        )
+
+        if not todos:
+            return jsonify({"sugerencias": [], "total_analizados": 0,
+                            "mensaje": "No hay productos para analizar."})
+
+        # Muestreo diverso: hasta 5 por categoría, máximo 60 total
+        por_categoria = {}
+        for p in todos:
+            cat = p.categoria or "Sin categoría"
+            por_categoria.setdefault(cat, []).append(p)
+
+        muestra = []
+        for productos_cat in por_categoria.values():
+            random.shuffle(productos_cat)
+            muestra.extend(productos_cat[:5])
+
+        random.shuffle(muestra)
+        muestra = muestra[:60]
+
+        # Construir lista para el prompt
+        lineas = "\n".join(
+            f'{i+1}. ID={p.id_producto} | "{p.nombre}" | Categoría: "{p.categoria or "Sin categoría"}"'
+            for i, p in enumerate(muestra)
+        )
+
+        prompt = f"""Analiza esta lista de productos de una tienda colombiana y detecta SOLO los que claramente están en la categoría equivocada o en una categoría genérica que podría ser más específica.
+
+PRODUCTOS:
+{lineas}
+
+Responde ÚNICAMENTE con un array JSON (sin texto adicional, sin markdown, sin explicaciones fuera del JSON).
+Si no hay productos mal categorizados, responde con un array vacío: []
+
+Formato requerido:
+[
+  {{
+    "producto_id": 123,
+    "nombre": "nombre del producto",
+    "categoria_actual": "categoría actual",
+    "categoria_sugerida": "categoría más apropiada",
+    "razon": "razón breve en máximo 12 palabras"
+  }}
+]
+
+Solo incluye productos donde estés MUY SEGURO de que la categoría es incorrecta. Sé conservador."""
+
+        system = ("Eres un experto en clasificación de productos para tiendas colombianas. "
+                  "Tu tarea es detectar productos mal categorizados. "
+                  "Responde SOLO con JSON válido, sin markdown ni texto adicional.")
+
+        key = get_groq_key()
+        if not key:
+            return jsonify({"error": "GROQ_API_KEY no configurada"}), 500
+
+        payload = {
+            "model": GROQ_MODEL,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": prompt}
+            ],
+            "max_tokens": 1024,
+            "temperature": 0.3,
+        }
+        resp = requests.post(
+            GROQ_API_URL,
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json=payload,
+            timeout=30
+        )
+        resp.raise_for_status()
+        raw = resp.json()["choices"][0]["message"]["content"].strip()
+
+        # Limpiar posibles code fences de markdown
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        raw = raw.strip()
+
+        try:
+            sugerencias = json.loads(raw)
+            if not isinstance(sugerencias, list):
+                sugerencias = []
+        except json.JSONDecodeError:
+            # Intentar extraer el array JSON si viene mezclado con texto
+            import re as _re
+            match = _re.search(r'\[.*\]', raw, _re.DOTALL)
+            sugerencias = json.loads(match.group(0)) if match else []
+
+        return jsonify({
+            "sugerencias": sugerencias,
+            "total_analizados": len(muestra),
+            "total_productos": len(todos),
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@dora_bp.route('/ia/corregir-categoria', methods=['POST'])
+@login_required
+def corregir_categoria():
+    """Actualiza la categoría de un producto según la sugerencia de Dora."""
+    data = request.get_json() or {}
+    producto_id = data.get('producto_id')
+    nueva_categoria = data.get('nueva_categoria', '').strip()
+    negocio_id = data.get('negocio_id')
+
+    if not producto_id or not nueva_categoria:
+        return jsonify({"error": "producto_id y nueva_categoria son requeridos"}), 400
+
+    nid = _resolve_negocio_id(negocio_id)
+    if not nid:
+        return jsonify({"error": "Negocio no encontrado"}), 404
+
+    try:
+        from src.models.colombia_data.contabilidad.operaciones_y_catalogo import ProductoCatalogo
+        from src.models.database import db
+
+        producto = ProductoCatalogo.query.filter_by(
+            id_producto=int(producto_id),
+            negocio_id=nid
+        ).first()
+
+        if not producto:
+            return jsonify({"error": "Producto no encontrado o no pertenece a tu negocio"}), 404
+
+        categoria_anterior = producto.categoria
+        producto.categoria = nueva_categoria
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "producto": producto.nombre,
+            "categoria_anterior": categoria_anterior,
+            "categoria_nueva": nueva_categoria
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
 @dora_bp.route('/ia/actualizar-stock', methods=['POST'])
 @login_required
 def actualizar_stock():

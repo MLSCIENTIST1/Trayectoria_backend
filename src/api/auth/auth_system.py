@@ -102,11 +102,18 @@ auth_bp = Blueprint('auth_system', __name__, url_prefix='/api/auth')
 # CONFIGURACIÓN DE CORS ORIGINS
 # ==========================================
 ALLOWED_ORIGINS = [
+    # Firebase legacy
     "https://trayectoria-rxdc1.web.app",
     "https://mitrayectoria.web.app",
+    # Cloudflare Pages (producción actual)
+    "https://tuko.pages.dev",
+    "https://tukomercio.pages.dev",
+    # Desarrollo local
     "http://localhost:5001",
     "http://localhost:5173",
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "http://127.0.0.1:5500",
+    "http://127.0.0.1:3000",
 ]
 
 
@@ -152,10 +159,13 @@ def build_cors_response(data=None, status=200):
     
     if origin in ALLOWED_ORIGINS:
         response.headers['Access-Control-Allow-Origin'] = origin
-    
+        response.headers['Access-Control-Allow-Credentials'] = 'true'  # necesario para cookies cross-origin
+    elif not origin:
+        # Requests sin Origin (curl, Postman, etc.)
+        response.headers['Access-Control-Allow-Origin'] = '*'
+
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, PUT, DELETE'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-User-ID, X-Business-ID, Accept, Cache-Control'
-    
     response.headers['Access-Control-Max-Age'] = '3600'
     
     return response
