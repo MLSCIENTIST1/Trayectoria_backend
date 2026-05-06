@@ -147,6 +147,20 @@ from src.models.colombia_data.ratings.negocio_gamificacion import (
     TiendaCompra,
 )
 
+# 🔧 Vertical Taller v1.0
+from src.models.taller.orden_trabajo import (
+    OrdenTrabajo,
+    ItemOrdenTrabajo,
+    CitaTaller,
+)
+
+# 🍽️ Vertical Restaurante v1.0
+from src.models.restaurante.restaurante import (
+    Mesa,
+    Comanda,
+    ItemComanda,
+)
+
 # Configurar logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(

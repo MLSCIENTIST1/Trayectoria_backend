@@ -683,6 +683,61 @@ def register_api(app):
     print("=" * 70)
 
     # ==========================================
+    # 🔧 TALLER (Talleres automotrices y de motos)
+    # ==========================================
+    print("\n" + "=" * 70)
+    print("🔧🔧🔧 SECCIÓN: VERTICAL TALLER 🔧🔧🔧")
+    print("=" * 70)
+    logger.info("\n🔧 Cargando módulo Taller...")
+
+    print("🔧 Endpoints disponibles:")
+    print("   → GET/POST  /api/taller/ordenes              - Listar/crear OTs")
+    print("   → GET/PUT   /api/taller/ordenes/<id>         - Detalle/actualizar OT")
+    print("   → GET       /api/taller/ordenes/<id>/pdf     - Datos para imprimir OT")
+    print("   → POST      /api/taller/ordenes/<id>/items   - Agregar ítem a OT")
+    print("   → GET/POST  /api/taller/citas                - Listar/crear citas")
+    print("   → PUT       /api/taller/citas/<id>           - Actualizar cita")
+    print("   → POST      /api/taller/citas/<id>/convertir - Convertir cita en OT")
+    print("   → GET       /api/taller/stats                - Resumen del taller")
+    print("   → GET       /api/taller/historial/<placa>    - Historial por placa")
+
+    if safe_register('src.api.taller.taller_api', 'taller_bp', 'Taller v1.0', prefix='/api'):
+        success_count += 1
+        print("🔧 ✅✅✅ TALLER CARGADO EXITOSAMENTE ✅✅✅")
+    else:
+        fail_count += 1
+        print("🔧 ❌❌❌ TALLER FALLÓ AL CARGAR ❌❌❌")
+
+    print("=" * 70)
+
+    # ==========================================
+    # 🍽️ RESTAURANTE (Mesas, comandas, carta)
+    # ==========================================
+    print("\n" + "=" * 70)
+    print("🍽️🍽️🍽️ SECCIÓN: VERTICAL RESTAURANTE 🍽️🍽️🍽️")
+    print("=" * 70)
+    logger.info("\n🍽️ Cargando módulo Restaurante...")
+
+    print("🍽️ Endpoints disponibles:")
+    print("   → GET/POST  /api/restaurante/mesas               - Listar/crear mesas")
+    print("   → PUT/DEL   /api/restaurante/mesas/<id>          - Actualizar/eliminar mesa")
+    print("   → GET/POST  /api/restaurante/comandas            - Listar/abrir comanda")
+    print("   → GET/PUT   /api/restaurante/comandas/<id>       - Detalle/actualizar comanda")
+    print("   → POST      /api/restaurante/comandas/<id>/items - Agregar ítem")
+    print("   → POST      /api/restaurante/comandas/<id>/cerrar- Cerrar y cobrar")
+    print("   → GET       /api/restaurante/stats               - Resumen del día")
+    print("   → GET       /api/restaurante/carta               - Carta digital")
+
+    if safe_register('src.api.restaurante.restaurante_api', 'restaurante_bp', 'Restaurante v1.0', prefix='/api'):
+        success_count += 1
+        print("🍽️ ✅✅✅ RESTAURANTE CARGADO EXITOSAMENTE ✅✅✅")
+    else:
+        fail_count += 1
+        print("🍽️ ❌❌❌ RESTAURANTE FALLÓ AL CARGAR ❌❌❌")
+
+    print("=" * 70)
+
+    # ==========================================
     # 🤖 DORA IA (Asistente Inteligente)
     # ==========================================
     print("\n" + "=" * 70)
