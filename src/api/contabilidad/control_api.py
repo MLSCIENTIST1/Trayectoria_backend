@@ -395,15 +395,27 @@ def obtener_resumen_financiero(negocio_id):
     try:
         from sqlalchemy import func
         
-        resumen = db.session.query(
-            TransaccionOperativa.tipo,
-            func.sum(TransaccionOperativa.monto).label('total')
-        ).filter(
-            TransaccionOperativa.negocio_id == negocio_id,
-            (TransaccionOperativa.anulada == False) | (TransaccionOperativa.anulada.is_(None))
-        ).group_by(
-            TransaccionOperativa.tipo
-        ).all()
+        try:
+            resumen = db.session.query(
+                TransaccionOperativa.tipo,
+                func.sum(TransaccionOperativa.monto).label('total')
+            ).filter(
+                TransaccionOperativa.negocio_id == negocio_id,
+                (TransaccionOperativa.anulada == False) | (TransaccionOperativa.anulada.is_(None))
+            ).group_by(
+                TransaccionOperativa.tipo
+            ).all()
+        except Exception:
+            # Fallback si la columna anulada aún no existe en BD
+            db.session.rollback()
+            resumen = db.session.query(
+                TransaccionOperativa.tipo,
+                func.sum(TransaccionOperativa.monto).label('total')
+            ).filter_by(
+                negocio_id=negocio_id
+            ).group_by(
+                TransaccionOperativa.tipo
+            ).all()
         
         totales = {
             "ventas": 0,

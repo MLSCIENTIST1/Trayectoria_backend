@@ -370,7 +370,33 @@ def create_app():
         try:
             db.create_all()
             logger.info("✅ Estructura de base de datos verificada en Neon")
-            
+
+            # ==========================================
+            # MIGRACIONES AUTOMÁTICAS DE COLUMNAS NUEVAS
+            # ADD COLUMN IF NOT EXISTS — seguro en Neon/PostgreSQL
+            # ==========================================
+            try:
+                from sqlalchemy import text
+                migraciones = [
+                    # Dropshipping en catálogo de productos
+                    "ALTER TABLE productos_catalogo ADD COLUMN IF NOT EXISTS es_dropshipping BOOLEAN NOT NULL DEFAULT FALSE",
+                    # Anulación en transacciones operativas
+                    "ALTER TABLE transacciones_operativas ADD COLUMN IF NOT EXISTS anulada BOOLEAN NOT NULL DEFAULT FALSE",
+                    "ALTER TABLE transacciones_operativas ADD COLUMN IF NOT EXISTS motivo_anulacion VARCHAR(255)",
+                    # pedido_id nullable en devoluciones (para devoluciones libres)
+                    "ALTER TABLE devoluciones ALTER COLUMN pedido_id DROP NOT NULL",
+                ]
+                for sql in migraciones:
+                    try:
+                        db.session.execute(text(sql))
+                        db.session.commit()
+                    except Exception as col_err:
+                        db.session.rollback()
+                        logger.debug(f"Migración omitida (ya aplicada o no aplica): {col_err}")
+                logger.info("✅ Migraciones automáticas de columnas aplicadas")
+            except Exception as mig_err:
+                logger.warning(f"⚠️  Error en bloque de migraciones automáticas: {mig_err}")
+
             # ==========================================
             # INICIALIZAR BADGES DE TRAYECTORIA (AUTOMÁTICO)
             # ==========================================
