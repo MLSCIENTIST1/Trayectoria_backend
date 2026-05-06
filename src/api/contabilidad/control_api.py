@@ -85,7 +85,7 @@ from flask_cors import cross_origin
 from flask_login import current_user
 from src.models.database import db
 # CORREGIDO: Import desde la ubicación correcta
-from src.models.colombia_data.contabilidad.operaciones_y_catalogo import TransaccionOperativa, ProductoCatalogo
+from src.models.colombia_data.contabilidad.operaciones_y_catalogo import TransaccionOperativa, ProductoCatalogo, MovimientoStock
 import traceback
 import logging
 
@@ -182,8 +182,9 @@ def registrar_operacion_maestra():
         )
         
         db.session.add(nueva_transaccion)
+        db.session.flush()  # ← persiste la transacción en la sesión antes de tocar productos
         logger.info(f"📝 Transacción registrada: {tipo_op} - ${monto_final}")
-        
+
         # CASO A: Actualización manual desde formulario
         if is_form:
             nombre_producto = data.get('nombre')
@@ -215,51 +216,92 @@ def registrar_operacion_maestra():
                     db.session.add(nuevo_producto)
                     logger.info(f"📦 Producto creado: {nombre_producto}")
         
-        # CASO B: Procesamiento de items
+        # CASO B: Procesamiento de items (JSON con lista de productos)
         elif 'items' in data and isinstance(data['items'], list):
+            items_actualizados = []
+
             for item in data['items']:
-                id_producto = item.get('id') or item.get('id_producto')
+                id_producto = item.get('id_producto') or item.get('id')
                 if not id_producto:
                     logger.warning(f"⚠️ Item sin id_producto: {item}")
                     continue
-                
-                producto = ProductoCatalogo.query.filter_by(
-                    id_producto=int(id_producto)
-                ).first()
-                
+
+                try:
+                    id_producto = int(id_producto)
+                except (ValueError, TypeError):
+                    logger.warning(f"⚠️ id_producto inválido: {id_producto}")
+                    continue
+
+                # Forzar recarga fresca desde la BD (evita caché de sesión)
+                producto = db.session.query(ProductoCatalogo).filter(
+                    ProductoCatalogo.id_producto == id_producto
+                ).with_for_update().first()
+
                 if not producto:
-                    logger.warning(f"⚠️ Producto {id_producto} no encontrado")
+                    logger.warning(f"⚠️ Producto {id_producto} no encontrado en BD")
                     continue
-                
+
                 cantidad = int(item.get('cantidad') or item.get('qty') or 0)
-                if cantidad == 0:
+                if cantidad <= 0:
+                    logger.warning(f"⚠️ Cantidad inválida ({cantidad}) para producto {id_producto}")
                     continue
-                
-                stock_previo = producto.stock or 0
-                
+
+                stock_previo = producto.stock if producto.stock is not None else 0
+
                 if tipo_op in ['COMPRA', 'INGRESO']:
-                    producto.stock = stock_previo + cantidad
+                    stock_nuevo = stock_previo + cantidad
                     if item.get('costo'):
                         producto.costo = float(item['costo'])
-                    logger.info(f"📈 {producto.nombre}: Stock {stock_previo} → {producto.stock} (+{cantidad})")
-                
+                    logger.info(f"📈 COMPRA {producto.nombre}: {stock_previo} → {stock_nuevo} (+{cantidad})")
+
                 elif tipo_op in ['VENTA', 'GASTO']:
-                    nuevo_stock = stock_previo - cantidad
-                    if nuevo_stock < 0:
+                    stock_nuevo = max(0, stock_previo - cantidad)
+                    if stock_previo < cantidad:
                         logger.warning(f"⚠️ {producto.nombre}: Stock insuficiente ({stock_previo} < {cantidad})")
-                    producto.stock = max(0, nuevo_stock)
-                    logger.info(f"📉 {producto.nombre}: Stock {stock_previo} → {producto.stock} (-{cantidad})")
+                    logger.info(f"📉 VENTA {producto.nombre}: {stock_previo} → {stock_nuevo} (-{cantidad})")
+
+                else:
+                    logger.warning(f"⚠️ Tipo de operación desconocido: {tipo_op}")
+                    continue
+
+                # Actualizar stock directamente en la columna
+                producto.stock = stock_nuevo
+                db.session.flush()  # ← persiste el cambio antes del siguiente item
+
+                # Registrar MovimientoStock para auditoría
+                mov = MovimientoStock(
+                    producto_id=producto.id_producto,
+                    usuario_id=user_id,
+                    negocio_id=negocio_id,
+                    sucursal_id=sucursal_id,
+                    tipo=tipo_op,
+                    cantidad=cantidad,
+                    stock_anterior=stock_previo,
+                    stock_nuevo=stock_nuevo,
+                    nota=f"{tipo_op} registrada desde Órdenes de Compra | Ref: {data.get('concepto', '')}"
+                )
+                db.session.add(mov)
+
+                items_actualizados.append({
+                    'id_producto': producto.id_producto,
+                    'nombre':      producto.nombre,
+                    'stock_antes': stock_previo,
+                    'stock_ahora': stock_nuevo,
+                    'cantidad':    cantidad,
+                })
         
         db.session.commit()
-        
+
         logger.info(f"✅ Operación completada: {tipo_op} - ${monto_final}")
-        
+
         return jsonify({
             "success": True,
             "message": "Transacción y stock actualizados correctamente",
             "transaccion_id": nueva_transaccion.id_transaccion,
             "tipo": tipo_op,
-            "monto": monto_final
+            "monto": monto_final,
+            # Devuelve los productos actualizados para que el frontend pueda confirmar
+            "items_actualizados": items_actualizados if 'items_actualizados' in locals() else []
         }), 201
     
     except ValueError as e:
