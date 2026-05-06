@@ -2,7 +2,7 @@ import os
 import json
 import requests
 from flask import Blueprint, jsonify, request
-from flask_login import current_user, login_required
+from flask_login import current_user
 
 dora_bp = Blueprint('dora', __name__)
 
@@ -12,13 +12,45 @@ GROQ_MODEL = "llama-3.1-8b-instant"
 def get_groq_key():
     return os.environ.get("GROQ_API_KEY", "")
 
+
+# ── Auth flexible: header X-User-ID (móvil) o sesión Flask (PC) ──────────────
+def get_request_user_id():
+    """
+    Retorna usuario_id como int, o None si no hay sesión válida.
+    Prioridad: header X-User-ID → sesión Flask-Login.
+    """
+    uid = request.headers.get('X-User-ID', '').strip()
+    if uid and uid not in ('0', ''):
+        try:
+            return int(uid)
+        except (ValueError, TypeError):
+            pass
+    # Fallback: cookie de sesión Flask (funciona en PC)
+    try:
+        if current_user and current_user.is_authenticated:
+            return int(current_user.id_usuario)
+    except Exception:
+        pass
+    return None
+
+
+def require_dora_auth():
+    """Devuelve respuesta 401 si no hay ningún método de autenticación válido."""
+    if get_request_user_id() is None:
+        return jsonify({"error": "No autorizado. Inicia sesión."}), 401
+    return None
+
+
 def _resolve_negocio_id(negocio_id_param):
     """Obtiene negocio_id del parámetro o del primer negocio del usuario autenticado."""
     if negocio_id_param:
         return int(negocio_id_param)
     try:
+        user_id = get_request_user_id()
+        if not user_id:
+            return None
         from src.models.colombia_data.negocio import Negocio
-        negocio = Negocio.query.filter_by(usuario_id=current_user.id_usuario).first()
+        negocio = Negocio.query.filter_by(usuario_id=user_id).first()
         return negocio.id_negocio if negocio else None
     except Exception:
         return None
@@ -160,8 +192,10 @@ def call_groq(messages, system_prompt):
 
 
 @dora_bp.route('/ia/chat', methods=['POST'])
-@login_required
 def chat():
+    auth_err = require_dora_auth()
+    if auth_err: return auth_err
+
     data = request.get_json() or {}
     messages = data.get('messages', [])
     negocio_nombre = data.get('negocio_nombre')
@@ -173,10 +207,24 @@ def chat():
 
     negocio_context = get_negocio_context(negocio_id)
 
+    # Obtener nombre del usuario (sesión Flask o lookup por header)
+    user_nombre = None
+    try:
+        if current_user and current_user.is_authenticated:
+            user_nombre = getattr(current_user, 'nombre', None)
+        else:
+            uid = get_request_user_id()
+            if uid:
+                from src.models.colombia_data.usuario import Usuario
+                u = Usuario.query.get(uid)
+                user_nombre = u.nombre if u else None
+    except Exception:
+        pass
+
     system_prompt = build_system_prompt(
         negocio_nombre=negocio_nombre,
         negocio_tipo=negocio_tipo,
-        user_nombre=getattr(current_user, 'nombre', None),
+        user_nombre=user_nombre,
         negocio_context=negocio_context
     )
 
@@ -188,8 +236,9 @@ def chat():
 
 
 @dora_bp.route('/ia/describir-producto', methods=['POST'])
-@login_required
 def describir_producto():
+    auth_err = require_dora_auth()
+    if auth_err: return auth_err
     data = request.get_json() or {}
     nombre = data.get('nombre', '')
     precio = data.get('precio', '')
@@ -211,8 +260,9 @@ def describir_producto():
 
 
 @dora_bp.route('/ia/generar-promo', methods=['POST'])
-@login_required
 def generar_promo():
+    auth_err = require_dora_auth()
+    if auth_err: return auth_err
     data = request.get_json() or {}
     contexto = data.get('contexto', '')
     tipo = data.get('tipo', 'banner')
@@ -232,8 +282,9 @@ def generar_promo():
 
 
 @dora_bp.route('/ia/clasificar-gasto', methods=['POST'])
-@login_required
 def clasificar_gasto():
+    auth_err = require_dora_auth()
+    if auth_err: return auth_err
     data = request.get_json() or {}
     descripcion = data.get('descripcion', '')
 
@@ -259,8 +310,9 @@ Responde SOLO con: {{categoría}} | {{razón breve en máximo 10 palabras}}"""
 
 
 @dora_bp.route('/ia/analizar-ventas', methods=['POST'])
-@login_required
 def analizar_ventas():
+    auth_err = require_dora_auth()
+    if auth_err: return auth_err
     data = request.get_json() or {}
     ventas_data = data.get('ventas', {})
 
@@ -281,8 +333,9 @@ Sé conciso, práctico y en español colombiano. Incluye una recomendación espe
 
 
 @dora_bp.route('/ia/sugerir-precio', methods=['POST'])
-@login_required
 def sugerir_precio():
+    auth_err = require_dora_auth()
+    if auth_err: return auth_err
     data = request.get_json() or {}
     nombre = data.get('nombre', '')
     costo = data.get('costo', '')
@@ -322,8 +375,9 @@ RAZON: [máximo 15 palabras explicando el precio]"""
 
 
 @dora_bp.route('/ia/generar-campana', methods=['POST'])
-@login_required
 def generar_campana():
+    auth_err = require_dora_auth()
+    if auth_err: return auth_err
     data = request.get_json() or {}
     producto = data.get('producto', '')
     objetivo = data.get('objetivo', 'vender más')
@@ -369,8 +423,9 @@ CONSEJO: [un consejo táctico de 10 palabras para maximizar esta campaña]"""
 
 
 @dora_bp.route('/ia/contexto-modulo', methods=['POST'])
-@login_required
 def contexto_modulo():
+    auth_err = require_dora_auth()
+    if auth_err: return auth_err
     data = request.get_json() or {}
     modulo = data.get('modulo', 'general')
     pregunta = data.get('pregunta', '')
@@ -414,8 +469,9 @@ Responde de forma directa, práctica y en español colombiano. Máximo 3 oracion
 
 
 @dora_bp.route('/ia/buscar-producto', methods=['POST'])
-@login_required
 def buscar_producto():
+    auth_err = require_dora_auth()
+    if auth_err: return auth_err
     """Busca un producto por nombre (fuzzy) en el catálogo del negocio."""
     data = request.get_json() or {}
     nombre_busqueda = data.get('nombre', '').strip()
@@ -466,8 +522,9 @@ def buscar_producto():
 
 
 @dora_bp.route('/ia/auditar-categorias', methods=['POST'])
-@login_required
 def auditar_categorias():
+    auth_err = require_dora_auth()
+    if auth_err: return auth_err
     """
     Dora analiza los productos del negocio y detecta los que parecen
     estar en la categoría equivocada. Devuelve una lista de sugerencias.
@@ -596,8 +653,9 @@ Solo incluye productos donde estés MUY SEGURO de que la categoría es incorrect
 
 
 @dora_bp.route('/ia/corregir-categoria', methods=['POST'])
-@login_required
 def corregir_categoria():
+    auth_err = require_dora_auth()
+    if auth_err: return auth_err
     """Actualiza la categoría de un producto según la sugerencia de Dora."""
     data = request.get_json() or {}
     producto_id = data.get('producto_id')
@@ -640,8 +698,9 @@ def corregir_categoria():
 
 
 @dora_bp.route('/ia/actualizar-stock', methods=['POST'])
-@login_required
 def actualizar_stock():
+    auth_err = require_dora_auth()
+    if auth_err: return auth_err
     """Actualiza el stock de un producto. Requiere confirmación previa del usuario."""
     data = request.get_json() or {}
     producto_id = data.get('producto_id')
