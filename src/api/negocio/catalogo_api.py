@@ -844,7 +844,8 @@ def guardar_producto_catalogo():
             sucursal_id=sucursal_id,
             activo=True,
             estado_publicacion=True,
-            badges_data=json.dumps(badges_data)
+            badges_data=json.dumps(badges_data),
+            es_dropshipping=str(data.get('es_dropshipping', False)).lower() in ['true', '1', 'yes', 'si']
         )
         
         # Badges legacy
@@ -876,8 +877,9 @@ def guardar_producto_catalogo():
         producto_dict['videos'] = videos
         producto_dict['personalizable'] = personalizacion_activa
         producto_dict['personalizacion_config'] = personalizacion_config if personalizacion_activa else None
-        
-        logger.info(f"✅ PRODUCTO CREADO: {nombre} - ID: {nuevo_prod.id_producto} | Personalizable: {personalizacion_activa}")
+        producto_dict['es_dropshipping'] = getattr(nuevo_prod, 'es_dropshipping', False) or False
+
+        logger.info(f"✅ PRODUCTO CREADO: {nombre} - ID: {nuevo_prod.id_producto} | Personalizable: {personalizacion_activa} | Dropshipping: {producto_dict['es_dropshipping']}")
 
         return jsonify({
             "success": True,
@@ -963,14 +965,23 @@ def actualizar_producto(id_producto):
         # ★ v3.5: Actualizar personalización
         if 'personalizacion_activa' in data or 'personalizacion_config' in data:
             personalizacion_activa, personalizacion_config = procesar_personalizacion_desde_request(data)
-            
+
             if hasattr(producto, 'personalizacion_activa'):
                 producto.personalizacion_activa = personalizacion_activa
-            
+
             if hasattr(producto, 'personalizacion_config'):
                 producto.personalizacion_config = json.dumps(personalizacion_config)
-            
+
             logger.info(f"🎨 Personalización actualizada: activa={personalizacion_activa}")
+
+        # Dropshipping
+        if 'es_dropshipping' in data and hasattr(producto, 'es_dropshipping'):
+            val = data['es_dropshipping']
+            if isinstance(val, str):
+                producto.es_dropshipping = val.lower() in ['true', '1', 'yes', 'si']
+            else:
+                producto.es_dropshipping = bool(val)
+            logger.info(f"🚚 Dropshipping actualizado: {producto.es_dropshipping}")
 
         # Videos
         if 'youtube_links' in data or 'videos' in data:
@@ -1083,8 +1094,9 @@ def actualizar_producto(id_producto):
         producto_dict['videos'] = parse_json_field(producto.videos, [])
         producto_dict['personalizable'] = getattr(producto, 'personalizacion_activa', False)
         producto_dict['personalizacion_config'] = parse_json_field(getattr(producto, 'personalizacion_config', '{}'), {}) if producto_dict['personalizable'] else None
+        producto_dict['es_dropshipping'] = getattr(producto, 'es_dropshipping', False) or False
 
-        logger.info(f"✅ Producto {id_producto} actualizado | Personalización: {producto_dict['personalizable']}")
+        logger.info(f"✅ Producto {id_producto} actualizado | Personalización: {producto_dict['personalizable']} | Dropshipping: {producto_dict['es_dropshipping']}")
 
         return jsonify({"success": True, "message": "Producto actualizado", "producto": producto_dict}), 200
 
@@ -1162,6 +1174,9 @@ def obtener_producto(id_producto):
             data['personalizacion_config'] = parse_json_field(getattr(producto, 'personalizacion_config', '{}'), {})
         else:
             data['personalizacion_config'] = None
+
+        # Dropshipping
+        data['es_dropshipping'] = getattr(producto, 'es_dropshipping', False) or False
 
         return jsonify({"success": True, "producto": data}), 200
 
@@ -1568,10 +1583,14 @@ def estadisticas_inventario():
         
         # ★ v3.5: Contar personalizables
         personalizables = len([p for p in productos if getattr(p, 'personalizacion_activa', False)])
-        
-        valor_total = sum((p.precio * p.stock) for p in productos)
-        costo_total = sum((p.costo * p.stock) for p in productos)
-        
+
+        # Dropshipping: excluir stock virtual de la valorización real
+        dropshipping_count = len([p for p in productos if getattr(p, 'es_dropshipping', False)])
+        productos_fisicos = [p for p in productos if not getattr(p, 'es_dropshipping', False)]
+
+        valor_total = sum((p.precio * p.stock) for p in productos_fisicos)
+        costo_total = sum((p.costo * p.stock) for p in productos_fisicos)
+
         categorias = {}
         for p in productos:
             cat = p.categoria or 'Sin categoría'
@@ -1585,6 +1604,7 @@ def estadisticas_inventario():
                 "stock_bajo": stock_bajo,
                 "sin_stock": sin_stock,
                 "personalizables": personalizables,
+                "dropshipping": dropshipping_count,
                 "valor_inventario": round(valor_total, 2),
                 "costo_inventario": round(costo_total, 2),
                 "ganancia_potencial": round(valor_total - costo_total, 2)

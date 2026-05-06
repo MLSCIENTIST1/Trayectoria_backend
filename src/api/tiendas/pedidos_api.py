@@ -706,6 +706,143 @@ def recibir_devolucion(devolucion_id):
 
 
 # ==========================================
+# ★ DEVOLUCIÓN LIBRE (sin pedido digital)
+# ==========================================
+@tiendas_pedidos_bp.route('/pedidos/devolucion/libre', methods=['POST', 'OPTIONS'])
+@cross_origin()
+def devolucion_libre():
+    """
+    POST /api/pedidos/devolucion/libre
+    Para devoluciones de ventas informales (WhatsApp, efectivo, marketplace)
+    que NO tienen pedido digital registrado.
+
+    Body: {
+        "negocio_id": 1,
+        "cliente_nombre": "Juan Pérez",
+        "producto_nombre": "Multímetro Digital",
+        "producto_id": 42,           # opcional — para actualizar stock
+        "cantidad": 1,
+        "monto": 50000,
+        "motivo": "rechazo_cliente",
+        "notas": "...",
+        "reingresar_inventario": true
+    }
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    try:
+        user_id    = get_user_id()
+        data       = request.get_json() or {}
+
+        negocio_id  = int(data.get('negocio_id') or 0)
+        cliente     = data.get('cliente_nombre', 'Sin registrar').strip()
+        producto_n  = data.get('producto_nombre', 'Producto').strip()
+        producto_id = data.get('producto_id')
+        cantidad    = int(data.get('cantidad') or 1)
+        monto       = float(data.get('monto') or 0)
+        motivo      = data.get('motivo', 'otro')
+        notas       = data.get('notas', '').strip()
+        reingresar  = bool(data.get('reingresar_inventario', True))
+
+        if not negocio_id:
+            return jsonify({"success": False, "error": "negocio_id requerido"}), 400
+        if monto <= 0:
+            return jsonify({"success": False, "error": "El monto debe ser mayor a 0"}), 400
+
+        stock_reingresado = False
+
+        # Asegurar que pedido_id sea nullable (migración suave, solo una vez)
+        try:
+            db.session.execute(text(
+                "ALTER TABLE devoluciones ALTER COLUMN pedido_id DROP NOT NULL"
+            ))
+            db.session.execute(text("COMMIT"))
+        except Exception:
+            db.session.rollback()  # Ya es nullable o no existe la tabla — continúa
+
+        # 1. Registrar en tabla devoluciones con pedido_id=NULL
+        db.session.execute(text("""
+            INSERT INTO devoluciones
+                (pedido_id, negocio_id, motivo, estado, notas,
+                 fecha_solicitud, fecha_recepcion, producto_reingresado)
+            VALUES
+                (NULL, :negocio_id, :motivo,
+                 :estado, :notas,
+                 NOW(), NOW(), :reingresado)
+        """), {
+            'negocio_id': negocio_id,
+            'motivo': motivo,
+            'estado': 'reingresado_inventario' if reingresar else 'dado_de_baja',
+            'notas': f"Cliente: {cliente} | Producto: {producto_n} | {notas}".strip(' |'),
+            'reingresado': reingresar
+        })
+
+        # 2. Reingresar stock si aplica y hay producto_id
+        if reingresar and producto_id and TIENE_TRANSACCIONES:
+            try:
+                from src.models.colombia_data.contabilidad.operaciones_y_catalogo import (
+                    ProductoCatalogo, MovimientoStock
+                )
+                producto = ProductoCatalogo.query.get(int(producto_id))
+                if producto and producto.negocio_id == negocio_id:
+                    stock_anterior = producto.stock
+                    producto.stock = producto.stock + cantidad
+                    mov = MovimientoStock(
+                        producto_id=producto.id_producto,
+                        usuario_id=user_id or 1,
+                        negocio_id=negocio_id,
+                        sucursal_id=1,
+                        tipo='ENTRADA',
+                        cantidad=cantidad,
+                        stock_anterior=stock_anterior,
+                        stock_nuevo=producto.stock,
+                        nota=f"Reingreso por devolución libre | {producto_n} | Cliente: {cliente}"
+                    )
+                    db.session.add(mov)
+                    stock_reingresado = True
+                    logger.info(f"📦 Stock reingresado (dev libre) {producto.nombre}: {stock_anterior} → {producto.stock}")
+            except Exception as e:
+                logger.warning(f"⚠️ No se pudo reingresar stock: {e}")
+
+        # 3. Transacción contable DEVOLUCION
+        if TIENE_TRANSACCIONES:
+            try:
+                from src.models.colombia_data.contabilidad.operaciones_y_catalogo import TransaccionOperativa
+                trans = TransaccionOperativa(
+                    negocio_id=negocio_id,
+                    usuario_id=user_id or 1,
+                    sucursal_id=1,
+                    tipo='DEVOLUCION',
+                    concepto=f"Devolución libre: {producto_n} | Cliente: {cliente}",
+                    monto=monto,
+                    categoria='Devoluciones',
+                    metodo_pago='Efectivo',
+                    notas=f"Motivo: {motivo}. {notas}"
+                )
+                db.session.add(trans)
+            except Exception as e:
+                logger.warning(f"⚠️ No se pudo crear transacción contable: {e}")
+
+        db.session.commit()
+
+        accion = "reingresado al inventario" if reingresar else "dado de baja"
+        logger.info(f"↩️ Devolución libre registrada | {producto_n} | Negocio: {negocio_id} | {accion}")
+
+        return jsonify({
+            "success": True,
+            "message": f"Devolución registrada. Producto {accion}.",
+            "stock_reingresado": stock_reingresado,
+            "estado": "reingresado_inventario" if reingresar else "dado_de_baja"
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error devolucion libre: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==========================================
 # ★ NUEVO v2.0: LISTAR DEVOLUCIONES
 # ==========================================
 @tiendas_pedidos_bp.route('/pedidos/negocio/<int:negocio_id>/devoluciones', methods=['GET'])
@@ -724,7 +861,7 @@ def listar_devoluciones(negocio_id):
                 p.datos_comprador->>'nombre' as cliente_nombre,
                 p.datos_envio->>'ciudad' as ciudad
             FROM devoluciones d
-            JOIN pedidos p ON d.pedido_id = p.id_pedido
+            LEFT JOIN pedidos p ON d.pedido_id = p.id_pedido
             WHERE d.negocio_id = :negocio_id
             ORDER BY d.fecha_solicitud DESC
         """), {'negocio_id': negocio_id}).fetchall()

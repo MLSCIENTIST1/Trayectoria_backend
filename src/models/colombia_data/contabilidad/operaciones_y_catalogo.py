@@ -567,6 +567,13 @@ class ProductoCatalogo(db.Model):
     promo_badge_texto = sa.Column(sa.String(50), nullable=True)
     
     # ==========================================
+    # DROPSHIPPING
+    # ==========================================
+    # Si True: el stock es virtual (del proveedor), NO se cuenta como
+    # inventario físico real en valorización ni en compras de stock.
+    es_dropshipping = sa.Column(sa.Boolean, default=False, nullable=False)
+
+    # ==========================================
     # ESTADO Y PUBLICACIÓN
     # ==========================================
     activo = sa.Column(sa.Boolean, default=True, nullable=False)
@@ -633,6 +640,7 @@ class ProductoCatalogo(db.Model):
         self.sucursal_id = kwargs.get('sucursal_id', 1)
         self.activo = kwargs.get('activo', True)
         self.estado_publicacion = kwargs.get('estado_publicacion', True)
+        self.es_dropshipping = kwargs.get('es_dropshipping', False)
         
         # Badges columnas legacy
         self.badge_destacado = kwargs.get('badge_destacado', False)
