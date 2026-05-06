@@ -320,8 +320,9 @@ def corregir_pedido(pedido_id):
         historial = PedidoHistorial(
             pedido_id=pedido.id_pedido,
             usuario_id=user_id,
-            accion='CORRECCION',
-            descripcion=f"Corrección manual. {motivo}. Total: ${total_anterior:,.0f} → ${float(pedido.total):,.0f}"
+            estado_anterior=pedido.estado,
+            estado_nuevo=pedido.estado,   # no cambia de estado
+            comentario=f"✏️ Corrección manual. {motivo}. Total: ${total_anterior:,.0f} → ${float(pedido.total):,.0f}"
         )
         db.session.add(historial)
 
