@@ -550,6 +550,55 @@ def stats_restaurante():
     })
 
 
+@restaurante_bp.route('/restaurante/publica/<slug>/carta', methods=['GET', 'OPTIONS'])
+def carta_publica(slug: str):
+    """
+    GET /api/restaurante/publica/{slug}/carta — Carta digital PÚBLICA.
+    No requiere autenticación. Usada por la página pública del restaurante.
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
+
+    from src.models.colombia_data.negocio import Negocio
+    negocio = Negocio.query.filter_by(slug=slug).first()
+    if not negocio:
+        return jsonify({'error': 'Restaurante no encontrado'}), 404
+
+    productos_q = ProductoCatalogo.query.filter_by(
+        negocio_id=negocio.id_negocio, activo=True
+    ).order_by(ProductoCatalogo.categoria, ProductoCatalogo.nombre).all()
+
+    carta = {}
+    for p in productos_q:
+        cat = p.categoria or 'Sin categoría'
+        if cat not in carta:
+            carta[cat] = []
+        carta[cat].append({
+            'id':          p.id_producto,
+            'nombre':      p.nombre,
+            'descripcion': p.descripcion,
+            'precio':      float(p.precio),
+            'imagen_url':  p.imagen_url,
+            'categoria':   cat,
+            'disponible':  p.stock > 0 if p.stock is not None else True,
+        })
+
+    return jsonify({
+        'negocio': {
+            'id':         negocio.id_negocio,
+            'nombre':     negocio.nombre,
+            'slug':       negocio.slug,
+            'logo_url':   negocio.logo_url if hasattr(negocio, 'logo_url') else None,
+            'telefono':   negocio.telefono,
+            'direccion':  negocio.direccion,
+            'config':     negocio.config_tienda if hasattr(negocio, 'config_tienda') else {},
+        },
+        'carta':      carta,
+        'categorias': list(carta.keys()),
+        'total':      len(productos_q),
+    })
+
+
 @restaurante_bp.route('/restaurante/carta', methods=['GET', 'OPTIONS'])
 @login_required
 def carta_digital():
