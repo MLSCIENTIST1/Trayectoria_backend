@@ -359,7 +359,9 @@ def obtener_reporte(negocio_id):
                 "categoria": op.categoria or "General",
                 "monto": float(op.monto),
                 "tipo": op.tipo,
-                "metodo_pago": op.metodo_pago or "No especificado"
+                "metodo_pago": op.metodo_pago or "No especificado",
+                "anulada": getattr(op, 'anulada', False) or False,
+                "motivo_anulacion": getattr(op, 'motivo_anulacion', None),
             })
         
         logger.info(f"✅ Reporte generado: {len(resultado)} operaciones")
@@ -396,8 +398,9 @@ def obtener_resumen_financiero(negocio_id):
         resumen = db.session.query(
             TransaccionOperativa.tipo,
             func.sum(TransaccionOperativa.monto).label('total')
-        ).filter_by(
-            negocio_id=negocio_id
+        ).filter(
+            TransaccionOperativa.negocio_id == negocio_id,
+            (TransaccionOperativa.anulada == False) | (TransaccionOperativa.anulada.is_(None))
         ).group_by(
             TransaccionOperativa.tipo
         ).all()
@@ -438,6 +441,73 @@ def obtener_resumen_financiero(negocio_id):
             "success": False,
             "error": str(e)
         }), 500
+
+# ==========================================
+# ENDPOINT 4: ANULAR TRANSACCIÓN
+# ==========================================
+@control_api_bp.route('/control/transaccion/<int:transaccion_id>/anular', methods=['PATCH', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def anular_transaccion(transaccion_id):
+    """
+    Anula una transacción operativa sin eliminarla.
+    Principio contable: nunca se borra, se anula con motivo.
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    user_id = get_authenticated_user_id()
+    if not user_id:
+        return jsonify({"success": False, "message": "Debes iniciar sesión"}), 401
+
+    try:
+        data = request.get_json(silent=True) or {}
+        motivo = (data.get('motivo') or '').strip()
+        if not motivo:
+            return jsonify({"success": False, "message": "El motivo de anulación es obligatorio"}), 400
+
+        transaccion = TransaccionOperativa.query.filter_by(id_transaccion=transaccion_id).first()
+        if not transaccion:
+            return jsonify({"success": False, "message": "Transacción no encontrada"}), 404
+
+        # Verificar que el negocio coincida (seguridad)
+        negocio_id = data.get('negocio_id')
+        if negocio_id and transaccion.negocio_id != int(negocio_id):
+            return jsonify({"success": False, "message": "Sin acceso a esta transacción"}), 403
+
+        if getattr(transaccion, 'anulada', False):
+            return jsonify({"success": False, "message": "Esta transacción ya está anulada"}), 409
+
+        # Soft migration: agregar columna si no existe
+        try:
+            from sqlalchemy import text
+            db.session.execute(text(
+                "ALTER TABLE transacciones_operativas ADD COLUMN IF NOT EXISTS anulada BOOLEAN NOT NULL DEFAULT FALSE"
+            ))
+            db.session.execute(text(
+                "ALTER TABLE transacciones_operativas ADD COLUMN IF NOT EXISTS motivo_anulacion VARCHAR(255)"
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        transaccion.anulada = True
+        transaccion.motivo_anulacion = motivo
+        db.session.commit()
+
+        logger.info(f"🚫 Transacción {transaccion_id} anulada. Motivo: {motivo}")
+
+        return jsonify({
+            "success": True,
+            "message": "Ingreso anulado correctamente",
+            "id": transaccion_id,
+            "motivo": motivo
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error al anular transacción:", exc_info=True)
+        return jsonify({"success": False, "message": "Error al anular", "error": str(e)}), 500
+
 
 # ==========================================
 # HEALTH CHECK

@@ -128,6 +128,10 @@ class TransaccionOperativa(db.Model):
     fecha = sa.Column(sa.DateTime, default=datetime.utcnow, nullable=False, index=True)
     notas = sa.Column(sa.Text, nullable=True)
 
+    # ANULACIÓN — nunca se borra, se anula (trazabilidad contable)
+    anulada = sa.Column(sa.Boolean, default=False, nullable=False, server_default='false')
+    motivo_anulacion = sa.Column(sa.String(255), nullable=True)
+
     negocio = relationship("Negocio", foreign_keys=[negocio_id])
     usuario = relationship("Usuario", foreign_keys=[usuario_id])
     sucursal = relationship("Sucursal", foreign_keys=[sucursal_id])
@@ -143,6 +147,8 @@ class TransaccionOperativa(db.Model):
         self.metodo_pago = kwargs.get('metodo_pago', 'Efectivo')
         self.referencia_guia = kwargs.get('referencia_guia')
         self.notas = kwargs.get('notas')
+        self.anulada = False
+        self.motivo_anulacion = None
 
     def to_dict(self):
         return {
