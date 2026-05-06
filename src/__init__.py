@@ -276,7 +276,7 @@ def create_app():
          resources={r"/*": {
              "origins": Config.CORS_ORIGINS,
              "methods": ["GET", "POST", "OPTIONS", "PUT", "DELETE", "PATCH"],
-             "allow_headers": ["Content-Type", "Authorization", "Accept", "X-User-ID", "X-Business-ID", "X-Session-FP"],
+             "allow_headers": ["Content-Type", "Authorization", "Accept", "X-User-ID", "X-Business-ID", "X-Session-FP", "Cache-Control", "Pragma"],
              "expose_headers": ["Content-Type", "Set-Cookie"],
              "supports_credentials": True,
              "max_age": 3600
