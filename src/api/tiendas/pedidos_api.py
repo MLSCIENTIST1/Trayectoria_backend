@@ -249,6 +249,120 @@ def cambiar_estado_pedido(pedido_id):
 
 
 # ==========================================
+# CORREGIR PEDIDO (editar total, productos, pago, notas)
+# ==========================================
+@tiendas_pedidos_bp.route('/pedidos/<int:pedido_id>/corregir', methods=['PATCH', 'OPTIONS'])
+@cross_origin()
+def corregir_pedido(pedido_id):
+    """
+    PATCH /api/pedidos/{id}/corregir
+    Permite corregir datos de un pedido (total, productos, pago, notas).
+    Solo disponible en estados que no sean 'entregado' o 'cancelado'.
+    Body: {
+        "productos": [...],   # lista completa de productos
+        "subtotal": 0,
+        "costo_envio": 0,
+        "descuento": 0,
+        "total": 0,
+        "metodo_pago": "efectivo",
+        "estado_pago": "pendiente",
+        "notas_vendedor": "...",
+        "motivo_correccion": "..."  # para auditoría en historial
+    }
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+    try:
+        user_id = get_user_id()
+        data = request.get_json() or {}
+
+        pedido = Pedido.query.get(pedido_id)
+        if not pedido:
+            return jsonify({"success": False, "error": "Pedido no encontrado"}), 404
+
+        # No permitir editar pedidos ya cerrados
+        if pedido.estado in ['entregado', 'cancelado']:
+            return jsonify({
+                "success": False,
+                "error": f"No se puede corregir un pedido en estado '{pedido.estado}'"
+            }), 400
+
+        total_anterior = float(pedido.total or 0)
+        motivo = data.get('motivo_correccion', 'Corrección manual').strip() or 'Corrección manual'
+
+        # Actualizar productos si vienen
+        if 'productos' in data and isinstance(data['productos'], list):
+            pedido.productos = data['productos']
+
+        # Actualizar totales si vienen
+        if 'subtotal' in data:
+            pedido.subtotal = float(data['subtotal'])
+        if 'costo_envio' in data:
+            pedido.costo_envio = float(data['costo_envio'])
+        if 'descuento' in data:
+            pedido.descuento = float(data['descuento'])
+        if 'total' in data:
+            pedido.total = float(data['total'])
+
+        # Actualizar pago
+        if 'metodo_pago' in data and data['metodo_pago']:
+            pedido.metodo_pago = data['metodo_pago']
+        if 'estado_pago' in data and data['estado_pago']:
+            pedido.estado_pago = data['estado_pago']
+
+        # Actualizar notas
+        if 'notas_vendedor' in data:
+            pedido.notas_vendedor = data['notas_vendedor']
+
+        pedido.fecha_actualizacion = datetime.utcnow()
+
+        # Registrar en historial del pedido
+        historial = PedidoHistorial(
+            pedido_id=pedido.id_pedido,
+            usuario_id=user_id,
+            accion='CORRECCION',
+            descripcion=f"Corrección manual. {motivo}. Total: ${total_anterior:,.0f} → ${float(pedido.total):,.0f}"
+        )
+        db.session.add(historial)
+
+        # Si cambió el total, actualizar también la TransaccionOperativa asociada
+        if TIENE_TRANSACCIONES and abs(float(pedido.total) - total_anterior) > 0.01:
+            try:
+                tx = TransaccionOperativa.query.filter_by(
+                    negocio_id=pedido.negocio_id
+                ).filter(
+                    TransaccionOperativa.concepto.ilike(f"%{pedido.codigo_pedido}%")
+                ).order_by(TransaccionOperativa.fecha.desc()).first()
+
+                if tx:
+                    tx.monto = float(pedido.total)
+                    tx.concepto = f"Pedido {pedido.codigo_pedido} [CORREGIDO: {motivo}]"
+                    logger.info(f"💰 TransaccionOperativa actualizada: ${total_anterior} → ${pedido.total}")
+            except Exception as tx_err:
+                logger.warning(f"⚠️ No se pudo actualizar TransaccionOperativa: {tx_err}")
+
+        db.session.commit()
+        logger.info(f"✏️ Pedido {pedido.codigo_pedido} corregido. {motivo}")
+
+        return jsonify({
+            "success": True,
+            "message": "Pedido corregido correctamente",
+            "pedido": {
+                "id": pedido.id_pedido,
+                "codigo": pedido.codigo_pedido,
+                "total": float(pedido.total),
+                "estado_pago": pedido.estado_pago,
+                "metodo_pago": pedido.metodo_pago,
+            }
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error corrigiendo pedido {pedido_id}: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==========================================
 # CANCELAR PEDIDO
 # ==========================================
 @tiendas_pedidos_bp.route('/pedidos/<int:pedido_id>/cancelar', methods=['POST'])
