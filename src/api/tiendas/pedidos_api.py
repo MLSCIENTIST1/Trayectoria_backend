@@ -313,6 +313,28 @@ def corregir_pedido(pedido_id):
         # Actualizar notas
         if 'notas_vendedor' in data:
             pedido.notas_vendedor = data['notas_vendedor']
+        if 'notas_cliente' in data:
+            pedido.notas_cliente = data['notas_cliente']
+
+        # ★ v1.1: Actualizar guía de envío (para agregarla si se olvidó en la creación)
+        if data.get('numero_guia'):
+            pedido.numero_guia = str(data['numero_guia']).strip()
+        if data.get('transportadora'):
+            pedido.transportadora = str(data['transportadora']).strip()
+        if 'url_tracking' in data:
+            pedido.url_tracking = str(data['url_tracking']).strip() or None
+
+        # ★ v1.1: Actualizar datos del cliente (nombre y teléfono en datos_comprador)
+        dc = dict(pedido.datos_comprador or {})
+        actualizado_dc = False
+        if data.get('nombre_cliente'):
+            dc['nombre'] = str(data['nombre_cliente']).strip()
+            actualizado_dc = True
+        if data.get('telefono_cliente'):
+            dc['telefono'] = str(data['telefono_cliente']).strip()
+            actualizado_dc = True
+        if actualizado_dc:
+            pedido.datos_comprador = dc
 
         pedido.fecha_actualizacion = datetime.utcnow()
 
