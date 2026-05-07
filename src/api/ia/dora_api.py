@@ -261,6 +261,32 @@ PROSPECTOS (clientes que dicen "llámame después"):
 • NO afecta la contabilidad — es solo un recordatorio personal
 
 ──────────────────────────────────────────
+VISTA: CONFIRMACIÓN DE PEDIDO (página del cliente)
+──────────────────────────────────────────
+Qué es: página pública que se envía al cliente por WhatsApp con el resumen de su pedido.
+URL: tuko.pages.dev/heyden.html?c=[código-pedido]&s=[slug-negocio]
+El enlace se genera automáticamente al confirmar un pedido en el módulo de Pedidos.
+
+Qué ve el cliente en esa página:
+• Logo y nombre del negocio con badge del estado actual (Enviado, Confirmado, etc.)
+• Número de pedido, fecha
+• Datos del destinatario: nombre, teléfono, cédula
+• Dirección de entrega con botón "Ver en Mapa"
+• Detalle del producto comprado y precio
+• Método de pago (efectivo, transferencia, etc.)
+• Transportadora y número de guía
+• Nombre y teléfono del asesor
+• Total a pagar
+• Botón "Ver más productos en nuestra tienda" → va a la tienda online del negocio
+• Si tiene guía: sección de rastreo con enlace directo a Interrapidísimo o Coordinadora
+• Productos sugeridos de la misma tienda (cross-sell automático)
+• Sección inferior con anuncios de TuKomercio, MecaLink y Soluciones Digitales
+
+Cómo comparte el vendedor este enlace:
+→ En el módulo de Pedidos, botón "🚚 Enviado con guía" → genera el wa.me con el enlace incluido
+→ El cliente solo hace clic en el link y ve toda la info de su pedido
+
+──────────────────────────────────────────
 MÓDULO: GASTOS
 ──────────────────────────────────────────
 Dónde: Centro Financiero → pestaña "Gastos"
