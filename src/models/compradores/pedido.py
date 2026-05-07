@@ -184,6 +184,7 @@ class Pedido(db.Model):
         'preparando': {'label': 'Preparando', 'color': '#8b5cf6', 'icon': '📦'},
         'enviado': {'label': 'Enviado', 'color': '#6366f1', 'icon': '🚚'},
         'en_camino': {'label': 'En Camino', 'color': '#0ea5e9', 'icon': '🛵'},
+        'en_oficina': {'label': 'En Oficina', 'color': '#f97316', 'icon': '📍'},  # ★ v1.1
         'entregado': {'label': 'Entregado', 'color': '#10b981', 'icon': '✅'},
         'cancelado': {'label': 'Cancelado', 'color': '#ef4444', 'icon': '❌'},
         'devuelto': {'label': 'Devuelto', 'color': '#64748b', 'icon': '↩️'}
