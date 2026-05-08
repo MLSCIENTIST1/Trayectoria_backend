@@ -75,14 +75,17 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 """
-TUKOMERCIO - API de Notificaciones para Negocios v2.1
+TUKOMERCIO - API de Notificaciones para Negocios v2.2
 Endpoints para la campanita de BizFlow Studio
 ★ NUEVO v2.1: Descuento de stock al aprobar, reversión al rechazar
+★ NUEVO v2.2: Race-condition fix (with_for_update), SSE stream, auto stock_bajo
 Ubicación: src/api/notifications/notifications_negocio_api.py
 """
 
 import logging
-from flask import Blueprint, jsonify, request
+import json
+import time
+from flask import Blueprint, jsonify, request, Response, stream_with_context
 from flask_cors import cross_origin
 from src.models.database import db
 from src.models.notification import Notification
@@ -279,7 +282,10 @@ def aprobar_pedido(negocio_id, pedido_id):
     try:
         user_id = get_user_id()
 
-        pedido = Pedido.query.filter_by(id_pedido=pedido_id, negocio_id=negocio_id).first()
+        # ★ v2.2: with_for_update() previene race condition de doble-aprobación
+        pedido = Pedido.query.filter_by(
+            id_pedido=pedido_id, negocio_id=negocio_id
+        ).with_for_update().first()
 
         if not pedido:
             return jsonify({"success": False, "error": "Pedido no encontrado"}), 404
@@ -328,7 +334,10 @@ def aprobar_pedido(negocio_id, pedido_id):
                     cantidad = item.get('cantidad', 1)
                     if not producto_id:
                         continue
-                    producto = ProductoCatalogo.query.get(producto_id)
+                    # ★ v2.2: with_for_update() bloquea fila para evitar doble-descuento
+                    producto = ProductoCatalogo.query.filter_by(
+                        id_producto=producto_id
+                    ).with_for_update().first()
                     if not producto:
                         continue
                     stock_anterior = producto.stock
@@ -346,6 +355,17 @@ def aprobar_pedido(negocio_id, pedido_id):
                     )
                     db.session.add(movimiento)
                     logger.info(f"📦 Stock {producto.nombre}: {stock_anterior} → {producto.stock}")
+                    # ★ v2.2: Auto-alerta stock bajo
+                    try:
+                        umbral = getattr(producto, 'stock_minimo', None) or 5
+                        if producto.stock <= umbral:
+                            Notification.crear_notificacion_stock_bajo(
+                                negocio_id=negocio_id,
+                                producto=producto
+                            )
+                            logger.info(f"⚠️ Alerta stock bajo creada: {producto.nombre} ({producto.stock} restantes)")
+                    except Exception as se:
+                        logger.warning(f"⚠️ No se pudo crear alerta stock_bajo: {se}")
             except Exception as e:
                 logger.error(f"⚠️ Error descontando stock: {e}")
 
@@ -604,3 +624,64 @@ def get_estadisticas(negocio_id):
     except Exception as e:
         logger.error(f"Error en estadísticas: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==========================================
+# ★★★ SSE STREAM — Tiempo Real ★★★
+# ==========================================
+@notifications_negocio_bp.route('/negocio/<int:negocio_id>/stream', methods=['GET'])
+@cross_origin()
+def stream_notificaciones(negocio_id):
+    """
+    GET /api/notifications/negocio/{id}/stream
+    Server-Sent Events — actualiza campanita en tiempo real sin polling.
+    Nota: en Render con workers sync, usa max 1-2 conexiones simultáneas.
+    El frontend hace fallback a polling si SSE no está disponible.
+    """
+    def event_generator():
+        last_count = -1
+        last_pendientes = -1
+        heartbeat = 0
+
+        while True:
+            try:
+                count = Notification.contar_no_leidas(negocio_id=negocio_id)
+                pendientes = Pedido.query.filter_by(
+                    negocio_id=negocio_id, estado='pendiente'
+                ).count()
+
+                if count != last_count or pendientes != last_pendientes:
+                    last_count = count
+                    last_pendientes = pendientes
+                    payload = json.dumps({
+                        "count": count,
+                        "pedidos_pendientes": pendientes,
+                        "negocio_id": negocio_id
+                    })
+                    yield f"data: {payload}\n\n"
+                else:
+                    heartbeat += 1
+                    if heartbeat % 6 == 0:  # cada ~30s enviar heartbeat
+                        yield f": heartbeat\n\n"
+
+                time.sleep(5)
+
+            except GeneratorExit:
+                logger.info(f"SSE cerrado: negocio {negocio_id}")
+                break
+            except Exception as e:
+                logger.error(f"SSE error negocio {negocio_id}: {e}")
+                yield f"data: {json.dumps({'error': 'stream_error'})}\n\n"
+                break
+
+    headers = {
+        'Cache-Control': 'no-cache',
+        'X-Accel-Buffering': 'no',  # Nginx / Render: deshabilita buffer
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*'
+    }
+    return Response(
+        stream_with_context(event_generator()),
+        mimetype='text/event-stream',
+        headers=headers
+    )

@@ -82,7 +82,9 @@ Ubicación: src/api/tiendas/pedidos_api.py
 """
 
 import logging
+import re
 from datetime import datetime
+from urllib.parse import quote as url_quote
 from flask import Blueprint, request, jsonify
 from flask_cors import cross_origin
 from sqlalchemy import func, text
@@ -228,9 +230,32 @@ def cambiar_estado_pedido(pedido_id):
 
         logger.info(f"Pedido {pedido.codigo_pedido}: {estado_anterior} → {nuevo_estado}")
 
+        # ★ v2.2: Auto-construir URL de WA cuando pasa a "enviado"
+        wa_notify_url = None
+        if nuevo_estado == 'enviado':
+            try:
+                datos = pedido.datos_comprador or {}
+                tel_raw = datos.get('telefono', '') or ''
+                tel = re.sub(r'\D', '', tel_raw)
+                if tel and not tel.startswith('57'):
+                    tel = '57' + tel
+                nombre = datos.get('nombre') or pedido.cliente_nombre or 'cliente'
+                guia = datos.get('guia') or comentario or ''
+                guia_part = f" | Guía: {guia}" if guia else ''
+                msg = (
+                    f"Hola {nombre}! 🚚 Tu pedido #{pedido.codigo_pedido} "
+                    f"ya fue enviado y está en camino.{guia_part} "
+                    f"Pronto llegará a tu dirección. Gracias por tu compra! 🙌"
+                )
+                if tel:
+                    wa_notify_url = f"https://wa.me/{tel}?text={url_quote(msg)}"
+            except Exception as we:
+                logger.warning(f"⚠️ No se pudo construir WA URL: {we}")
+
         return jsonify({
             "success": True,
             "message": f"Estado actualizado a: {nuevo_estado}",
+            "wa_notify_url": wa_notify_url,
             "pedido": {
                 "id": pedido.id_pedido,
                 "codigo": pedido.codigo_pedido,
