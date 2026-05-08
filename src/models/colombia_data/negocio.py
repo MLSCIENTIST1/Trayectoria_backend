@@ -19,7 +19,7 @@
 BizFlow Studio - Modelo de Negocio
 Gestión de negocios con soporte para micrositios
 
-VERSIÓN 2.6 - Incluye:
+VERSIÓN 2.7 - Incluye:
 - whatsapp, tipo_pagina, logo_url
 - config_tienda (JSONB) para Store Designer
 - QR del negocio (qr_negocio_url, qr_negocio_data)
@@ -29,6 +29,7 @@ VERSIÓN 2.6 - Incluye:
 - 🆕 Video portafolio
 - 🆕 Redes sociales (JSONB)
 - 🆕 Sitio web externo
+- 🆕 config_envios (JSONB) — tarifas, pickup y flete gratis por negocio (v2.7)
 """
 
 import sqlalchemy as sa
@@ -109,6 +110,28 @@ class Negocio(db.Model):
     # 🎨 STORE DESIGNER - Configuración JSON
     # ==========================================
     config_tienda = sa.Column(JSONB, default={}, nullable=True)
+
+    # ==========================================
+    # 🚚 CONFIGURACIÓN DE ENVÍOS (v2.7)
+    # ==========================================
+    # Formato JSONB:
+    # {
+    #   "pickup": {
+    #     "activo": false,
+    #     "direccion": "Cra 7 #45-67, Bogotá",
+    #     "coordenadas": {"lat": 4.6534, "lng": -74.0836},
+    #     "instrucciones": "Pregunta por Carlos en recepción"
+    #   },
+    #   "flete_gratis_desde": 200000,
+    #   "tarifas": {
+    #     "Bogotá": {
+    #       "1":  {"Servientrega": {"precio": 8000,  "dias": "1-2"}},
+    #       "2":  {"Servientrega": {"precio": 10000, "dias": "1-2"}},
+    #       "3+": {"Servientrega": {"precio": 12000, "dias": "1-2"}}
+    #     }
+    #   }
+    # }
+    config_envios = sa.Column(JSONB, default={}, nullable=True)
 
     verificado = sa.Column(sa.Boolean, default=False, nullable=False)
     ciudad = sa.Column(sa.String(100), nullable=True)
@@ -204,6 +227,9 @@ class Negocio(db.Model):
         
         # Store Designer
         self.config_tienda = kwargs.get('config_tienda', {})
+
+        # 🚚 Config envíos (v2.7)
+        self.config_envios = kwargs.get('config_envios', {})
         
         # QR y perfil público
         self.qr_negocio_url = kwargs.get('qr_negocio_url')
@@ -502,7 +528,10 @@ class Negocio(db.Model):
             
             # Store Designer
             "config_tienda": self.config_tienda or {},
-            
+
+            # 🚚 Config envíos (v2.7)
+            "config_envios": self.config_envios or {},
+
             # QR del negocio
             "qr_negocio_url": self.qr_negocio_url,
             "qr_negocio_data": self.qr_negocio_data,

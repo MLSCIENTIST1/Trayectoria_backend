@@ -883,6 +883,147 @@ def actualizar_config_tienda(negocio_id):
 
 
 # ==========================================
+# 🚚 ENDPOINTS DE CONFIGURACIÓN DE ENVÍOS (v2.7)
+# ==========================================
+
+@negocio_api_bp.route('/negocio/<int:negocio_id>/config-envios', methods=['GET', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def obtener_config_envios(negocio_id):
+    """
+    Obtiene la configuración de envíos del negocio.
+
+    Estructura devuelta:
+    {
+      "success": true,
+      "data": {
+        "negocio_id": 42,
+        "nombre_negocio": "Mi Tienda",
+        "config_envios": {
+          "pickup": {"activo": false, "direccion": null, "coordenadas": null, "instrucciones": null},
+          "flete_gratis_desde": null,
+          "tarifas": {}
+        }
+      }
+    }
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({"success": False, "error": "No autenticado"}), 401
+
+    try:
+        negocio = Negocio.query.filter_by(
+            id_negocio=negocio_id,
+            usuario_id=user_id
+        ).first()
+
+        if not negocio:
+            return jsonify({"success": False, "error": "Negocio no encontrado"}), 404
+
+        config = getattr(negocio, 'config_envios', None) or {}
+
+        # Estructura base garantizada
+        config.setdefault('pickup', {
+            'activo': False,
+            'direccion': None,
+            'coordenadas': None,
+            'instrucciones': None
+        })
+        config.setdefault('flete_gratis_desde', None)
+        config.setdefault('tarifas', {})
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "negocio_id": negocio.id_negocio,
+                "nombre_negocio": negocio.nombre_negocio,
+                "config_envios": config
+            }
+        }), 200
+
+    except Exception as e:
+        logger.error(f"❌ Error obteniendo config_envios negocio {negocio_id}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@negocio_api_bp.route('/negocio/<int:negocio_id>/config-envios', methods=['PATCH', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def actualizar_config_envios(negocio_id):
+    """
+    Actualiza la configuración de envíos del negocio (merge profundo).
+
+    Payloads aceptados (parciales o completos):
+
+    ① Cambiar pickup completo:
+       {"pickup": {"activo": true, "direccion": "Cra 7 #45-67", "coordenadas": {...}}}
+
+    ② Agregar / actualizar tarifa de ciudad + cantidad + transportadora:
+       {"tarifas": {"Bogotá": {"1": {"Servientrega": {"precio": 8000, "dias": "1-2"}}}}}
+
+    ③ Actualizar flete gratis:
+       {"flete_gratis_desde": 200000}
+
+    ④ Todo junto:
+       {"pickup": {...}, "flete_gratis_desde": 150000, "tarifas": {...}}
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({"success": False, "error": "No autenticado"}), 401
+
+    try:
+        negocio = Negocio.query.filter_by(
+            id_negocio=negocio_id,
+            usuario_id=user_id
+        ).first()
+
+        if not negocio:
+            return jsonify({"success": False, "error": "Negocio no encontrado"}), 404
+
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({"success": False, "error": "Body JSON requerido"}), 400
+
+        current_config = dict(getattr(negocio, 'config_envios', None) or {})
+
+        def deep_merge(base, updates):
+            for key, value in updates.items():
+                if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+                    deep_merge(base[key], value)
+                else:
+                    base[key] = value
+            return base
+
+        negocio.config_envios = deep_merge(current_config, data)
+
+        # Forzar flag de cambio en columna JSONB (SQLAlchemy no detecta mutaciones internas)
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(negocio, 'config_envios')
+
+        db.session.commit()
+
+        logger.info(f"🚚 config_envios actualizada para negocio {negocio_id}")
+
+        return jsonify({
+            "success": True,
+            "message": "Configuración de envíos actualizada",
+            "data": {
+                "negocio_id": negocio.id_negocio,
+                "config_envios": negocio.config_envios
+            }
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error actualizando config_envios negocio {negocio_id}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==========================================
 # ENDPOINTS DE SUCURSALES
 # ==========================================
 
