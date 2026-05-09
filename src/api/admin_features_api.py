@@ -239,36 +239,277 @@ def assign_plan_to_negocio(negocio_id):
 @admin_required
 def list_negocios_with_plans():
     plan_filter = request.args.get('plan')
+    estado_filter = request.args.get('estado')   # 'activo' | 'inactivo'
+    buscar = request.args.get('buscar', '').strip()
     page = int(request.args.get('page', 1))
-    limit = int(request.args.get('limit', 20))
+    limit = int(request.args.get('limit', 50))
     offset = (page - 1) * limit
-    
-    query = """
-        SELECT n.id_negocio, n.nombre_negocio, n.slug, n.plan_key,
-               n.activo, n.ciudad, p.nombre as plan_nombre, p.color as plan_color, p.icono as plan_icono
-        FROM negocios n LEFT JOIN planes p ON n.plan_actual_id = p.id
-    """
+
+    conditions = []
     params = {}
+
     if plan_filter:
-        query += " WHERE n.plan_key = :plan"
+        conditions.append("n.plan_key = :plan")
         params['plan'] = plan_filter
-    query += " ORDER BY n.fecha_registro DESC LIMIT :limit OFFSET :offset"
+    if estado_filter == 'activo':
+        conditions.append("n.activo = true")
+    elif estado_filter == 'inactivo':
+        conditions.append("n.activo = false")
+    if buscar:
+        conditions.append("(n.nombre_negocio ILIKE :buscar OR n.slug ILIKE :buscar OR n.ciudad ILIKE :buscar OR u.correo ILIKE :buscar)")
+        params['buscar'] = f'%{buscar}%'
+
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+
+    query = f"""
+        SELECT n.id_negocio, n.nombre_negocio, n.slug, n.plan_key,
+               n.activo, n.ciudad, p.nombre as plan_nombre, p.color as plan_color, p.icono as plan_icono,
+               n.email, n.whatsapp, n.telefono, n.fecha_registro,
+               u.correo as dueno_email,
+               (SELECT COUNT(*) FROM productos_catalogo pc WHERE pc.negocio_id = n.id_negocio) as num_productos,
+               (SELECT COUNT(*) FROM pedidos pd WHERE pd.negocio_id = n.id_negocio) as num_pedidos
+        FROM negocios n
+        LEFT JOIN planes p ON n.plan_actual_id = p.id
+        LEFT JOIN usuarios u ON u.id_usuario = n.usuario_id
+        {where}
+        ORDER BY n.fecha_registro DESC
+        LIMIT :limit OFFSET :offset
+    """
     params['limit'] = limit
     params['offset'] = offset
-    
+
     negocios = db.session.execute(text(query), params).fetchall()
-    count_query = "SELECT COUNT(*) FROM negocios"
-    if plan_filter:
-        count_query += " WHERE plan_key = :plan"
-    total = db.session.execute(text(count_query), {'plan': plan_filter} if plan_filter else {}).scalar()
-    stats = db.session.execute(text("SELECT COALESCE(plan_key, 'basic') as plan, COUNT(*) as cantidad FROM negocios GROUP BY plan_key ORDER BY cantidad DESC")).fetchall()
-    
+
+    count_query = f"""
+        SELECT COUNT(*) FROM negocios n
+        LEFT JOIN usuarios u ON u.id_usuario = n.usuario_id
+        {where}
+    """
+    count_params = {k: v for k, v in params.items() if k not in ('limit', 'offset')}
+    total = db.session.execute(text(count_query), count_params).scalar()
+
+    stats = db.session.execute(text(
+        "SELECT COALESCE(plan_key, 'basic') as plan, COUNT(*) as cantidad FROM negocios GROUP BY plan_key ORDER BY cantidad DESC"
+    )).fetchall()
+
+    def _fmt_fecha(dt):
+        if not dt:
+            return None
+        try:
+            return dt.strftime('%Y-%m-%d')
+        except Exception:
+            return str(dt)[:10]
+
     return jsonify({
         'success': True,
-        'negocios': [{'id': n[0], 'nombre': n[1], 'slug': n[2], 'plan_key': n[3] or 'basic', 'activo': n[4], 'ciudad': n[5], 'plan_nombre': n[6] or 'Basic', 'plan_color': n[7] or '#22c55e', 'plan_icono': n[8] or '🌱'} for n in negocios],
+        'negocios': [{
+            'id': n[0], 'nombre': n[1], 'slug': n[2], 'plan_key': n[3] or 'basic',
+            'activo': n[4], 'ciudad': n[5],
+            'plan_nombre': n[6] or 'Basic', 'plan_color': n[7] or '#22c55e', 'plan_icono': n[8] or '🌱',
+            'email': n[9], 'whatsapp': n[10], 'telefono': n[11],
+            'fecha_registro': _fmt_fecha(n[12]),
+            'dueno_email': n[13],
+            'num_productos': int(n[14] or 0),
+            'num_pedidos': int(n[15] or 0),
+        } for n in negocios],
         'total': total, 'page': page, 'limit': limit,
         'stats_por_plan': [{'plan': s[0] or 'basic', 'cantidad': s[1]} for s in stats]
     })
+
+
+@admin_features_bp.route('/api/admin/negocios/<int:negocio_id>/info', methods=['GET', 'OPTIONS'])
+@admin_required
+def get_negocio_info(negocio_id):
+    """Información detallada de un negocio para el modal del panel admin."""
+    row = db.session.execute(text("""
+        SELECT n.id_negocio, n.nombre_negocio, n.slug, n.plan_key, n.activo, n.ciudad,
+               n.email, n.whatsapp, n.telefono, n.categoria, n.fecha_registro,
+               u.correo as dueno_email, u.nombre as dueno_nombre,
+               p.nombre as plan_nombre, p.color as plan_color,
+               (SELECT COUNT(*) FROM productos_catalogo pc WHERE pc.negocio_id = n.id_negocio) as num_productos,
+               (SELECT COUNT(*) FROM pedidos pd WHERE pd.negocio_id = n.id_negocio) as num_pedidos,
+               (SELECT COUNT(*) FROM pedidos pd WHERE pd.negocio_id = n.id_negocio AND pd.estado = 'entregado') as pedidos_entregados
+        FROM negocios n
+        LEFT JOIN planes p ON n.plan_actual_id = p.id
+        LEFT JOIN usuarios u ON u.id_usuario = n.usuario_id
+        WHERE n.id_negocio = :nid
+    """), {'nid': negocio_id}).fetchone()
+
+    if not row:
+        return jsonify({'error': 'Negocio no encontrado'}), 404
+
+    def _fmt(dt):
+        try:
+            return dt.strftime('%Y-%m-%d %H:%M') if dt else None
+        except Exception:
+            return str(dt)[:16] if dt else None
+
+    return jsonify({
+        'success': True,
+        'negocio': {
+            'id': row[0], 'nombre': row[1], 'slug': row[2], 'plan_key': row[3] or 'basic',
+            'activo': row[4], 'ciudad': row[5],
+            'email': row[6], 'whatsapp': row[7], 'telefono': row[8],
+            'categoria': row[9], 'fecha_registro': _fmt(row[10]),
+            'dueno_email': row[11], 'dueno_nombre': row[12],
+            'plan_nombre': row[13] or 'Basic', 'plan_color': row[14] or '#22c55e',
+            'num_productos': int(row[15] or 0),
+            'num_pedidos': int(row[16] or 0),
+            'pedidos_entregados': int(row[17] or 0),
+        }
+    })
+
+
+@admin_features_bp.route('/api/admin/negocios/<int:negocio_id>/notificacion', methods=['POST', 'OPTIONS'])
+@admin_required
+def enviar_notificacion_negocio(negocio_id):
+    """Envía una notificación al dueño del negocio desde el panel admin."""
+    data = request.get_json(silent=True) or {}
+    titulo = data.get('titulo', '').strip()
+    mensaje = data.get('mensaje', '').strip()
+    prioridad = data.get('prioridad', 'media')
+
+    if not mensaje:
+        return jsonify({'error': 'El mensaje es obligatorio'}), 400
+
+    negocio = db.session.execute(text(
+        "SELECT id_negocio, nombre_negocio, usuario_id FROM negocios WHERE id_negocio = :nid"
+    ), {'nid': negocio_id}).fetchone()
+    if not negocio:
+        return jsonify({'error': 'Negocio no encontrado'}), 404
+
+    usuario_id = negocio[2]
+    if not usuario_id:
+        return jsonify({'error': 'El negocio no tiene dueño asignado'}), 400
+
+    try:
+        from src.models.notification import Notification
+        notif = Notification(
+            user_id=usuario_id,
+            negocio_id=negocio_id,
+            type='sistema',
+            titulo=titulo or f'Mensaje de TuKomercio Admin',
+            message=mensaje,
+            prioridad=prioridad if prioridad in ('alta', 'media', 'baja') else 'media',
+        )
+        db.session.add(notif)
+        db.session.commit()
+        logger.info(f"🔔 Notificación enviada a negocio {negocio_id} por admin {g.user_email}")
+        return jsonify({'success': True, 'message': 'Notificación enviada correctamente'})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error enviando notificación a negocio {negocio_id}: {e}")
+        return jsonify({'error': 'Error al enviar notificación'}), 500
+
+
+@admin_features_bp.route('/api/admin/negocios/<int:negocio_id>/estado', methods=['PUT', 'OPTIONS'])
+@admin_required
+def toggle_estado_negocio(negocio_id):
+    """Activa o desactiva (lista negra) un negocio."""
+    data = request.get_json(silent=True) or {}
+    nuevo_estado = data.get('activo')
+
+    negocio = db.session.execute(text(
+        "SELECT id_negocio, nombre_negocio, activo FROM negocios WHERE id_negocio = :nid"
+    ), {'nid': negocio_id}).fetchone()
+    if not negocio:
+        return jsonify({'error': 'Negocio no encontrado'}), 404
+
+    if nuevo_estado is None:
+        nuevo_estado = not negocio[2]
+
+    db.session.execute(text(
+        "UPDATE negocios SET activo = :estado WHERE id_negocio = :nid"
+    ), {'estado': nuevo_estado, 'nid': negocio_id})
+    db.session.commit()
+
+    accion = "activado" if nuevo_estado else "puesto en lista negra"
+    logger.info(f"🔴 Negocio {negocio_id} ({negocio[1]}) {accion} por admin {g.user_email}")
+    return jsonify({'success': True, 'activo': nuevo_estado, 'message': f"Negocio '{negocio[1]}' {accion}"})
+
+
+@admin_features_bp.route('/api/admin/negocios/<int:negocio_id>/productos', methods=['DELETE', 'OPTIONS'])
+@admin_required
+def eliminar_productos_negocio(negocio_id):
+    """Elimina todos los productos del catálogo de un negocio."""
+    negocio = db.session.execute(text(
+        "SELECT id_negocio, nombre_negocio FROM negocios WHERE id_negocio = :nid"
+    ), {'nid': negocio_id}).fetchone()
+    if not negocio:
+        return jsonify({'error': 'Negocio no encontrado'}), 404
+
+    try:
+        result = db.session.execute(text(
+            "DELETE FROM productos_catalogo WHERE negocio_id = :nid"
+        ), {'nid': negocio_id})
+        eliminados = result.rowcount
+        db.session.commit()
+        logger.warning(f"🗑️ {eliminados} productos eliminados del negocio {negocio_id} por admin {g.user_email}")
+        return jsonify({'success': True, 'eliminados': eliminados, 'message': f"{eliminados} productos eliminados"})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error eliminando productos del negocio {negocio_id}: {e}")
+        return jsonify({'error': 'Error al eliminar productos'}), 500
+
+
+@admin_features_bp.route('/api/admin/negocios/<int:negocio_id>/reset', methods=['POST', 'OPTIONS'])
+@admin_required
+def reset_negocio(negocio_id):
+    """
+    Reset completo del negocio: elimina pedidos, productos, transacciones y movimientos de stock.
+    El negocio y su dueño NO se eliminan.
+    """
+    negocio = db.session.execute(text(
+        "SELECT id_negocio, nombre_negocio FROM negocios WHERE id_negocio = :nid"
+    ), {'nid': negocio_id}).fetchone()
+    if not negocio:
+        return jsonify({'error': 'Negocio no encontrado'}), 404
+
+    resumen = {}
+    try:
+        r = db.session.execute(text("DELETE FROM pedidos WHERE negocio_id = :nid"), {'nid': negocio_id})
+        resumen['pedidos'] = r.rowcount
+        r = db.session.execute(text("DELETE FROM productos_catalogo WHERE negocio_id = :nid"), {'nid': negocio_id})
+        resumen['productos'] = r.rowcount
+        r = db.session.execute(text("DELETE FROM transacciones_operativas WHERE negocio_id = :nid"), {'nid': negocio_id})
+        resumen['transacciones'] = r.rowcount
+        r = db.session.execute(text("DELETE FROM movimientos_stock WHERE negocio_id = :nid"), {'nid': negocio_id})
+        resumen['movimientos_stock'] = r.rowcount
+        db.session.commit()
+        logger.warning(f"⚠️ RESET NEGOCIO {negocio_id} ({negocio[1]}) por admin {g.user_email}: {resumen}")
+        return jsonify({'success': True, 'resumen': resumen, 'message': f"Negocio '{negocio[1]}' reseteado"})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error reseteando negocio {negocio_id}: {e}")
+        return jsonify({'error': f'Error durante el reset: {str(e)}'}), 500
+
+
+@admin_features_bp.route('/api/admin/negocios/<int:negocio_id>', methods=['DELETE', 'OPTIONS'])
+@admin_required
+def eliminar_negocio(negocio_id):
+    """
+    Eliminación completa del negocio (hard delete en cascada).
+    El usuario dueño NO se elimina.
+    """
+    negocio = db.session.execute(text(
+        "SELECT id_negocio, nombre_negocio FROM negocios WHERE id_negocio = :nid"
+    ), {'nid': negocio_id}).fetchone()
+    if not negocio:
+        return jsonify({'error': 'Negocio no encontrado'}), 404
+
+    confirmacion = (request.get_json(silent=True) or {}).get('confirmar')
+    if confirmacion != f'ELIMINAR-{negocio_id}':
+        return jsonify({'error': 'Confirmación incorrecta. Envía confirmar="ELIMINAR-{id}"'}), 400
+
+    try:
+        db.session.execute(text("DELETE FROM negocios WHERE id_negocio = :nid"), {'nid': negocio_id})
+        db.session.commit()
+        logger.warning(f"❌ NEGOCIO {negocio_id} ({negocio[1]}) ELIMINADO por admin {g.user_email}")
+        return jsonify({'success': True, 'message': f"Negocio '{negocio[1]}' eliminado permanentemente"})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error eliminando negocio {negocio_id}: {e}")
+        return jsonify({'error': f'Error eliminando negocio: {str(e)}'}), 500
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
