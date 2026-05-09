@@ -403,6 +403,8 @@ def create_app():
                     )""",
                     "CREATE INDEX IF NOT EXISTS ix_carritos_negocio ON carritos_abandonados(negocio_id)",
                     "CREATE INDEX IF NOT EXISTS ix_carritos_estado  ON carritos_abandonados(estado)",
+                    # ── Configuración de envíos por negocio v2.7 ──────────────────────────
+                    "ALTER TABLE negocios ADD COLUMN IF NOT EXISTS config_envios JSONB DEFAULT '{}'",
                 ]
                 for sql in migraciones:
                     try:
