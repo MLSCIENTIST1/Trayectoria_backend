@@ -362,6 +362,12 @@ def register_api(app):
         success_count += 1
     else:
         fail_count += 1
+
+    # 🛒 Carritos abandonados
+    if safe_register('src.api.tiendas.carritos_api', 'carritos_bp', 'Carritos Abandonados v1.0', prefix='/api'):
+        success_count += 1
+    else:
+        fail_count += 1
     
     # ==========================================
     # 💰 CONTABILIDAD E INVENTARIO
