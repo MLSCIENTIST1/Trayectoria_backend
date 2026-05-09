@@ -312,6 +312,13 @@ def recalculate_metrics(user_id):
         
         # Obtener métricas actualizadas
         metricas = UserMetric.query.filter_by(usuario_id=user_id).order_by(UserMetric.orden).all()
-        
+
         return jsonify({
-            "message"
+            "message": "Métricas recalculadas exitosamente",
+            "metricas": [m.to_dict() for m in metricas]
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error recalculando métricas del usuario {user_id}: {str(e)}")
+        db.session.rollback()
+        return jsonify({"error": "Error recalculando métricas"}), 500
