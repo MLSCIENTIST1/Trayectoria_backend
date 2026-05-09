@@ -326,6 +326,12 @@ def register_api(app):
         success_count += 1
     else:
         fail_count += 1
+
+    # ⭐ Reseñas de productos
+    if safe_register('src.api.tiendas.resenas_api', 'resenas_bp', 'Reseñas de Productos v1.0', prefix='/api'):
+        success_count += 1
+    else:
+        fail_count += 1
     
     # ==========================================
     # 💰 CONTABILIDAD E INVENTARIO
