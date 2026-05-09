@@ -460,6 +460,65 @@ def obtener_negocio_por_slug(slug):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@negocio_api_bp.route('/negocio/slug/<string:slug>/manifest.json', methods=['GET'])
+@cross_origin()
+def manifest_pwa(slug):
+    """
+    [PWA] Genera manifest.json dinámico para la tienda de un negocio.
+    Permite que cada tienda se instale como app con su propio nombre y color.
+    """
+    print(f"[PWA] 🗂️ manifest.json solicitado para slug='{slug}'")
+    try:
+        negocio = Negocio.query.filter_by(slug=slug, activo=True, tiene_pagina=True).first()
+        if not negocio:
+            print(f"[PWA] ⚠️ Negocio no encontrado para slug='{slug}'")
+            return jsonify({"error": "Tienda no encontrada"}), 404
+
+        nombre    = negocio.nombre_negocio or slug
+        color     = getattr(negocio, 'color_tema', '#2563eb') or '#2563eb'
+        logo_url  = getattr(negocio, 'logo_url', None) or ''
+        desc      = getattr(negocio, 'descripcion', '') or f'Tienda online de {nombre}'
+        short_name = nombre[:14]  # max 14 chars recomendado para launchers
+
+        # Icono: si hay logo_url usarlo, sino iconos genéricos
+        if logo_url:
+            icons = [
+                {"src": logo_url, "sizes": "any", "type": "image/png", "purpose": "any maskable"}
+            ]
+        else:
+            icons = [
+                {"src": "/assets/icons/pwa-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+                {"src": "/assets/icons/pwa-512.png",  "sizes": "512x512",  "type": "image/png"}
+            ]
+
+        manifest = {
+            "name":             nombre,
+            "short_name":       short_name,
+            "description":      desc,
+            "start_url":        f"/tienda/?slug={slug}",
+            "scope":            "/tienda/",
+            "display":          "standalone",
+            "background_color": "#ffffff",
+            "theme_color":      color,
+            "orientation":      "portrait-primary",
+            "lang":             "es",
+            "categories":       ["shopping"],
+            "icons":            icons
+        }
+
+        import json as _json
+        from flask import make_response as _mr
+        resp = _mr(_json.dumps(manifest, ensure_ascii=False, indent=2))
+        resp.headers['Content-Type']  = 'application/manifest+json; charset=utf-8'
+        resp.headers['Cache-Control'] = 'public, max-age=3600'
+        print(f"[PWA] ✅ manifest.json generado para '{nombre}' (color={color})")
+        return resp
+
+    except Exception as e:
+        logger.error(f"[PWA] ❌ Error generando manifest para slug='{slug}': {e}")
+        return jsonify({"error": "Error generando manifest"}), 500
+
+
 @negocio_api_bp.route('/registrar_negocio', methods=['POST', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def registrar_negocio():

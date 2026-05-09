@@ -275,7 +275,7 @@ def enviar_email_nuevo_pedido(pedido, negocio, comprador, productos_payload,
     try:
         email_negocio = getattr(negocio, 'email', None) or getattr(negocio, 'correo', None)
         if not email_negocio:
-            print(f"⚠️ Email: negocio {negocio.id_negocio} no tiene correo configurado")
+            print(f"⚠️ Email tendero: negocio {negocio.id_negocio} no tiene correo configurado")
             return
         nombre_negocio = getattr(negocio, 'nombre_negocio', None) or 'Tu negocio'
         html = _html_email_nuevo_pedido(
@@ -287,9 +287,148 @@ def enviar_email_nuevo_pedido(pedido, negocio, comprador, productos_payload,
             f"🛒 Nuevo pedido {pedido.codigo_pedido} — {nombre_negocio}",
             html
         )
-        print(f"📧 Email en cola → {email_negocio}")
+        print(f"📧 Email tendero en cola → {email_negocio}")
     except Exception as e:
-        print(f"⚠️ Email nuevo pedido falló (no crítico): {e}")
+        print(f"⚠️ Email tendero falló (no crítico): {e}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# EMAIL AL COMPRADOR — confirmación de pedido
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _html_email_confirmacion_comprador(pedido, negocio, comprador, productos_payload,
+                                        subtotal, descuento, costo_envio, total):
+    """Genera el HTML de confirmación de pedido para el comprador."""
+    nombre_negocio = getattr(negocio, 'nombre_negocio', None) or 'La tienda'
+    slug           = getattr(negocio, 'slug', '') or ''
+    color_tema     = getattr(negocio, 'color_tema', '#2563EB') or '#2563EB'
+    codigo         = pedido.codigo_pedido
+    fecha          = pedido.fecha_pedido.strftime('%d/%m/%Y %H:%M') if pedido.fecha_pedido else '—'
+    cliente        = (comprador.nombre or 'Cliente').split()[0]   # solo primer nombre
+    metodo_pago    = (pedido.metodo_pago or 'efectivo').capitalize()
+    notas          = pedido.notas_cliente or ''
+
+    filas_productos = ''
+    for p in (productos_payload or []):
+        nom   = p.get('nombre', 'Producto')
+        qty   = p.get('cantidad', p.get('qty', 1))
+        precio = float(p.get('precio_unitario', p.get('precio', 0)))
+        filas_productos += f"""
+        <tr>
+          <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;">{nom}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#666;text-align:center;">×{qty}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;text-align:right;font-weight:600;">{_fmt_cop(precio * qty)}</td>
+        </tr>"""
+
+    fila_descuento = ''
+    if descuento and float(descuento) > 0:
+        fila_descuento = f"""<tr>
+          <td colspan="2" style="padding:8px 12px;font-size:13px;color:#D63329;">🏷️ Descuento</td>
+          <td style="padding:8px 12px;font-size:13px;color:#D63329;text-align:right;font-weight:600;">-{_fmt_cop(descuento)}</td>
+        </tr>"""
+
+    fila_envio = ''
+    if costo_envio and float(costo_envio) > 0:
+        fila_envio = f"""<tr>
+          <td colspan="2" style="padding:8px 12px;font-size:13px;color:#2563EB;">🚚 Envío</td>
+          <td style="padding:8px 12px;font-size:13px;color:#2563EB;text-align:right;font-weight:600;">{_fmt_cop(costo_envio)}</td>
+        </tr>"""
+
+    link_seguimiento = f"https://tuko.pages.dev/heyden.html?c={codigo}&slug={slug}"
+    link_tienda      = f"https://tuko.pages.dev/tienda/?slug={slug}" if slug else "https://tuko.pages.dev"
+    notas_fila = f"""
+        <tr>
+          <td colspan="2" style="padding:8px 12px;font-size:13px;color:#999;">Nota</td>
+          <td style="padding:8px 12px;font-size:13px;color:#555;font-style:italic;">{notas}</td>
+        </tr>""" if notas else ''
+
+    return f"""<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:'Segoe UI',Arial,sans-serif;">
+  <div style="max-width:560px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
+
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,{color_tema} 0%,{color_tema}cc 100%);padding:28px 32px;text-align:center;">
+      <div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.75);margin-bottom:6px;">{nombre_negocio}</div>
+      <div style="font-size:26px;font-weight:900;color:#fff;">✅ ¡Pedido confirmado!</div>
+      <div style="margin-top:10px;display:inline-block;background:rgba(255,255,255,0.2);border-radius:20px;padding:5px 18px;font-size:13px;color:#fff;font-weight:700;letter-spacing:1px;">{codigo}</div>
+    </div>
+
+    <!-- Saludo -->
+    <div style="padding:24px 32px 0;">
+      <p style="font-size:15px;color:#333;margin:0;">Hola <strong>{cliente}</strong>, recibimos tu pedido y ya está en proceso 🎉</p>
+      <p style="font-size:13px;color:#999;margin-top:6px;">Fecha: {fecha} &nbsp;·&nbsp; Pago: {metodo_pago}</p>
+    </div>
+
+    <!-- Productos -->
+    <div style="padding:20px 32px 0;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:{color_tema};margin-bottom:12px;">Tu pedido</div>
+      <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #f0f0f0;border-radius:10px;overflow:hidden;">
+        <thead>
+          <tr style="background:#fafafa;">
+            <th style="padding:10px 12px;font-size:11px;color:#999;text-align:left;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Producto</th>
+            <th style="padding:10px 12px;font-size:11px;color:#999;text-align:center;font-weight:700;">Cant.</th>
+            <th style="padding:10px 12px;font-size:11px;color:#999;text-align:right;font-weight:700;">Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filas_productos}
+          {fila_descuento}
+          {fila_envio}
+          {notas_fila}
+          <tr style="background:#f0f9ff;">
+            <td colspan="2" style="padding:14px 12px;font-size:13px;color:#999;font-weight:700;letter-spacing:1px;text-transform:uppercase;">TOTAL</td>
+            <td style="padding:14px 12px;font-size:20px;color:{color_tema};font-weight:900;text-align:right;">{_fmt_cop(total)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- CTA seguimiento -->
+    <div style="padding:24px 32px;display:flex;gap:12px;flex-direction:column;">
+      <a href="{link_seguimiento}" style="display:block;text-align:center;background:linear-gradient(135deg,{color_tema},{color_tema}aa);color:#fff;text-decoration:none;padding:14px 24px;border-radius:10px;font-size:14px;font-weight:700;">
+        🔍 Seguir mi pedido en tiempo real
+      </a>
+      <a href="{link_tienda}" style="display:block;text-align:center;background:#f5f5f5;color:#555;text-decoration:none;padding:12px 24px;border-radius:10px;font-size:13px;font-weight:600;">
+        🛍️ Seguir comprando en {nombre_negocio}
+      </a>
+    </div>
+
+    <!-- Footer -->
+    <div style="background:#f9f9f9;padding:16px 32px;text-align:center;border-top:1px solid #f0f0f0;">
+      <div style="font-size:11px;color:#bbb;letter-spacing:1px;text-transform:uppercase;">Powered by TuKomercio · {nombre_negocio}</div>
+    </div>
+  </div>
+</body>
+</html>"""
+
+
+def enviar_email_confirmacion_comprador(pedido, negocio, comprador, productos_payload,
+                                         subtotal, descuento, costo_envio, total):
+    """Fire-and-forget: envía confirmación al comprador si tiene correo."""
+    if not TIENE_EMAIL:
+        print("⚠️ Email comprador: módulo email no disponible")
+        return
+    try:
+        email_comprador = getattr(comprador, 'correo', None) or getattr(comprador, 'email', None)
+        if not email_comprador:
+            print(f"ℹ️ Email comprador: el comprador no tiene correo, se omite")
+            return
+        nombre_negocio = getattr(negocio, 'nombre_negocio', None) or 'La tienda'
+        print(f"📧 Preparando email confirmación → comprador {email_comprador}")
+        html = _html_email_confirmacion_comprador(
+            pedido, negocio, comprador, productos_payload,
+            subtotal, descuento, costo_envio, total
+        )
+        send_email_async(
+            email_comprador,
+            f"✅ Confirmación pedido {pedido.codigo_pedido} — {nombre_negocio}",
+            html
+        )
+        print(f"📧 Email comprador en cola → {email_comprador} (pedido {pedido.codigo_pedido})")
+    except Exception as e:
+        print(f"⚠️ Email comprador falló (no crítico): {type(e).__name__}: {e}")
 
 
 @checkout_api_bp.route('/tiendas/<slug>/checkout', methods=['POST', 'OPTIONS'])
@@ -533,6 +672,25 @@ def procesar_checkout(slug):
                         )
                 except Exception as email_err:
                     print(f"⚠️ Email al tendero falló (no crítico): {email_err}")
+
+            # ==========================================
+            # ★ EMAIL AL COMPRADOR (fire-and-forget, post-commit)
+            # ==========================================
+            try:
+                negocio_obj_c = negocio_obj if TIENE_EMAIL and 'negocio_obj' in dir() and negocio_obj else (Negocio.query.get(negocio_id) if TIENE_EMAIL else None)
+                if negocio_obj_c:
+                    enviar_email_confirmacion_comprador(
+                        pedido            = pedido,
+                        negocio           = negocio_obj_c,
+                        comprador         = comprador,
+                        productos_payload = productos,
+                        subtotal          = subtotal_final,
+                        descuento         = descuento_aplicado,
+                        costo_envio       = costo_envio_final,
+                        total             = total_final
+                    )
+            except Exception as email_c_err:
+                print(f"⚠️ Email comprador falló (no crítico): {email_c_err}")
 
             # Incrementar usos del cupón (post-commit, no crítico)
             if cupon_usado:
