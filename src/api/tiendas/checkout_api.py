@@ -91,8 +91,16 @@ import datetime
 # Importar modelos existentes
 from src.models import Comprador
 from src.models import DireccionComprador
-from src.models import Pedido 
+from src.models import Pedido
 from src.models.database import db
+
+# ★ Cupones
+try:
+    from src.models.colombia_data.contabilidad.cupones import Cupon
+    TIENE_CUPONES = True
+except ImportError:
+    TIENE_CUPONES = False
+    print("⚠️ Modelo Cupon no disponible - cupones desactivados")
 
 # ★ NUEVO: Importar modelo de notificaciones
 try:
@@ -259,21 +267,51 @@ def procesar_checkout(slug):
             'nombre': data.get('nombre_negocio', slug.capitalize())
         }
         
+        # ==========================================
+        # ★ CUPÓN: calcular descuento antes del pedido
+        # ==========================================
+        descuento_aplicado = 0.0
+        cupon_usado = None
+        codigo_cupon = str(data.get('codigo_cupon', '') or '').strip().upper()
+
+        if codigo_cupon and TIENE_CUPONES:
+            try:
+                cupon_obj = Cupon.query.filter_by(
+                    negocio_id=negocio_id, codigo=codigo_cupon
+                ).first()
+                if cupon_obj:
+                    subtotal_val = float(data.get('subtotal', 0))
+                    valido, _ = cupon_obj.es_valido(subtotal_val)
+                    if valido:
+                        descuento_aplicado = cupon_obj.calcular_descuento(subtotal_val)
+                        cupon_usado = cupon_obj
+                        print(f"🎟️  Cupón '{codigo_cupon}' aplicado — descuento: ${descuento_aplicado:,.0f}")
+            except Exception as cupon_err:
+                print(f"⚠️ Error aplicando cupón (no crítico): {cupon_err}")
+
+        subtotal_final = float(data.get('subtotal', 0))
+        costo_envio_final = float(data.get('costo_envio', 0))
+        total_final = max(0, subtotal_final - descuento_aplicado + costo_envio_final)
+
         # Crear pedido usando el método del modelo
         pedido = Pedido.crear_pedido(
             comprador=comprador,
             direccion=direccion,
             negocio_data=negocio_data,
             productos=productos,
-            subtotal=data.get('subtotal', 0),
-            costo_envio=data.get('costo_envio', 0),
-            total=data.get('total', 0),
+            subtotal=subtotal_final,
+            costo_envio=costo_envio_final,
+            total=total_final,
             metodo_pago=data.get('metodo_pago', 'efectivo'),
             notas_cliente=data.get('notas'),
             metodo_contacto='whatsapp',
             origen='web'
         )
-        
+
+        # Guardar el descuento en el pedido
+        if descuento_aplicado > 0:
+            pedido.descuento = descuento_aplicado
+
         print(f"✅ Pedido creado: {pedido.codigo_pedido}")
         
         # ==========================================
@@ -298,7 +336,16 @@ def procesar_checkout(slug):
         try:
             db.session.commit()
             print("✅ Transacción completada exitosamente")
-            
+
+            # Incrementar usos del cupón (post-commit, no crítico)
+            if cupon_usado:
+                try:
+                    cupon_usado.usos_actuales = (cupon_usado.usos_actuales or 0) + 1
+                    db.session.commit()
+                    print(f"🎟️  Cupón '{cupon_usado.codigo}' — usos: {cupon_usado.usos_actuales}")
+                except Exception as cu_err:
+                    print(f"⚠️ No se pudo incrementar uso del cupón: {cu_err}")
+
         except Exception as commit_error:
             db.session.rollback()
             print(f"❌ Error al guardar en BD: {str(commit_error)}")
@@ -315,12 +362,20 @@ def procesar_checkout(slug):
                 'numero_pedido': pedido.codigo_pedido,
                 'codigo_pedido': pedido.codigo_pedido,
                 'negocio_id': negocio_id,
-                'total': float(data.get('total', 0)),
+                'subtotal': subtotal_final,
+                'descuento': descuento_aplicado,
+                'costo_envio': costo_envio_final,
+                'total': total_final,
                 'estado': pedido.estado,
                 'fecha_creacion': pedido.fecha_pedido.isoformat()
             },
-            'comprador': comprador.to_dict_checkout(),  # Incluye el token
-            'notificacion_enviada': notificacion_creada  # ★ NUEVO
+            'comprador': comprador.to_dict_checkout(),
+            'notificacion_enviada': notificacion_creada,
+            # ★ Info del cupón aplicado
+            'cupon_aplicado': {
+                'codigo': cupon_usado.codigo,
+                'descuento': descuento_aplicado
+            } if cupon_usado else None
         }
         
         print(f"✅ Checkout completado: {pedido.codigo_pedido}")
