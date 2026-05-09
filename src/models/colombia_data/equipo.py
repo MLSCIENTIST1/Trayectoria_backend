@@ -1,21 +1,22 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-# TUKOMERCIO — Modelo EmpleadoNegocio v1.0
+# TUKOMERCIO — Modelos de Equipo v2.0 (Links por Rol)
 # ═══════════════════════════════════════════════════════════════════════════════
 #
-# Tabla: empleados_negocio
-#   Multi-usuario: un negocio puede tener varios usuarios con roles distintos.
+# Diseño: un link compartido por rol (como Slack).
+# El tendero genera el link → lo envía por WhatsApp → cualquiera que lo abra
+# y ponga su nombre entra con ese rol. Sin emails, sin formularios largos.
 #
-# Roles:
-#   dueno    → dueño (auto-asignado al crear el negocio, no se puede remover)
-#   admin    → acceso completo excepto facturación
-#   vendedor → procesar pedidos, ver productos (no puede editar config)
-#   bodega   → actualizar stock, ver pedidos (solo inventario)
+# Tablas:
+#   link_invitaciones  → un link activo por (negocio, rol). Regenerable.
+#   empleados_negocio  → quién ha aceptado y con qué rol.
 #
-# Flujo de invitación:
-#   1. Dueño ingresa email + rol → se crea registro con estado='pendiente' + token
-#   2. Sistema genera link con el token
-#   3. Empleado abre el link → acepta → su usuario_id queda vinculado
-#   4. Estado cambia a 'activo'
+# Flujo:
+#   1. Panel muestra 3 links (admin / vendedor / bodega) — se auto-crean.
+#   2. Dueño copia el link del rol que quiere y lo envía por WhatsApp.
+#   3. Empleado abre el link → pone su nombre → click "Unirme".
+#   4. Aparece en la lista de miembros del panel.
+#   5. Dueño puede regenerar cualquier link (invalida el anterior) o suspender
+#      a cualquier miembro.
 #
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -24,12 +25,16 @@ from datetime import datetime, timezone
 from src.models.database import db
 
 
+# ─── Catálogo de roles ────────────────────────────────────────────────────────
 ROLES = {
-    'dueno':    {'label': 'Dueño',    'icon': '👑', 'color': '#7c3aed'},
-    'admin':    {'label': 'Admin',    'icon': '⚙️',  'color': '#2563eb'},
-    'vendedor': {'label': 'Vendedor', 'icon': '🛍️', 'color': '#059669'},
-    'bodega':   {'label': 'Bodega',   'icon': '📦',  'color': '#d97706'},
+    'dueno':    {'label': 'Dueño',    'icon': '👑', 'color': '#7c3aed', 'desc': 'Control total del negocio'},
+    'admin':    {'label': 'Admin',    'icon': '⚙️',  'color': '#2563eb', 'desc': 'Gestión completa — pedidos, productos, cupones'},
+    'vendedor': {'label': 'Vendedor', 'icon': '🛍️', 'color': '#059669', 'desc': 'Procesar pedidos y ver productos'},
+    'bodega':   {'label': 'Bodega',   'icon': '📦',  'color': '#d97706', 'desc': 'Actualizar stock y ver pedidos'},
 }
+
+# Roles que se pueden invitar (dueño no se invita)
+ROLES_INVITABLES = ['admin', 'vendedor', 'bodega']
 
 PERMISOS = {
     'dueno':    ['todo'],
@@ -39,71 +44,145 @@ PERMISOS = {
 }
 
 
-class EmpleadoNegocio(db.Model):
-    """Miembro del equipo de un negocio TuKomercio."""
+# ══════════════════════════════════════════════════════════════════════════════
+# LinkInvitacion — el link compartido por rol
+# ══════════════════════════════════════════════════════════════════════════════
+class LinkInvitacion(db.Model):
+    """
+    Link de invitación compartido para un rol en un negocio.
+    Un solo link activo por (negocio_id, rol).
+    Regenerar = nuevo token → el link anterior queda inválido.
+    """
 
-    __tablename__ = 'empleados_negocio'
+    __tablename__ = 'link_invitaciones'
 
-    # ─── PK ───────────────────────────────────────────────────────────────────
-    id = db.Column(db.Integer, primary_key=True)
-
-    # ─── Negocio ──────────────────────────────────────────────────────────────
+    id         = db.Column(db.Integer, primary_key=True)
     negocio_id = db.Column(
         db.Integer,
         db.ForeignKey('negocios.id_negocio', ondelete='CASCADE'),
-        nullable=False,
-        index=True
+        nullable=False, index=True
     )
+    rol    = db.Column(db.String(20), nullable=False)
+    token  = db.Column(db.String(64), unique=True, nullable=False, index=True,
+                       default=lambda: secrets.token_urlsafe(32))
+    activo = db.Column(db.Boolean, default=True, nullable=False)
 
-    # ─── Usuario (None = invitación pendiente sin cuenta aún) ─────────────────
-    usuario_id = db.Column(
-        db.Integer,
-        db.ForeignKey('usuarios.id_usuario', ondelete='SET NULL'),
-        nullable=True,
-        index=True
-    )
+    # Usos: cuántas personas han entrado por este link
+    usos   = db.Column(db.Integer, default=0, nullable=False)
 
-    # ─── Email de invitación ──────────────────────────────────────────────────
-    email = db.Column(db.String(150), nullable=False)
-    nombre_display = db.Column(db.String(100))     # nombre que puso el dueño al invitar
-
-    # ─── Rol ──────────────────────────────────────────────────────────────────
-    rol = db.Column(db.String(20), nullable=False, default='vendedor')
-
-    # ─── Estado ───────────────────────────────────────────────────────────────
-    # pendiente → activo → suspendido
-    estado = db.Column(db.String(20), nullable=False, default='pendiente', index=True)
-
-    # ─── Token de invitación ──────────────────────────────────────────────────
-    token_invitacion = db.Column(db.String(64), unique=True, index=True)
-    token_expira     = db.Column(db.DateTime(timezone=True))
-
-    # ─── Fechas ───────────────────────────────────────────────────────────────
-    invitado_en = db.Column(
+    created_at = db.Column(
         db.DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc)
     )
-    aceptado_en = db.Column(db.DateTime(timezone=True))
-
-    # ─── Relaciones ───────────────────────────────────────────────────────────
-    negocio = db.relationship('Negocio', foreign_keys=[negocio_id])
-    usuario = db.relationship('Usuario', foreign_keys=[usuario_id])
-
-    # ─── Unicidad: un usuario no puede estar dos veces en el mismo negocio ─────
-    __table_args__ = (
-        db.UniqueConstraint('negocio_id', 'email', name='uq_empleado_negocio_email'),
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
     )
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # MÉTODOS
-    # ─────────────────────────────────────────────────────────────────────────
+    negocio = db.relationship('Negocio', foreign_keys=[negocio_id])
 
-    @classmethod
-    def generar_token(cls) -> str:
-        return secrets.token_urlsafe(32)
+    __table_args__ = (
+        db.UniqueConstraint('negocio_id', 'rol', name='uq_link_negocio_rol'),
+    )
+
+    # ── Métodos ──────────────────────────────────────────────────────────────
+
+    def regenerar(self):
+        """Genera un nuevo token, invalidando el link anterior."""
+        self.token     = secrets.token_urlsafe(32)
+        self.usos      = 0
+        self.activo    = True
+        self.updated_at = datetime.now(timezone.utc)
 
     def rol_info(self) -> dict:
-        return ROLES.get(self.rol, {'label': self.rol, 'icon': '👤', 'color': '#64748b'})
+        return ROLES.get(self.rol, {'label': self.rol, 'icon': '👤', 'color': '#64748b', 'desc': ''})
+
+    def to_dict(self) -> dict:
+        info = self.rol_info()
+        return {
+            'id':        self.id,
+            'negocio_id': self.negocio_id,
+            'rol':       self.rol,
+            'rol_label': info['label'],
+            'rol_icon':  info['icon'],
+            'rol_color': info['color'],
+            'rol_desc':  info['desc'],
+            'token':     self.token,
+            'activo':    self.activo,
+            'usos':      self.usos,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+    @classmethod
+    def get_or_create(cls, negocio_id: int, rol: str):
+        """Devuelve el link existente o crea uno nuevo para ese rol."""
+        link = cls.query.filter_by(negocio_id=negocio_id, rol=rol).first()
+        if not link:
+            link = cls(
+                negocio_id=negocio_id,
+                rol=rol,
+                token=secrets.token_urlsafe(32),
+            )
+            db.session.add(link)
+            db.session.flush()
+        return link
+
+    def __repr__(self):
+        return f'<LinkInvitacion negocio={self.negocio_id} rol={self.rol} activo={self.activo}>'
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# EmpleadoNegocio — quien ya aceptó un link
+# ══════════════════════════════════════════════════════════════════════════════
+class EmpleadoNegocio(db.Model):
+    """
+    Miembro del equipo que ya aceptó una invitación.
+    No requiere email — solo nombre (y opcionalmente usuario_id si tiene cuenta).
+    """
+
+    __tablename__ = 'empleados_negocio'
+
+    id         = db.Column(db.Integer, primary_key=True)
+    negocio_id = db.Column(
+        db.Integer,
+        db.ForeignKey('negocios.id_negocio', ondelete='CASCADE'),
+        nullable=False, index=True
+    )
+    # Si tiene cuenta TuKomercio
+    usuario_id = db.Column(
+        db.Integer,
+        db.ForeignKey('usuarios.id_usuario', ondelete='SET NULL'),
+        nullable=True, index=True
+    )
+
+    # Link por el que entró
+    link_id = db.Column(
+        db.Integer,
+        db.ForeignKey('link_invitaciones.id', ondelete='SET NULL'),
+        nullable=True
+    )
+
+    nombre = db.Column(db.String(100), nullable=False)  # nombre que puso al unirse
+    email  = db.Column(db.String(150))                  # opcional
+
+    rol    = db.Column(db.String(20), nullable=False)
+    estado = db.Column(db.String(20), nullable=False, default='activo', index=True)
+    # activo | suspendido
+
+    unido_en = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    negocio = db.relationship('Negocio', foreign_keys=[negocio_id])
+    usuario = db.relationship('Usuario', foreign_keys=[usuario_id])
+    link    = db.relationship('LinkInvitacion', foreign_keys=[link_id])
+
+    # ── Métodos ──────────────────────────────────────────────────────────────
+
+    def rol_info(self) -> dict:
+        return ROLES.get(self.rol, {'label': self.rol, 'icon': '👤', 'color': '#64748b', 'desc': ''})
 
     def tiene_permiso(self, permiso: str) -> bool:
         perms = PERMISOS.get(self.rol, [])
@@ -111,29 +190,19 @@ class EmpleadoNegocio(db.Model):
 
     def to_dict(self) -> dict:
         info = self.rol_info()
-        nombre = (
-            self.nombre_display
-            or (f'{self.usuario.nombre} {self.usuario.apellidos}'.strip() if self.usuario else None)
-            or self.email.split('@')[0]
-        )
         return {
-            'id':            self.id,
-            'negocio_id':    self.negocio_id,
-            'usuario_id':    self.usuario_id,
-            'email':         self.email,
-            'nombre':        nombre,
-            'rol':           self.rol,
-            'rol_label':     info['label'],
-            'rol_icon':      info['icon'],
-            'rol_color':     info['color'],
-            'estado':        self.estado,
-            'invitado_en':   self.invitado_en.isoformat() if self.invitado_en else None,
-            'aceptado_en':   self.aceptado_en.isoformat() if self.aceptado_en else None,
-            'tiene_token':   bool(self.token_invitacion),
+            'id':          self.id,
+            'negocio_id':  self.negocio_id,
+            'usuario_id':  self.usuario_id,
+            'nombre':      self.nombre,
+            'email':       self.email or '',
+            'rol':         self.rol,
+            'rol_label':   info['label'],
+            'rol_icon':    info['icon'],
+            'rol_color':   info['color'],
+            'estado':      self.estado,
+            'unido_en':    self.unido_en.isoformat() if self.unido_en else None,
         }
 
     def __repr__(self):
-        return (
-            f'<EmpleadoNegocio negocio={self.negocio_id} '
-            f'email={self.email} rol={self.rol} estado={self.estado}>'
-        )
+        return f'<EmpleadoNegocio negocio={self.negocio_id} nombre={self.nombre} rol={self.rol}>'
