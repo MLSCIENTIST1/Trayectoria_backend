@@ -356,6 +356,12 @@ def register_api(app):
         success_count += 1
     else:
         fail_count += 1
+
+    # 👤 CRM básico de compradores
+    if safe_register('src.api.tiendas.crm_api', 'crm_bp', 'CRM Compradores v1.0', prefix='/api'):
+        success_count += 1
+    else:
+        fail_count += 1
     
     # ==========================================
     # 💰 CONTABILIDAD E INVENTARIO
