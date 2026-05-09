@@ -678,7 +678,8 @@ def stream_notificaciones(negocio_id):
         'Cache-Control': 'no-cache',
         'X-Accel-Buffering': 'no',  # Nginx / Render: deshabilita buffer
         'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*'
+        # NOTA: NO poner Access-Control-Allow-Origin aquí.
+        # Flask-CORS ya lo inyecta globalmente; duplicarlo causa rechazo del browser.
     }
     return Response(
         stream_with_context(event_generator()),
