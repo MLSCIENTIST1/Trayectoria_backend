@@ -110,9 +110,186 @@ except ImportError:
     TIENE_NOTIFICACIONES = False
     print("⚠️ Modelo Notification no disponible - notificaciones desactivadas")
 
+# ★ Email al tendero
+try:
+    from src.api.auth.password_reset_api import send_email_async
+    from src.models.colombia_data.negocio import Negocio
+    TIENE_EMAIL = True
+except ImportError:
+    TIENE_EMAIL = False
+    print("⚠️ Email no disponible")
+
 checkout_api_bp = Blueprint('checkout_api', __name__)
 
 print("🏪 Módulo checkout_api v3.1 iniciando (con notificaciones)...")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# EMAIL AL TENDERO — nuevo pedido
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _fmt_cop(n):
+    """Formatea número como peso colombiano."""
+    try:
+        return f"${int(float(n)):,}".replace(',', '.')
+    except Exception:
+        return f"${n}"
+
+
+def _html_email_nuevo_pedido(pedido, negocio, comprador, productos_payload,
+                              subtotal, descuento, costo_envio, total):
+    """Genera el HTML del email de nuevo pedido para el tendero."""
+    nombre_negocio = getattr(negocio, 'nombre_negocio', None) or getattr(negocio, 'nombre', 'Tu negocio')
+    codigo = pedido.codigo_pedido
+    fecha = pedido.fecha_pedido.strftime('%d/%m/%Y %H:%M') if pedido.fecha_pedido else '—'
+    cliente = comprador.nombre or '—'
+    telefono = comprador.telefono or '—'
+    correo_cliente = comprador.correo or '—'
+    metodo_pago = (pedido.metodo_pago or 'efectivo').capitalize()
+    notas = pedido.notas_cliente or ''
+    slug = getattr(negocio, 'slug', '')
+
+    # Filas de productos
+    filas_productos = ''
+    for p in (productos_payload or []):
+        nom = p.get('nombre', 'Producto')
+        qty = p.get('cantidad', p.get('qty', 1))
+        precio = float(p.get('precio_unitario', p.get('precio', 0)))
+        filas_productos += f"""
+        <tr>
+          <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;">{nom}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#666;text-align:center;">{qty}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#333;text-align:right;font-weight:600;">{_fmt_cop(precio * qty)}</td>
+        </tr>"""
+
+    # Fila descuento
+    fila_descuento = ''
+    if descuento and float(descuento) > 0:
+        fila_descuento = f"""
+        <tr>
+          <td colspan="2" style="padding:8px 12px;font-size:13px;color:#D63329;">🏷️ Descuento</td>
+          <td style="padding:8px 12px;font-size:13px;color:#D63329;text-align:right;font-weight:600;">-{_fmt_cop(descuento)}</td>
+        </tr>"""
+
+    # Fila envío
+    fila_envio = ''
+    if costo_envio and float(costo_envio) > 0:
+        fila_envio = f"""
+        <tr>
+          <td colspan="2" style="padding:8px 12px;font-size:13px;color:#2563EB;">🚚 Envío</td>
+          <td style="padding:8px 12px;font-size:13px;color:#2563EB;text-align:right;font-weight:600;">{_fmt_cop(costo_envio)}</td>
+        </tr>"""
+
+    link_pedidos = f"https://tuko.pages.dev/contabilidad/modulos/pedidos.html"
+    link_wa = f"https://wa.me/57{telefono.replace(' ','').replace('-','').lstrip('0')}?text=Hola+{cliente.split()[0]}%2C+recibimos+tu+pedido+{codigo}+%F0%9F%93%A6"
+
+    return f"""<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:'Segoe UI',Arial,sans-serif;">
+  <div style="max-width:560px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
+
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#D63329 0%,#A8251C 100%);padding:28px 32px;text-align:center;">
+      <div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.7);margin-bottom:6px;">TuKomercio · {nombre_negocio}</div>
+      <div style="font-size:26px;font-weight:900;color:#fff;letter-spacing:1px;">🛒 Nuevo pedido recibido</div>
+      <div style="margin-top:10px;display:inline-block;background:rgba(255,255,255,0.15);border-radius:20px;padding:5px 16px;font-size:13px;color:#fff;font-weight:700;letter-spacing:1px;">{codigo}</div>
+    </div>
+
+    <!-- Info cliente -->
+    <div style="padding:24px 32px 0;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#D63329;margin-bottom:12px;">Comprador</div>
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="padding:6px 0;font-size:13px;color:#999;width:120px;">Nombre</td>
+          <td style="padding:6px 0;font-size:14px;color:#1a1a1a;font-weight:600;">{cliente}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;font-size:13px;color:#999;">Teléfono</td>
+          <td style="padding:6px 0;font-size:14px;color:#1a1a1a;">{telefono}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;font-size:13px;color:#999;">Correo</td>
+          <td style="padding:6px 0;font-size:14px;color:#1a1a1a;">{correo_cliente}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;font-size:13px;color:#999;">Pago</td>
+          <td style="padding:6px 0;font-size:14px;color:#1a1a1a;">{metodo_pago}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;font-size:13px;color:#999;">Fecha</td>
+          <td style="padding:6px 0;font-size:14px;color:#1a1a1a;">{fecha}</td>
+        </tr>
+        {'<tr><td style="padding:6px 0;font-size:13px;color:#999;">Notas</td><td style="padding:6px 0;font-size:14px;color:#555;font-style:italic;">' + notas + '</td></tr>' if notas else ''}
+      </table>
+    </div>
+
+    <!-- Productos -->
+    <div style="padding:20px 32px 0;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#D63329;margin-bottom:12px;">Detalle del pedido</div>
+      <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #f0f0f0;border-radius:10px;overflow:hidden;">
+        <thead>
+          <tr style="background:#fafafa;">
+            <th style="padding:10px 12px;font-size:11px;color:#999;text-align:left;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Producto</th>
+            <th style="padding:10px 12px;font-size:11px;color:#999;text-align:center;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Cant.</th>
+            <th style="padding:10px 12px;font-size:11px;color:#999;text-align:right;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filas_productos}
+          {fila_descuento}
+          {fila_envio}
+          <tr style="background:#fff5f5;">
+            <td colspan="2" style="padding:14px 12px;font-size:13px;color:#999;font-weight:700;letter-spacing:1px;text-transform:uppercase;">TOTAL</td>
+            <td style="padding:14px 12px;font-size:20px;color:#D63329;font-weight:900;text-align:right;">{_fmt_cop(total)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- CTAs -->
+    <div style="padding:24px 32px;display:flex;gap:12px;flex-direction:column;">
+      <a href="{link_pedidos}" style="display:block;text-align:center;background:linear-gradient(135deg,#D63329,#A8251C);color:#fff;text-decoration:none;padding:13px 24px;border-radius:10px;font-size:14px;font-weight:700;">
+        📋 Ver en el panel de pedidos
+      </a>
+      <a href="{link_wa}" style="display:block;text-align:center;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;text-decoration:none;padding:13px 24px;border-radius:10px;font-size:14px;font-weight:700;">
+        💬 Responder por WhatsApp
+      </a>
+    </div>
+
+    <!-- Footer -->
+    <div style="background:#f9f9f9;padding:16px 32px;text-align:center;border-top:1px solid #f0f0f0;">
+      <div style="font-size:11px;color:#bbb;letter-spacing:1px;text-transform:uppercase;">TuKomercio · {nombre_negocio} · {fecha}</div>
+    </div>
+
+  </div>
+</body>
+</html>"""
+
+
+def enviar_email_nuevo_pedido(pedido, negocio, comprador, productos_payload,
+                               subtotal, descuento, costo_envio, total):
+    """Fire-and-forget: envía email al tendero en background thread."""
+    if not TIENE_EMAIL:
+        return
+    try:
+        email_negocio = getattr(negocio, 'email', None) or getattr(negocio, 'correo', None)
+        if not email_negocio:
+            print(f"⚠️ Email: negocio {negocio.id_negocio} no tiene correo configurado")
+            return
+        nombre_negocio = getattr(negocio, 'nombre_negocio', None) or 'Tu negocio'
+        html = _html_email_nuevo_pedido(
+            pedido, negocio, comprador, productos_payload,
+            subtotal, descuento, costo_envio, total
+        )
+        send_email_async(
+            email_negocio,
+            f"🛒 Nuevo pedido {pedido.codigo_pedido} — {nombre_negocio}",
+            html
+        )
+        print(f"📧 Email en cola → {email_negocio}")
+    except Exception as e:
+        print(f"⚠️ Email nuevo pedido falló (no crítico): {e}")
 
 
 @checkout_api_bp.route('/tiendas/<slug>/checkout', methods=['POST', 'OPTIONS'])
@@ -336,6 +513,26 @@ def procesar_checkout(slug):
         try:
             db.session.commit()
             print("✅ Transacción completada exitosamente")
+
+            # ==========================================
+            # ★ EMAIL AL TENDERO (fire-and-forget, post-commit)
+            # ==========================================
+            if TIENE_EMAIL:
+                try:
+                    negocio_obj = Negocio.query.get(negocio_id)
+                    if negocio_obj:
+                        enviar_email_nuevo_pedido(
+                            pedido       = pedido,
+                            negocio      = negocio_obj,
+                            comprador    = comprador,
+                            productos_payload = productos,
+                            subtotal     = subtotal_final,
+                            descuento    = descuento_aplicado,
+                            costo_envio  = costo_envio_final,
+                            total        = total_final
+                        )
+                except Exception as email_err:
+                    print(f"⚠️ Email al tendero falló (no crítico): {email_err}")
 
             # Incrementar usos del cupón (post-commit, no crítico)
             if cupon_usado:
