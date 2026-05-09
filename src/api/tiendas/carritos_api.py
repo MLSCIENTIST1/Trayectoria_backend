@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-# TUKOMERCIO — Carritos Abandonados API v1.0
+# TUKOMERCIO — Carritos Abandonados API v1.1
 # ═══════════════════════════════════════════════════════════════════════════════
 #
 # Endpoints públicos (checkout.js):
@@ -11,6 +11,10 @@
 #   GET  /api/negocio/<id>/carritos            → lista (?estado=, ?page=)
 #   PUT  /api/negocio/<id>/carrito/<cid>/estado → ignorado | abandonado
 #
+# NOTA: Los modelos se importan de forma LAZY (primer request, no en startup).
+# Esto evita que CarritoAbandonado quede en el SQLAlchemy mapper registry
+# durante db.create_all() y cause conflictos que rompan otras rutas.
+#
 # ═══════════════════════════════════════════════════════════════════════════════
 
 import logging
@@ -19,15 +23,29 @@ from flask import Blueprint, request, jsonify
 logger = logging.getLogger(__name__)
 carritos_bp = Blueprint('carritos_bp', __name__)
 
-# ─── Imports defensivos ───────────────────────────────────────────────────────
-try:
-    from src.models.database import db
-    from src.models.colombia_data.contabilidad.carrito_abandonado import CarritoAbandonado
-    _OK = True
-except ImportError as e:
-    CarritoAbandonado = db = None
-    _OK = False
-    logger.error(f'❌ CarritoAbandonado model no disponible: {e}')
+# ─── Estado lazy de módulo ────────────────────────────────────────────────────
+_db  = None
+_CA  = None   # alias para CarritoAbandonado
+_OK  = None   # None = no intentado; True = OK; False = falló
+
+
+def _load():
+    """Carga los modelos la primera vez que se llama un endpoint."""
+    global _db, _CA, _OK
+    if _OK is not None:
+        return _OK
+    try:
+        from src.models.database import db as _db_mod
+        from src.models.colombia_data.contabilidad.carrito_abandonado import (
+            CarritoAbandonado as _CAmod
+        )
+        _db = _db_mod
+        _CA = _CAmod
+        _OK = True
+    except Exception as e:
+        logger.error(f'❌ CarritoAbandonado no disponible: {e}')
+        _OK = False
+    return _OK
 
 
 def _err(msg, code=400): return jsonify({'error': msg}), code
@@ -42,66 +60,58 @@ def _nav(): return _err('Módulo de carritos no disponible', 503)
 def guardar_carrito(negocio_id):
     """
     Fire-and-forget: guarda o actualiza el carrito de un comprador.
-    Llamado desde checkout.js cuando el usuario llena su teléfono.
     Siempre devuelve 200 para no bloquear el flujo de compra.
     """
-    if not _OK:
-        return jsonify({'ok': False}), 200   # nunca bloquear
-
+    if not _load():
+        return jsonify({'ok': False}), 200
     try:
         data     = request.get_json(silent=True) or {}
         telefono = (data.get('telefono') or '').strip()
-        if not telefono or not negocio_id:
+        if not telefono:
             return jsonify({'ok': False}), 200
 
         productos = data.get('productos') or []
-        total     = float(data.get('total') or 0)
-        nombre    = (data.get('nombre') or '').strip() or None
-        correo    = (data.get('correo')  or '').strip().lower() or None
-
         if not productos:
             return jsonify({'ok': False}), 200
 
-        CarritoAbandonado.upsert(
-            negocio_id=negocio_id,
-            telefono=telefono,
-            productos=productos,
-            total=total,
-            nombre=nombre,
-            correo=correo,
-        )
-        db.session.commit()
+        total  = float(data.get('total') or 0)
+        nombre = (data.get('nombre') or '').strip() or None
+        correo = (data.get('correo')  or '').strip().lower() or None
+
+        _CA.upsert(negocio_id=negocio_id, telefono=telefono,
+                   productos=productos, total=total, nombre=nombre, correo=correo)
+        _db.session.commit()
         return jsonify({'ok': True}), 200
 
     except Exception as e:
-        db.session.rollback()
+        try: _db.session.rollback()
+        except Exception: pass
         logger.error(f'Error guardar_carrito negocio {negocio_id}: {e}')
-        return jsonify({'ok': False}), 200   # nunca bloquear
+        return jsonify({'ok': False}), 200
 
 
 @carritos_bp.route('/negocio/<int:negocio_id>/carrito/recuperado', methods=['POST'])
 def marcar_recuperado(negocio_id):
     """
-    Llamado desde checkout_api cuando el pedido se crea exitosamente.
+    Llamado desde checkout.js cuando el pedido se completa.
     Body: { telefono, pedido_id? }
     """
-    if not _OK:
+    if not _load():
         return jsonify({'ok': False}), 200
-
     try:
         data      = request.get_json(silent=True) or {}
         telefono  = (data.get('telefono') or '').strip()
         pedido_id = data.get('pedido_id')
-
         if not telefono:
             return jsonify({'ok': False}), 200
 
-        CarritoAbandonado.marcar_recuperado(negocio_id, telefono, pedido_id)
-        db.session.commit()
+        _CA.marcar_recuperado(negocio_id, telefono, pedido_id)
+        _db.session.commit()
         return jsonify({'ok': True}), 200
 
     except Exception as e:
-        db.session.rollback()
+        try: _db.session.rollback()
+        except Exception: pass
         logger.error(f'Error marcar_recuperado negocio {negocio_id}: {e}')
         return jsonify({'ok': False}), 200
 
@@ -113,36 +123,33 @@ def marcar_recuperado(negocio_id):
 @carritos_bp.route('/negocio/<int:negocio_id>/carritos/resumen', methods=['GET'])
 def resumen_carritos(negocio_id):
     """Cards del encabezado del panel."""
-    if not _OK: return _nav()
+    if not _load(): return _nav()
     try:
         from sqlalchemy import func
 
-        tots = db.session.query(
-            CarritoAbandonado.estado,
-            func.count(CarritoAbandonado.id).label('qty'),
-            func.sum(CarritoAbandonado.total_estimado).label('valor'),
-        ).filter(
-            CarritoAbandonado.negocio_id == negocio_id
-        ).group_by(CarritoAbandonado.estado).all()
+        tots = _db.session.query(
+            _CA.estado,
+            func.count(_CA.id).label('qty'),
+            func.sum(_CA.total_estimado).label('valor'),
+        ).filter(_CA.negocio_id == negocio_id)\
+         .group_by(_CA.estado).all()
 
         mapa = {r.estado: {'qty': r.qty, 'valor': float(r.valor or 0)} for r in tots}
 
-        total_ab   = mapa.get('abandonado', {}).get('qty', 0)
-        valor_ab   = mapa.get('abandonado', {}).get('valor', 0.0)
-        total_rec  = mapa.get('recuperado', {}).get('qty', 0)
-        valor_rec  = mapa.get('recuperado', {}).get('valor', 0.0)
-        total_ig   = mapa.get('ignorado',   {}).get('qty', 0)
+        total_ab  = mapa.get('abandonado', {}).get('qty', 0)
+        valor_ab  = mapa.get('abandonado', {}).get('valor', 0.0)
+        total_rec = mapa.get('recuperado', {}).get('qty', 0)
+        valor_rec = mapa.get('recuperado', {}).get('valor', 0.0)
+        total_ig  = mapa.get('ignorado',   {}).get('qty', 0)
         total_todo = total_ab + total_rec + total_ig
 
-        tasa = round(total_rec / total_todo * 100, 1) if total_todo else 0
-
         return jsonify({
-            'abandonados':        total_ab,
-            'valor_abandonado':   valor_ab,
-            'recuperados':        total_rec,
-            'valor_recuperado':   valor_rec,
-            'ignorados':          total_ig,
-            'tasa_recuperacion':  tasa,
+            'abandonados':       total_ab,
+            'valor_abandonado':  valor_ab,
+            'recuperados':       total_rec,
+            'valor_recuperado':  valor_rec,
+            'ignorados':         total_ig,
+            'tasa_recuperacion': round(total_rec / total_todo * 100, 1) if total_todo else 0,
         })
     except Exception as e:
         logger.error(f'Error resumen_carritos negocio {negocio_id}: {e}')
@@ -151,25 +158,21 @@ def resumen_carritos(negocio_id):
 
 @carritos_bp.route('/negocio/<int:negocio_id>/carritos', methods=['GET'])
 def listar_carritos(negocio_id):
-    """
-    Lista de carritos del negocio.
-    ?estado=abandonado|recuperado|ignorado|todos  (default: abandonado)
-    ?page=1
-    """
-    if not _OK: return _nav()
+    """Lista paginada. ?estado=abandonado|recuperado|ignorado|todos  ?page=1"""
+    if not _load(): return _nav()
 
     estado = request.args.get('estado', 'abandonado')
     page   = max(1, int(request.args.get('page', 1)))
     PER    = 20
 
     try:
-        q = CarritoAbandonado.query.filter_by(negocio_id=negocio_id)
+        q = _CA.query.filter_by(negocio_id=negocio_id)
         if estado != 'todos':
             q = q.filter_by(estado=estado)
-        q = q.order_by(CarritoAbandonado.updated_at.desc())
+        q = q.order_by(_CA.updated_at.desc())
 
-        total  = q.count()
-        items  = q.offset((page - 1) * PER).limit(PER).all()
+        total = q.count()
+        items = q.offset((page - 1) * PER).limit(PER).all()
 
         return jsonify({
             'carritos':    [c.to_dict() for c in items],
@@ -185,20 +188,21 @@ def listar_carritos(negocio_id):
 
 @carritos_bp.route('/negocio/<int:negocio_id>/carrito/<int:carrito_id>/estado', methods=['PUT'])
 def actualizar_estado(negocio_id, carrito_id):
-    """El tendero marca un carrito como ignorado (o lo vuelve a abandonado)."""
-    if not _OK: return _nav()
+    """El tendero marca un carrito como ignorado o lo restaura a abandonado."""
+    if not _load(): return _nav()
     data   = request.get_json() or {}
     nuevo  = (data.get('estado') or '').strip()
-    validos = ('ignorado', 'abandonado')
-    if nuevo not in validos:
-        return _err(f'Estado inválido. Usa: {validos}')
+    if nuevo not in ('ignorado', 'abandonado'):
+        return _err('Estado inválido. Usa: ignorado | abandonado')
     try:
-        c = CarritoAbandonado.query.filter_by(id=carrito_id, negocio_id=negocio_id).first()
+        c = _CA.query.filter_by(id=carrito_id, negocio_id=negocio_id).first()
         if not c: return _err('Carrito no encontrado', 404)
-        if c.estado == 'recuperado': return _err('No se puede modificar un carrito recuperado')
+        if c.estado == 'recuperado':
+            return _err('No se puede modificar un carrito recuperado')
         c.estado = nuevo
-        db.session.commit()
+        _db.session.commit()
         return jsonify({'success': True, 'carrito': c.to_dict()})
     except Exception as e:
-        db.session.rollback()
+        try: _db.session.rollback()
+        except Exception: pass
         return _err(str(e), 500)

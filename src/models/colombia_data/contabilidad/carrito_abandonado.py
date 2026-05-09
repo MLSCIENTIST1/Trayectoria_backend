@@ -58,7 +58,9 @@ class CarritoAbandonado(db.Model):
         onupdate=lambda: datetime.now(timezone.utc)
     )
 
-    negocio = db.relationship('Negocio', foreign_keys=[negocio_id])
+    # Nota: sin relationship a Negocio — la API filtra por negocio_id directamente.
+    # Evita conflictos de mapper en startup cuando el modelo se importa fuera
+    # del ciclo principal de models/__init__.py.
 
     __table_args__ = (
         db.UniqueConstraint('negocio_id', 'telefono', name='uq_carrito_negocio_tel'),
