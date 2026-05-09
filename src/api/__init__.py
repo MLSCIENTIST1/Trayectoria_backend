@@ -344,6 +344,12 @@ def register_api(app):
         success_count += 1
     else:
         fail_count += 1
+
+    # 📊 Analytics de tienda + Trust strip pública
+    if safe_register('src.api.tiendas.analytics_api', 'analytics_bp', 'Analytics Tienda v1.0', prefix='/api'):
+        success_count += 1
+    else:
+        fail_count += 1
     
     # ==========================================
     # 💰 CONTABILIDAD E INVENTARIO
