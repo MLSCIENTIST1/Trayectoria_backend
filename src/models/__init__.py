@@ -109,6 +109,7 @@ from src.models.colombia_data.negocio import Negocio
 from src.models.colombia_data.sucursales import Sucursal
 from src.models.colombia_data.contabilidad.operaciones_y_catalogo import ProductoCatalogo, ProductoReview
 from src.models.colombia_data.contabilidad.cupones import Cupon
+from src.models.colombia_data.contabilidad.wompi_config import WompiConfig
 
 # ==========================================
 # MODELOS DE CALIFICACIONES Y RATINGS

@@ -338,6 +338,12 @@ def register_api(app):
         success_count += 1
     else:
         fail_count += 1
+
+    # 💳 Wompi — Pagos en línea
+    if safe_register('src.api.tiendas.wompi_api', 'wompi_bp', 'Wompi Pagos en Línea v1.0', prefix='/api'):
+        success_count += 1
+    else:
+        fail_count += 1
     
     # ==========================================
     # 💰 CONTABILIDAD E INVENTARIO
