@@ -108,7 +108,9 @@ from src.models.colombia_data.colombia_feedbacks import Feedback
 from src.models.colombia_data.negocio import Negocio
 from src.models.colombia_data.sucursales import Sucursal
 from src.models.colombia_data.contabilidad.operaciones_y_catalogo import ProductoCatalogo, ProductoReview
-from src.models.colombia_data.contabilidad.carrito_abandonado import CarritoAbandonado
+# CarritoAbandonado se importa directamente en carritos_api.py — no se registra
+# en db.create_all() para evitar problemas de startup. La tabla se crea vía SQL
+# en las migraciones de src/__init__.py.
 from src.models.colombia_data.contabilidad.cupones import Cupon
 from src.models.colombia_data.contabilidad.wompi_config import WompiConfig
 from src.models.colombia_data.contabilidad.tienda_visita import TiendaVisita

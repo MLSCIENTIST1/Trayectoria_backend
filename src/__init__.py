@@ -385,6 +385,24 @@ def create_app():
                     "ALTER TABLE transacciones_operativas ADD COLUMN IF NOT EXISTS motivo_anulacion VARCHAR(255)",
                     # pedido_id nullable en devoluciones (para devoluciones libres)
                     "ALTER TABLE devoluciones ALTER COLUMN pedido_id DROP NOT NULL",
+                    # ── Carritos abandonados v1.0 ──────────────────────────────────────────
+                    """CREATE TABLE IF NOT EXISTS carritos_abandonados (
+                        id          SERIAL PRIMARY KEY,
+                        negocio_id  INTEGER NOT NULL REFERENCES negocios(id_negocio) ON DELETE CASCADE,
+                        telefono    VARCHAR(25) NOT NULL,
+                        nombre      VARCHAR(120),
+                        correo      VARCHAR(150),
+                        productos   JSONB DEFAULT '[]',
+                        total_estimado NUMERIC(12,2) DEFAULT 0,
+                        num_items   INTEGER DEFAULT 0,
+                        estado      VARCHAR(20) NOT NULL DEFAULT 'abandonado',
+                        pedido_id   INTEGER,
+                        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at  TIMESTAMPTZ DEFAULT NOW(),
+                        CONSTRAINT uq_carrito_negocio_tel UNIQUE (negocio_id, telefono)
+                    )""",
+                    "CREATE INDEX IF NOT EXISTS ix_carritos_negocio ON carritos_abandonados(negocio_id)",
+                    "CREATE INDEX IF NOT EXISTS ix_carritos_estado  ON carritos_abandonados(estado)",
                 ]
                 for sql in migraciones:
                     try:
@@ -428,6 +446,10 @@ def create_app():
                 
         except Exception as e:
             logger.error(f"❌ Error al crear tablas: {e}")
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
     
     # ==========================================
     # REGISTRO DE BLUEPRINTS
