@@ -111,6 +111,7 @@ from src.models.colombia_data.contabilidad.operaciones_y_catalogo import Product
 from src.models.colombia_data.contabilidad.cupones import Cupon
 from src.models.colombia_data.contabilidad.wompi_config import WompiConfig
 from src.models.colombia_data.contabilidad.tienda_visita import TiendaVisita
+from src.models.colombia_data.equipo import EmpleadoNegocio
 
 # ==========================================
 # MODELOS DE CALIFICACIONES Y RATINGS

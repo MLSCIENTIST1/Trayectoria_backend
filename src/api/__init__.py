@@ -350,6 +350,12 @@ def register_api(app):
         success_count += 1
     else:
         fail_count += 1
+
+    # 👥 Multi-usuario — Equipo del negocio
+    if safe_register('src.api.negocio.equipo_api', 'equipo_bp', 'Equipo Multi-usuario v1.0', prefix='/api'):
+        success_count += 1
+    else:
+        fail_count += 1
     
     # ==========================================
     # 💰 CONTABILIDAD E INVENTARIO
