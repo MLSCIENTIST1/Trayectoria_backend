@@ -830,6 +830,35 @@ def register_api(app):
             fail_count += 1
     
     # ==========================================
+    # 🎯 LEADS ADMIN — Gestor de leads Meta Ads
+    # ==========================================
+    print("\n" + "=" * 70)
+    print("🎯🎯🎯 SECCIÓN: LEADS ADMIN — Gestor de Campaña 🎯🎯🎯")
+    print("=" * 70)
+
+    print("🎯 Endpoints disponibles:")
+    print("   → GET    /api/admin/leads                        - Listar leads (filtros + paginación)")
+    print("   → POST   /api/admin/leads                        - Crear lead")
+    print("   → PUT    /api/admin/leads/<id>                   - Actualizar lead")
+    print("   → DELETE /api/admin/leads/<id>                   - Eliminar lead")
+    print("   → POST   /api/admin/leads/<id>/marcar-enviado    - Registrar envío WA")
+    print("   → GET    /api/admin/leads/proximos-recordatorios - Recordatorios pendientes")
+    print("   → GET    /api/admin/leads/estadisticas           - Resumen numérico")
+    print("   → GET    /api/admin/leads/plantillas             - Listar plantillas")
+    print("   → POST   /api/admin/leads/plantillas             - Crear plantilla")
+    print("   → PUT    /api/admin/leads/plantillas/<id>        - Actualizar plantilla")
+    print("   → DELETE /api/admin/leads/plantillas/<id>        - Desactivar plantilla")
+
+    if safe_register('src.api.admin.leads_admin_api', 'leads_admin_bp', 'Leads Admin API', prefix='/api/admin/leads'):
+        success_count += 1
+        print("🎯 ✅✅✅ LEADS ADMIN API CARGADO EXITOSAMENTE ✅✅✅")
+    else:
+        fail_count += 1
+        print("🎯 ❌❌❌ LEADS ADMIN API FALLÓ AL CARGAR ❌❌❌")
+
+    print("=" * 70)
+
+    # ==========================================
     # 📊 RESUMEN FINAL
     # ==========================================
     print("\n" + "=" * 70)

@@ -160,6 +160,7 @@ from src.models.restaurante.restaurante import (
     Comanda,
     ItemComanda,
 )
+from src.models.leads.lead import LeadCampana, PlantillaMensaje
 
 # Configurar logging
 logger = logging.getLogger(__name__)
