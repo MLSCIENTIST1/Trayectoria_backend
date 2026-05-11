@@ -405,6 +405,8 @@ def create_app():
                     "CREATE INDEX IF NOT EXISTS ix_carritos_estado  ON carritos_abandonados(estado)",
                     # ── Configuración de envíos por negocio v2.7 ──────────────────────────
                     "ALTER TABLE negocios ADD COLUMN IF NOT EXISTS config_envios JSONB DEFAULT '{}'",
+                    # ── Variantes de producto v2.5 ─────────────────────────────────────────
+                    "ALTER TABLE productos_catalogo ADD COLUMN IF NOT EXISTS variantes TEXT DEFAULT NULL",
                 ]
                 for sql in migraciones:
                     try:
@@ -416,6 +418,43 @@ def create_app():
                 logger.info("✅ Migraciones automáticas de columnas aplicadas")
             except Exception as mig_err:
                 logger.warning(f"⚠️  Error en bloque de migraciones automáticas: {mig_err}")
+
+            # ──────────────────────────────────────────────────────────────────
+            # SEED: Feature Flags faltantes en BD
+            # INSERT ... ON CONFLICT (key) DO NOTHING — seguro si ya existen
+            # ──────────────────────────────────────────────────────────────────
+            try:
+                from sqlalchemy import text as _text
+                nuevas_features = [
+                    # Sprint 3
+                    ("pedidos_compradores", "Gestión de Compradores",
+                     "CRUD de compradores. Magic Links sin contraseña. Múltiples direcciones. Conversión a usuario completo. CRM de historial de compras.", "pedidos", 55),
+                    ("pedidos_devoluciones", "Módulo de Devoluciones",
+                     "Devolución asociada a pedido o libre. Devuelve stock automáticamente. Con motivo y registro en historial. Devolución libre para casos sin pedido previo.", "pedidos", 56),
+                    # Sprint 4
+                    ("tienda_email_comprador", "Email automático al comprador",
+                     "Al completarse el checkout el comprador recibe confirmación con resumen del pedido y link a Heyden. Solo si tiene correo. Fire-and-forget en background thread.", "tienda", 57),
+                    ("tienda_pwa", "PWA — Tienda instalable como app",
+                     "manifest.json dinámico por negocio. Service Worker con cache-first para assets. Botón Instalar app con beforeinstallprompt. API nunca interceptada.", "tienda", 58),
+                    ("tienda_seo_og", "SEO — og:tags dinámicos por tienda",
+                     "og:title, og:description, og:image actualizados con datos del negocio. Mejora previsualización en WhatsApp, Facebook y Twitter.", "tienda", 59),
+                    # v2.5
+                    ("inv_variantes", "Inventario — Variantes de producto",
+                     "Define dimensiones del producto (Talla, Color, Material) con sus opciones. El comprador selecciona combinación antes de agregar al carrito. Variantes distintas son ítems independientes.", "catalogo", 60),
+                ]
+                for _key, _nombre, _desc, _cat, _orden in nuevas_features:
+                    db.session.execute(_text("""
+                        INSERT INTO feature_flags
+                            (key, nombre, descripcion, categoria, activo_global, visible, orden, created_at, updated_at)
+                        VALUES
+                            (:key, :nombre, :desc, :cat, true, true, :orden, NOW(), NOW())
+                        ON CONFLICT (key) DO NOTHING
+                    """), {"key": _key, "nombre": _nombre, "desc": _desc, "cat": _cat, "orden": _orden})
+                db.session.commit()
+                logger.info("✅ Seed de feature flags nuevas aplicado")
+            except Exception as seed_err:
+                db.session.rollback()
+                logger.warning(f"⚠️  Error en seed de feature flags: {seed_err}")
 
             # ==========================================
             # INICIALIZAR BADGES DE TRAYECTORIA (AUTOMÁTICO)

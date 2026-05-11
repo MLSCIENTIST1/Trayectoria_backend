@@ -867,7 +867,27 @@ def guardar_producto_catalogo():
             nuevo_prod.personalizacion_activa = personalizacion_activa
         if hasattr(nuevo_prod, 'personalizacion_config'):
             nuevo_prod.personalizacion_config = json.dumps(personalizacion_config)
-        
+
+        # ★ v2.5: Asignar variantes
+        variantes_raw = data.get('variantes')
+        if variantes_raw and hasattr(nuevo_prod, 'variantes'):
+            try:
+                if isinstance(variantes_raw, str):
+                    variantes_obj = json.loads(variantes_raw)
+                else:
+                    variantes_obj = variantes_raw
+                # Validar estructura mínima
+                if isinstance(variantes_obj, dict) and 'tipos' in variantes_obj and isinstance(variantes_obj['tipos'], list):
+                    nuevo_prod.variantes = json.dumps(variantes_obj)
+                    logger.info(f"🎛️ Variantes asignadas: {len(variantes_obj['tipos'])} tipo(s)")
+                else:
+                    nuevo_prod.variantes = None
+            except Exception as ve:
+                logger.warning(f"⚠️ Error parseando variantes al crear: {ve}")
+                nuevo_prod.variantes = None
+        elif hasattr(nuevo_prod, 'variantes'):
+            nuevo_prod.variantes = None
+
         db.session.add(nuevo_prod)
         db.session.commit()
 
@@ -878,8 +898,10 @@ def guardar_producto_catalogo():
         producto_dict['personalizable'] = personalizacion_activa
         producto_dict['personalizacion_config'] = personalizacion_config if personalizacion_activa else None
         producto_dict['es_dropshipping'] = getattr(nuevo_prod, 'es_dropshipping', False) or False
+        producto_dict['variantes'] = parse_json_field(getattr(nuevo_prod, 'variantes', None), None)
+        producto_dict['tiene_variantes'] = bool(producto_dict['variantes'] and producto_dict['variantes'].get('tipos'))
 
-        logger.info(f"✅ PRODUCTO CREADO: {nombre} - ID: {nuevo_prod.id_producto} | Personalizable: {personalizacion_activa} | Dropshipping: {producto_dict['es_dropshipping']}")
+        logger.info(f"✅ PRODUCTO CREADO: {nombre} - ID: {nuevo_prod.id_producto} | Personalizable: {personalizacion_activa} | Dropshipping: {producto_dict['es_dropshipping']} | Variantes: {producto_dict['tiene_variantes']}")
 
         return jsonify({
             "success": True,
@@ -973,6 +995,26 @@ def actualizar_producto(id_producto):
                 producto.personalizacion_config = json.dumps(personalizacion_config)
 
             logger.info(f"🎨 Personalización actualizada: activa={personalizacion_activa}")
+
+        # ★ v2.5: Variantes
+        if 'variantes' in data and hasattr(producto, 'variantes'):
+            variantes_raw = data.get('variantes')
+            if variantes_raw in (None, '', 'null', '{}'):
+                producto.variantes = None
+                logger.info(f"🎛️ Variantes eliminadas del producto {id_producto}")
+            else:
+                try:
+                    if isinstance(variantes_raw, str):
+                        variantes_obj = json.loads(variantes_raw)
+                    else:
+                        variantes_obj = variantes_raw
+                    if isinstance(variantes_obj, dict) and 'tipos' in variantes_obj and isinstance(variantes_obj['tipos'], list):
+                        producto.variantes = json.dumps(variantes_obj)
+                        logger.info(f"🎛️ Variantes actualizadas: {len(variantes_obj['tipos'])} tipo(s)")
+                    else:
+                        producto.variantes = None
+                except Exception as ve:
+                    logger.warning(f"⚠️ Error parseando variantes al actualizar: {ve}")
 
         # Dropshipping
         if 'es_dropshipping' in data and hasattr(producto, 'es_dropshipping'):
@@ -1095,8 +1137,10 @@ def actualizar_producto(id_producto):
         producto_dict['personalizable'] = getattr(producto, 'personalizacion_activa', False)
         producto_dict['personalizacion_config'] = parse_json_field(getattr(producto, 'personalizacion_config', '{}'), {}) if producto_dict['personalizable'] else None
         producto_dict['es_dropshipping'] = getattr(producto, 'es_dropshipping', False) or False
+        producto_dict['variantes'] = parse_json_field(getattr(producto, 'variantes', None), None)
+        producto_dict['tiene_variantes'] = bool(producto_dict['variantes'] and producto_dict['variantes'].get('tipos'))
 
-        logger.info(f"✅ Producto {id_producto} actualizado | Personalización: {producto_dict['personalizable']} | Dropshipping: {producto_dict['es_dropshipping']}")
+        logger.info(f"✅ Producto {id_producto} actualizado | Personalización: {producto_dict['personalizable']} | Dropshipping: {producto_dict['es_dropshipping']} | Variantes: {producto_dict['tiene_variantes']}")
 
         return jsonify({"success": True, "message": "Producto actualizado", "producto": producto_dict}), 200
 
@@ -2588,7 +2632,12 @@ def catalogo_publico(negocio_id):
                     campos['personalizacion_config']     = None
                     campos['costo_personalizacion']      = 0
                     campos['precio_con_personalizacion'] = campos['precio']
- 
+
+                # ★ v2.5: Variantes
+                variantes_data = parse_json_field(getattr(p, 'variantes', None), None)
+                campos['variantes']       = variantes_data
+                campos['tiene_variantes'] = bool(variantes_data and variantes_data.get('tipos'))
+
                 datos_publicos.append(campos)
  
             except Exception as e:

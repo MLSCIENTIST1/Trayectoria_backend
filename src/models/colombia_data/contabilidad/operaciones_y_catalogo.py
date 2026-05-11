@@ -566,6 +566,19 @@ class ProductoCatalogo(db.Model):
     # }
     
     # ==========================================
+    # ★ VARIANTES DE PRODUCTO (v2.5 - NUEVO)
+    # ==========================================
+    # Permite definir talla, color u otras dimensiones
+    # Estructura JSON almacenada como TEXT:
+    # {
+    #   "tipos": [
+    #     {"nombre": "Talla", "opciones": ["S", "M", "L", "XL"]},
+    #     {"nombre": "Color", "opciones": ["Rojo", "Azul", "Negro"]}
+    #   ]
+    # }
+    variantes = sa.Column(sa.Text, nullable=True, default=None)
+
+    # ==========================================
     # PROMOCIONES PROGRAMADAS
     # ==========================================
     promo_inicio = sa.Column(sa.DateTime, nullable=True)
@@ -677,6 +690,18 @@ class ProductoCatalogo(db.Model):
                 self.personalizacion_config = '{}'
         else:
             self.personalizacion_config = '{}'
+
+        # ★ Variantes v2.5
+        variantes = kwargs.get('variantes')
+        if variantes:
+            if isinstance(variantes, dict):
+                self.variantes = json.dumps(variantes)
+            elif isinstance(variantes, str):
+                self.variantes = variantes
+            else:
+                self.variantes = None
+        else:
+            self.variantes = None
     
     # ==========================================
     # HELPER PARA PARSEAR JSON
@@ -1105,6 +1130,10 @@ class ProductoCatalogo(db.Model):
             "personalizacion_activa": bool(self.personalizacion_activa),
             "personalizacion_config": self.get_personalizacion_config(),
             "costo_personalizacion": self.get_costo_personalizacion(),
+
+            # ★ VARIANTES (v2.5)
+            "variantes": self._parse_json_field(self.variantes, None),
+            "tiene_variantes": bool(self.variantes and self._parse_json_field(self.variantes, {}).get('tipos')),
             
             # ESTADO
             "activo": self.activo,
