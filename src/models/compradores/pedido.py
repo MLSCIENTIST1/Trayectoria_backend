@@ -548,15 +548,16 @@ class Pedido(db.Model):
         return cls.generar_codigo(negocio_id, prefijo)
     
     @classmethod
-    def crear_pedido(cls, comprador, direccion, negocio_data, productos, 
-                     subtotal, costo_envio, total, metodo_pago, 
-                     notas_cliente=None, metodo_contacto='whatsapp', origen='web'):  # ★ NUEVO parámetro
+    def crear_pedido(cls, comprador, direccion, negocio_data, productos,
+                     subtotal, costo_envio, total, metodo_pago,
+                     notas_cliente=None, metodo_contacto='whatsapp', origen='web',
+                     referencia_pago=None):  # ★ referencia Wompi / pasarela
         """Crea un nuevo pedido."""
-        
+
         # Generar código
         prefijo = negocio_data.get('slug', 'PED')[:3].upper()
         codigo = cls.generar_codigo(negocio_data['id'], prefijo)
-        
+
         pedido = cls(
             codigo_pedido=codigo,
             comprador_id=(comprador.id_comprador if hasattr(comprador, 'id_comprador')
@@ -564,19 +565,20 @@ class Pedido(db.Model):
                           else None),
             negocio_id=negocio_data['id'],
             direccion_id=direccion.id_direccion if hasattr(direccion, 'id_direccion') else None,
-            
+
             datos_comprador=comprador.to_dict_pedido() if hasattr(comprador, 'to_dict_pedido') else comprador,
             datos_envio=direccion.to_dict_pedido() if hasattr(direccion, 'to_dict_pedido') else direccion,
             datos_negocio=negocio_data,
-            
+
             productos=productos,
             subtotal=subtotal,
             costo_envio=costo_envio,
             total=total,
             metodo_pago=metodo_pago,
-            metodo_contacto=metodo_contacto,  # ★ NUEVO
+            metodo_contacto=metodo_contacto,
             notas_cliente=notas_cliente,
-            origen=origen
+            origen=origen,
+            referencia_pago=referencia_pago,        # ★ Wompi TK-{nid}-{ts}
         )
         
         db.session.add(pedido)

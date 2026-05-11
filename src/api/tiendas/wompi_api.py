@@ -11,9 +11,11 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 import hashlib
+import hmac
 import time
 import logging
 
+import requests as http_requests
 from flask import Blueprint, request, jsonify
 from src.models.database import db
 
@@ -177,3 +179,152 @@ def crear_sesion_wompi(negocio_id):
     except Exception as e:
         logger.error(f'Error POST wompi/session negocio {negocio_id}: {e}')
         return jsonify({'error': str(e)}), 500
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /api/negocio/<id>/wompi/verify?tx_id=WOMPI_TRANSACTION_ID
+# Consulta el estado real de una transacción Wompi (PSE, Nequi async).
+# Llamado desde pago-exitoso.html para mostrar el estado correcto.
+# ─────────────────────────────────────────────────────────────────────────────
+@wompi_bp.route('/negocio/<int:negocio_id>/wompi/verify', methods=['GET'])
+def verify_wompi_transaction(negocio_id):
+    """Consulta una transacción en la API de Wompi y devuelve su estado."""
+    if not _WOMPI_OK:
+        return _not_available()
+
+    tx_id = request.args.get('tx_id', '').strip()
+    if not tx_id:
+        return jsonify({'error': 'Falta el parámetro tx_id'}), 400
+
+    try:
+        cfg = WompiConfig.query.filter_by(negocio_id=negocio_id).first()
+        if not cfg or not cfg.public_key:
+            return jsonify({'error': 'Wompi no configurado para esta tienda'}), 404
+
+        base = ('https://sandbox.wompi.co/v1'
+                if cfg.ambiente == 'test'
+                else 'https://production.wompi.co/v1')
+
+        resp = http_requests.get(
+            f'{base}/transactions/{tx_id}',
+            headers={'Authorization': f'Bearer {cfg.public_key}'},
+            timeout=10
+        )
+        if not resp.ok:
+            logger.warning(f'Wompi verify tx {tx_id}: HTTP {resp.status_code}')
+            return jsonify({'status': 'ERROR', 'detail': 'No se pudo consultar a Wompi'}), 502
+
+        tx_data = resp.json().get('data', {})
+        return jsonify({
+            'status':    tx_data.get('status', 'UNKNOWN'),
+            'reference': tx_data.get('reference'),
+            'amount':    tx_data.get('amount_in_cents', 0) / 100,
+            'currency':  tx_data.get('currency', 'COP'),
+        })
+
+    except Exception as e:
+        logger.error(f'Error verify wompi tx {tx_id}: {e}')
+        return jsonify({'error': str(e)}), 500
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# POST /api/wompi/webhook
+# Recibe eventos asíncronos de Wompi (PSE, Nequi, pagos pendientes).
+# Valida X-Event-Checksum y actualiza el estado del pedido.
+#
+# Wompi envía:
+#   POST con body JSON:
+#   {
+#     "event": "transaction.updated",
+#     "data": { "transaction": { "id", "status", "reference",
+#                                "amount_in_cents", "currency",
+#                                "payment_method_type", ... } },
+#     "sent_at": "..."
+#   }
+#
+# Checksum header: X-Event-Checksum
+#   sha256( tx.id + tx.status + tx.reference + tx.amount_in_cents
+#           + tx.currency + tx.payment_method_type + events_key )
+# ─────────────────────────────────────────────────────────────────────────────
+@wompi_bp.route('/wompi/webhook', methods=['POST'])
+def wompi_webhook():
+    """Webhook global de Wompi — actualiza estado de pedidos tras pago async."""
+    if not _WOMPI_OK:
+        # Devolver 200 para que Wompi no reintente indefinidamente
+        return jsonify({'ok': False, 'reason': 'módulo no disponible'}), 200
+
+    payload = request.get_json(silent=True) or {}
+    event   = payload.get('event', '')
+    tx      = (payload.get('data') or {}).get('transaction') or {}
+
+    if not tx:
+        logger.warning('Wompi webhook: payload sin transaction')
+        return jsonify({'ok': True}), 200  # ignorar eventos vacíos
+
+    # ── Extraer negocio_id desde la referencia (TK-{negocio_id}-{ts}) ──────
+    reference = tx.get('reference', '')
+    negocio_id = None
+    if reference.startswith('TK-'):
+        partes = reference.split('-')
+        if len(partes) >= 3:
+            try:
+                negocio_id = int(partes[1])
+            except ValueError:
+                pass
+
+    if not negocio_id:
+        logger.warning(f'Wompi webhook: referencia no parseable "{reference}"')
+        return jsonify({'ok': True}), 200
+
+    # ── Validar checksum ────────────────────────────────────────────────────
+    checksum_header = request.headers.get('X-Event-Checksum', '')
+    cfg = WompiConfig.query.filter_by(negocio_id=negocio_id).first()
+    if cfg and cfg.events_key and checksum_header:
+        pre = (
+            str(tx.get('id', ''))
+            + str(tx.get('status', ''))
+            + str(tx.get('reference', ''))
+            + str(tx.get('amount_in_cents', ''))
+            + str(tx.get('currency', ''))
+            + str(tx.get('payment_method_type', ''))
+            + cfg.events_key
+        )
+        expected = hashlib.sha256(pre.encode('utf-8')).hexdigest()
+        if not hmac.compare_digest(expected, checksum_header):
+            logger.warning(f'Wompi webhook: checksum inválido para negocio {negocio_id}')
+            return jsonify({'ok': False, 'reason': 'checksum inválido'}), 401
+
+    # ── Actualizar pedido ───────────────────────────────────────────────────
+    try:
+        from src.models.compradores.pedido import Pedido
+
+        pedido = Pedido.query.filter_by(
+            negocio_id=negocio_id,
+            referencia_pago=reference
+        ).first()
+
+        if not pedido:
+            # PSE/Nequi: el pedido aún no existe; Wompi reintentará
+            logger.info(f'Wompi webhook: pedido con ref "{reference}" no encontrado (aún no creado)')
+            return jsonify({'ok': True}), 200
+
+        status = tx.get('status', '')
+        if status == 'APPROVED':
+            pedido.estado_pago = 'pagado'
+            pedido.estado = 'confirmado'
+        elif status == 'DECLINED':
+            pedido.estado_pago = 'fallido'
+        elif status == 'VOIDED':
+            pedido.estado_pago = 'anulado'
+        # PENDING: no cambiar — ya está en pendiente
+
+        db.session.commit()
+        logger.info(f'✅ Wompi webhook procesado: pedido {pedido.codigo_pedido} → {status}')
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Error procesando webhook Wompi: {e}')
+        # Devolver 200 de todas formas para evitar retries infinitos
+        return jsonify({'ok': False, 'reason': str(e)}), 200
+
+    return jsonify({'ok': True}), 200

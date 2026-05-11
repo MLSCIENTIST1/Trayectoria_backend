@@ -621,7 +621,8 @@ def procesar_checkout(slug):
             metodo_pago=data.get('metodo_pago', 'efectivo'),
             notas_cliente=data.get('notas'),
             metodo_contacto='whatsapp',
-            origen='web'
+            origen='web',
+            referencia_pago=data.get('wompi_referencia') or None,  # ★ Wompi TK-{nid}-{ts}
         )
 
         # Guardar el descuento en el pedido
