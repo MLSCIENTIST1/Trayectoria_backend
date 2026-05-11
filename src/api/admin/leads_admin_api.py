@@ -14,7 +14,7 @@ from sqlalchemy import or_
 
 from src.models.database import db
 from src.models.leads.lead import LeadCampana, PlantillaMensaje
-from src.api.auth.auth_system import superadmin_required
+from src.api.admin_api import superadmin_required
 
 logger = logging.getLogger(__name__)
 

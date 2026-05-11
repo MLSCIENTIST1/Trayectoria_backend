@@ -105,12 +105,13 @@ if not logger.handlers:
 class Notification(db.Model):
     """
     Modelo unificado de notificaciones.
-    
+
     Tipos de uso:
     1. Social (usuario a usuario): sender_id + user_id
     2. Negocio (sistema a negocio): negocio_id + user_id (opcional)
     """
     __tablename__ = "notification"
+    __table_args__ = {'extend_existing': True}
 
     # ==========================================
     # TIPOS DE NOTIFICACIÓN

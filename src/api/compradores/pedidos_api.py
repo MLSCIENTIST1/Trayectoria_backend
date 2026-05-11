@@ -89,11 +89,12 @@ from src.models.database import db
 class Pedido(db.Model):
     """
     Modelo de Pedido.
-    
+
     Representa una orden de compra realizada por un comprador
     en una tienda del ecosistema Trayectoria.
     """
     __tablename__ = 'pedidos'
+    __table_args__ = {'extend_existing': True}
     
     # ==========================================
     # ESTADOS DEL PEDIDO
@@ -488,6 +489,7 @@ class PedidoHistorial(db.Model):
     Historial de cambios de estado del pedido.
     """
     __tablename__ = 'pedido_historial'
+    __table_args__ = {'extend_existing': True}
     
     id_historial = db.Column(db.Integer, primary_key=True)
     pedido_id = db.Column(

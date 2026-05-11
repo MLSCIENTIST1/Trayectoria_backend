@@ -90,7 +90,7 @@ import uuid
 class Comprador(db.Model):
     """
     Modelo de Comprador - Usuarios que compran en las tiendas.
-    
+
     Un comprador puede:
     - Comprar como invitado (sin contraseña)
     - Registrarse para guardar sus datos
@@ -100,6 +100,7 @@ class Comprador(db.Model):
     - [NUEVO] Convertirse en usuario completo de la plataforma
     """
     __tablename__ = 'compradores'
+    __table_args__ = {'extend_existing': True}
     
     # ==========================================
     # CAMPOS PRINCIPALES
