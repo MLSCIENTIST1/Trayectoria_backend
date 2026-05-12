@@ -1164,8 +1164,9 @@ def delete_usuario(user_id):
         """, (user_id, user_id, user_id))
 
         # movimientos_stock / categorias_producto que apuntan al usuario directamente
-        cur.execute("UPDATE movimientos_stock   SET usuario_id = NULL WHERE usuario_id = %s", (user_id,))
-        cur.execute("UPDATE categorias_producto SET usuario_id = NULL WHERE usuario_id = %s", (user_id,))
+        # (usuario_id es NOT NULL en ambas → DELETE, no SET NULL)
+        cur.execute("DELETE FROM movimientos_stock   WHERE usuario_id = %s", (user_id,))
+        cur.execute("DELETE FROM categorias_producto WHERE usuario_id = %s", (user_id,))
 
         # ── 3. Borrado final ──
         # CASCADE de la BD elimina: negocios → productos, sucursales,
