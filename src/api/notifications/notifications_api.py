@@ -556,4 +556,4 @@ class Notification(db.Model):
 # Importaciones al final para evitar problemas de importación circular
 from src.models.message import Message
 from src.models.usuarios import Usuario
-from src.models.negocio import Negocio
+from src.models.colombia_data.negocio import Negocio

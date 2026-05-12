@@ -296,11 +296,13 @@ def register_api(app):
     print("=" * 50)
     logger.info("\n🛒 Cargando módulos de compradores y pedidos...")
     
+    # NOTA: compradores_api.py y pedidos_api.py son archivos de modelo (db.Model),
+    # no tienen Blueprint. Sus rutas están en otros módulos.
     compradores_modules = [
-        ('src.api.compradores.compradores_api', 'compradores_api_bp', 'Gestión de Compradores'),
-        ('src.api.compradores.pedidos_api', 'pedidos_api_bp', 'Gestión de Pedidos'),
+        # ('src.api.compradores.compradores_api', 'compradores_api_bp', 'Gestión de Compradores'),
+        # ('src.api.compradores.pedidos_api', 'pedidos_api_bp', 'Gestión de Pedidos'),
     ]
-    
+
     for module_path, bp_name, display_name in compradores_modules:
         if safe_register(module_path, bp_name, display_name):
             success_count += 1

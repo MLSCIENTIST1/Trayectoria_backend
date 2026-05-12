@@ -524,7 +524,16 @@ def eliminar_negocio(negocio_id):
         return jsonify({'error': 'Confirmación incorrecta. Envía confirmar="ELIMINAR-{id}"'}), 400
 
     try:
-        db.session.execute(text("DELETE FROM negocios WHERE id_negocio = :nid"), {'nid': negocio_id})
+        nid = negocio_id
+        # Limpiar FKs sin ondelete=CASCADE antes del DELETE principal
+        db.session.execute(text("DELETE FROM transacciones_operativas WHERE negocio_id = :nid"), {'nid': nid})
+        db.session.execute(text("DELETE FROM movimientos_stock    WHERE negocio_id = :nid"), {'nid': nid})
+        db.session.execute(text("DELETE FROM categorias_producto  WHERE negocio_id = :nid"), {'nid': nid})
+        db.session.execute(text("UPDATE notification SET negocio_id = NULL WHERE negocio_id = :nid"), {'nid': nid})
+        db.session.execute(text("UPDATE servicio SET negocio_contratante_id = NULL WHERE negocio_contratante_id = :nid"), {'nid': nid})
+        db.session.execute(text("UPDATE servicio SET negocio_contratado_id  = NULL WHERE negocio_contratado_id  = :nid"), {'nid': nid})
+
+        db.session.execute(text("DELETE FROM negocios WHERE id_negocio = :nid"), {'nid': nid})
         db.session.commit()
         logger.warning(f"❌ NEGOCIO {negocio_id} ({negocio[1]}) ELIMINADO por admin {g.user_email}")
         return jsonify({'success': True, 'message': f"Negocio '{negocio[1]}' eliminado permanentemente"})

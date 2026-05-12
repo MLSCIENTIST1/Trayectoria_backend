@@ -149,6 +149,12 @@ class Negocio(db.Model):
     fecha_registro = sa.Column(sa.DateTime, default=datetime.utcnow, nullable=False)
     fecha_actualizacion = sa.Column(sa.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     activo = sa.Column(sa.Boolean, default=True, nullable=False)
+
+    # ==========================================
+    # PLAN (sistema de suscripciones)
+    # ==========================================
+    plan_key = sa.Column(sa.String(50), nullable=True, default='basic', index=True)
+    plan_actual_id = sa.Column(sa.Integer, sa.ForeignKey('planes.id', ondelete='SET NULL'), nullable=True)
     
     # ==========================================
     # CLAVES FORÁNEAS
