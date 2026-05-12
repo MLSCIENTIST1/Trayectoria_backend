@@ -924,11 +924,8 @@ def get_admin_stats():
             LIMIT 5
         """)
         stats['top_challenges'] = [dict(row) for row in cur.fetchall()]
-        
-        cur.close()
-        conn.close()
-        
-        # Agregar conteo de usuarios registrados
+
+        # Conteo de usuarios registrados
         cur.execute("SELECT COUNT(*) as total FROM usuarios WHERE active = true")
         stats['usuarios'] = cur.fetchone()['total']
 
@@ -1129,7 +1126,31 @@ def delete_usuario(user_id):
         cur.execute("SELECT COUNT(*) as total FROM negocios WHERE usuario_id = %s", (user_id,))
         total_negocios = cur.fetchone()['total']
 
-        # BORRADO — CASCADE se encarga de: negocios → productos, sucursales, transacciones, etc.
+        # ── Borrado manual de tablas SIN ondelete=CASCADE ──
+        # (las tablas con CASCADE las maneja la BD automáticamente)
+
+        # 1. Tokens de reset de contraseña
+        cur.execute("DELETE FROM password_reset_tokens WHERE user_id = %s", (user_id,))
+
+        # 2. Notificaciones (sender y receiver)
+        cur.execute("DELETE FROM notification WHERE user_id = %s OR sender_id = %s", (user_id, user_id))
+
+        # 3. Mensajes (sender y receiver)
+        cur.execute("DELETE FROM message WHERE sender_id = %s OR receiver_id = %s", (user_id, user_id))
+
+        # 4. Servicios en los que participa como cualquier rol
+        cur.execute("""
+            DELETE FROM servicio
+            WHERE id_usuario = %s OR id_contratante = %s OR id_contratado = %s
+        """, (user_id, user_id, user_id))
+
+        # 5. Movimientos de stock y categorías que apuntan al usuario
+        #    (pueden existir aunque el negocio ya haya sido eliminado en cascade)
+        cur.execute("UPDATE movimientos_stock    SET usuario_id = NULL WHERE usuario_id = %s", (user_id,))
+        cur.execute("UPDATE categorias_producto  SET usuario_id = NULL WHERE usuario_id = %s", (user_id,))
+
+        # ── Borrado final — CASCADE en BD elimina: negocios, sus productos,
+        #    sucursales, transacciones, notificaciones propias, gamificación, etc. ──
         cur.execute("DELETE FROM usuarios WHERE id_usuario = %s", (user_id,))
         conn.commit()
         cur.close()
