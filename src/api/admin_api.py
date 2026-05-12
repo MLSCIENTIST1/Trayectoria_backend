@@ -1122,35 +1122,54 @@ def delete_usuario(user_id):
         correo_eliminado = usuario['correo']
         nombre_eliminado = f"{usuario['nombre']} {usuario['apellidos']}"
 
-        # Contar negocios antes de borrar (para el resumen)
-        cur.execute("SELECT COUNT(*) as total FROM negocios WHERE usuario_id = %s", (user_id,))
-        total_negocios = cur.fetchone()['total']
+        # ── Obtener IDs de negocios del usuario ──
+        cur.execute("SELECT id_negocio FROM negocios WHERE usuario_id = %s", (user_id,))
+        negocio_rows = cur.fetchall()
+        negocio_ids = [r['id_negocio'] for r in negocio_rows]
+        total_negocios = len(negocio_ids)
 
-        # ── Borrado manual de tablas SIN ondelete=CASCADE ──
-        # (las tablas con CASCADE las maneja la BD automáticamente)
+        # ── 1. Limpiar dependencias de los NEGOCIOS (FKs sin CASCADE a negocios) ──
+        if negocio_ids:
+            # psycopg2 acepta lista con ANY(%s::int[])
+            nids = negocio_ids  # lista Python, se pasa como array
 
-        # 1. Tokens de reset de contraseña
+            # movimientos_stock.negocio_id (NOT NULL, sin cascade) → borrar filas
+            cur.execute("DELETE FROM movimientos_stock   WHERE negocio_id = ANY(%s)", (nids,))
+
+            # categorias_producto.negocio_id (NOT NULL, sin cascade) → borrar filas
+            cur.execute("DELETE FROM categorias_producto WHERE negocio_id = ANY(%s)", (nids,))
+
+            # notification.negocio_id (nullable, sin cascade) → poner NULL
+            cur.execute("UPDATE notification SET negocio_id = NULL WHERE negocio_id = ANY(%s)", (nids,))
+
+            # servicio.negocio_contratante_id / negocio_contratado_id (nullable, sin cascade)
+            cur.execute("UPDATE servicio SET negocio_contratante_id = NULL WHERE negocio_contratante_id = ANY(%s)", (nids,))
+            cur.execute("UPDATE servicio SET negocio_contratado_id  = NULL WHERE negocio_contratado_id  = ANY(%s)", (nids,))
+
+        # ── 2. Limpiar dependencias del USUARIO (FKs sin CASCADE a usuarios) ──
+
+        # Tokens de reset de contraseña
         cur.execute("DELETE FROM password_reset_tokens WHERE user_id = %s", (user_id,))
 
-        # 2. Notificaciones (sender y receiver)
+        # Notificaciones (sender y receiver)
         cur.execute("DELETE FROM notification WHERE user_id = %s OR sender_id = %s", (user_id, user_id))
 
-        # 3. Mensajes (sender y receiver)
+        # Mensajes (sender y receiver)
         cur.execute("DELETE FROM message WHERE sender_id = %s OR receiver_id = %s", (user_id, user_id))
 
-        # 4. Servicios en los que participa como cualquier rol
+        # Servicios en los que participa como cualquier rol
         cur.execute("""
             DELETE FROM servicio
             WHERE id_usuario = %s OR id_contratante = %s OR id_contratado = %s
         """, (user_id, user_id, user_id))
 
-        # 5. Movimientos de stock y categorías que apuntan al usuario
-        #    (pueden existir aunque el negocio ya haya sido eliminado en cascade)
-        cur.execute("UPDATE movimientos_stock    SET usuario_id = NULL WHERE usuario_id = %s", (user_id,))
-        cur.execute("UPDATE categorias_producto  SET usuario_id = NULL WHERE usuario_id = %s", (user_id,))
+        # movimientos_stock / categorias_producto que apuntan al usuario directamente
+        cur.execute("UPDATE movimientos_stock   SET usuario_id = NULL WHERE usuario_id = %s", (user_id,))
+        cur.execute("UPDATE categorias_producto SET usuario_id = NULL WHERE usuario_id = %s", (user_id,))
 
-        # ── Borrado final — CASCADE en BD elimina: negocios, sus productos,
-        #    sucursales, transacciones, notificaciones propias, gamificación, etc. ──
+        # ── 3. Borrado final ──
+        # CASCADE de la BD elimina: negocios → productos, sucursales,
+        # transacciones, gamificación, negocio_plan, etc.
         cur.execute("DELETE FROM usuarios WHERE id_usuario = %s", (user_id,))
         conn.commit()
         cur.close()
