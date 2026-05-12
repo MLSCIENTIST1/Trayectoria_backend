@@ -289,7 +289,7 @@ def register_user():
             profesion=data['profesion'].strip(),
             cedula=cedula,
             celular=str(data['celular']).strip(),
-            ciudad_id=ciudad_obj.ciudad_id,  # campo correcto del modelo
+            ciudad=ciudad_obj.ciudad_id,  # el __init__ recibe 'ciudad' y lo asigna a ciudad_id
             acepto_terminos=True,
             fecha_aceptacion_terminos=fecha_aceptacion
         )
