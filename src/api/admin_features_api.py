@@ -248,10 +248,36 @@ def assign_plan_to_negocio(negocio_id):
     negocio = db.session.execute(text("SELECT id_negocio, nombre_negocio FROM negocios WHERE id_negocio = :nid"), {'nid': negocio_id}).fetchone()
     if not negocio:
         return jsonify({'error': 'Negocio no encontrado'}), 404
-    NegocioPlan.query.filter_by(negocio_id=negocio_id, activo=True).update({'activo': False})
-    nuevo_plan = NegocioPlan(negocio_id=negocio_id, plan_id=plan.id, activo=True, asignado_por='admin', notas=data.get('notas', f'Asignado por {g.user_email}'))
-    db.session.add(nuevo_plan)
-    db.session.execute(text("UPDATE negocios SET plan_key = :pk, plan_actual_id = :pid WHERE id_negocio = :nid"), {'pk': plan_key, 'pid': plan.id, 'nid': negocio_id})
+
+    # 1. Actualizar plan_key en negocios (columna segura que ya existe en DB)
+    try:
+        db.session.execute(text("UPDATE negocios SET plan_key = :pk WHERE id_negocio = :nid"), {'pk': plan_key, 'nid': negocio_id})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error actualizando plan_key en negocios: {e}")
+        return jsonify({'error': 'Error actualizando plan en base de datos'}), 500
+
+    # 2. Intentar actualizar plan_actual_id (columna puede no existir en DB antigua)
+    try:
+        db.session.execute(text("UPDATE negocios SET plan_actual_id = :pid WHERE id_negocio = :nid"), {'pid': plan.id, 'nid': negocio_id})
+    except Exception as e:
+        logger.warning(f"⚠️ No se pudo actualizar plan_actual_id (columna puede no existir): {e}")
+        db.session.rollback()
+        # Re-ejecutar el update de plan_key que ya estaba bien
+        db.session.execute(text("UPDATE negocios SET plan_key = :pk WHERE id_negocio = :nid"), {'pk': plan_key, 'nid': negocio_id})
+
+    # 3. Intentar registrar historial en negocio_plan (tabla puede no existir)
+    try:
+        NegocioPlan.query.filter_by(negocio_id=negocio_id, activo=True).update({'activo': False})
+        nuevo_plan = NegocioPlan(
+            negocio_id=negocio_id, plan_id=plan.id, activo=True,
+            asignado_por='admin',
+            notas=data.get('notas') or f'Asignado por {g.user_email}'
+        )
+        db.session.add(nuevo_plan)
+    except Exception as e:
+        logger.warning(f"⚠️ No se pudo registrar historial NegocioPlan: {e}")
+
     db.session.commit()
     logger.info(f"📊 Negocio {negocio_id} → Plan '{plan.nombre}' por {g.user_email}")
     return jsonify({'success': True, 'negocio_id': negocio_id, 'negocio_nombre': negocio[1], 'plan': plan.to_dict(), 'message': f"Plan '{plan.nombre}' asignado a '{negocio[1]}'"})
@@ -291,7 +317,7 @@ def list_negocios_with_plans():
                (SELECT COUNT(*) FROM productos_catalogo pc WHERE pc.negocio_id = n.id_negocio) as num_productos,
                (SELECT COUNT(*) FROM pedidos pd WHERE pd.negocio_id = n.id_negocio) as num_pedidos
         FROM negocios n
-        LEFT JOIN planes p ON n.plan_actual_id = p.id
+        LEFT JOIN planes p ON p.key = COALESCE(n.plan_key, 'basic')
         LEFT JOIN usuarios u ON u.id_usuario = n.usuario_id
         {where}
         ORDER BY n.fecha_registro DESC
@@ -352,7 +378,7 @@ def get_negocio_info(negocio_id):
                (SELECT COUNT(*) FROM pedidos pd WHERE pd.negocio_id = n.id_negocio) as num_pedidos,
                (SELECT COUNT(*) FROM pedidos pd WHERE pd.negocio_id = n.id_negocio AND pd.estado = 'entregado') as pedidos_entregados
         FROM negocios n
-        LEFT JOIN planes p ON n.plan_actual_id = p.id
+        LEFT JOIN planes p ON p.key = COALESCE(n.plan_key, 'basic')
         LEFT JOIN usuarios u ON u.id_usuario = n.usuario_id
         WHERE n.id_negocio = :nid
     """), {'nid': negocio_id}).fetchone()

@@ -408,6 +408,10 @@ def create_app():
                     "ALTER TABLE negocios ADD COLUMN IF NOT EXISTS config_envios JSONB DEFAULT '{}'",
                     # ── Variantes de producto v2.5 ─────────────────────────────────────────
                     "ALTER TABLE productos_catalogo ADD COLUMN IF NOT EXISTS variantes TEXT DEFAULT NULL",
+                    # ── Sistema de planes / suscripciones v3.0 ────────────────────────────
+                    "ALTER TABLE negocios ADD COLUMN IF NOT EXISTS plan_key VARCHAR(50) DEFAULT 'basic'",
+                    "ALTER TABLE negocios ADD COLUMN IF NOT EXISTS plan_actual_id INTEGER REFERENCES planes(id) ON DELETE SET NULL",
+                    "CREATE INDEX IF NOT EXISTS ix_negocios_plan_key ON negocios(plan_key)",
                 ]
                 for sql in migraciones:
                     try:
