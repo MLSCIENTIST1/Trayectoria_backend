@@ -165,7 +165,7 @@ def build_cors_response(data=None, status=200):
         response.headers['Access-Control-Allow-Origin'] = '*'
 
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, PUT, DELETE'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-User-ID, X-Business-ID, Accept, Cache-Control'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-User-ID, X-Business-ID, Accept, Cache-Control, X-Session-FP'
     response.headers['Access-Control-Max-Age'] = '3600'
     
     return response
