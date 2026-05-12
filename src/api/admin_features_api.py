@@ -184,9 +184,30 @@ def create_feature():
 # PLANES CRUD
 # ═══════════════════════════════════════════════════════════════════════════════
 
+_PLANES_DEFAULT = [
+    {'key': 'basic',   'nombre': 'Basic',   'descripcion': 'Plan gratuito',                  'precio_mensual': 0,       'precio_anual': 0,        'orden': 1, 'color': '#22c55e', 'icono': '🌱'},
+    {'key': 'pro',     'nombre': 'Pro',     'descripcion': 'Plan profesional',                'precio_mensual': 49900,   'precio_anual': 479000,   'orden': 2, 'color': '#06b6d4', 'icono': '🚀'},
+    {'key': 'premium', 'nombre': 'Premium', 'descripcion': 'Plan premium con más funciones', 'precio_mensual': 99900,   'precio_anual': 959000,   'orden': 3, 'color': '#a855f7', 'icono': '💎'},
+    {'key': 'delux',   'nombre': 'Delux',   'descripcion': 'Plan empresarial completo',       'precio_mensual': 199900,  'precio_anual': 1919000,  'orden': 4, 'color': '#f59e0b', 'icono': '👑'},
+]
+
+def _seed_planes():
+    """Crea los planes por defecto si la tabla está vacía."""
+    try:
+        if Plan.query.count() == 0:
+            for p in _PLANES_DEFAULT:
+                db.session.add(Plan(**p))
+            db.session.commit()
+            logger.info("✅ Planes sembrados automáticamente")
+    except Exception as e:
+        logger.error(f"Error sembrando planes: {e}")
+        db.session.rollback()
+
+
 @admin_features_bp.route('/api/admin/planes', methods=['GET', 'OPTIONS'])
 @admin_required
 def list_planes():
+    _seed_planes()   # garantiza que existen los 4 planes
     planes = Plan.query.order_by(Plan.orden).all()
     return jsonify({'success': True, 'planes': [p.to_dict(include_features=True) for p in planes]})
 
@@ -220,9 +241,10 @@ def assign_plan_to_negocio(negocio_id):
     plan_key = data.get('plan_key')
     if not plan_key:
         return jsonify({'error': 'plan_key es obligatorio'}), 400
+    _seed_planes()   # asegura que existen los planes antes de buscar
     plan = Plan.query.filter_by(key=plan_key, activo=True).first()
     if not plan:
-        return jsonify({'error': f"Plan '{plan_key}' no encontrado"}), 404
+        return jsonify({'error': f"Plan '{plan_key}' no encontrado o inactivo"}), 404
     negocio = db.session.execute(text("SELECT id_negocio, nombre_negocio FROM negocios WHERE id_negocio = :nid"), {'nid': negocio_id}).fetchone()
     if not negocio:
         return jsonify({'error': 'Negocio no encontrado'}), 404
