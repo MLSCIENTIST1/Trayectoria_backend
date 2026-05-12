@@ -86,8 +86,7 @@ import logging
 import traceback
 import urllib.request
 import urllib.error
-from flask import Blueprint, request, jsonify, render_template_string
-from threading import Thread
+from flask import Blueprint, request, jsonify, render_template_string, make_response
 from src.models.database import db
 from src.models.usuarios import Usuario
 from src.models.password_reset_token import PasswordResetToken
@@ -104,21 +103,36 @@ logger.setLevel(logging.DEBUG)
 password_reset_bp = Blueprint('password_reset', __name__, url_prefix='/api/auth')
 
 
+FRONTEND_URL_DEFAULT = 'https://tuko.pages.dev'  # ← dominio producción correcto
+
+_CORS_HEADERS = 'Content-Type, Authorization, Accept, X-User-ID, X-Business-ID, X-Session-FP, Cache-Control, Pragma'
+
+def _cors_json(data, status=200):
+    """Retorna JSON con headers CORS correctos para los endpoints de reset."""
+    r = make_response(jsonify(data), status)
+    origin = request.headers.get('Origin', '*')
+    r.headers['Access-Control-Allow-Origin']      = origin
+    r.headers['Access-Control-Allow-Credentials'] = 'true'
+    r.headers['Access-Control-Allow-Headers']     = _CORS_HEADERS
+    return r
+
 def init_mail(app):
     """
     Inicializa configuración de email.
     Usa Resend API (HTTP) - NO SMTP (bloqueado en Render)
     """
     resend_key = os.environ.get('RESEND_API_KEY', '')
-    frontend_url = os.environ.get('FRONTEND_URL', 'https://trayectoria-rxdc1.web.app')
-    
+    frontend_url = os.environ.get('FRONTEND_URL', FRONTEND_URL_DEFAULT)
+
     logger.info("=" * 60)
     logger.info("🚀 CONFIGURACIÓN DE EMAIL (RESEND API)")
     logger.info("=" * 60)
-    logger.info(f"📧 RESEND_API_KEY: {'✅ Configurada' if resend_key else '❌ NO CONFIGURADA'}")
-    logger.info(f"📧 FRONTEND_URL: {frontend_url}")
+    logger.info(f"📧 RESEND_API_KEY: {'✅ Configurada' if resend_key else '❌ NO CONFIGURADA — emails NO se enviarán'}")
+    logger.info(f"📧 FRONTEND_URL:   {frontend_url}")
+    if not resend_key:
+        logger.critical("🚨 CRÍTICO: Define RESEND_API_KEY en las env vars de Render")
     logger.info("=" * 60)
-    
+
     return None
 
 
@@ -187,19 +201,19 @@ def send_email_resend(to_email, subject, html_content):
 
 
 def send_email_async(to_email, subject, html_content):
-    """Envía email en background thread"""
-    def _send():
-        logger.info(f"🧵 Thread iniciado para {to_email}")
-        success, msg = send_email_resend(to_email, subject, html_content)
-        if success:
-            logger.info(f"🧵 ✅ Email enviado a {to_email}")
-        else:
-            logger.error(f"🧵 ❌ Falló: {msg}")
-    
-    thread = Thread(target=_send)
-    thread.daemon = True
-    thread.start()
-    logger.info(f"🧵 Thread lanzado para {to_email}")
+    """
+    Envía email de forma SÍNCRONA.
+    Se eliminó el thread daemon porque en Render el worker puede ser reciclado
+    antes de que el thread termine, causando que el email nunca se envíe.
+    Resend API responde en <500ms — el overhead es aceptable.
+    """
+    logger.info(f"📤 Enviando email a {to_email}...")
+    success, msg = send_email_resend(to_email, subject, html_content)
+    if success:
+        logger.info(f"✅ Email enviado exitosamente a {to_email}")
+    else:
+        logger.error(f"❌ Falló envío a {to_email}: {msg}")
+    return success, msg
 
 
 # ==========================================
@@ -253,8 +267,8 @@ def test_smtp():
     """Verifica configuración de Resend"""
     api_key = os.environ.get('RESEND_API_KEY', '')
     from_email = os.environ.get('MAIL_FROM', 'noreply@tukomercio.store')
-    frontend_url = os.environ.get('FRONTEND_URL', 'https://trayectoria-rxdc1.web.app')
-    
+    frontend_url = os.environ.get('FRONTEND_URL', FRONTEND_URL_DEFAULT)
+
     return jsonify({
         "service": "Resend API (HTTP)",
         "smtp_blocked": "⚠️ SMTP está bloqueado en Render, usamos HTTP",
@@ -301,82 +315,107 @@ def test_send(email):
 # ==========================================
 # FORGOT PASSWORD
 # ==========================================
-@password_reset_bp.route('/forgot-password', methods=['POST'])
+@password_reset_bp.route('/forgot-password', methods=['POST', 'OPTIONS'])
 def forgot_password():
-    """Solicita reset de contraseña"""
-    logger.info("=" * 60)
-    logger.info("📧 FORGOT-PASSWORD")
-    logger.info("=" * 60)
-    
+    """Solicita reset de contraseña vía Resend API."""
+    if request.method == 'OPTIONS':
+        r = make_response('', 204)
+        r.headers['Access-Control-Allow-Origin']      = request.headers.get('Origin', '*')
+        r.headers['Access-Control-Allow-Methods']     = 'POST, OPTIONS'
+        r.headers['Access-Control-Allow-Headers']     = _CORS_HEADERS
+        r.headers['Access-Control-Allow-Credentials'] = 'true'
+        r.headers['Access-Control-Max-Age']           = '3600'
+        return r
+
+    logger.info("📧 FORGOT-PASSWORD recibido")
     try:
-        data = request.get_json()
-        
-        if not data or 'correo' not in data:
-            return jsonify({"success": False, "message": "Correo requerido"}), 400
-        
+        data = request.get_json() or {}
+
+        if 'correo' not in data:
+            return _cors_json({"success": False, "message": "Correo requerido"}, 400)
+
         correo = data['correo'].lower().strip()
-        logger.info(f"📍 Correo: {correo}")
-        
+        logger.info(f"📍 Correo solicitado: {correo}")
+
         usuario = Usuario.query.filter_by(correo=correo).first()
-        
+
+        # Respuesta genérica siempre (no revelar si el correo existe)
+        _ok = lambda: _cors_json({"success": True, "message": "Si existe, recibirás un enlace en los próximos minutos."}, 200)
+
         if not usuario:
-            logger.warning(f"⚠️ No encontrado: {correo}")
-            return jsonify({"success": True, "message": "Si existe, recibirás un enlace."}), 200
-        
-        logger.info(f"📍 Usuario: {usuario.nombre}")
-        
+            logger.warning(f"⚠️ Correo no encontrado: {correo}")
+            return _ok()
+
         if not usuario.active or usuario.black_list:
-            return jsonify({"success": True, "message": "Si existe, recibirás un enlace."}), 200
-        
-        # Crear token
+            logger.warning(f"⚠️ Cuenta inactiva/bloqueada: {correo}")
+            return _ok()
+
+        if not os.environ.get('RESEND_API_KEY'):
+            logger.critical("🚨 RESEND_API_KEY no configurada en Render — email NO se enviará")
+            return _ok()
+
+        # Crear token y URL
         token = PasswordResetToken.create_for_user(usuario.id_usuario)
-        
-        # URL correcta
-        frontend_url = os.environ.get('FRONTEND_URL', 'https://trayectoria-rxdc1.web.app')
+        frontend_url = os.environ.get('FRONTEND_URL', FRONTEND_URL_DEFAULT)
         reset_url = f"{frontend_url}/reset_password.html?token={token.token}"
-        logger.info(f"📍 URL: {reset_url}")
-        
-        # Email
+        logger.info(f"📍 Reset URL: {reset_url}")
+
+        # Construir y enviar email (síncrono — Resend <500ms en Render)
         html_content = render_template_string(
             EMAIL_TEMPLATE,
             nombre=usuario.nombre or correo.split('@')[0],
             reset_url=reset_url
         )
-        
-        send_email_async(correo, "🔐 Restablecer contraseña - TuKomercio", html_content)
-        
-        return jsonify({"success": True, "message": "Si existe, recibirás un enlace."}), 200
-        
+        success, msg = send_email_async(correo, "🔐 Restablecer contraseña - TuKomercio", html_content)
+        if not success:
+            logger.error(f"❌ Fallo Resend para {correo}: {msg}")
+
+        return _ok()
+
     except Exception as e:
-        logger.error(f"❌ Error: {str(e)}")
-        return jsonify({"success": False, "message": "Error interno"}), 500
+        logger.error(f"❌ Error forgot_password: {e}")
+        return _cors_json({"success": False, "message": "Error interno"}, 500)
 
 
 # ==========================================
 # VERIFY TOKEN
 # ==========================================
-@password_reset_bp.route('/verify-reset-token/<token>', methods=['GET'])
+@password_reset_bp.route('/verify-reset-token/<token>', methods=['GET', 'OPTIONS'])
 def verify_reset_token(token):
-    """Verifica token"""
+    """Verifica si el token de reset es válido y no ha expirado."""
+    if request.method == 'OPTIONS':
+        r = make_response('', 204)
+        r.headers['Access-Control-Allow-Origin']      = request.headers.get('Origin', '*')
+        r.headers['Access-Control-Allow-Methods']     = 'GET, OPTIONS'
+        r.headers['Access-Control-Allow-Headers']     = _CORS_HEADERS
+        r.headers['Access-Control-Allow-Credentials'] = 'true'
+        r.headers['Access-Control-Max-Age']           = '3600'
+        return r
     try:
         reset_token = PasswordResetToken.get_valid_token(token)
-        
         if not reset_token:
-            return jsonify({"valid": False, "message": "Token inválido"}), 400
-        
+            return _cors_json({"valid": False, "message": "Token inválido o expirado"}, 400)
         usuario = Usuario.query.get(reset_token.user_id)
-        return jsonify({"valid": True, "user": {"nombre": usuario.nombre if usuario else None}}), 200
-        
+        return _cors_json({"valid": True, "user": {"nombre": usuario.nombre if usuario else None}}, 200)
     except Exception as e:
-        return jsonify({"valid": False}), 500
+        logger.error(f"❌ verify_reset_token error: {e}")
+        return _cors_json({"valid": False, "message": "Error interno"}, 500)
 
 
 # ==========================================
 # RESET PASSWORD
 # ==========================================
-@password_reset_bp.route('/reset-password', methods=['POST'])
+@password_reset_bp.route('/reset-password', methods=['POST', 'OPTIONS'])
 def reset_password():
-    """Cambia la contraseña"""
+    """Cambia la contraseña usando el token válido."""
+    if request.method == 'OPTIONS':
+        r = make_response('', 204)
+        r.headers['Access-Control-Allow-Origin']      = request.headers.get('Origin', '*')
+        r.headers['Access-Control-Allow-Methods']     = 'POST, OPTIONS'
+        r.headers['Access-Control-Allow-Headers']     = _CORS_HEADERS
+        r.headers['Access-Control-Allow-Credentials'] = 'true'
+        r.headers['Access-Control-Max-Age']           = '3600'
+        return r
     logger.info("=" * 60)
     logger.info("🔐 RESET-PASSWORD: Iniciando cambio de contraseña")
     logger.info("=" * 60)
@@ -390,77 +429,42 @@ def reset_password():
         confirm_password = data.get('confirm_password')
         
         if not all([token_str, password, confirm_password]):
-            logger.warning("❌ Datos incompletos")
-            return jsonify({"success": False, "message": "Datos incompletos"}), 400
-        
+            return _cors_json({"success": False, "message": "Datos incompletos"}, 400)
+
         if password != confirm_password:
-            logger.warning("❌ Contraseñas no coinciden")
-            return jsonify({"success": False, "message": "No coinciden"}), 400
-        
+            return _cors_json({"success": False, "message": "Las contraseñas no coinciden"}, 400)
+
         if len(password) < 6:
-            logger.warning("❌ Contraseña muy corta")
-            return jsonify({"success": False, "message": "Mínimo 6 caracteres"}), 400
-        
-        logger.info("📍 Buscando token...")
+            return _cors_json({"success": False, "message": "Mínimo 6 caracteres"}, 400)
+
         reset_token = PasswordResetToken.get_valid_token(token_str)
-        
         if not reset_token:
-            logger.warning("❌ Token no encontrado o inválido")
-            return jsonify({"success": False, "message": "Token inválido"}), 400
-        
-        logger.info(f"📍 Token encontrado, user_id: {reset_token.user_id}")
-        
-        # Intentar con user_id o usuario_id
+            logger.warning("❌ Token inválido o expirado")
+            return _cors_json({"success": False, "message": "El enlace es inválido o ya expiró"}, 400)
+
         user_id = getattr(reset_token, 'user_id', None) or getattr(reset_token, 'usuario_id', None)
-        logger.info(f"📍 ID de usuario a buscar: {user_id}")
-        
-        usuario = Usuario.query.get(user_id)
-        
+        usuario  = Usuario.query.get(user_id)
+
         if not usuario:
-            logger.warning(f"❌ Usuario no encontrado con ID: {user_id}")
-            return jsonify({"success": False, "message": "Usuario no encontrado"}), 404
-        
-        logger.info(f"📍 Usuario encontrado: {usuario.correo}")
-        logger.info(f"📍 Password hash ANTES: {usuario.password_hash[:30] if hasattr(usuario, 'password_hash') else 'N/A'}...")
-        
-        # Cambiar contraseña
-        logger.info("📍 Llamando set_password()...")
+            return _cors_json({"success": False, "message": "Usuario no encontrado"}, 404)
+
+        logger.info(f"📍 Cambiando contraseña de: {usuario.correo}")
         usuario.set_password(password)
-        
-        logger.info(f"📍 Password hash DESPUÉS: {usuario.contrasenia[:30] if hasattr(usuario, 'contrasenia') else 'N/A'}...")
-        
-        # Marcar token como usado
-        logger.info("📍 Marcando token como usado...")
         reset_token.mark_as_used()
-        
-        # ==========================================
-        # IMPORTANTE: Invalidar todas las sesiones
-        # ==========================================
-        logger.info("📍 Invalidando sesiones activas...")
+
         try:
-            # Actualizar un campo para invalidar sesiones
-            # Flask-Login usa last_login para algunas validaciones
             from datetime import datetime
-            usuario.last_login = None  # Forzar re-login
-            usuario.updated_at = datetime.utcnow()
-        except Exception as e:
-            logger.warning(f"⚠️ No se pudo invalidar sesiones: {e}")
-        
-        # Guardar en BD
-        logger.info("📍 Haciendo commit a la BD...")
+            usuario.last_login  = None
+            usuario.updated_at  = datetime.utcnow()
+        except Exception:
+            pass
+
         db.session.commit()
-        
-        logger.info("=" * 60)
-        logger.info(f"✅ CONTRASEÑA CAMBIADA EXITOSAMENTE: {usuario.correo}")
-        logger.info("=" * 60)
-        
-        return jsonify({"success": True, "message": "Contraseña actualizada"}), 200
-        
+        logger.info(f"✅ Contraseña cambiada exitosamente: {usuario.correo}")
+        return _cors_json({"success": True, "message": "¡Contraseña actualizada! Ya puedes iniciar sesión."}, 200)
+
     except Exception as e:
         db.session.rollback()
-        logger.error("=" * 60)
-        logger.error(f"❌ ERROR EN RESET-PASSWORD: {type(e).__name__}: {str(e)}")
-        logger.error("=" * 60)
-        import traceback
+        logger.error(f"❌ Error reset_password: {type(e).__name__}: {e}")
         logger.error(traceback.format_exc())
-        return jsonify({"success": False, "message": "Error interno"}), 500
+        return _cors_json({"success": False, "message": "Error interno del servidor"}, 500)

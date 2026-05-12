@@ -928,8 +928,224 @@ def get_admin_stats():
         cur.close()
         conn.close()
         
+        # Agregar conteo de usuarios registrados
+        cur.execute("SELECT COUNT(*) as total FROM usuarios WHERE active = true")
+        stats['usuarios'] = cur.fetchone()['total']
+
+        cur.close()
+        conn.close()
+
         return jsonify(stats), 200
-        
+
     except Exception as e:
         logger.error(f"Error obteniendo stats: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GESTIÓN DE USUARIOS (CRUD SUPERADMIN)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/usuarios', methods=['GET'])
+@superadmin_required
+def list_usuarios():
+    """
+    GET /api/admin/usuarios
+    Lista todos los usuarios registrados con conteo de negocios.
+    Soporta ?search=texto para filtrar por nombre/correo/cédula.
+    """
+    try:
+        search = request.args.get('search', '').strip()
+        page   = max(1, int(request.args.get('page', 1)))
+        limit  = 50
+        offset = (page - 1) * limit
+
+        conn = get_db_connection()
+        cur  = conn.cursor()
+
+        where = ""
+        params = []
+        if search:
+            where = """
+                WHERE (
+                    LOWER(u.nombre || ' ' || u.apellidos) LIKE LOWER(%s)
+                    OR LOWER(u.correo) LIKE LOWER(%s)
+                    OR CAST(u.cedula AS TEXT) LIKE %s
+                )
+            """
+            like = f"%{search}%"
+            params = [like, like, like]
+
+        # Conteo total
+        cur.execute(f"SELECT COUNT(*) as total FROM usuarios u {where}", params)
+        total = cur.fetchone()['total']
+
+        # Lista paginada con conteo de negocios
+        cur.execute(f"""
+            SELECT
+                u.id_usuario,
+                u.nombre,
+                u.apellidos,
+                u.correo,
+                u.cedula,
+                u.celular,
+                u.profesion,
+                u.active,
+                u.black_list,
+                u.created_at,
+                u.last_login,
+                COUNT(n.id_negocio) AS total_negocios
+            FROM usuarios u
+            LEFT JOIN negocios n ON n.usuario_id = u.id_usuario
+            {where}
+            GROUP BY u.id_usuario
+            ORDER BY u.created_at DESC
+            LIMIT %s OFFSET %s
+        """, params + [limit, offset])
+
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        usuarios = []
+        for r in rows:
+            d = dict(r)
+            # Serializar datetimes
+            d['created_at'] = d['created_at'].isoformat() if d['created_at'] else None
+            d['last_login']  = d['last_login'].isoformat()  if d['last_login']  else None
+            usuarios.append(d)
+
+        return build_cors_response({
+            'usuarios': usuarios,
+            'total': total,
+            'page': page,
+            'pages': max(1, -(-total // limit))   # ceil division
+        })
+
+    except Exception as e:
+        logger.error(f"Error listando usuarios: {e}")
+        return build_cors_response({'error': str(e)}, 500)
+
+
+@admin_bp.route('/usuarios/<int:user_id>', methods=['GET'])
+@superadmin_required
+def get_usuario(user_id):
+    """
+    GET /api/admin/usuarios/<id>
+    Retorna detalle completo del usuario + lista de sus negocios.
+    """
+    try:
+        conn = get_db_connection()
+        cur  = conn.cursor()
+
+        cur.execute("""
+            SELECT
+                u.id_usuario, u.nombre, u.apellidos, u.correo,
+                u.cedula, u.celular, u.profesion,
+                u.active, u.black_list, u.validate,
+                u.created_at, u.last_login
+            FROM usuarios u
+            WHERE u.id_usuario = %s
+        """, (user_id,))
+
+        usuario = cur.fetchone()
+        if not usuario:
+            cur.close()
+            conn.close()
+            return build_cors_response({'error': 'Usuario no encontrado'}, 404)
+
+        usuario = dict(usuario)
+        usuario['created_at'] = usuario['created_at'].isoformat() if usuario['created_at'] else None
+        usuario['last_login']  = usuario['last_login'].isoformat()  if usuario['last_login']  else None
+
+        # Negocios del usuario
+        cur.execute("""
+            SELECT id_negocio, nombre_negocio, slug, tipo_negocio, estado, created_at
+            FROM negocios
+            WHERE usuario_id = %s
+            ORDER BY created_at DESC
+        """, (user_id,))
+
+        negocios = []
+        for n in cur.fetchall():
+            nd = dict(n)
+            nd['created_at'] = nd['created_at'].isoformat() if nd['created_at'] else None
+            negocios.append(nd)
+
+        cur.close()
+        conn.close()
+
+        return build_cors_response({
+            'usuario': usuario,
+            'negocios': negocios
+        })
+
+    except Exception as e:
+        logger.error(f"Error obteniendo usuario {user_id}: {e}")
+        return build_cors_response({'error': str(e)}, 500)
+
+
+@admin_bp.route('/usuarios/<int:user_id>', methods=['DELETE'])
+@superadmin_required
+def delete_usuario(user_id):
+    """
+    DELETE /api/admin/usuarios/<id>
+    Borrado TOTAL e irreversible del usuario y todos sus datos en cascada.
+    La FK negocios.usuario_id tiene ondelete=CASCADE → borra negocios automáticamente.
+    """
+    try:
+        conn = get_db_connection()
+        cur  = conn.cursor()
+
+        # Verificar que existe y no es admin
+        cur.execute("""
+            SELECT u.id_usuario, u.correo, u.nombre, u.apellidos,
+                   a.id AS es_admin
+            FROM usuarios u
+            LEFT JOIN administradores a ON LOWER(a.email) = LOWER(u.correo) AND a.activo = true
+            WHERE u.id_usuario = %s
+        """, (user_id,))
+
+        usuario = cur.fetchone()
+
+        if not usuario:
+            cur.close()
+            conn.close()
+            return build_cors_response({'error': 'Usuario no encontrado'}, 404)
+
+        if usuario['es_admin']:
+            cur.close()
+            conn.close()
+            return build_cors_response(
+                {'error': 'No se puede eliminar un usuario que es administrador activo. Desactívalo primero.'},
+                403
+            )
+
+        # Guardar datos para el log antes de borrar
+        correo_eliminado = usuario['correo']
+        nombre_eliminado = f"{usuario['nombre']} {usuario['apellidos']}"
+
+        # Contar negocios antes de borrar (para el resumen)
+        cur.execute("SELECT COUNT(*) as total FROM negocios WHERE usuario_id = %s", (user_id,))
+        total_negocios = cur.fetchone()['total']
+
+        # BORRADO — CASCADE se encarga de: negocios → productos, sucursales, transacciones, etc.
+        cur.execute("DELETE FROM usuarios WHERE id_usuario = %s", (user_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        logger.warning(
+            f"🗑️ USUARIO ELIMINADO por {g.user_email}: "
+            f"id={user_id} | correo={correo_eliminado} | negocios_borrados={total_negocios}"
+        )
+
+        return build_cors_response({
+            'success': True,
+            'message': f'Usuario "{nombre_eliminado}" ({correo_eliminado}) eliminado permanentemente.',
+            'negocios_eliminados': total_negocios
+        })
+
+    except Exception as e:
+        logger.error(f"Error eliminando usuario {user_id}: {e}")
+        return build_cors_response({'error': str(e)}, 500)
