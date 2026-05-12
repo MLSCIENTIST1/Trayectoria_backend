@@ -200,13 +200,8 @@ class Notification(db.Model):
     timestamp = Column(DateTime, default=datetime.utcnow, index=True)
     fecha_lectura = Column(DateTime, nullable=True)  # ★ NUEVO
     
-    # ==========================================
-    # RELACIONES
-    # ==========================================
-    sender = relationship('Usuario', foreign_keys=[sender_id], back_populates='sent_notifications')
-    receiver = relationship('Usuario', foreign_keys=[user_id], back_populates='received_notifications')
-    negocio = relationship('Negocio', foreign_keys=[negocio_id], backref='notificaciones')
-    messages = relationship('Message', back_populates='notification', lazy='select')
+    # RELACIONES: definidas en src/models/notification.py
+    # No se repiten aquí para evitar backref duplicado en el mapper de Negocio/Usuario
 
     # ==========================================
     # PROPIEDADES

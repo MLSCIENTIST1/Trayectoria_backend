@@ -220,16 +220,8 @@ class Pedido(db.Model):
     fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
     fecha_actualizacion = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # ==========================================
-    # RELACIÓN CON HISTORIAL
-    # ==========================================
-    historial = db.relationship(
-        'PedidoHistorial',
-        backref='pedido',
-        lazy='dynamic',
-        cascade='all, delete-orphan',
-        order_by='PedidoHistorial.fecha.desc()'
-    )
+    # RELACIÓN CON HISTORIAL: definida en src/models/compradores/pedido.py
+    # No se repite aquí para evitar backref duplicado en el mapper de PedidoHistorial
     
     # ==========================================
     # PROPIEDADES

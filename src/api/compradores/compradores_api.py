@@ -160,28 +160,8 @@ class Comprador(db.Model):
     total_compras = db.Column(db.Integer, default=0)
     total_gastado = db.Column(db.Numeric(12, 2), default=0)
     
-    # ==========================================
-    # RELACIONES
-    # ==========================================
-    direcciones = db.relationship(
-        'DireccionComprador',
-        backref='comprador',
-        lazy='dynamic',
-        cascade='all, delete-orphan'
-    )
-    
-    pedidos = db.relationship(
-        'Pedido',
-        backref='comprador',
-        lazy='dynamic'
-    )
-    
-    # ★ NUEVO: Relación con Usuario (si se convirtió)
-    usuario = db.relationship(
-        'Usuario',
-        foreign_keys=[usuario_id],
-        backref='comprador_profile'
-    )
+    # RELACIONES: definidas en src/models/compradores/comprador.py
+    # No se repiten aquí para evitar backrefs duplicados en los mappers de Pedido/DireccionComprador/Usuario
     
     # ==========================================
     # CONSTRUCTOR MEJORADO
