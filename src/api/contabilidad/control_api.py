@@ -455,6 +455,74 @@ def obtener_resumen_financiero(negocio_id):
         }), 500
 
 # ==========================================
+# ENDPOINT DASHBOARD (resumen + inventario en 1 request)
+# ==========================================
+@control_api_bp.route('/control/dashboard/<int:negocio_id>', methods=['GET', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def dashboard_negocio(negocio_id):
+    """
+    Devuelve resumen financiero + conteo de inventario en una sola llamada.
+    Usa SQL agregado puro — sin transferir filas de productos ni transacciones.
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+    try:
+        from sqlalchemy import text as _text
+
+        # ── 1. Resumen financiero ────────────────────────────────────────────
+        fin_row = db.session.execute(_text("""
+            SELECT
+                COALESCE(SUM(CASE WHEN tipo = 'VENTA'    AND (anulada IS FALSE OR anulada IS NULL) THEN monto ELSE 0 END), 0) AS ventas,
+                COALESCE(SUM(CASE WHEN tipo = 'COMPRA'   AND (anulada IS FALSE OR anulada IS NULL) THEN monto ELSE 0 END), 0) AS compras,
+                COALESCE(SUM(CASE WHEN tipo = 'GASTO'    AND (anulada IS FALSE OR anulada IS NULL) THEN monto ELSE 0 END), 0) AS gastos,
+                COALESCE(SUM(CASE WHEN tipo = 'INGRESO'  AND (anulada IS FALSE OR anulada IS NULL) THEN monto ELSE 0 END), 0) AS ingresos
+            FROM transacciones_operativas
+            WHERE negocio_id = :nid
+        """), {'nid': negocio_id}).fetchone()
+
+        ventas   = float(fin_row[0] or 0)
+        compras  = float(fin_row[1] or 0)
+        gastos   = float(fin_row[2] or 0)
+        ingresos = float(fin_row[3] or 0)
+        balance  = (ventas + ingresos) - (compras + gastos)
+
+        # ── 2. Conteo de inventario (sin traer filas de productos) ───────────
+        inv_row = db.session.execute(_text("""
+            SELECT
+                COUNT(*)                                                             AS total,
+                COUNT(*) FILTER (WHERE stock > 0 AND stock <= COALESCE(stock_bajo, 5)) AS stock_bajo,
+                COUNT(*) FILTER (WHERE stock = 0)                                    AS sin_stock
+            FROM productos_catalogo
+            WHERE negocio_id = :nid
+        """), {'nid': negocio_id}).fetchone()
+
+        total_productos = int(inv_row[0] or 0)
+        stock_bajo      = int(inv_row[1] or 0)
+        sin_stock       = int(inv_row[2] or 0)
+
+        return jsonify({
+            "success": True,
+            "resumen": {
+                "total_ventas": ventas,
+                "total_compras": compras,
+                "total_gastos": gastos,
+                "total_ingresos": ingresos,
+                "balance": balance
+            },
+            "inventario": {
+                "total": total_productos,
+                "stock_bajo": stock_bajo,
+                "sin_stock": sin_stock,
+                "alertas": stock_bajo + sin_stock
+            }
+        }), 200
+
+    except Exception as e:
+        logger.error(f"❌ Error dashboard negocio {negocio_id}: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==========================================
 # ENDPOINT 4: ANULAR TRANSACCIÓN
 # ==========================================
 @control_api_bp.route('/control/transaccion/<int:transaccion_id>/anular', methods=['PATCH', 'OPTIONS'])
