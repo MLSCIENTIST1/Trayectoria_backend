@@ -513,14 +513,14 @@ def obtener_mis_productos():
         
         query = ProductoCatalogo.query.filter_by(usuario_id=int(user_id))
 
-        # Filtro por negocio_id solo si se solicita explícitamente con strict=true
-        # Por defecto muestra TODOS los productos del usuario (inventario unificado)
-        strict = request.args.get('strict', 'false').lower() in ['true', '1']
-        if strict and ctx['negocio_id']:
+        # ★ FIX CRÍTICO: filtrar siempre por negocio_id cuando viene en la petición.
+        # Antes se requería ?strict=true (nunca enviado por el frontend), lo que
+        # causaba que todos los productos del usuario aparecieran en todos sus negocios.
+        if ctx['negocio_id']:
             query = query.filter(
                 db.or_(
                     ProductoCatalogo.negocio_id == ctx['negocio_id'],
-                    ProductoCatalogo.negocio_id == None
+                    ProductoCatalogo.negocio_id == None   # productos sin negocio asignado (migración)
                 )
             )
             
@@ -577,9 +577,9 @@ def obtener_mis_productos():
         data_final = []
         for p in productos:
             try:
-                d = safe_to_dict(p, ['id_producto', 'nombre', 'precio', 'stock', 'categoria', 
+                d = safe_to_dict(p, ['id_producto', 'nombre', 'precio', 'stock', 'categoria',
                                       'descripcion', 'imagen_url', 'referencia_sku', 'codigo_barras',
-                                      'imagenes', 'videos', 'activo'])
+                                      'imagenes', 'videos', 'activo', 'negocio_id'])
                 d['id'] = p.id_producto
                 d['sku'] = p.referencia_sku
                 d['barcode'] = p.codigo_barras or ''
