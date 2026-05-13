@@ -339,7 +339,7 @@ def obtener_reporte(negocio_id):
             logger.warning("⚠️ Acceso a reporte sin autenticación")
         
         tipo_filtro = request.args.get('tipo')
-        limite = int(request.args.get('limite', 100))
+        limite = int(request.args.get('limit') or request.args.get('limite') or 100)
         
         query = TransaccionOperativa.query.filter_by(negocio_id=negocio_id)
         
