@@ -636,21 +636,14 @@ def migrar_negocio_productos():
         if not negocio_id:
             return jsonify({"success": False, "message": "negocio_id requerido"}), 400
 
-        # force=true reasigna TODOS los productos del usuario (incluso los de otro negocio_id)
-        force = request.json.get('force', False) if request.is_json else False
-
+        # ★ FIX: force=true DESACTIVADO permanentemente.
+        # Antes reasignaba productos de OTROS negocios al activo, rompiendo
+        # el aislamiento entre negocios de la misma cuenta.
+        # Ahora solo migra productos SIN negocio asignado (huérfanos legacy).
         base_query = ProductoCatalogo.query.filter_by(usuario_id=int(user_id))
-        if force:
-            productos_a_migrar = base_query.filter(
-                db.or_(
-                    ProductoCatalogo.negocio_id == None,
-                    ProductoCatalogo.negocio_id != negocio_id
-                )
-            ).all()
-        else:
-            productos_a_migrar = base_query.filter(
-                ProductoCatalogo.negocio_id == None
-            ).all()
+        productos_a_migrar = base_query.filter(
+            ProductoCatalogo.negocio_id == None
+        ).all()
 
         count = len(productos_a_migrar)
         for p in productos_a_migrar:
