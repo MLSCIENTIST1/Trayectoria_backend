@@ -773,8 +773,15 @@ def guardar_producto_catalogo():
         personalizacion_activa, personalizacion_config = procesar_personalizacion_desde_request(data)
         
         # CONTEXTO
-        negocio_id = ctx.get('negocio_id') or int(data.get('negocio_id') or 1)
-        sucursal_id = ctx.get('sucursal_id') or int(data.get('sucursal_id') or 1)
+        # ★ FIX: nunca asumir negocio 1 como fallback — si no llega negocio_id
+        # se rechaza la petición para evitar crear productos en el negocio equivocado.
+        negocio_id = ctx.get('negocio_id') or data.get('negocio_id')
+        if not negocio_id:
+            return jsonify({"success": False, "message": "negocio_id requerido para crear producto"}), 400
+        negocio_id = int(negocio_id)
+        sucursal_id = ctx.get('sucursal_id') or data.get('sucursal_id') or None
+        if sucursal_id:
+            sucursal_id = int(sucursal_id)
 
         # ═══════════════════════════════════════════════════════════════
         # ★ v3.6: VALIDAR SUB-FEATURES POR PLAN (sanitización silenciosa)
