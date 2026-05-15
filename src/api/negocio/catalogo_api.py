@@ -650,7 +650,7 @@ def migrar_negocio_productos():
             p.negocio_id = negocio_id
 
         db.session.commit()
-        logger.info(f"✅ Migración{'(force)' if force else ''}: {count} productos → negocio {negocio_id} (user {user_id})")
+        logger.info(f"✅ Migración: {count} productos → negocio {negocio_id} (user {user_id})")
 
         return jsonify({
             "success": True,

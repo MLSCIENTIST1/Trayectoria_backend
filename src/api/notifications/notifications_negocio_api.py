@@ -629,21 +629,34 @@ def get_estadisticas(negocio_id):
 # ==========================================
 # ★★★ SSE STREAM — Tiempo Real ★★★
 # ==========================================
+# IMPORTANTE (Render / Gunicorn sync workers):
+#   Cada conexión SSE ocupa un worker completo. Si el stream nunca cierra,
+#   los workers se agotan → OOM → SIGKILL.
+#   Solución: duración máxima de 50 s por conexión. El navegador (EventSource)
+#   reconecta automáticamente al recibir el evento 'end' o cuando el stream
+#   cierra; el retry hint le dice cuándo volver a intentar.
+# ==========================================
+_SSE_MAX_SECONDS = 50   # libera el worker antes del timeout de Gunicorn (60s)
+_SSE_POLL_INTERVAL = 5  # segundos entre cada consulta a la BD
+
+
 @notifications_negocio_bp.route('/negocio/<int:negocio_id>/stream', methods=['GET'])
 @cross_origin()
 def stream_notificaciones(negocio_id):
     """
     GET /api/notifications/negocio/{id}/stream
-    Server-Sent Events — actualiza campanita en tiempo real sin polling.
-    Nota: en Render con workers sync, usa max 1-2 conexiones simultáneas.
-    El frontend hace fallback a polling si SSE no está disponible.
+    Server-Sent Events con duración máxima de 50 s.
+    El cliente (EventSource) reconecta automáticamente al cerrar.
     """
     def event_generator():
+        deadline = time.time() + _SSE_MAX_SECONDS
         last_count = -1
         last_pendientes = -1
-        heartbeat = 0
 
-        while True:
+        # Indicar al cliente que reconecte en 4 s si se cae la conexión
+        yield "retry: 4000\n\n"
+
+        while time.time() < deadline:
             try:
                 count = Notification.contar_no_leidas(negocio_id=negocio_id)
                 pendientes = Pedido.query.filter_by(
@@ -660,19 +673,22 @@ def stream_notificaciones(negocio_id):
                     })
                     yield f"data: {payload}\n\n"
                 else:
-                    heartbeat += 1
-                    if heartbeat % 6 == 0:  # cada ~30s enviar heartbeat
-                        yield f": heartbeat\n\n"
+                    # heartbeat silencioso para mantener la conexión viva
+                    yield ": ping\n\n"
 
-                time.sleep(5)
+                time.sleep(_SSE_POLL_INTERVAL)
 
             except GeneratorExit:
-                logger.info(f"SSE cerrado: negocio {negocio_id}")
-                break
+                logger.info(f"SSE cerrado por cliente: negocio {negocio_id}")
+                return
             except Exception as e:
                 logger.error(f"SSE error negocio {negocio_id}: {e}")
                 yield f"data: {json.dumps({'error': 'stream_error'})}\n\n"
-                break
+                return
+
+        # Cierre limpio → el EventSource reconecta automáticamente
+        logger.debug(f"SSE deadline alcanzado: negocio {negocio_id} — cerrando para liberar worker")
+        yield f"event: end\ndata: reconnect\n\n"
 
     headers = {
         'Cache-Control': 'no-cache',
