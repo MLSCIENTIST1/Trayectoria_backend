@@ -128,6 +128,62 @@ try:
             # No detenemos la app — podría ser que ya estén aplicadas
 
         # ==========================================
+        # VERIFICACIÓN Y REPARACIÓN DE COLUMNAS CRÍTICAS
+        # Cubre el caso en que alembic_version marcó la migración a1b2c3d4e5f6
+        # como "aplicada" usando la tabla incorrecta ('negocio' en lugar de 'negocios')
+        # y la columna tipo_pagina nunca fue creada realmente.
+        # ==========================================
+        try:
+            from sqlalchemy import text as _sql_text
+            with app.app_context():
+                from src.models.database import db as _db
+                conn = _db.engine.connect()
+
+                # Verificar qué columnas faltan en 'negocios'
+                _columnas_criticas = {
+                    "tipo_pagina":    "VARCHAR(50)",
+                    "whatsapp":       "VARCHAR(20)",
+                    "logo_url":       "TEXT",
+                    "config_tienda":  "JSONB DEFAULT '{}'",
+                    "qr_negocio_url": "TEXT",
+                    "qr_negocio_data":"VARCHAR(300)",
+                    "perfil_publico": "BOOLEAN DEFAULT TRUE NOT NULL",
+                }
+
+                _check = _sql_text("""
+                    SELECT column_name FROM information_schema.columns
+                    WHERE table_name = 'negocios'
+                      AND column_name = ANY(:cols)
+                """)
+                _existentes = {
+                    row[0] for row in conn.execute(
+                        _check, {"cols": list(_columnas_criticas.keys())}
+                    )
+                }
+
+                _creadas = []
+                for col, defn in _columnas_criticas.items():
+                    if col not in _existentes:
+                        _alter = f"ALTER TABLE negocios ADD COLUMN IF NOT EXISTS {col} {defn}"
+                        conn.execute(_sql_text(_alter))
+                        _creadas.append(col)
+                        logger.warning(f"⚠️  Columna faltante creada: negocios.{col}")
+
+                if _creadas:
+                    conn.execute(_sql_text(
+                        "UPDATE negocios SET tipo_pagina = NULL WHERE tipo_pagina = 'landing'"
+                    ))
+                    conn.commit()
+                    logger.warning(f"🔧 Columnas reparadas: {_creadas}")
+                else:
+                    conn.commit()
+                    logger.info("✅ Todas las columnas críticas de 'negocios' existen")
+
+                conn.close()
+        except Exception as col_err:
+            logger.warning(f"⚠️  No se pudo verificar columnas: {col_err}")
+
+        # ==========================================
         # INSPECTOR DE RUTAS
         # ==========================================
         with app.app_context():
