@@ -110,10 +110,23 @@ app = None
 try:
     # Crear la aplicación
     app = create_app()
-    
+
     if app:
         logger.info("✅ Aplicación creada exitosamente")
-        
+
+        # ==========================================
+        # MIGRACIONES AUTOMÁTICAS AL ARRANCAR
+        # ==========================================
+        try:
+            from flask_migrate import upgrade as db_upgrade
+            with app.app_context():
+                logger.info("🔄 Ejecutando migraciones pendientes...")
+                db_upgrade()
+                logger.info("✅ Migraciones aplicadas correctamente")
+        except Exception as mig_err:
+            logger.warning(f"⚠️  No se pudieron aplicar migraciones: {mig_err}")
+            # No detenemos la app — podría ser que ya estén aplicadas
+
         # ==========================================
         # INSPECTOR DE RUTAS
         # ==========================================
