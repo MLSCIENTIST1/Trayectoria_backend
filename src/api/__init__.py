@@ -664,7 +664,12 @@ def register_api(app):
     logger.info("\n💬 Cargando módulos de comunicación...")
     
     communication_modules = [
-        ('src.api.notifications.notifications_api', 'notifications_bp', 'Sistema de Notificaciones'),
+        # notifications_api.py es solo el modelo — los blueprints están en archivos separados
+        ('src.api.notifications.show_notifications_api',   'show_notifications_bp',   'Mostrar Notificaciones'),
+        ('src.api.notifications.accept_notification_api',  'accept_notification_bp',  'Aceptar Notificaciones'),
+        ('src.api.notifications.reject_notification_api',  'reject_notification_bp',  'Rechazar Notificaciones'),
+        ('src.api.notifications.detail_notifications_api', 'detail_notifications_bp', 'Detalle Notificaciones'),
+        ('src.api.notifications.request_more_details_bp',  'request_more_details_bp', 'Solicitar Más Detalles'),
         ('src.api.notifications.chat_api', 'chat_bp', 'Sistema de Chat'),
     ]
     
