@@ -276,19 +276,18 @@ _PLANTILLAS_RUTAS = {
 
 def _build_site_url(negocio):
     """
-    Devuelve la URL pública real del micrositio según tipo_pagina.
-    Usa _PLANTILLAS_RUTAS como fuente de verdad.
+    Devuelve la URL pública limpia del micrositio.
+
+    Formato:  https://tuko.pages.dev/tienda/{slug}
+    El router r.html resuelve automáticamente qué plantilla mostrar.
+    El parámetro ?slug= ya no es necesario ni visible para el usuario.
     """
     if not getattr(negocio, 'tiene_pagina', False):
         return None
     slug = getattr(negocio, 'slug', None)
     if not slug:
         return None
-    tipo = getattr(negocio, 'tipo_pagina', None) or 'ecommerce'
-    if tipo == 'landing':
-        tipo = 'ecommerce'
-    ruta = _PLANTILLAS_RUTAS.get(tipo, '/tienda/')
-    return f'{_TUKO_BASE}{ruta}?slug={slug}'
+    return f'{_TUKO_BASE}/tienda/{slug}'
 
 
 def serialize_negocio(negocio, include_sucursales=False):
