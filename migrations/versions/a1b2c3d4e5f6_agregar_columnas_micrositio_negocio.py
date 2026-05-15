@@ -44,6 +44,13 @@ def upgrade():
     for sql in columnas:
         conn.execute(sa.text(sql))
 
+    # 'landing' es el default del modelo pero no es una plantilla real en TuKomercio.
+    # Normalizar: filas con tipo_pagina='landing' pasan a NULL para que la app
+    # use el fallback correcto ('ecommerce').
+    conn.execute(sa.text(
+        "UPDATE negocio SET tipo_pagina = NULL WHERE tipo_pagina = 'landing'"
+    ))
+
 
 def downgrade():
     # No eliminamos columnas en downgrade para evitar pérdida de datos
