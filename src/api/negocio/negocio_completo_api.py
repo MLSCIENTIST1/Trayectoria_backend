@@ -786,7 +786,9 @@ def actualizar_negocio(negocio_id):
             negocio.whatsapp = data['whatsapp']
         
         if 'tipo_pagina' in data:
+            _tp_anterior = negocio.tipo_pagina
             negocio.tipo_pagina = data['tipo_pagina']
+            logger.info(f"🎨 tipo_pagina negocio {negocio_id}: '{_tp_anterior}' → '{negocio.tipo_pagina}'")
         
         if 'logo_url' in data:
             negocio.logo_url = data['logo_url']
@@ -812,7 +814,13 @@ def actualizar_negocio(negocio_id):
             negocio.slug = slug_final
         
         db.session.commit()
-        
+        logger.info(
+            f"✅ Negocio {negocio_id} commit OK — "
+            f"tipo_pagina={negocio.tipo_pagina!r}  "
+            f"tiene_pagina={negocio.tiene_pagina!r}  "
+            f"slug={negocio.slug!r}"
+        )
+
         # REGENERAR QR SI CAMBIÓ EL SLUG
         qr_regenerated = False
         if negocio.slug and negocio.slug != slug_anterior:
