@@ -270,6 +270,7 @@ def _build_site_url(negocio):
         'catalogo':    f'{_TUKO_BASE}/tienda/plantillas/catalogo/?slug={slug}',
         'groove':      f'{_TUKO_BASE}/tienda/plantillas/groove/?slug={slug}',
         'verde':       f'{_TUKO_BASE}/tienda/plantillas/verde/?slug={slug}',
+        'prueba':      f'{_TUKO_BASE}/tienda/plantillas/prueba/?slug={slug}',
     }
     return rutas.get(tipo, f'{_TUKO_BASE}/tienda/?slug={slug}')
 
@@ -748,7 +749,13 @@ def actualizar_negocio(negocio_id):
         logger.info(f"📝 Actualizando negocio {negocio_id} por usuario {user_id}")
         
         slug_anterior = negocio.slug
-        
+
+        # ══════════════════════════════════════════════════════════════
+        # FASE 1 — Campos críticos (tienen_pagina, slug, etc.)
+        # Estos DEBEN guardarse aunque tipo_pagina falle.
+        # Guardamos tipo_pagina en variable aparte para el commit-2.
+        # ══════════════════════════════════════════════════════════════
+
         # Campos básicos
         if 'nombre_negocio' in data:
             negocio.nombre_negocio = data['nombre_negocio']
@@ -760,65 +767,98 @@ def actualizar_negocio(negocio_id):
             negocio.telefono = data['telefono']
         if 'categoria' in data:
             negocio.categoria = data['categoria']
-        
+
         # Campos para micrositio / tienda online
         if 'color_tema' in data:
             negocio.color_tema = data['color_tema']
-        
+
         if 'tiene_pagina' in data:
             negocio.tiene_pagina = data['tiene_pagina']
-        
+
         if 'slug' in data and data['slug']:
             slug_existente = Negocio.query.filter(
                 Negocio.slug == data['slug'],
                 Negocio.id_negocio != negocio_id
             ).first()
-            
+
             if slug_existente:
                 return jsonify({
-                    "success": False, 
+                    "success": False,
                     "error": f"El slug '{data['slug']}' ya está en uso"
                 }), 409
-            
+
             negocio.slug = data['slug']
-        
+
         if 'whatsapp' in data:
             negocio.whatsapp = data['whatsapp']
-        
-        if 'tipo_pagina' in data:
-            _tp_anterior = negocio.tipo_pagina
-            negocio.tipo_pagina = data['tipo_pagina']
-            logger.info(f"🎨 tipo_pagina negocio {negocio_id}: '{_tp_anterior}' → '{negocio.tipo_pagina}'")
-        
+
         if 'logo_url' in data:
             negocio.logo_url = data['logo_url']
-        
+
         # CONFIG_TIENDA - STORE DESIGNER
         if 'config_tienda' in data:
             negocio.config_tienda = data['config_tienda']
             logger.info(f"🎨 Config tienda actualizada para negocio {negocio_id}")
-        
+
         # Generar slug automático si se activa página
         if data.get('tiene_pagina') and not negocio.slug:
             base_slug = generar_slug(negocio.nombre_negocio)
             slug_final = base_slug
             contador = 1
-            
+
             while Negocio.query.filter(
                 Negocio.slug == slug_final,
                 Negocio.id_negocio != negocio_id
             ).first():
                 slug_final = f"{base_slug}-{contador}"
                 contador += 1
-            
+
             negocio.slug = slug_final
-        
+
+        # ── COMMIT 1: Campos críticos ──────────────────────────────
         db.session.commit()
         logger.info(
-            f"✅ Negocio {negocio_id} commit OK — "
-            f"tipo_pagina={negocio.tipo_pagina!r}  "
+            f"✅ Negocio {negocio_id} commit-1 OK — "
             f"tiene_pagina={negocio.tiene_pagina!r}  "
             f"slug={negocio.slug!r}"
+        )
+
+        # ══════════════════════════════════════════════════════════════
+        # FASE 2 — tipo_pagina (columna que puede no existir en BD)
+        # Si falla, la tienda sigue siendo accesible (commit-1 ya pasó).
+        # ══════════════════════════════════════════════════════════════
+        tipo_pagina_saved = True
+        tipo_pagina_err = None
+
+        if 'tipo_pagina' in data:
+            _tp_nuevo = data['tipo_pagina']
+            _tp_anterior = negocio.tipo_pagina
+            logger.info(f"🎨 Intentando guardar tipo_pagina negocio {negocio_id}: '{_tp_anterior}' → '{_tp_nuevo}'")
+            try:
+                negocio.tipo_pagina = _tp_nuevo
+                db.session.commit()
+                logger.info(f"✅ tipo_pagina guardado OK: {negocio.tipo_pagina!r}")
+            except Exception as tipo_err:
+                db.session.rollback()
+                tipo_pagina_saved = False
+                tipo_pagina_err = str(tipo_err)
+                logger.error(
+                    f"❌ No se pudo guardar tipo_pagina='{_tp_nuevo}' para negocio {negocio_id}: {tipo_err}"
+                )
+                logger.error(
+                    "   ⚠️  La tienda SÍ está accesible (commit-1 ya pasó). "
+                    "La columna tipo_pagina posiblemente no existe en la BD. "
+                    "Verificar run.py repair block al iniciar."
+                )
+                # Restaurar valor local para que el JSON devuelto sea correcto
+                negocio.tipo_pagina = _tp_anterior
+
+        logger.info(
+            f"✅ Negocio {negocio_id} actualizado — "
+            f"tipo_pagina={negocio.tipo_pagina!r}  "
+            f"tiene_pagina={negocio.tiene_pagina!r}  "
+            f"slug={negocio.slug!r}  "
+            f"tipo_pagina_saved={tipo_pagina_saved}"
         )
 
         # REGENERAR QR SI CAMBIÓ EL SLUG
@@ -828,18 +868,23 @@ def actualizar_negocio(negocio_id):
             qr_regenerated = qr_result.get('success', False)
             if qr_regenerated:
                 logger.info(f"📱 QR regenerado por cambio de slug: {qr_result.get('qr_data')}")
-        
+
         logger.info(f"✅ Negocio actualizado: {negocio.nombre_negocio}")
-        
+
         response_data = serialize_negocio(negocio)
         response_data['qr_regenerated'] = qr_regenerated
-        
+        # Devolver info de diagnóstico al frontend
+        if not tipo_pagina_saved:
+            response_data['tipo_pagina_warning'] = (
+                f"tipo_pagina no pudo guardarse en BD: {tipo_pagina_err}"
+            )
+
         return jsonify({
             "success": True,
             "message": "Negocio actualizado exitosamente",
             "data": response_data
         }), 200
-        
+
     except Exception as e:
         db.session.rollback()
         logger.error(f"❌ Error actualizando negocio: {e}", exc_info=True)
