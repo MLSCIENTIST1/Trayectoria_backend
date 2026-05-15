@@ -254,8 +254,31 @@ def get_current_user_id():
 
 _TUKO_BASE = 'https://tuko.pages.dev'
 
+# ══════════════════════════════════════════════════════════════════════
+# REGISTRO DE PLANTILLAS — Backend
+#
+# ✅ PARA AGREGAR UNA PLANTILLA NUEVA:
+#    Agregar una línea aquí: 'tipo': '/tienda/plantillas/<tipo>/'
+#    El tipo DEBE coincidir con lo que guarda el frontend en tipo_pagina.
+#    También registrar en plantillas_registry.js del frontend.
+# ══════════════════════════════════════════════════════════════════════
+_PLANTILLAS_RUTAS = {
+    'taller':      '/tienda/plantillas/taller/',
+    'restaurante': '/tienda/plantillas/restaurante/',
+    'catalogo':    '/tienda/plantillas/catalogo/',
+    'groove':      '/tienda/plantillas/groove/',
+    'verde':       '/tienda/plantillas/verde/',
+    'prueba':      '/tienda/plantillas/prueba/',
+    # ── Agregar nuevas plantillas aquí ──────────────────────────────
+    # 'nueva':     '/tienda/plantillas/nueva/',
+}
+
+
 def _build_site_url(negocio):
-    """Devuelve la URL pública real del micrositio según tipo_pagina."""
+    """
+    Devuelve la URL pública real del micrositio según tipo_pagina.
+    Usa _PLANTILLAS_RUTAS como fuente de verdad.
+    """
     if not getattr(negocio, 'tiene_pagina', False):
         return None
     slug = getattr(negocio, 'slug', None)
@@ -264,15 +287,8 @@ def _build_site_url(negocio):
     tipo = getattr(negocio, 'tipo_pagina', None) or 'ecommerce'
     if tipo == 'landing':
         tipo = 'ecommerce'
-    rutas = {
-        'taller':      f'{_TUKO_BASE}/tienda/plantillas/taller/?slug={slug}',
-        'restaurante': f'{_TUKO_BASE}/tienda/plantillas/restaurante/?slug={slug}',
-        'catalogo':    f'{_TUKO_BASE}/tienda/plantillas/catalogo/?slug={slug}',
-        'groove':      f'{_TUKO_BASE}/tienda/plantillas/groove/?slug={slug}',
-        'verde':       f'{_TUKO_BASE}/tienda/plantillas/verde/?slug={slug}',
-        'prueba':      f'{_TUKO_BASE}/tienda/plantillas/prueba/?slug={slug}',
-    }
-    return rutas.get(tipo, f'{_TUKO_BASE}/tienda/?slug={slug}')
+    ruta = _PLANTILLAS_RUTAS.get(tipo, '/tienda/')
+    return f'{_TUKO_BASE}{ruta}?slug={slug}'
 
 
 def serialize_negocio(negocio, include_sucursales=False):
