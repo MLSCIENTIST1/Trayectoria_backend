@@ -32,13 +32,13 @@ def upgrade():
 
     # Cada sentencia usa IF NOT EXISTS — idempotente aunque la columna ya exista
     columnas = [
-        "ALTER TABLE negocio ADD COLUMN IF NOT EXISTS tipo_pagina    VARCHAR(50)  DEFAULT 'landing'",
-        "ALTER TABLE negocio ADD COLUMN IF NOT EXISTS whatsapp       VARCHAR(20)",
-        "ALTER TABLE negocio ADD COLUMN IF NOT EXISTS logo_url       TEXT",
-        "ALTER TABLE negocio ADD COLUMN IF NOT EXISTS config_tienda  JSONB        DEFAULT '{}'",
-        "ALTER TABLE negocio ADD COLUMN IF NOT EXISTS qr_negocio_url  TEXT",
-        "ALTER TABLE negocio ADD COLUMN IF NOT EXISTS qr_negocio_data VARCHAR(300)",
-        "ALTER TABLE negocio ADD COLUMN IF NOT EXISTS perfil_publico  BOOLEAN      DEFAULT TRUE NOT NULL",
+        "ALTER TABLE negocios ADD COLUMN IF NOT EXISTS tipo_pagina    VARCHAR(50)  DEFAULT 'landing'",
+        "ALTER TABLE negocios ADD COLUMN IF NOT EXISTS whatsapp       VARCHAR(20)",
+        "ALTER TABLE negocios ADD COLUMN IF NOT EXISTS logo_url       TEXT",
+        "ALTER TABLE negocios ADD COLUMN IF NOT EXISTS config_tienda  JSONB        DEFAULT '{}'",
+        "ALTER TABLE negocios ADD COLUMN IF NOT EXISTS qr_negocio_url  TEXT",
+        "ALTER TABLE negocios ADD COLUMN IF NOT EXISTS qr_negocio_data VARCHAR(300)",
+        "ALTER TABLE negocios ADD COLUMN IF NOT EXISTS perfil_publico  BOOLEAN      DEFAULT TRUE NOT NULL",
     ]
 
     for sql in columnas:
@@ -48,7 +48,7 @@ def upgrade():
     # Normalizar: filas con tipo_pagina='landing' pasan a NULL para que la app
     # use el fallback correcto ('ecommerce').
     conn.execute(sa.text(
-        "UPDATE negocio SET tipo_pagina = NULL WHERE tipo_pagina = 'landing'"
+        "UPDATE negocios SET tipo_pagina = NULL WHERE tipo_pagina = 'landing'"
     ))
 
 

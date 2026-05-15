@@ -252,6 +252,28 @@ def get_current_user_id():
     return None
 
 
+_TUKO_BASE = 'https://tuko.pages.dev'
+
+def _build_site_url(negocio):
+    """Devuelve la URL pública real del micrositio según tipo_pagina."""
+    if not getattr(negocio, 'tiene_pagina', False):
+        return None
+    slug = getattr(negocio, 'slug', None)
+    if not slug:
+        return None
+    tipo = getattr(negocio, 'tipo_pagina', None) or 'ecommerce'
+    if tipo == 'landing':
+        tipo = 'ecommerce'
+    rutas = {
+        'taller':      f'{_TUKO_BASE}/tienda/plantillas/taller/?slug={slug}',
+        'restaurante': f'{_TUKO_BASE}/tienda/plantillas/restaurante/?slug={slug}',
+        'catalogo':    f'{_TUKO_BASE}/tienda/plantillas/catalogo/?slug={slug}',
+        'groove':      f'{_TUKO_BASE}/tienda/plantillas/groove/?slug={slug}',
+        'verde':       f'{_TUKO_BASE}/tienda/plantillas/verde/?slug={slug}',
+    }
+    return rutas.get(tipo, f'{_TUKO_BASE}/tienda/?slug={slug}')
+
+
 def serialize_negocio(negocio, include_sucursales=False):
     """Serializa un negocio a JSON."""
     data = {
@@ -274,11 +296,12 @@ def serialize_negocio(negocio, include_sucursales=False):
         "whatsapp": getattr(negocio, 'whatsapp', None),
         "tipo_pagina": getattr(negocio, 'tipo_pagina', None),
         "logo_url": getattr(negocio, 'logo_url', None),
-        "url_sitio": f"/tienda/{negocio.slug}" if getattr(negocio, 'tiene_pagina', False) and getattr(negocio, 'slug', None) else None,
-        
+        "url_sitio": _build_site_url(negocio),
+        "perfil_publico": getattr(negocio, 'perfil_publico', True),
+
         # Store Designer
         "config_tienda": getattr(negocio, 'config_tienda', {}) or {},
-        
+
         # QR Data
         "qr_negocio_data": getattr(negocio, 'qr_negocio_data', None),
         "qr_url": f"/api/negocio/{negocio.id_negocio}/qr" if getattr(negocio, 'slug', None) else None
@@ -491,12 +514,15 @@ def manifest_pwa(slug):
                 {"src": "/assets/icons/pwa-512.png",  "sizes": "512x512",  "type": "image/png"}
             ]
 
+        # start_url apunta a la URL real según tipo_pagina
+        start_url = _build_site_url(negocio) or f'https://tuko.pages.dev/tienda/?slug={slug}'
+
         manifest = {
             "name":             nombre,
             "short_name":       short_name,
             "description":      desc,
-            "start_url":        f"/tienda/?slug={slug}",
-            "scope":            "/tienda/",
+            "start_url":        start_url,
+            "scope":            "https://tuko.pages.dev/",
             "display":          "standalone",
             "background_color": "#ffffff",
             "theme_color":      color,
