@@ -1135,6 +1135,9 @@ class ProductoCatalogo(db.Model):
             "variantes": self._parse_json_field(self.variantes, None),
             "tiene_variantes": bool(self.variantes and self._parse_json_field(self.variantes, {}).get('tipos')),
             
+            # DROPSHIPPING
+            "es_dropshipping": bool(self.es_dropshipping) if self.es_dropshipping is not None else False,
+
             # ESTADO
             "activo": self.activo,
             "estado_publicacion": self.estado_publicacion,
