@@ -2516,7 +2516,23 @@ def catalogo_publico(negocio_id):
             activo=True,
             estado_publicacion=True
         )
- 
+
+        # ── Filtro dropshipping: ocultar DS si el negocio lo desactivó ──────────
+        try:
+            negocio_cfg = Negocio.query.filter_by(id_negocio=negocio_id).first()
+            config_t = (negocio_cfg.config_tienda or {}) if negocio_cfg else {}
+            if config_t.get('mostrar_dropshipping') is False:
+                if hasattr(ProductoCatalogo, 'es_dropshipping'):
+                    query = query.filter(
+                        db.or_(
+                            ProductoCatalogo.es_dropshipping == False,
+                            ProductoCatalogo.es_dropshipping == None
+                        )
+                    )
+        except Exception as _ds_err:
+            logger.warning(f"⚠️ No se pudo aplicar filtro DS: {_ds_err}")
+        # ────────────────────────────────────────────────────────────────────────
+
         # Filtros
         categoria = request.args.get('categoria')
         if categoria:
