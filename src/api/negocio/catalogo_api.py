@@ -2585,8 +2585,9 @@ def catalogo_publico(negocio_id):
                 else:
                     campos['badges'] = {}
  
-                campos['destacado']   = getattr(p, 'badge_destacado', False)
-                campos['envio_gratis'] = getattr(p, 'badge_envio_gratis', False)
+                campos['destacado']      = getattr(p, 'badge_destacado', False)
+                campos['envio_gratis']   = getattr(p, 'badge_envio_gratis', False)
+                campos['es_dropshipping'] = getattr(p, 'es_dropshipping', False) or False
  
                 # Descuento
                 try:
