@@ -579,7 +579,7 @@ def obtener_mis_productos():
             try:
                 d = safe_to_dict(p, ['id_producto', 'nombre', 'precio', 'stock', 'categoria',
                                       'descripcion', 'imagen_url', 'referencia_sku', 'codigo_barras',
-                                      'imagenes', 'videos', 'activo', 'negocio_id'])
+                                      'imagenes', 'videos', 'activo', 'negocio_id', 'es_dropshipping'])
                 d['id'] = p.id_producto
                 d['sku'] = p.referencia_sku
                 d['barcode'] = p.codigo_barras or ''
