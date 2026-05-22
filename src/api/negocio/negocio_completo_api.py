@@ -1000,12 +1000,13 @@ def actualizar_config_tienda(negocio_id):
             return jsonify({"success": False, "error": "Negocio no encontrado"}), 404
         
         data = request.get_json()
-        
+
         if request.method == 'PUT':
             negocio.config_tienda = data
         else:
-            current_config = getattr(negocio, 'config_tienda', {}) or {}
-            
+            # ★ dict() crea copia para que deep_merge no mute el objeto cargado por SQLAlchemy
+            current_config = dict(getattr(negocio, 'config_tienda', None) or {})
+
             def deep_merge(base, updates):
                 for key, value in updates.items():
                     if key in base and isinstance(base[key], dict) and isinstance(value, dict):
@@ -1013,9 +1014,13 @@ def actualizar_config_tienda(negocio_id):
                     else:
                         base[key] = value
                 return base
-            
+
             negocio.config_tienda = deep_merge(current_config, data)
-        
+
+        # Forzar flag de cambio en columna JSONB (SQLAlchemy no detecta mutaciones internas)
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(negocio, 'config_tienda')
+
         db.session.commit()
         
         logger.info(f"🎨 Config tienda actualizada para negocio {negocio_id}")
