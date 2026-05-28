@@ -268,7 +268,7 @@ def registrar_operacion_maestra():
                 producto.stock = stock_nuevo
                 db.session.flush()  # ← persiste el cambio antes del siguiente item
 
-                # Registrar MovimientoStock para auditoría
+                # Registrar MovimientoStock para auditoría (vinculado a la transacción)
                 mov = MovimientoStock(
                     producto_id=producto.id_producto,
                     usuario_id=user_id,
@@ -280,6 +280,9 @@ def registrar_operacion_maestra():
                     stock_nuevo=stock_nuevo,
                     nota=f"{tipo_op} registrada desde Órdenes de Compra | Ref: {data.get('concepto', '')}"
                 )
+                # Vincular movimiento a la transacción (para historial con num_items)
+                if hasattr(mov, 'transaccion_id'):
+                    mov.transaccion_id = nueva_transaccion.id_transaccion
                 db.session.add(mov)
 
                 items_actualizados.append({
@@ -334,27 +337,48 @@ def obtener_reporte(negocio_id):
         return jsonify({"success": True}), 200
     
     try:
+        from sqlalchemy import func
+
         user_id = get_authenticated_user_id()
         if not user_id:
             logger.warning("⚠️ Acceso a reporte sin autenticación")
-        
+
         tipo_filtro = request.args.get('tipo')
         limite = int(request.args.get('limit') or request.args.get('limite') or 100)
-        
+
         query = TransaccionOperativa.query.filter_by(negocio_id=negocio_id)
-        
+
         if tipo_filtro:
             query = query.filter_by(tipo=tipo_filtro.upper())
-        
+
         operaciones = query.order_by(
             TransaccionOperativa.fecha.desc()
         ).limit(limite).all()
-        
+
+        # Contar movimientos de stock por transacción (para num_items en historial)
+        ids_transaccion = [op.id_transaccion for op in operaciones]
+        conteo_items = {}
+        if ids_transaccion and hasattr(MovimientoStock, 'transaccion_id'):
+            try:
+                rows = (
+                    db.session.query(
+                        MovimientoStock.transaccion_id,
+                        func.count(MovimientoStock.id_movimiento).label('total')
+                    )
+                    .filter(MovimientoStock.transaccion_id.in_(ids_transaccion))
+                    .group_by(MovimientoStock.transaccion_id)
+                    .all()
+                )
+                conteo_items = {r.transaccion_id: r.total for r in rows}
+            except Exception as _ce:
+                logger.warning(f"⚠️ No se pudo contar items por transacción: {_ce}")
+
         resultado = []
         for op in operaciones:
             resultado.append({
                 "id": op.id_transaccion,
                 "fecha": op.fecha.isoformat() if hasattr(op, 'fecha') and op.fecha else None,
+                "fecha_hora": op.fecha.isoformat() if hasattr(op, 'fecha') and op.fecha else None,
                 "concepto": op.concepto or "Sin concepto",
                 "categoria": op.categoria or "General",
                 "monto": float(op.monto),
@@ -362,10 +386,12 @@ def obtener_reporte(negocio_id):
                 "metodo_pago": op.metodo_pago or "No especificado",
                 "anulada": getattr(op, 'anulada', False) or False,
                 "motivo_anulacion": getattr(op, 'motivo_anulacion', None),
+                "num_items": conteo_items.get(op.id_transaccion, 0),
+                "notas": getattr(op, 'notas', None),
             })
-        
+
         logger.info(f"✅ Reporte generado: {len(resultado)} operaciones")
-        
+
         return jsonify({
             "success": True,
             "operaciones": resultado,

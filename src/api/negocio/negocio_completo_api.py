@@ -692,8 +692,23 @@ def registrar_negocio():
             else:
                 logger.warning(f"⚠️ Error creando perfil MecaLink: {mecalink_result.get('error')}")
         
+        # ==========================================
+        # 🆓 INICIAR TRIAL (primer mes gratis) v3.0
+        # ==========================================
+        try:
+            from src.models.colombia_data.suscripcion_negocio import iniciar_trial_para_negocio
+            iniciar_trial_para_negocio(
+                negocio_id=nuevo_negocio.id_negocio,
+                plan_key=plan_heredado or 'basic',
+                dias=30,
+                creado_por='sistema'
+            )
+            logger.info(f"🆓 Trial de 30 días iniciado para negocio {nuevo_negocio.id_negocio}")
+        except Exception as _trial_err:
+            logger.warning(f"⚠️ No se pudo iniciar trial (no bloquea): {_trial_err}")
+
         db.session.commit()
-        
+
         # ==========================================
         # 📱 GENERAR QR AUTOMÁTICAMENTE (v2.4)
         # ==========================================
@@ -1770,6 +1785,72 @@ def obtener_contexto_actual():
 # ==========================================
 # 🔍 ENDPOINT DE DEBUG
 # ==========================================
+
+# ==========================================
+# 🔔 SUSCRIPCIÓN - Estado para el dueño del negocio
+# ==========================================
+
+@negocio_api_bp.route('/negocio/<int:negocio_id>/suscripcion', methods=['GET', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def obtener_suscripcion_negocio(negocio_id):
+    """
+    Devuelve el estado de suscripción del negocio para el dueño.
+    Accesible sin privilegios de admin — sólo verifica que el usuario
+    sea dueño del negocio solicitado.
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({"success": False, "error": "No autenticado"}), 401
+
+    # Verificar propiedad
+    negocio = Negocio.query.filter_by(
+        id_negocio=negocio_id, usuario_id=user_id
+    ).first()
+    if not negocio:
+        return jsonify({"success": False, "error": "Negocio no encontrado"}), 404
+
+    try:
+        from src.models.colombia_data.suscripcion_negocio import SuscripcionNegocio
+        sus = SuscripcionNegocio.query.filter_by(negocio_id=negocio_id).first()
+
+        if not sus:
+            # Sin registro todavía — devolver estado mínimo
+            return jsonify({
+                "success": True,
+                "data": {
+                    "tiene_suscripcion": False,
+                    "estado": "sin_suscripcion",
+                    "dias_restantes": 0,
+                    "es_trial": False,
+                    "vence_pronto": False,
+                    "fecha_vencimiento": None,
+                    "negocio_nombre": negocio.nombre_negocio,
+                }
+            }), 200
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "tiene_suscripcion": True,
+                "estado": sus.estado_actual,
+                "dias_restantes": sus.dias_restantes,
+                "es_trial": sus.es_trial,
+                "vence_pronto": sus.vence_pronto,
+                "fecha_vencimiento": sus.fecha_vencimiento.isoformat() if sus.fecha_vencimiento else None,
+                "fecha_inicio_trial": sus.fecha_inicio_trial.isoformat() if sus.fecha_inicio_trial else None,
+                "plan_id": sus.plan_id,
+                "renovacion_automatica": sus.renovacion_automatica,
+                "negocio_nombre": negocio.nombre_negocio,
+            }
+        }), 200
+
+    except Exception as e:
+        logger.error(f"❌ Error obteniendo suscripción de negocio {negocio_id}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 
 @negocio_api_bp.route('/debug/session', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)

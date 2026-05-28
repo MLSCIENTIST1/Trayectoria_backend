@@ -348,6 +348,10 @@ def list_negocios_with_plans():
         except Exception:
             return str(dt)[:10]
 
+    # Enriquecer con datos de suscripción (tolerante a fallos)
+    ids = [n[0] for n in negocios]
+    subs_map = _enriquecer_con_suscripcion(ids)
+
     return jsonify({
         'success': True,
         'negocios': [{
@@ -359,6 +363,14 @@ def list_negocios_with_plans():
             'dueno_email': n[13],
             'num_productos': int(n[14] or 0),
             'num_pedidos': int(n[15] or 0),
+            # ── Suscripción ──────────────────────────────────────
+            **subs_map.get(n[0], {
+                'estado_suscripcion': None,
+                'dias_restantes':     None,
+                'vence_pronto':       False,
+                'es_trial':           None,
+                'fecha_vencimiento':  None,
+            }),
         } for n in negocios],
         'total': total, 'page': page, 'limit': limit,
         'stats_por_plan': [{'plan': s[0] or 'basic', 'cantidad': s[1]} for s in stats]
@@ -567,6 +579,236 @@ def eliminar_negocio(negocio_id):
         db.session.rollback()
         logger.error(f"Error eliminando negocio {negocio_id}: {e}")
         return jsonify({'error': f'Error eliminando negocio: {str(e)}'}), 500
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ENDPOINTS DE SUSCRIPCIONES — ADMIN
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_features_bp.route('/api/admin/negocios/<int:negocio_id>/suscripcion', methods=['GET', 'OPTIONS'])
+@admin_required
+def get_suscripcion_negocio(negocio_id):
+    """
+    GET /api/admin/negocios/{id}/suscripcion
+    Retorna el estado completo de la suscripción de un negocio.
+    """
+    try:
+        from src.models.colombia_data.suscripcion_negocio import SuscripcionNegocio
+        sus = SuscripcionNegocio.query.filter_by(negocio_id=negocio_id).first()
+        if not sus:
+            return jsonify({'success': False, 'error': 'Sin suscripción registrada',
+                            'negocio_id': negocio_id}), 404
+        return jsonify({'success': True, 'suscripcion': sus.to_dict(include_negocio=True)})
+    except Exception as e:
+        logger.error(f"Error get_suscripcion_negocio {negocio_id}: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@admin_features_bp.route('/api/admin/negocios/<int:negocio_id>/suscripcion', methods=['PUT', 'OPTIONS'])
+@admin_required
+def update_suscripcion_negocio(negocio_id):
+    """
+    PUT /api/admin/negocios/{id}/suscripcion
+    Actualiza la suscripción de un negocio.
+
+    Body JSON:
+      accion      — 'activar' | 'extender' | 'cancelar' | 'pausar' | 'trial'
+      plan_key    — 'basic' | 'pro' | 'premium' | 'delux'  (para accion=activar)
+      dias        — int (para activar/extender/trial, default 30)
+      notas       — str (opcional, para auditoría)
+    """
+    try:
+        from src.models.colombia_data.suscripcion_negocio import (
+            SuscripcionNegocio, iniciar_trial_para_negocio, DIAS_TRIAL_DEFAULT
+        )
+        data   = request.get_json(silent=True) or {}
+        accion = data.get('accion', '').strip().lower()
+        dias   = int(data.get('dias', 30))
+        notas  = data.get('notas') or f'Modificado por {g.user_email}'
+
+        sus = SuscripcionNegocio.query.filter_by(negocio_id=negocio_id).first()
+
+        if accion == 'trial':
+            # Regalar trial (segunda oportunidad o primera vez)
+            if sus is None:
+                sus = iniciar_trial_para_negocio(
+                    negocio_id=negocio_id, dias=dias,
+                    creado_por=f'admin:{g.user_email}'
+                )
+            else:
+                sus.dar_trial_segunda_oportunidad(
+                    dias=dias, creado_por=f'admin:{g.user_email}'
+                )
+                sus.notas = notas
+
+        elif accion == 'activar':
+            plan_key = data.get('plan_key', 'basic')
+            _seed_planes()
+            plan = Plan.query.filter_by(key=plan_key, activo=True).first()
+            if not plan:
+                return jsonify({'error': f"Plan '{plan_key}' no encontrado"}), 404
+            if sus is None:
+                sus = SuscripcionNegocio(negocio_id=negocio_id)
+                db.session.add(sus)
+                db.session.flush()
+            sus.activar_suscripcion(
+                plan_id=plan.id, dias=dias,
+                creado_por=f'admin:{g.user_email}', notas=notas
+            )
+            # Sincronizar plan_key en la tabla negocios
+            db.session.execute(
+                text("UPDATE negocios SET plan_key=:pk WHERE id_negocio=:nid"),
+                {'pk': plan_key, 'nid': negocio_id}
+            )
+
+        elif accion == 'extender':
+            if sus is None:
+                return jsonify({'error': 'No hay suscripción para extender'}), 404
+            sus.extender(dias=dias, creado_por=f'admin:{g.user_email}', notas=notas)
+
+        elif accion == 'cancelar':
+            if sus is None:
+                return jsonify({'error': 'No hay suscripción'}), 404
+            sus.cancelar(creado_por=f'admin:{g.user_email}', notas=notas)
+
+        elif accion == 'pausar':
+            if sus is None:
+                return jsonify({'error': 'No hay suscripción'}), 404
+            sus.pausar(creado_por=f'admin:{g.user_email}', notas=notas)
+
+        else:
+            return jsonify({'error': f"Acción desconocida: '{accion}'. "
+                            "Use: activar | extender | cancelar | pausar | trial"}), 400
+
+        db.session.commit()
+        logger.info(f"📋 Suscripción negocio {negocio_id} → accion={accion} por {g.user_email}")
+        return jsonify({'success': True, 'suscripcion': sus.to_dict()})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error update_suscripcion_negocio {negocio_id}: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@admin_features_bp.route('/api/admin/suscripciones/alertas', methods=['GET', 'OPTIONS'])
+@admin_required
+def get_alertas_suscripciones():
+    """
+    GET /api/admin/suscripciones/alertas
+    Retorna negocios con suscripción que vence pronto o ya venció.
+
+    Query params:
+      dias_pronto  — int (default 7): negocios que vencen en ≤ N días
+      limite       — int (default 50)
+    """
+    try:
+        from src.models.colombia_data.suscripcion_negocio import SuscripcionNegocio
+        from datetime import datetime, timedelta
+        ahora = datetime.utcnow()
+        dias_pronto = int(request.args.get('dias_pronto', 7))
+        limite      = int(request.args.get('limite', 50))
+
+        # Negocios cuyo trial vence en ≤ dias_pronto días (o ya venció)
+        fecha_alerta = ahora + timedelta(days=dias_pronto)
+
+        vencen_pronto = SuscripcionNegocio.query.filter(
+            SuscripcionNegocio.estado.in_(['trial', 'activa']),
+            SuscripcionNegocio.fecha_fin_trial <= fecha_alerta
+        ).limit(limite).all()
+
+        vencen_pronto_paga = SuscripcionNegocio.query.filter(
+            SuscripcionNegocio.estado == 'activa',
+            SuscripcionNegocio.fecha_fin <= fecha_alerta,
+            SuscripcionNegocio.fecha_fin_trial.is_(None)
+        ).limit(limite).all()
+
+        ya_vencidas = SuscripcionNegocio.query.filter(
+            SuscripcionNegocio.estado.in_(['vencida', 'gracia'])
+        ).limit(limite).all()
+
+        def _fmt(sus_list):
+            return [s.to_dict(include_negocio=True) for s in sus_list]
+
+        return jsonify({
+            'success': True,
+            'vencen_pronto_trial':    _fmt(vencen_pronto),
+            'vencen_pronto_paga':     _fmt(vencen_pronto_paga),
+            'ya_vencidas':            _fmt(ya_vencidas),
+            'total_alerta': (
+                len(vencen_pronto) + len(vencen_pronto_paga) + len(ya_vencidas)
+            ),
+            'generado_en': ahora.isoformat(),
+        })
+    except Exception as e:
+        logger.error(f"Error get_alertas_suscripciones: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@admin_features_bp.route('/api/admin/suscripciones/resumen', methods=['GET', 'OPTIONS'])
+@admin_required
+def get_resumen_suscripciones():
+    """
+    GET /api/admin/suscripciones/resumen
+    Dashboard rápido: conteo por estado, MRR estimado, conversiones.
+    """
+    try:
+        from src.models.colombia_data.suscripcion_negocio import SuscripcionNegocio
+        from sqlalchemy import func
+
+        conteos = db.session.query(
+            SuscripcionNegocio.estado,
+            func.count(SuscripcionNegocio.id).label('total')
+        ).group_by(SuscripcionNegocio.estado).all()
+
+        resumen = {row.estado: row.total for row in conteos}
+
+        # MRR estimado (suscripciones activas × precio mensual del plan)
+        mrr_result = db.session.execute(text("""
+            SELECT COALESCE(SUM(pl.precio_mensual), 0) as mrr
+            FROM suscripciones_negocio s
+            JOIN planes pl ON pl.id = s.plan_id
+            WHERE s.estado = 'activa'
+              AND (s.fecha_fin IS NULL OR s.fecha_fin >= NOW())
+        """)).fetchone()
+
+        return jsonify({
+            'success':      True,
+            'por_estado':   resumen,
+            'mrr_estimado': float(mrr_result[0] if mrr_result else 0),
+            'total_negocios': sum(resumen.values()),
+        })
+    except Exception as e:
+        logger.error(f"Error get_resumen_suscripciones: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+# También actualizar list_negocios_with_plans para incluir datos de suscripción
+# (patch no-destructivo: si la tabla no existe, devuelve datos sin suscripción)
+def _enriquecer_con_suscripcion(negocio_ids: list) -> dict:
+    """
+    Helper: retorna dict {negocio_id: {estado_actual, dias_restantes, ...}}
+    para una lista de IDs de negocio.
+    """
+    if not negocio_ids:
+        return {}
+    try:
+        from src.models.colombia_data.suscripcion_negocio import SuscripcionNegocio
+        subs = SuscripcionNegocio.query.filter(
+            SuscripcionNegocio.negocio_id.in_(negocio_ids)
+        ).all()
+        return {
+            s.negocio_id: {
+                'estado_suscripcion': s.estado_actual,
+                'dias_restantes':     s.dias_restantes,
+                'vence_pronto':       s.vence_pronto,
+                'es_trial':          s.es_trial,
+                'fecha_vencimiento':  s.fecha_vencimiento.isoformat() if s.fecha_vencimiento else None,
+            }
+            for s in subs
+        }
+    except Exception as _e:
+        logger.warning(f"⚠️ No se pudo enriquecer con suscripciones: {_e}")
+        return {}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

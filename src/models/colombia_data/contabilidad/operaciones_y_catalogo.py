@@ -233,16 +233,24 @@ class AlertaOperativa(db.Model):
 class MovimientoStock(db.Model):
     """Historial de movimientos de inventario por producto."""
     __tablename__ = 'movimientos_stock'
-    
+
     id_movimiento = sa.Column(sa.Integer, primary_key=True)
-    
+
     producto_id = sa.Column(
         sa.Integer,
         sa.ForeignKey('productos_catalogo.id_producto', ondelete='CASCADE'),
         nullable=False,
         index=True
     )
-    
+
+    # Referencia a la transacción operativa que originó este movimiento
+    transaccion_id = sa.Column(
+        sa.Integer,
+        sa.ForeignKey('transacciones_operativas.id_transaccion', ondelete='SET NULL'),
+        nullable=True,
+        index=True
+    )
+
     usuario_id = sa.Column(sa.Integer, sa.ForeignKey('usuarios.id_usuario'), nullable=False)
     negocio_id = sa.Column(sa.Integer, sa.ForeignKey('negocios.id_negocio'), nullable=False)
     sucursal_id = sa.Column(sa.Integer, sa.ForeignKey('sucursales.id_sucursal'), nullable=True)

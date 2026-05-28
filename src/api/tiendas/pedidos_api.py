@@ -126,7 +126,7 @@ def get_user_id():
 # LISTAR PEDIDOS DE UN NEGOCIO
 # ==========================================
 @tiendas_pedidos_bp.route('/pedidos/negocio/<int:negocio_id>', methods=['GET'])
-@cross_origin()
+@cross_origin(supports_credentials=True)
 def listar_pedidos(negocio_id):
     """
     Lista todos los pedidos de un negocio.
@@ -171,7 +171,7 @@ def listar_pedidos(negocio_id):
 # OBTENER DETALLE DE UN PEDIDO
 # ==========================================
 @tiendas_pedidos_bp.route('/pedidos/<int:pedido_id>', methods=['GET'])
-@cross_origin()
+@cross_origin(supports_credentials=True)
 def obtener_pedido(pedido_id):
     """
     GET /api/pedidos/{id}
@@ -196,7 +196,7 @@ def obtener_pedido(pedido_id):
 # CAMBIAR ESTADO DE UN PEDIDO
 # ==========================================
 @tiendas_pedidos_bp.route('/pedidos/<int:pedido_id>/estado', methods=['PUT', 'PATCH'])
-@cross_origin()
+@cross_origin(supports_credentials=True)
 def cambiar_estado_pedido(pedido_id):
     """
     PUT /api/pedidos/{id}/estado
@@ -277,7 +277,7 @@ def cambiar_estado_pedido(pedido_id):
 # CORREGIR PEDIDO (editar total, productos, pago, notas)
 # ==========================================
 @tiendas_pedidos_bp.route('/pedidos/<int:pedido_id>/corregir', methods=['PATCH', 'OPTIONS'])
-@cross_origin()
+@cross_origin(supports_credentials=True)
 def corregir_pedido(pedido_id):
     """
     PATCH /api/pedidos/{id}/corregir
@@ -414,7 +414,7 @@ def corregir_pedido(pedido_id):
 # CANCELAR PEDIDO
 # ==========================================
 @tiendas_pedidos_bp.route('/pedidos/<int:pedido_id>/cancelar', methods=['POST'])
-@cross_origin()
+@cross_origin(supports_credentials=True)
 def cancelar_pedido(pedido_id):
     """
     POST /api/pedidos/{id}/cancelar
@@ -510,7 +510,7 @@ def cancelar_pedido(pedido_id):
 # MARCAR COMO PAGADO
 # ==========================================
 @tiendas_pedidos_bp.route('/pedidos/<int:pedido_id>/pago', methods=['POST'])
-@cross_origin()
+@cross_origin(supports_credentials=True)
 def marcar_pagado(pedido_id):
     """
     POST /api/pedidos/{id}/pago
@@ -548,7 +548,7 @@ def marcar_pagado(pedido_id):
 # AGREGAR NOTA INTERNA
 # ==========================================
 @tiendas_pedidos_bp.route('/pedidos/<int:pedido_id>/notas', methods=['POST'])
-@cross_origin()
+@cross_origin(supports_credentials=True)
 def agregar_nota(pedido_id):
     """
     POST /api/pedidos/{id}/notas
@@ -589,7 +589,7 @@ def agregar_nota(pedido_id):
 # ★ NUEVO v2.0: REGISTRAR GUÍA DE ENVÍO
 # ==========================================
 @tiendas_pedidos_bp.route('/pedidos/<int:pedido_id>/enviar', methods=['POST'])
-@cross_origin()
+@cross_origin(supports_credentials=True)
 def registrar_guia(pedido_id):
     """
     POST /api/pedidos/{id}/enviar
@@ -661,7 +661,7 @@ def registrar_guia(pedido_id):
 # ★ NUEVO v2.0: REGISTRAR DEVOLUCIÓN
 # ==========================================
 @tiendas_pedidos_bp.route('/pedidos/<int:pedido_id>/devolucion', methods=['POST'])
-@cross_origin()
+@cross_origin(supports_credentials=True)
 def registrar_devolucion(pedido_id):
     """
     POST /api/pedidos/{id}/devolucion
@@ -745,7 +745,7 @@ def registrar_devolucion(pedido_id):
 # ★ NUEVO v2.0: RECIBIR DEVOLUCIÓN
 # ==========================================
 @tiendas_pedidos_bp.route('/pedidos/devolucion/<int:devolucion_id>/recibir', methods=['POST'])
-@cross_origin()
+@cross_origin(supports_credentials=True)
 def recibir_devolucion(devolucion_id):
     """
     POST /api/pedidos/devolucion/{id}/recibir
@@ -871,7 +871,7 @@ def recibir_devolucion(devolucion_id):
 # ★ DEVOLUCIÓN LIBRE (sin pedido digital)
 # ==========================================
 @tiendas_pedidos_bp.route('/pedidos/devolucion/libre', methods=['POST', 'OPTIONS'])
-@cross_origin()
+@cross_origin(supports_credentials=True)
 def devolucion_libre():
     """
     POST /api/pedidos/devolucion/libre
@@ -1008,7 +1008,7 @@ def devolucion_libre():
 # ★ NUEVO v2.0: LISTAR DEVOLUCIONES
 # ==========================================
 @tiendas_pedidos_bp.route('/pedidos/negocio/<int:negocio_id>/devoluciones', methods=['GET'])
-@cross_origin()
+@cross_origin(supports_credentials=True)
 def listar_devoluciones(negocio_id):
     """
     GET /api/pedidos/negocio/{id}/devoluciones
@@ -1060,7 +1060,7 @@ def listar_devoluciones(negocio_id):
 # ESTADÍSTICAS DE PEDIDOS
 # ==========================================
 @tiendas_pedidos_bp.route('/pedidos/negocio/<int:negocio_id>/stats', methods=['GET'])
-@cross_origin()
+@cross_origin(supports_credentials=True)
 def estadisticas_pedidos(negocio_id):
     """
     GET /api/pedidos/negocio/{id}/stats
@@ -1121,7 +1121,7 @@ def estadisticas_pedidos(negocio_id):
 # HISTORIAL DE UN PEDIDO
 # ==========================================
 @tiendas_pedidos_bp.route('/pedidos/<int:pedido_id>/historial', methods=['GET'])
-@cross_origin()
+@cross_origin(supports_credentials=True)
 def historial_pedido(pedido_id):
     """
     GET /api/pedidos/{id}/historial
@@ -1150,7 +1150,7 @@ def historial_pedido(pedido_id):
 # BUSCAR PEDIDO
 # ==========================================
 @tiendas_pedidos_bp.route('/pedidos/buscar', methods=['GET'])
-@cross_origin()
+@cross_origin(supports_credentials=True)
 def buscar_pedido():
     """
     GET /api/pedidos/buscar?codigo=PED-2024-0001
@@ -1204,7 +1204,7 @@ def buscar_pedido():
 # manual generalmente ya está confirmada o incluso enviada).
 # ════════════════════════════════════════════════════════════════════════════
 @tiendas_pedidos_bp.route('/pedidos/manual', methods=['POST', 'OPTIONS'])
-@cross_origin()
+@cross_origin(supports_credentials=True)
 def crear_pedido_manual():
     """
     POST /api/pedidos/manual
