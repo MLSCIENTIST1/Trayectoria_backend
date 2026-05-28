@@ -694,7 +694,10 @@ def registrar_negocio():
         
         # ==========================================
         # 🆓 INICIAR TRIAL (primer mes gratis) v3.0
+        # Usa SAVEPOINT para que un fallo aquí no
+        # contamine la transacción principal del negocio.
         # ==========================================
+        _trial_sp = db.session.begin_nested()   # ← SAVEPOINT
         try:
             from src.models.colombia_data.suscripcion_negocio import iniciar_trial_para_negocio
             iniciar_trial_para_negocio(
@@ -703,8 +706,10 @@ def registrar_negocio():
                 dias=30,
                 creado_por='sistema'
             )
+            _trial_sp.commit()   # libera el savepoint (éxito)
             logger.info(f"🆓 Trial de 30 días iniciado para negocio {nuevo_negocio.id_negocio}")
         except Exception as _trial_err:
+            _trial_sp.rollback()   # ← solo revierte el trial, NO el negocio
             logger.warning(f"⚠️ No se pudo iniciar trial (no bloquea): {_trial_err}")
 
         db.session.commit()
