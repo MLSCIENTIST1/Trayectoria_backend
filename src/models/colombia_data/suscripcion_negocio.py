@@ -91,6 +91,15 @@ class SuscripcionNegocio(db.Model):
     # trial_usado = True impide que el admin regale otro trial (a menos que lo override)
 
     # ──────────────────────────────────────────────
+    # NOTIFICACIONES — tracking anti-duplicado
+    # ──────────────────────────────────────────────
+    # dict con las fechas en que se enviaron los emails de alerta.
+    # Claves: trial_7d, trial_3d, trial_gracia, trial_vencida,
+    #         sus_7d, sus_3d, sus_gracia, sus_vencida
+    # Valor: ISO datetime str si se envió, None si no.
+    alertas_enviadas = sa.Column(sa.JSON, nullable=True, default=dict)
+
+    # ──────────────────────────────────────────────
     # AUDITORÍA
     # ──────────────────────────────────────────────
     creado_por   = sa.Column(sa.String(50), default='sistema')
@@ -298,6 +307,7 @@ class SuscripcionNegocio(db.Model):
             'creado_por':            self.creado_por,
             'modificado_por':        self.modificado_por,
             'notas':                 self.notas,
+            'alertas_enviadas':      self.alertas_enviadas or {},
             'created_at':            self.created_at.isoformat() if self.created_at else None,
             'updated_at':            self.updated_at.isoformat() if self.updated_at else None,
         }

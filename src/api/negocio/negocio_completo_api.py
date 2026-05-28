@@ -1852,6 +1852,46 @@ def obtener_suscripcion_negocio(negocio_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@negocio_api_bp.route('/negocio/<int:negocio_id>/pagos', methods=['GET', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def obtener_pagos_negocio(negocio_id):
+    """
+    Devuelve el historial de pagos del tendero para su propio negocio.
+    Solo accesible por el dueño del negocio.
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({'success': True}), 200
+
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'error': 'No autenticado'}), 401
+
+    negocio = Negocio.query.filter_by(id_negocio=negocio_id, usuario_id=user_id).first()
+    if not negocio:
+        return jsonify({'success': False, 'error': 'Negocio no encontrado'}), 404
+
+    try:
+        from src.models.colombia_data.pago_suscripcion import PagoSuscripcion
+        pagos = (PagoSuscripcion.query
+                 .filter_by(negocio_id=negocio_id)
+                 .order_by(PagoSuscripcion.created_at.desc())
+                 .limit(24)   # últimos 24 meses
+                 .all())
+
+        total_pagado = sum(
+            float(p.monto) for p in pagos if p.estado == 'completado'
+        )
+        return jsonify({
+            'success': True,
+            'data': [p.to_dict() for p in pagos],
+            'total': len(pagos),
+            'total_pagado_cop': total_pagado,
+        }), 200
+    except Exception as e:
+        logger.error(f'❌ Error obteniendo pagos de negocio {negocio_id}: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @negocio_api_bp.route('/debug/session', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def debug_session():

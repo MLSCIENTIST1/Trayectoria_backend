@@ -75,6 +75,14 @@ except Exception as e:
     print(f"❌ [8/8] Error importando SuscripcionNegocio: {e}")
     raise
 
+try:
+    print("🔄 [9/9] Importando PagoSuscripcion...")
+    from .pago_suscripcion import PagoSuscripcion
+    print("✅ [9/9] PagoSuscripcion importado")
+except Exception as e:
+    print(f"❌ [9/9] Error importando PagoSuscripcion: {e}")
+    raise
+
 __all__ = [
     'Feedback',
     'MonetizationManagement',
@@ -85,6 +93,7 @@ __all__ = [
     'Sucursal',
     'SuscripcionNegocio',
     'iniciar_trial_para_negocio',
+    'PagoSuscripcion',
 ]
 
 print("=" * 60)

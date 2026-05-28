@@ -812,6 +812,214 @@ def _enriquecer_con_suscripcion(negocio_ids: list) -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# 💳 PAGOS DE SUSCRIPCIÓN
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_features_bp.route('/api/admin/negocios/<int:negocio_id>/pagos', methods=['GET', 'OPTIONS'])
+@admin_required
+def listar_pagos_negocio(negocio_id):
+    """Lista el historial de pagos de un negocio, del más reciente al más antiguo."""
+    try:
+        from src.models.colombia_data.pago_suscripcion import PagoSuscripcion
+        pagos = (PagoSuscripcion.query
+                 .filter_by(negocio_id=negocio_id)
+                 .order_by(PagoSuscripcion.created_at.desc())
+                 .limit(50)
+                 .all())
+        return jsonify({
+            'success': True,
+            'data': [p.to_dict() for p in pagos],
+            'total': len(pagos),
+        }), 200
+    except Exception as e:
+        logger.error(f'❌ Error listando pagos negocio {negocio_id}: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@admin_features_bp.route('/api/admin/negocios/<int:negocio_id>/pagos', methods=['POST', 'OPTIONS'])
+@admin_required
+def registrar_pago_negocio(negocio_id):
+    """
+    Registra un pago manual de suscripción.
+    Body: { monto, metodo_pago, estado?, referencia?, comprobante_url?,
+             periodo_inicio?, periodo_fin?, notas?, activar_suscripcion? }
+
+    Si activar_suscripcion=true (default), también activa/extiende la suscripción
+    automáticamente según los días del período.
+    """
+    from src.models.colombia_data.pago_suscripcion import PagoSuscripcion
+    from src.models.colombia_data.suscripcion_negocio import SuscripcionNegocio
+    from src.models.feature_models import Plan
+
+    body = request.get_json() or {}
+    monto = body.get('monto')
+    if monto is None:
+        return jsonify({'success': False, 'error': 'monto es obligatorio'}), 400
+
+    try:
+        # Obtener o crear suscripción
+        sus = SuscripcionNegocio.query.filter_by(negocio_id=negocio_id).first()
+        if not sus:
+            return jsonify({'success': False, 'error': 'Negocio sin suscripción registrada'}), 404
+
+        # Calcular días del período si se proveen fechas
+        dias_periodo = 30  # default
+        periodo_inicio = None
+        periodo_fin    = None
+        if body.get('periodo_inicio') and body.get('periodo_fin'):
+            from datetime import datetime as _dt
+            pi = _dt.fromisoformat(body['periodo_inicio'])
+            pf = _dt.fromisoformat(body['periodo_fin'])
+            dias_periodo = max(1, (pf - pi).days)
+            periodo_inicio = pi
+            periodo_fin    = pf
+
+        # Crear el registro de pago
+        admin_email = getattr(current_user, 'email', getattr(current_user, 'correo', 'admin'))
+        pago = PagoSuscripcion(
+            suscripcion_id  = sus.id,
+            negocio_id      = negocio_id,
+            monto           = float(monto),
+            moneda          = body.get('moneda', 'COP'),
+            metodo_pago     = body.get('metodo_pago', 'transferencia'),
+            estado          = body.get('estado', 'completado'),
+            referencia      = body.get('referencia'),
+            comprobante_url = body.get('comprobante_url'),
+            periodo_inicio  = periodo_inicio,
+            periodo_fin     = periodo_fin,
+            notas           = body.get('notas'),
+            registrado_por  = f'admin:{admin_email}',
+        )
+        db.session.add(pago)
+
+        # Activar/extender suscripción automáticamente si el pago está completado
+        activar = body.get('activar_suscripcion', True)
+        if activar and pago.estado == 'completado':
+            plan_key = body.get('plan_key', 'basic')
+            plan = Plan.query.filter_by(key=plan_key, activo=True).first()
+
+            # Limpiar alertas del ciclo anterior para que vuelvan a enviarse
+            sus.alertas_enviadas = {}
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(sus, 'alertas_enviadas')
+
+            if sus.es_trial or sus.estado in ('vencida', 'cancelada', 'pausada', 'gracia'):
+                # Activar como suscripción paga nueva
+                sus.activar_suscripcion(
+                    plan_id    = plan.id if plan else sus.plan_id,
+                    dias       = dias_periodo,
+                    creado_por = f'admin:{admin_email}',
+                    notas      = f'Activada al registrar pago #{pago.id}',
+                )
+            else:
+                # Extender suscripción activa
+                sus.extender(
+                    dias       = dias_periodo,
+                    creado_por = f'admin:{admin_email}',
+                    notas      = f'Extendida al registrar pago #{pago.id}',
+                )
+
+        db.session.commit()
+        logger.info(f'✅ Pago registrado: negocio={negocio_id} monto={monto} método={pago.metodo_pago}')
+        return jsonify({
+            'success': True,
+            'data':    pago.to_dict(),
+            'message': 'Pago registrado correctamente',
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'❌ Error registrando pago: {e}', exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@admin_features_bp.route('/api/admin/pagos/<int:pago_id>', methods=['PUT', 'OPTIONS'])
+@admin_required
+def actualizar_pago(pago_id):
+    """
+    Actualiza un pago existente.
+    Body: { estado?, referencia?, comprobante_url?, notas? }
+    """
+    from src.models.colombia_data.pago_suscripcion import PagoSuscripcion
+    body = request.get_json() or {}
+    try:
+        pago = PagoSuscripcion.query.get(pago_id)
+        if not pago:
+            return jsonify({'success': False, 'error': 'Pago no encontrado'}), 404
+
+        if 'estado'          in body: pago.estado          = body['estado']
+        if 'referencia'      in body: pago.referencia      = body['referencia']
+        if 'comprobante_url' in body: pago.comprobante_url = body['comprobante_url']
+        if 'notas'           in body: pago.notas           = body['notas']
+
+        db.session.commit()
+        return jsonify({'success': True, 'data': pago.to_dict()}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@admin_features_bp.route('/api/admin/pagos', methods=['GET', 'OPTIONS'])
+@admin_required
+def listar_todos_pagos():
+    """
+    Lista todos los pagos (para reporte general).
+    Query params: negocio_id, estado, limit (default 100)
+    """
+    from src.models.colombia_data.pago_suscripcion import PagoSuscripcion
+    try:
+        q = PagoSuscripcion.query
+        if request.args.get('negocio_id'):
+            q = q.filter_by(negocio_id=int(request.args['negocio_id']))
+        if request.args.get('estado'):
+            q = q.filter_by(estado=request.args['estado'])
+        limit = min(int(request.args.get('limit', 100)), 500)
+        pagos = q.order_by(PagoSuscripcion.created_at.desc()).limit(limit).all()
+
+        total_monto = sum(float(p.monto) for p in pagos if p.estado == 'completado')
+        return jsonify({
+            'success': True,
+            'data': [p.to_dict() for p in pagos],
+            'total': len(pagos),
+            'total_cobrado_cop': total_monto,
+        }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 📧 ALERTAS POR EMAIL — CRON MANUAL
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_features_bp.route('/api/admin/suscripciones/enviar-alertas', methods=['POST', 'OPTIONS'])
+@admin_required
+def disparar_alertas_email():
+    """
+    Dispara manualmente el cron de emails de suscripción.
+    Útil para:
+      • Probar el sistema de alertas
+      • Ejecutar vía cron externo (Render Cron Jobs → POST con API key de admin)
+
+    Respuesta:
+      {
+        total_revisadas, total_emails_enviados, total_errores,
+        detalle: [ {negocio_id, alerta, email, ok, detalle} ]
+      }
+    """
+    try:
+        from src.services.suscripcion_email_service import enviar_alertas_suscripcion
+        # Se ejecuta en el contexto Flask ya activo (sin pasar app)
+        resultado = enviar_alertas_suscripcion(app=None)
+        return jsonify({
+            'success': True,
+            'data': resultado,
+        }), 200
+    except Exception as e:
+        logger.error(f'❌ Error en cron de alertas email: {e}', exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # ENDPOINTS PÚBLICOS (sin auth de admin)
 # ═══════════════════════════════════════════════════════════════════════════════
 
