@@ -218,6 +218,34 @@ try:
             logger.warning(f"⚠️  No se pudo verificar movimientos_stock.transaccion_id: {ms_err}")
 
         # ==========================================
+        # REPARACIÓN COLUMNA CRÍTICA: pedidos.imagen_guia_url
+        # La migración g7b8c9d0e1f6 agrega esta columna; si Alembic falla
+        # silenciosamente en Render el upload de imagen de guía explotaría.
+        # ==========================================
+        try:
+            from sqlalchemy import text as _sql_text3
+            with app.app_context():
+                from src.models.database import db as _db3
+                conn3 = _db3.engine.connect()
+                _check3 = _sql_text3("""
+                    SELECT column_name FROM information_schema.columns
+                    WHERE table_name = 'pedidos'
+                      AND column_name = 'imagen_guia_url'
+                """)
+                if not conn3.execute(_check3).fetchone():
+                    conn3.execute(_sql_text3(
+                        "ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS imagen_guia_url VARCHAR(500)"
+                    ))
+                    conn3.commit()
+                    logger.warning("⚠️  Columna faltante creada: pedidos.imagen_guia_url")
+                else:
+                    conn3.commit()
+                    logger.info("✅ pedidos.imagen_guia_url ya existe")
+                conn3.close()
+        except Exception as pg_err:
+            logger.warning(f"⚠️  No se pudo verificar pedidos.imagen_guia_url: {pg_err}")
+
+        # ==========================================
         # INSPECTOR DE RUTAS
         # ==========================================
         with app.app_context():

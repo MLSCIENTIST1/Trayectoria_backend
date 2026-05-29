@@ -610,6 +610,7 @@ def registrar_guia(pedido_id):
         numero_guia = data.get('numero_guia', '').strip()
         transportadora = data.get('transportadora', '').strip()
         url_tracking = data.get('url_tracking', '').strip() or None
+        imagen_guia_url = data.get('imagen_guia_url', '').strip() or None
 
         if not numero_guia:
             return jsonify({"success": False, "error": "numero_guia es requerido"}), 400
@@ -630,6 +631,7 @@ def registrar_guia(pedido_id):
             numero_guia=numero_guia,
             transportadora=transportadora,
             url_tracking=url_tracking,
+            imagen_guia_url=imagen_guia_url,
             usuario_id=user_id
         )
 
@@ -647,6 +649,7 @@ def registrar_guia(pedido_id):
                 "numero_guia": pedido.numero_guia,
                 "transportadora": pedido.transportadora,
                 "url_tracking": pedido.url_tracking,
+                "imagen_guia_url": pedido.imagen_guia_url,
                 "fecha_envio": pedido.fecha_envio.isoformat() if pedido.fecha_envio else None
             }
         }), 200
@@ -654,6 +657,72 @@ def registrar_guia(pedido_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f"❌ Error registrando guía: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==========================================
+# SUBIR IMAGEN DE GUÍA A CLOUDINARY
+# ==========================================
+@tiendas_pedidos_bp.route('/pedidos/<int:pedido_id>/subir-guia', methods=['POST', 'OPTIONS'])
+@cross_origin(supports_credentials=True)
+def subir_imagen_guia(pedido_id):
+    """
+    POST /api/pedidos/{id}/subir-guia   (multipart/form-data)
+    Campo: 'archivo' → JPG, PNG o PDF
+
+    Sube la imagen/PDF de la guía a Cloudinary y guarda la URL
+    en pedido.imagen_guia_url. Retorna la URL para que el frontend
+    la incluya en la llamada a /pedidos/{id}/enviar.
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+
+    try:
+        import cloudinary
+        import cloudinary.uploader
+        cloudinary.config(
+            cloud_name="dp50v0bwj",
+            api_key="966788685877863",
+            api_secret="O6kBEBo3svgWozvn_dyw2J1CtBE",
+            secure=True
+        )
+
+        archivo = request.files.get('archivo')
+        if not archivo:
+            return jsonify({"success": False, "error": "Se requiere el campo 'archivo'"}), 400
+
+        # Validar tipo
+        filename = archivo.filename or ''
+        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+        if ext not in ('jpg', 'jpeg', 'png', 'pdf'):
+            return jsonify({"success": False, "error": "Solo se aceptan JPG, PNG o PDF"}), 400
+
+        pedido = Pedido.query.get(pedido_id)
+        if not pedido:
+            return jsonify({"success": False, "error": "Pedido no encontrado"}), 404
+
+        public_id = f"guias_envio/pedido_{pedido.codigo_pedido}_{int(__import__('time').time())}"
+        result = cloudinary.uploader.upload(
+            archivo,
+            folder="guias_envio",
+            public_id=f"pedido_{pedido.codigo_pedido}",
+            overwrite=True,
+            resource_type="auto"   # acepta PDF e imágenes
+        )
+        url = result.get('secure_url')
+        if not url:
+            return jsonify({"success": False, "error": "Cloudinary no devolvió URL"}), 500
+
+        # Guardar en el pedido de inmediato (aunque todavía no esté "enviado")
+        pedido.imagen_guia_url = url
+        db.session.commit()
+
+        logger.info(f"📎 Imagen de guía subida: {pedido.codigo_pedido} → {url}")
+        return jsonify({"success": True, "imagen_guia_url": url}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error subiendo imagen de guía: {e}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 

@@ -292,6 +292,7 @@ class Pedido(db.Model):
     numero_guia = db.Column(db.String(100), nullable=True)
     transportadora = db.Column(db.String(50), nullable=True)
     url_tracking = db.Column(db.String(500), nullable=True)
+    imagen_guia_url = db.Column(db.String(500), nullable=True)  # URL imagen/PDF de la guía en Cloudinary
     
     # ==========================================
     # METADATA
@@ -419,11 +420,13 @@ class Pedido(db.Model):
         self.estado_pago = 'pagado'
         if referencia:
             self.referencia_pago = referencia
-    def registrar_guia(self, numero_guia, transportadora, url_tracking=None, usuario_id=None):
+    def registrar_guia(self, numero_guia, transportadora, url_tracking=None, imagen_guia_url=None, usuario_id=None):
         """Registra la guía de envío y cambia estado a 'enviado'."""
         self.numero_guia = numero_guia
         self.transportadora = transportadora
         self.url_tracking = url_tracking
+        if imagen_guia_url:
+            self.imagen_guia_url = imagen_guia_url
         self.cambiar_estado(
             'enviado',
             usuario_id=usuario_id,
@@ -495,6 +498,7 @@ class Pedido(db.Model):
             'numero_guia': self.numero_guia,
             'transportadora': self.transportadora,
             'url_tracking': self.url_tracking,
+            'imagen_guia_url': self.imagen_guia_url,
             'puede_registrar_devolucion': self.puede_registrar_devolucion,
             'origen': self.origen
 
