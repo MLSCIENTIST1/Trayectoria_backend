@@ -750,10 +750,10 @@ def registrar_devolucion(pedido_id):
         if not data:
             return jsonify({"success": False, "error": "Datos requeridos"}), 400
 
-        motivo = data.get('motivo', 'otro')
-        notas = data.get('notas', '')
-        numero_guia_dev = data.get('numero_guia_devolucion', '').strip() or None
-        transportadora = data.get('transportadora', '').strip() or None
+        motivo          = data.get('motivo') or 'otro'
+        notas           = (data.get('notas') or '').strip()
+        numero_guia_dev = (data.get('numero_guia_devolucion') or '').strip() or None
+        transportadora  = (data.get('transportadora') or '').strip() or None
 
         pedido = Pedido.query.get(pedido_id)
         if not pedido:
