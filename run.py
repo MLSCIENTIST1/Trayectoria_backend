@@ -184,6 +184,40 @@ try:
             logger.warning(f"⚠️  No se pudo verificar columnas: {col_err}")
 
         # ==========================================
+        # REPARACIÓN COLUMNA CRÍTICA: movimientos_stock.transaccion_id
+        # La migración c3d4e5f6a7b2 agrega esta columna, pero si Alembic
+        # falla silenciosamente en Render, el INSERT de venta manual explota
+        # con "column transaccion_id does not exist".
+        # ==========================================
+        try:
+            from sqlalchemy import text as _sql_text2
+            with app.app_context():
+                from src.models.database import db as _db2
+                conn2 = _db2.engine.connect()
+
+                _check2 = _sql_text2("""
+                    SELECT column_name FROM information_schema.columns
+                    WHERE table_name = 'movimientos_stock'
+                      AND column_name = 'transaccion_id'
+                """)
+                _existe_transaccion_id = conn2.execute(_check2).fetchone()
+
+                if not _existe_transaccion_id:
+                    conn2.execute(_sql_text2(
+                        "ALTER TABLE movimientos_stock "
+                        "ADD COLUMN IF NOT EXISTS transaccion_id INTEGER"
+                    ))
+                    conn2.commit()
+                    logger.warning("⚠️  Columna faltante creada: movimientos_stock.transaccion_id")
+                else:
+                    conn2.commit()
+                    logger.info("✅ movimientos_stock.transaccion_id ya existe")
+
+                conn2.close()
+        except Exception as ms_err:
+            logger.warning(f"⚠️  No se pudo verificar movimientos_stock.transaccion_id: {ms_err}")
+
+        # ==========================================
         # INSPECTOR DE RUTAS
         # ==========================================
         with app.app_context():
