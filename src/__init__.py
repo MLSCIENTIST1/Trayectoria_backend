@@ -224,9 +224,11 @@ class Config:
     # CORS (CRÍTICO)
     # ==========================================
     CORS_ORIGINS = [
+        "https://tukomercio.co",          # dominio principal (producción)
+        "https://www.tukomercio.co",      # variante con www
+        "https://tuko.pages.dev",         # alias Cloudflare Pages
         "https://trayectoria-rxdc1.web.app",
         "https://mitrayectoria.web.app",
-        "https://tuko.pages.dev",
         "http://localhost:5001",
         "http://localhost:5173",
         "http://localhost:3000"
