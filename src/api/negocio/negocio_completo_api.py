@@ -252,7 +252,7 @@ def get_current_user_id():
     return None
 
 
-_TUKO_BASE = 'https://tuko.pages.dev'
+_TUKO_BASE = 'https://tukomercio.co'
 
 # ══════════════════════════════════════════════════════════════════════
 # REGISTRO DE PLANTILLAS — Backend

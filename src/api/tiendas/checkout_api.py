@@ -181,7 +181,7 @@ def _html_email_nuevo_pedido(pedido, negocio, comprador, productos_payload,
           <td style="padding:8px 12px;font-size:13px;color:#2563EB;text-align:right;font-weight:600;">{_fmt_cop(costo_envio)}</td>
         </tr>"""
 
-    link_pedidos = f"https://tuko.pages.dev/contabilidad/modulos/pedidos.html"
+    link_pedidos = f"https://tukomercio.co/contabilidad/modulos/pedidos.html"
     link_wa = f"https://wa.me/57{telefono.replace(' ','').replace('-','').lstrip('0')}?text=Hola+{cliente.split()[0]}%2C+recibimos+tu+pedido+{codigo}+%F0%9F%93%A6"
 
     return f"""<!DOCTYPE html>
@@ -335,8 +335,8 @@ def _html_email_confirmacion_comprador(pedido, negocio, comprador, productos_pay
           <td style="padding:8px 12px;font-size:13px;color:#2563EB;text-align:right;font-weight:600;">{_fmt_cop(costo_envio)}</td>
         </tr>"""
 
-    link_seguimiento = f"https://tuko.pages.dev/heyden.html?c={codigo}&slug={slug}"
-    link_tienda      = f"https://tuko.pages.dev/tienda/?slug={slug}" if slug else "https://tuko.pages.dev"
+    link_seguimiento = f"https://tukomercio.co/heyden.html?c={codigo}&slug={slug}"
+    link_tienda      = f"https://tukomercio.co/tienda/{slug}" if slug else "https://tukomercio.co"
     notas_fila = f"""
         <tr>
           <td colspan="2" style="padding:8px 12px;font-size:13px;color:#999;">Nota</td>

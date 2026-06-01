@@ -103,7 +103,7 @@ logger.setLevel(logging.DEBUG)
 password_reset_bp = Blueprint('password_reset', __name__, url_prefix='/api/auth')
 
 
-FRONTEND_URL_DEFAULT = 'https://tuko.pages.dev'  # ← dominio producción correcto
+FRONTEND_URL_DEFAULT = 'https://tukomercio.co'  # ← dominio producción
 
 _CORS_HEADERS = 'Content-Type, Authorization, Accept, X-User-ID, X-Business-ID, X-Session-FP, Cache-Control, Pragma'
 

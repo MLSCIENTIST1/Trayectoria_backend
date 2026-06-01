@@ -114,7 +114,7 @@ qr_generator_bp = Blueprint('qr_generator_bp', __name__)
 # ==========================================
 # CONFIGURACIÓN
 # ==========================================
-QR_BASE_URL = "https://tuko.pages.dev"
+QR_BASE_URL = "https://tukomercio.co"
 
 # URLs por tipo de página
 PAGE_URLS = {
