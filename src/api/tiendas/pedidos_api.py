@@ -1346,6 +1346,24 @@ def crear_pedido_manual():
         if not productos or not isinstance(productos, list):
             return jsonify({"success": False, "error": "productos debe ser una lista no vacía"}), 400
 
+        # ── COGS snapshot ────────────────────────────────────────────────────
+        # Congela el costo de cada producto en el momento de la venta para
+        # poder calcular margen real por producto en el futuro.
+        # Si el producto no tiene costo o no se encuentra → None (no bloquea).
+        if TIENE_TRANSACCIONES:
+            for item in productos:
+                pid = item.get('id') or item.get('id_producto')
+                try:
+                    prod_db = ProductoCatalogo.query.get(int(pid)) if pid else None
+                    item['costo'] = (
+                        float(prod_db.costo)
+                        if prod_db and prod_db.costo is not None
+                        else None
+                    )
+                except Exception:
+                    item['costo'] = None
+        # ────────────────────────────────────────────────────────────────────
+
         envio_data = data.get('envio') or {}
 
         # ── Validar origen ──────────────────────────────────────────────────

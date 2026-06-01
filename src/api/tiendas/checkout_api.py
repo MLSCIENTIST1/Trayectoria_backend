@@ -93,6 +93,12 @@ from src.models import Comprador
 from src.models import DireccionComprador
 from src.models import Pedido
 from src.models.database import db
+try:
+    from src.models import ProductoCatalogo as _ProductoCatalogo
+    _TIENE_CATALOGO = True
+except ImportError:
+    _ProductoCatalogo = None
+    _TIENE_CATALOGO = False
 
 # ★ Cupones
 try:
@@ -489,7 +495,25 @@ def procesar_checkout(slug):
         comprador_data = data.get('comprador', {})
         direccion_data = data.get('direccion', {})
         productos = data.get('productos', [])
-        
+
+        # ── COGS snapshot ────────────────────────────────────────────────────
+        # Congela el costo de cada producto en el momento del checkout para
+        # poder calcular margen real por producto en el futuro.
+        # Si el producto no tiene costo o no se encuentra → None (no bloquea).
+        if _TIENE_CATALOGO and _ProductoCatalogo:
+            for item in productos:
+                pid = item.get('producto_id') or item.get('id')
+                try:
+                    prod_db = _ProductoCatalogo.query.get(int(pid)) if pid else None
+                    item['costo'] = (
+                        float(prod_db.costo)
+                        if prod_db and prod_db.costo is not None
+                        else None
+                    )
+                except Exception:
+                    item['costo'] = None
+        # ────────────────────────────────────────────────────────────────────
+
         # Validaciones
         if not negocio_id:
             return jsonify({'success': False, 'error': 'negocio_id requerido'}), 400
