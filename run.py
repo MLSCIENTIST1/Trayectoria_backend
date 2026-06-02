@@ -245,6 +245,32 @@ try:
         except Exception as pg_err:
             logger.warning(f"⚠️  No se pudo verificar pedidos.imagen_guia_url: {pg_err}")
 
+        # ── feedback.url_contexto + feedback.negocio_id ──────────────────────
+        try:
+            from sqlalchemy import text as _sql_text4
+            from src.models.database import db as _db4
+            conn4 = _db4.engine.connect()
+            for _col, _defn in [
+                ('url_contexto', 'VARCHAR(500)'),
+                ('negocio_id',   'INTEGER'),
+            ]:
+                _exists = conn4.execute(_sql_text4("""
+                    SELECT column_name FROM information_schema.columns
+                    WHERE table_name = 'feedback' AND column_name = :col
+                """), {'col': _col}).fetchone()
+                if not _exists:
+                    conn4.execute(_sql_text4(
+                        f"ALTER TABLE feedback ADD COLUMN IF NOT EXISTS {_col} {_defn}"
+                    ))
+                    conn4.commit()
+                    logger.warning(f"⚠️  Columna creada: feedback.{_col}")
+                else:
+                    logger.info(f"✅ feedback.{_col} ya existe")
+            conn4.close()
+        except Exception as pg_err4:
+            logger.warning(f"⚠️  No se pudo verificar columnas de feedback: {pg_err4}")
+        # ─────────────────────────────────────────────────────────────────────
+
         # ==========================================
         # INSPECTOR DE RUTAS
         # ==========================================

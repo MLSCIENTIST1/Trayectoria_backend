@@ -952,6 +952,20 @@ def register_api(app):
         if 'scores' in rule.rule or 'stages' in rule.rule or 'badges' in rule.rule or 'metrics' in rule.rule or 'portfolio' in rule.rule:
             logger.info(f"   → {rule.rule} [{', '.join(rule.methods - {'HEAD', 'OPTIONS'})}]")
     
+    # ==========================================
+    # 📝 REPORTES DE ERRORES / FEEDBACK
+    # ==========================================
+    print("\n" + "=" * 50)
+    print("📝 SECCIÓN: FEEDBACK & REPORTES DE ERRORES")
+    print("=" * 50)
+    if safe_register('src.api.feedback_api', 'feedback_bp', 'Feedback & Reportes v1.0', prefix=None):
+        success_count += 1
+        print("📝 ✅ POST /api/feedback  — enviar reporte")
+        print("📝 ✅ GET  /api/feedback  — admin: listar reportes")
+        print("📝 ✅ PUT  /api/feedback/<id>  — admin: cambiar estado")
+    else:
+        fail_count += 1
+
     if fail_count > 0:
         logger.warning(f"⚠️  {fail_count} módulo(s) no se cargaron. Revisa los logs.")
         print(f"\n⚠️  {fail_count} módulo(s) no se cargaron. Revisa los logs.")

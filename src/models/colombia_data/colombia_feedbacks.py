@@ -165,27 +165,38 @@ logger = logging.getLogger(__name__)
 class Feedback(db.Model):
     __tablename__ = "feedback"
 
-    id_feedback = Column(Integer, primary_key=True)
-    # FK corregida a 'usuarios'
-    usuario_id = Column(Integer, ForeignKey('usuarios.id_usuario', ondelete='CASCADE'), nullable=True)
-    
-    rol_usuario = Column(String(50), nullable=True)
-    tipo_feedback = Column(String(50), nullable=False)
-    descripcion = Column(Text, nullable=False)
-    fecha_envio = Column(DateTime, default=datetime.utcnow, nullable=False)
-    estado = Column(String(50), nullable=False, default="Pendiente")
-    prioridad = Column(String(50), nullable=True)
+    id_feedback   = Column(Integer, primary_key=True)
+    usuario_id    = Column(Integer, ForeignKey('usuarios.id_usuario', ondelete='CASCADE'), nullable=True)
+    negocio_id    = Column(Integer, nullable=True)          # negocio activo al momento del reporte
+    rol_usuario   = Column(String(50),  nullable=True)
+    tipo_feedback = Column(String(50),  nullable=False)     # 'bug' | 'sugerencia' | 'otro'
+    descripcion   = Column(Text,        nullable=False)
+    url_contexto  = Column(String(500), nullable=True)      # ruta/módulo donde ocurrió el error
+    fecha_envio   = Column(DateTime, default=datetime.utcnow, nullable=False)
+    estado        = Column(String(50),  nullable=False, default="nuevo")
+    # estado: 'nuevo' | 'en_revision' | 'resuelto'
+    prioridad     = Column(String(50),  nullable=True)
 
-    # El nombre en back_populates debe existir en la clase Usuario
     usuario = relationship("Usuario", back_populates="feedbacks", lazy="joined")
 
     def serialize(self):
+        nombre_usuario = None
+        email_usuario  = None
+        if self.usuario:
+            nombre_usuario = getattr(self.usuario, 'nombre', None) or getattr(self.usuario, 'username', None)
+            email_usuario  = getattr(self.usuario, 'email', None)  or getattr(self.usuario, 'correo', None)
         return {
-            "id_feedback": self.id_feedback,
-            "tipo": self.tipo_feedback,
-            "descripcion": self.descripcion,
-            "estado": self.estado,
-            "fecha": self.fecha_envio.isoformat()
+            "id_feedback":   self.id_feedback,
+            "tipo":          self.tipo_feedback,
+            "descripcion":   self.descripcion,
+            "url_contexto":  self.url_contexto,
+            "estado":        self.estado,
+            "prioridad":     self.prioridad,
+            "negocio_id":    self.negocio_id,
+            "usuario_id":    self.usuario_id,
+            "nombre_usuario": nombre_usuario,
+            "email_usuario":  email_usuario,
+            "fecha":         self.fecha_envio.isoformat() if self.fecha_envio else None,
         }
 
 from src.models.usuarios import Usuario
