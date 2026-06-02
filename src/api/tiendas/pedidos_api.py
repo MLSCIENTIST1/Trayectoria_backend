@@ -383,9 +383,11 @@ def corregir_pedido(pedido_id):
                 ).order_by(TransaccionOperativa.fecha.desc()).first()
 
                 if tx:
-                    tx.monto = float(pedido.total)
+                    # monto = subtotal − descuento: excluye costo_envio (va a la transportadora)
+                    ingreso_negocio = float((pedido.subtotal or 0) - (pedido.descuento or 0))
+                    tx.monto = ingreso_negocio
                     tx.concepto = f"Pedido {pedido.codigo_pedido} [CORREGIDO: {motivo}]"
-                    logger.info(f"💰 TransaccionOperativa actualizada: ${total_anterior} → ${pedido.total}")
+                    logger.info(f"💰 TransaccionOperativa actualizada → ${ingreso_negocio}")
             except Exception as tx_err:
                 logger.warning(f"⚠️ No se pudo actualizar TransaccionOperativa: {tx_err}")
 
@@ -442,13 +444,15 @@ def cancelar_pedido(pedido_id):
         # ★ NUEVO v2.0: Revertir transacción y stock si ya estaba confirmado
         if estado_anterior == 'confirmado' and TIENE_TRANSACCIONES:
             try:
+                # monto = subtotal − descuento: espeja la transacción de venta original
+                ingreso_original = float((pedido.subtotal or 0) - (pedido.descuento or 0))
                 contra = TransaccionOperativa(
                     negocio_id=pedido.negocio_id,
                     usuario_id=user_id or 1,
                     sucursal_id=pedido.sucursal_id or 1,
                     tipo='DEVOLUCION',
                     concepto=f"Cancelación Pedido #{pedido.codigo_pedido} - {pedido.cliente_nombre}",
-                    monto=float(pedido.total),
+                    monto=ingreso_original,
                     categoria='Devoluciones',
                     metodo_pago=pedido.metodo_pago or 'Efectivo',
                     notas=f"Motivo: {motivo}"
@@ -902,13 +906,15 @@ def recibir_devolucion(devolucion_id):
         # Contra-transacción contable
         if TIENE_TRANSACCIONES:
             try:
+                # monto = subtotal − descuento: espeja la transacción de venta original
+                ingreso_original = float((result.subtotal or 0) - (result.descuento or 0))
                 contra = TransaccionOperativa(
                     negocio_id=negocio_id,
                     usuario_id=user_id or 1,
                     sucursal_id=result.sucursal_id or 1,
                     tipo='DEVOLUCION',
                     concepto=f"Devolución recibida Pedido #{result.codigo_pedido}",
-                    monto=float(result.total),
+                    monto=ingreso_original,
                     categoria='Devoluciones',
                     metodo_pago=result.metodo_pago or 'Efectivo',
                     notas=f"Motivo: {result.motivo}. {notas}"
@@ -1479,18 +1485,20 @@ def crear_pedido_manual():
                     'web':         'Ventas Online',
                 }
                 categoria = CATEGORIAS_ORIGEN.get(origen, 'Venta Manual')
+                # monto = subtotal − descuento: excluye costo_envio (va a la transportadora)
+                ingreso_negocio = float((pedido.subtotal or 0) - (pedido.descuento or 0))
                 transaccion = TransaccionOperativa(
                     negocio_id=int(negocio_id),
                     usuario_id=get_user_id() or 1,
                     sucursal_id=pedido.sucursal_id or 1,
                     tipo='VENTA',
                     concepto=f"Venta manual #{pedido.codigo_pedido} – {datos_comprador['nombre']}",
-                    monto=float(pedido.total or 0),
+                    monto=ingreso_negocio,
                     categoria=categoria,
                     metodo_pago=(data.get('metodo_pago') or 'efectivo').capitalize(),
                 )
                 db.session.add(transaccion)
-                logger.info(f"💰 Transacción contable registrada: ${pedido.total} [{categoria}]")
+                logger.info(f"💰 Transacción contable registrada: ${ingreso_negocio} [{categoria}]")
             except Exception as e:
                 logger.error(f"⚠️ Error registrando transacción contable en venta manual: {e}")
 

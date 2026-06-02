@@ -309,13 +309,15 @@ def aprobar_pedido(negocio_id, pedido_id):
                 if len(pedido.productos or []) > 3:
                     productos_desc += f" (+{len(pedido.productos) - 3} más)"
 
+                # monto = subtotal − descuento: excluye costo_envio (va a la transportadora)
+                ingreso_negocio = float((pedido.subtotal or 0) - (pedido.descuento or 0))
                 transaccion = TransaccionOperativa(
                     negocio_id=negocio_id,
                     usuario_id=user_id,
                     sucursal_id=pedido.sucursal_id or 1,
                     tipo='VENTA',
                     concepto=f"Pedido #{pedido.codigo_pedido} - {pedido.cliente_nombre}",
-                    monto=float(pedido.total),
+                    monto=ingreso_negocio,
                     categoria='Ventas Online',
                     metodo_pago=pedido.metodo_pago or 'Efectivo'
                 )
