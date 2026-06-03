@@ -244,6 +244,26 @@ class NegocioBadge(db.Model):
 
 
 # ═══════════════════════════════════════════════════════════════════
+# CURVA DE DIFICULTAD (S18) — guía de calibración de los badges
+# ═══════════════════════════════════════════════════════════════════
+# Cada nivel define qué tan difícil/raro debe ser obtener un badge.
+# Úsala como referencia al crear badges nuevos. El test test_calibracion_s18
+# verifica que se respete la monotonicidad (a mayor exigencia, mayor nivel).
+#
+#   Nivel 1 · Bronce    → Fácil. Primeras acciones (1 venta, 1 reseña). Días.
+#   Nivel 2 · Plata     → Medio. Constancia (10-50 acciones, ~1 mes activo).
+#   Nivel 3 · Oro       → Difícil. Logro notable (50-200, top categoría).
+#   Nivel 4 · Platino   → Muy difícil. Élite (500, 100 sin disputa, 1 año).
+#   Nivel 5 · Diamante  → Excepcional. Únicos / hitos extraordinarios
+#                          (Fundador, Unicornio $100M).
+#
+# Distribución objetivo (pirámide): muchos Bronce/Plata, pocos Diamante.
+CURVA_DIFICULTAD = {
+    1: 'Bronce',   2: 'Plata',   3: 'Oro',   4: 'Platino',   5: 'Diamante',
+}
+
+
+# ═══════════════════════════════════════════════════════════════════
 # DATOS INICIALES DE BADGES (para seed)
 # ═══════════════════════════════════════════════════════════════════
 BADGES_INICIALES = [
