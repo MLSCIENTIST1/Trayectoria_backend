@@ -608,6 +608,36 @@ class BadgeVerificationService:
                     metricas[metrica] = 0  # fuera de temporada → no otorgable
 
             # ═══════════════════════════════════════════
+            # COMUNIDAD (S17)
+            # ═══════════════════════════════════════════
+
+            # Reseñas recibidas por el negocio
+            try:
+                metricas['resenas_recibidas'] = db.session.execute(text("""
+                    SELECT COUNT(*) FROM producto_reviews WHERE negocio_id = :nid
+                """), {'nid': negocio_id}).fetchone()[0] or 0
+            except Exception:
+                metricas['resenas_recibidas'] = 0
+
+            # Visitas a la tienda (suma de contadores diarios)
+            try:
+                metricas['visitas_tienda'] = int(db.session.execute(text("""
+                    SELECT COALESCE(SUM(contador), 0) FROM tienda_visitas WHERE negocio_id = :nid
+                """), {'nid': negocio_id}).fetchone()[0] or 0)
+            except Exception:
+                metricas['visitas_tienda'] = 0
+
+            # Votos emitidos por el DUEÑO en challenges (apoyo a la comunidad)
+            try:
+                metricas['votos_emitidos_owner'] = db.session.execute(text("""
+                    SELECT COUNT(*) FROM challenge_votos cv
+                    JOIN negocios n ON n.usuario_id = cv.usuario_id
+                    WHERE n.id_negocio = :nid
+                """), {'nid': negocio_id}).fetchone()[0] or 0
+            except Exception:
+                metricas['votos_emitidos_owner'] = 0
+
+            # ═══════════════════════════════════════════
             # NO SOPORTADOS AÚN (retorna None → se skipean)
             # ═══════════════════════════════════════════
             # metricas['tiempo_respuesta_hrs'] = None

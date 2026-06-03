@@ -735,6 +735,40 @@ BADGES_INICIALES = [
         "color_fondo": "rgba(15,23,42,0.35)", "categoria": "especial",
         "nivel": 3, "puntos": 55, "es_secreto": False,
         "criterio_tipo": "ventas_black_friday", "criterio_valor": 1, "criterio_operador": ">=",
+    },
+
+    # ═══ COMUNIDAD (S17) ═══
+    {
+        "codigo": "embajador", "nombre": "Embajador",
+        "descripcion": "Apoyaste a la comunidad votando en 10 challenges",
+        "icono": "bi-hand-thumbs-up-fill", "color_primario": "#3b82f6",
+        "color_fondo": "rgba(59,130,246,0.15)", "categoria": "popularidad",
+        "nivel": 2, "puntos": 30,
+        "criterio_tipo": "votos_emitidos_owner", "criterio_valor": 10, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "vitrina_visitada", "nombre": "Vitrina Visitada",
+        "descripcion": "Tu tienda recibió 100 visitas",
+        "icono": "bi-eye-fill", "color_primario": "#06b6d4",
+        "color_fondo": "rgba(6,182,212,0.15)", "categoria": "popularidad",
+        "nivel": 2, "puntos": 35,
+        "criterio_tipo": "visitas_tienda", "criterio_valor": 100, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "primera_resena", "nombre": "Primera Reseña",
+        "descripcion": "Recibiste tu primera reseña de un cliente",
+        "icono": "bi-chat-heart-fill", "color_primario": "#f59e0b",
+        "color_fondo": "rgba(245,158,11,0.15)", "categoria": "popularidad",
+        "nivel": 1, "puntos": 15,
+        "criterio_tipo": "resenas_recibidas", "criterio_valor": 1, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "fan_club", "nombre": "Club de Fans",
+        "descripcion": "25 reseñas de clientes — ¡tienes seguidores!",
+        "icono": "bi-people-fill", "color_primario": "#ec4899",
+        "color_fondo": "rgba(236,72,153,0.15)", "categoria": "popularidad",
+        "nivel": 3, "puntos": 60,
+        "criterio_tipo": "resenas_recibidas", "criterio_valor": 25, "criterio_operador": ">=",
     }
 ]
 
