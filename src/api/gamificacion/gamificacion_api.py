@@ -666,6 +666,88 @@ def completar_mision_manual():
         return jsonify({'error': str(e)}), 500
 
 
+# Retos temáticos mensuales (S28) — rotan automáticamente cada mes
+RETOS_MENSUALES = [
+    {'codigo': 'rey_ventas', 'nombre': 'Rey de las Ventas', 'icono': '👑',
+     'descripcion': 'Quien más pedidos entregue este mes', 'metrica': 'ventas_mes',
+     'unidad': 'ventas'},
+    {'codigo': 'productivo', 'nombre': 'El Más Productivo', 'icono': '⚙️',
+     'descripcion': 'Quien agregue más productos este mes', 'metrica': 'productos_mes',
+     'unidad': 'productos'},
+    {'codigo': 'rey_catalogo', 'nombre': 'Rey del Catálogo', 'icono': '📚',
+     'descripcion': 'Quien tenga el catálogo más grande', 'metrica': 'productos_activos',
+     'unidad': 'productos'},
+]
+
+
+def _reto_del_mes(hoy=None):
+    """Devuelve el reto activo del mes (rotación determinista). Pura."""
+    if hoy is None:
+        hoy = datetime.utcnow()
+    idx = (hoy.year * 12 + (hoy.month - 1)) % len(RETOS_MENSUALES)
+    return RETOS_MENSUALES[idx]
+
+
+def _ranking_por_metrica(metrica, inicio, fin, limit, ciudad='', categoria=''):
+    """Filas [(id,nombre,ciudad,categoria,logo,slug,score)] según la métrica del reto."""
+    from sqlalchemy import text as _t
+    params = {'ini': inicio, 'fin': fin, 'lim': limit}
+    filtros = " AND n.activo = true AND n.perfil_publico = true"
+    if ciudad:
+        filtros += " AND LOWER(n.ciudad) LIKE :ciudad"; params['ciudad'] = f"%{ciudad.lower()}%"
+    if categoria:
+        filtros += " AND LOWER(n.categoria) LIKE :categoria"; params['categoria'] = f"%{categoria.lower()}%"
+
+    base_cols = "n.id_negocio, n.nombre_negocio, n.ciudad, n.categoria, n.logo_url, n.slug"
+    if metrica == 'ventas_mes':
+        sql = f"""SELECT {base_cols}, COUNT(p.id_pedido) AS score
+            FROM negocios n LEFT JOIN pedidos p ON p.negocio_id = n.id_negocio
+                AND p.estado='entregado' AND p.fecha_pedido>=:ini AND p.fecha_pedido<:fin
+            WHERE 1=1 {filtros}
+            GROUP BY {base_cols} HAVING COUNT(p.id_pedido) > 0
+            ORDER BY score DESC LIMIT :lim"""
+    elif metrica == 'productos_mes':
+        sql = f"""SELECT {base_cols}, COUNT(pc.id_producto) AS score
+            FROM negocios n LEFT JOIN productos_catalogo pc ON pc.negocio_id = n.id_negocio
+                AND pc.fecha_creacion>=:ini AND pc.fecha_creacion<:fin
+            WHERE 1=1 {filtros}
+            GROUP BY {base_cols} HAVING COUNT(pc.id_producto) > 0
+            ORDER BY score DESC LIMIT :lim"""
+    else:  # productos_activos (acumulado, no usa rango)
+        sql = f"""SELECT {base_cols}, COUNT(pc.id_producto) AS score
+            FROM negocios n LEFT JOIN productos_catalogo pc ON pc.negocio_id = n.id_negocio
+                AND pc.activo = true
+            WHERE 1=1 {filtros}
+            GROUP BY {base_cols} HAVING COUNT(pc.id_producto) > 0
+            ORDER BY score DESC LIMIT :lim"""
+    return [tuple(r) for r in db.session.execute(_t(sql), params).fetchall()]
+
+
+@gamificacion_bp.route('/gamificacion/reto-mes', methods=['GET'])
+def reto_mes():
+    """
+    Reto temático del mes (S28) + su ranking. Rota automáticamente cada mes.
+    GET /api/gamificacion/reto-mes
+    """
+    try:
+        reto = _reto_del_mes()
+        inicio, fin, etiqueta = _rango_mes()
+        filas = _ranking_por_metrica(reto['metrica'], inicio, fin, 10)
+        mi_id = None
+        if current_user.is_authenticated:
+            try:
+                from src.models.colombia_data.negocio import Negocio
+                mn = Negocio.query.filter_by(usuario_id=current_user.id_usuario).first()
+                mi_id = mn.id_negocio if mn else None
+            except Exception:
+                pass
+        data = _armar_ranking(filas, mi_id)
+        return jsonify({'success': True, 'mes': etiqueta, 'reto': reto, **data}), 200
+    except Exception as e:
+        logger.error(f"Error en reto_mes: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error interno', 'ranking': []}), 200
+
+
 def _armar_ranking(filas, mi_negocio_id=None):
     """
     Función PURA. Recibe filas [(id, nombre, ciudad, categoria, logo, slug, score)]
