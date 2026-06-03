@@ -7,6 +7,7 @@ from .service_overall_scores import ServiceOverallScores
 from .service_qualifiers import ServiceQualifiers
 from .negocio_badge import NegocioBadge, BADGES_INICIALES, seed_badges_catalogo
 from .negocio_badge_obtenido import NegocioBadgeObtenido, BadgeVerificationService
+from .usuario_gamificacion import UsuarioGamificacion
 
 __all__ = [
     'ServiceRatings',
@@ -16,5 +17,6 @@ __all__ = [
     'NegocioBadgeObtenido',
     'BADGES_INICIALES',
     'seed_badges_catalogo',
-    'BadgeVerificationService'
+    'BadgeVerificationService',
+    'UsuarioGamificacion',
 ]

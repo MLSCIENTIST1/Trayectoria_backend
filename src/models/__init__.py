@@ -128,6 +128,7 @@ from src.models.colombia_data.ratings.service_qualifiers import ServiceQualifier
 # ==========================================
 from src.models.colombia_data.ratings.negocio_badge import NegocioBadge, BADGES_INICIALES
 from src.models.colombia_data.ratings.negocio_badge_obtenido import NegocioBadgeObtenido, BadgeVerificationService
+from src.models.colombia_data.ratings.usuario_gamificacion import UsuarioGamificacion
 
 # ==========================================
 # BIZSCORE - PERFIL PÚBLICO Y VIDEOS

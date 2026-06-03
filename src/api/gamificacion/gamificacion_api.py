@@ -235,6 +235,27 @@ def _registrar_mision_completada(negocio_id, gami, mision, tipo='diaria'):
 # ENDPOINTS
 # ─────────────────────────────────────────────────────────────────
 
+@gamificacion_bp.route('/gamificacion/usuario', methods=['GET'])
+@login_required
+def gamificacion_usuario():
+    """
+    Estado de gamificación PERSONAL del usuario logueado (S8).
+    GET /api/gamificacion/usuario
+    Mide la trayectoria del creador a través de todos sus negocios.
+    """
+    try:
+        from src.models.colombia_data.ratings.usuario_gamificacion import UsuarioGamificacion
+        uid = current_user.id_usuario
+        gu = UsuarioGamificacion.obtener_o_crear(uid, db.session)
+        # Asegura que la racha refleje la actividad de hoy al consultar
+        if gu.actualizar_racha_login():
+            db.session.commit()
+        return jsonify({'success': True, 'usuario': gu.serialize()}), 200
+    except Exception as e:
+        logger.error(f"Error en gamificacion_usuario: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error interno'}), 500
+
+
 @gamificacion_bp.route('/gamificacion/dashboard', methods=['GET', 'POST'])
 @login_required
 def dashboard():

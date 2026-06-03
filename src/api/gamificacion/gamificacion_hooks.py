@@ -355,6 +355,70 @@ def on_video_subido(negocio_id):
     )
 
 
+def on_login_usuario(usuario_id):
+    """
+    Gamificación a nivel de PERSONA (S8). Se dispara al iniciar sesión.
+    Actualiza la racha de login personal y otorga XP diario al creador.
+    Independiente de los negocios — mide la trayectoria del emprendedor.
+    """
+    if not usuario_id:
+        return None
+    try:
+        from src.models.colombia_data.ratings.usuario_gamificacion import UsuarioGamificacion
+        gu = UsuarioGamificacion.obtener_o_crear(usuario_id, db.session)
+        record_antes = gu.racha_login_max
+        nivel_antes = gu.nivel
+
+        avanzo_hoy = gu.actualizar_racha_login()
+
+        cel = {
+            'usuario_id': usuario_id,
+            'evento': 'login_personal',
+            'xp_ganado': 0,
+            'subio_nivel': False,
+            'nivel_nuevo': gu.nivel,
+            'nombre_nivel': None,
+            'racha_dias': gu.racha_login_dias,
+            'racha_record': False,
+        }
+
+        if avanzo_hoy:
+            gu.agregar_xp(5, "Login diario (creador)")
+            cel['xp_ganado'] = 5
+            nivel_actual, nombre_nivel = gu.calcular_nivel()
+            cel['nivel_nuevo'] = nivel_actual
+            cel['nombre_nivel'] = nombre_nivel
+            cel['subio_nivel'] = nivel_actual > nivel_antes
+            if gu.racha_login_dias > record_antes and gu.racha_login_dias >= 3:
+                cel['racha_record'] = True
+
+        db.session.commit()
+
+        # Notificación de subida de nivel personal (usa el mismo tipo)
+        if cel['subio_nivel']:
+            _crear_notif(
+                None, usuario_id, 'nivel_subido',
+                f"¡Eres {cel['nombre_nivel']}!",
+                f"Subiste al nivel {cel['nivel_nuevo']} como creador. ¡Sigue construyendo!",
+                extra={'nivel': cel['nivel_nuevo'], 'ambito': 'usuario'},
+                prioridad='alta',
+            )
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+        return cel
+
+    except Exception as e:
+        logger.error(f"[gamif] Error en on_login_usuario {usuario_id}: {e}", exc_info=True)
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        return None
+
+
 def on_login(negocio_id):
     """
     Se dispara al iniciar sesión. Actualiza racha de actividad y XP diario.

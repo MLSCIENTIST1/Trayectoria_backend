@@ -285,8 +285,11 @@ def login():
         # En su propio try/except: jamás puede afectar el login.
         # Solo otorga XP una vez al día (lo controla la racha interna).
         try:
-            from src.api.gamificacion.gamificacion_hooks import on_login
+            from src.api.gamificacion.gamificacion_hooks import on_login, on_login_usuario
             from src.models.colombia_data.negocio import Negocio
+            # Gamificación de la PERSONA (S8): racha + XP de creador
+            on_login_usuario(usuario.id_usuario)
+            # Gamificación de cada NEGOCIO del usuario (S2): racha + XP de negocio
             negocios_usuario = Negocio.query.filter_by(
                 usuario_id=usuario.id_usuario).with_entities(Negocio.id_negocio).all()
             for (nid,) in negocios_usuario:
