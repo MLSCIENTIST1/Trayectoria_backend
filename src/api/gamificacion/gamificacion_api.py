@@ -938,6 +938,74 @@ def feed_logros():
     return jsonify({'success': True, 'feed': feed}), 200
 
 
+# Unidad legible por métrica (para frasear sugerencias, S35)
+_UNIDAD_METRICA = {
+    'pedidos_completados': 'pedidos', 'ventas_cop': 'pesos en ventas',
+    'productos_activos': 'productos', 'resenas_recibidas': 'reseñas',
+    'visitas_tienda': 'visitas', 'pedidos_sin_devolucion': 'entregas limpias',
+    'negocios_del_owner': 'negocios', 'videos_subidos': 'videos',
+    'votos_emitidos_owner': 'votos', 'referidos_exitosos': 'referidos',
+    'duelos_ganados': 'duelos',
+}
+
+
+def generar_sugerencias(proximos, racha_ventas=0, limite=3):
+    """
+    Genera sugerencias accionables a partir de los badges más cercanos y la
+    racha. Función PURA → testeable. Retorna lista de {icono, texto, prioridad}.
+    """
+    sugerencias = []
+    for p in (proximos or [])[:2]:
+        unidad = _UNIDAD_METRICA.get(p.get('criterio_tipo'), 'puntos')
+        falta = p.get('falta') or 0
+        falta_txt = (f"${int(falta):,}".replace(',', '.')
+                     if p.get('criterio_tipo') == 'ventas_cop' else int(falta))
+        pct = p.get('progreso_pct') or 0
+        animo = '¡vas casi!' if pct >= 70 else ('¡buen avance!' if pct >= 40 else '¡tú puedes!')
+        sugerencias.append({
+            'icono': p.get('icono') or 'bi-trophy',
+            'texto': f"Faltan {falta_txt} {unidad} para «{p.get('nombre')}» — {animo} ({pct}%)",
+            'prioridad': 'alta' if pct >= 70 else 'media',
+        })
+    if racha_ventas and racha_ventas >= 2:
+        sugerencias.append({
+            'icono': 'bi-fire',
+            'texto': f"Llevas {racha_ventas} días vendiendo seguido. ¡Vende hoy para no romper tu racha! 🔥",
+            'prioridad': 'media',
+        })
+    elif not proximos:
+        sugerencias.append({
+            'icono': 'bi-stars',
+            'texto': "¡Vas increíble! Sigue vendiendo y subiendo productos para desbloquear más insignias.",
+            'prioridad': 'baja',
+        })
+    return sugerencias[:limite]
+
+
+@gamificacion_bp.route('/gamificacion/sugerencias', methods=['GET'])
+@login_required
+def sugerencias():
+    """
+    Sugerencias inteligentes: qué hacer para tu próximo logro (S35).
+    GET /api/gamificacion/sugerencias?negocio_id=4
+    """
+    nid = _get_nid(request.args.get('negocio_id'))
+    if not nid:
+        return jsonify({'success': False, 'error': 'Negocio no encontrado'}), 404
+    try:
+        from src.api.utils.badge_verification_service import BadgeVerificationService
+        proximos = BadgeVerificationService.progreso_proximos_badges(nid, limite=4)
+        try:
+            racha, _ = _calcular_racha_ventas(nid)
+        except Exception:
+            racha = 0
+        return jsonify({'success': True,
+                        'sugerencias': generar_sugerencias(proximos, racha)}), 200
+    except Exception as e:
+        logger.error(f"Error en sugerencias: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error interno', 'sugerencias': []}), 200
+
+
 @gamificacion_bp.route('/gamificacion/proximos-badges', methods=['GET'])
 @login_required
 def proximos_badges():

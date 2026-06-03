@@ -734,6 +734,7 @@ class BadgeVerificationService:
                 'icono': b.get('icono') or 'bi-award-fill',
                 'color': b.get('color') or '#a855f7',
                 'nivel': b.get('nivel') or 1,
+                'criterio_tipo': b.get('criterio_tipo'),
                 'actual': actual, 'objetivo': objetivo,
                 'falta': round(objetivo - actual, 2),
                 'progreso_pct': pct,
