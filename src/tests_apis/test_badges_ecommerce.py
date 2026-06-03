@@ -62,6 +62,16 @@ def main():
     check("1 pedido cumple >= 1 (primera venta)", ev(1, '>=', 1) is True)
     check("0 pedidos NO cumple >= 1", ev(0, '>=', 1) is False)
 
+    print("\n[4b] Badges de creador (S11)")
+    for c in ['multi_negocio', 'emprendedor_serial', 'veterano_tuko', 'pilar_comunidad']:
+        check(f"badge creador '{c}' definido", c in cods)
+    check("multi_negocio = negocios_del_owner >= 3",
+          by['multi_negocio']['criterio_tipo'] == 'negocios_del_owner' and by['multi_negocio']['criterio_valor'] == 3)
+    check("pilar_comunidad = dias_registrado_owner >= 365",
+          by['pilar_comunidad']['criterio_tipo'] == 'dias_registrado_owner' and by['pilar_comunidad']['criterio_valor'] == 365)
+    check("3 negocios cumple multi_negocio", ev(3, '>=', 3) is True)
+    check("2 negocios NO cumple multi_negocio", ev(2, '>=', 3) is False)
+
     print("\n[5] Seeder incluye los nuevos badges")
     app = _app()
     with app.app_context():

@@ -486,6 +486,39 @@ class BadgeVerificationService:
                 metricas['calificacion_calificada'] = 0
 
             # ═══════════════════════════════════════════
+            # CREADOR · MÉTRICAS DEL DUEÑO (S11)
+            # negocios que tiene el dueño + antigüedad de su cuenta
+            # ═══════════════════════════════════════════
+            try:
+                row = db.session.execute(text("""
+                    SELECT u.id_usuario, u.created_at
+                    FROM negocios n
+                    JOIN usuarios u ON n.usuario_id = u.id_usuario
+                    WHERE n.id_negocio = :nid
+                """), {'nid': negocio_id}).fetchone()
+                if row and row[0] is not None:
+                    owner_id = row[0]
+                    owner_created = row[1]
+                    metricas['negocios_del_owner'] = db.session.execute(text("""
+                        SELECT COUNT(*) FROM negocios WHERE usuario_id = :oid
+                    """), {'oid': owner_id}).fetchone()[0] or 0
+                    if owner_created:
+                        try:
+                            dias = (datetime.utcnow() - owner_created).days
+                            metricas['dias_registrado_owner'] = max(0, dias)
+                        except Exception:
+                            metricas['dias_registrado_owner'] = 0
+                    else:
+                        metricas['dias_registrado_owner'] = 0
+                else:
+                    metricas['negocios_del_owner'] = 0
+                    metricas['dias_registrado_owner'] = 0
+            except Exception as e:
+                logger.warning(f"No se pudieron calcular métricas de creador: {e}")
+                metricas['negocios_del_owner'] = 0
+                metricas['dias_registrado_owner'] = 0
+
+            # ═══════════════════════════════════════════
             # NO SOPORTADOS AÚN (retorna None → se skipean)
             # ═══════════════════════════════════════════
             # metricas['tiempo_respuesta_hrs'] = None

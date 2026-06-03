@@ -631,6 +631,40 @@ BADGES_INICIALES = [
         "color_fondo": "rgba(139,92,246,0.15)", "categoria": "trayectoria",
         "nivel": 1, "puntos": 20,
         "criterio_tipo": "productos_activos", "criterio_valor": 20, "criterio_operador": ">=",
+    },
+
+    # ═══ CREADOR / EMPRENDEDOR (S11) — criterio sobre el DUEÑO ═══
+    {
+        "codigo": "multi_negocio", "nombre": "Multi-negocio",
+        "descripcion": "Has creado 3 o más negocios",
+        "icono": "bi-buildings-fill", "color_primario": "#3b82f6",
+        "color_fondo": "rgba(59,130,246,0.15)", "categoria": "trayectoria",
+        "nivel": 2, "puntos": 35,
+        "criterio_tipo": "negocios_del_owner", "criterio_valor": 3, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "emprendedor_serial", "nombre": "Emprendedor Serial",
+        "descripcion": "Has creado 5 o más negocios",
+        "icono": "bi-diagram-3-fill", "color_primario": "#a855f7",
+        "color_fondo": "rgba(168,85,247,0.15)", "categoria": "trayectoria",
+        "nivel": 3, "puntos": 70,
+        "criterio_tipo": "negocios_del_owner", "criterio_valor": 5, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "veterano_tuko", "nombre": "Veterano TuKomercio",
+        "descripcion": "180 días desde tu registro",
+        "icono": "bi-calendar-heart-fill", "color_primario": "#06b6d4",
+        "color_fondo": "rgba(6,182,212,0.15)", "categoria": "trayectoria",
+        "nivel": 2, "puntos": 40,
+        "criterio_tipo": "dias_registrado_owner", "criterio_valor": 180, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "pilar_comunidad", "nombre": "Pilar de la Comunidad",
+        "descripcion": "Un año completo con TuKomercio",
+        "icono": "bi-award-fill", "color_primario": "#fbbf24",
+        "color_fondo": "rgba(251,191,36,0.15)", "categoria": "trayectoria",
+        "nivel": 4, "puntos": 120,
+        "criterio_tipo": "dias_registrado_owner", "criterio_valor": 365, "criterio_operador": ">=",
     }
 ]
 
