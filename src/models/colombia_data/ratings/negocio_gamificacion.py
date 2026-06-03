@@ -373,7 +373,95 @@ TIENDA_ITEMS_SEED = [
         'nivel_requerido': 5,
         'css_value': 'animation: badgePulse 2s ease-in-out infinite; filter: drop-shadow(0 0 6px currentColor);',
     },
+
+    # ════════ AMPLIACIÓN S15 ════════
+    # ── Marcos de logo adicionales ──
+    {
+        'codigo': 'marco_neon', 'nombre': 'Marco Neón 💜', 'descripcion': 'Borde neón vibrante',
+        'tipo': 'marco_logo', 'icono': '💜', 'precio_tukoins': 130, 'nivel_requerido': 4,
+        'css_value': 'border:3px solid #a855f7; box-shadow:0 0 16px rgba(168,85,247,0.7);',
+    },
+    {
+        'codigo': 'marco_esmeralda', 'nombre': 'Marco Esmeralda 💚', 'descripcion': 'Verde lujoso',
+        'tipo': 'marco_logo', 'icono': '💚', 'precio_tukoins': 160, 'nivel_requerido': 5,
+        'css_value': 'border:3px solid #10b981; box-shadow:0 0 16px rgba(16,185,129,0.6);',
+    },
+    {
+        'codigo': 'marco_arcoiris', 'nombre': 'Marco Arcoíris 🌈', 'descripcion': 'Degradado multicolor animado',
+        'tipo': 'marco_logo', 'icono': '🌈', 'precio_tukoins': 350, 'nivel_requerido': 8,
+        'css_value': 'border:3px solid; border-image:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f) 1;',
+    },
+    # ── Temas de color para la tienda pública ──
+    {
+        'codigo': 'tema_oceano', 'nombre': 'Tema Océano 🌊', 'descripcion': 'Paleta azul fresca para tu tienda',
+        'tipo': 'tema_color', 'icono': '🌊', 'precio_tukoins': 180, 'nivel_requerido': 4,
+        'css_value': '{"primary":"#0ea5e9","accent":"#06b6d4","bg":"#f0f9ff"}',
+    },
+    {
+        'codigo': 'tema_atardecer', 'nombre': 'Tema Atardecer 🌅', 'descripcion': 'Tonos cálidos naranja-rosa',
+        'tipo': 'tema_color', 'icono': '🌅', 'precio_tukoins': 180, 'nivel_requerido': 4,
+        'css_value': '{"primary":"#f97316","accent":"#ec4899","bg":"#fff7ed"}',
+    },
+    {
+        'codigo': 'tema_bosque', 'nombre': 'Tema Bosque 🌿', 'descripcion': 'Verdes naturales y orgánicos',
+        'tipo': 'tema_color', 'icono': '🌿', 'precio_tukoins': 180, 'nivel_requerido': 4,
+        'css_value': '{"primary":"#16a34a","accent":"#65a30d","bg":"#f7fee7"}',
+    },
+    {
+        'codigo': 'tema_medianoche', 'nombre': 'Tema Medianoche 🌙', 'descripcion': 'Modo oscuro elegante',
+        'tipo': 'tema_color', 'icono': '🌙', 'precio_tukoins': 250, 'nivel_requerido': 6,
+        'css_value': '{"primary":"#6366f1","accent":"#a855f7","bg":"#0f172a"}',
+    },
+    # ── Stickers adicionales ──
+    {
+        'codigo': 'sticker_eco', 'nombre': 'Sticker 🌱 Eco', 'descripcion': 'Negocio sostenible',
+        'tipo': 'sticker', 'icono': '🌱', 'precio_tukoins': 60, 'nivel_requerido': 2, 'css_value': '🌱',
+    },
+    {
+        'codigo': 'sticker_premium', 'nombre': 'Sticker 👑 Premium', 'descripcion': 'Calidad premium',
+        'tipo': 'sticker', 'icono': '👑', 'precio_tukoins': 220, 'nivel_requerido': 7, 'css_value': '👑',
+    },
+    # ── Banner adicional ──
+    {
+        'codigo': 'banner_nuevo', 'nombre': 'Banner "Recién Llegado" 🆕', 'descripcion': 'Anuncia novedades',
+        'tipo': 'banner_tienda', 'icono': '🆕', 'precio_tukoins': 120, 'nivel_requerido': 2,
+        'css_value': 'background:linear-gradient(135deg,#3b82f6,#06b6d4); color:#fff; font-weight:700;',
+    },
+    # ── Fondos de perfil ──
+    {
+        'codigo': 'fondo_geometrico', 'nombre': 'Fondo Geométrico 🔷', 'descripcion': 'Patrón moderno para tu perfil',
+        'tipo': 'banner_tienda', 'icono': '🔷', 'precio_tukoins': 140, 'nivel_requerido': 3,
+        'css_value': 'background:repeating-linear-gradient(45deg,#1e293b,#1e293b 10px,#0f172a 10px,#0f172a 20px);',
+    },
 ]
+
+
+def seed_tienda_items(db_session, actualizar=True):
+    """
+    Siembra/actualiza el catálogo de items de la tienda TuKoins de forma
+    idempotente (upsert por 'codigo'). Antes el seed solo corría si la tabla
+    estaba vacía → los items nuevos nunca entraban. Esto lo arregla.
+    Returns: dict {creados, actualizados, total}
+    """
+    creados = 0
+    actualizados = 0
+    existentes = {i.codigo: i for i in db_session.query(TiendaItem).all()}
+    _campos_act = ('nombre', 'descripcion', 'tipo', 'icono',
+                   'precio_tukoins', 'nivel_requerido', 'css_value')
+    for data in TIENDA_ITEMS_SEED:
+        ex = existentes.get(data['codigo'])
+        if ex is None:
+            db_session.add(TiendaItem(**data))
+            creados += 1
+        elif actualizar:
+            cambio = False
+            for c in _campos_act:
+                if c in data and getattr(ex, c, None) != data[c]:
+                    setattr(ex, c, data[c]); cambio = True
+            if cambio:
+                actualizados += 1
+    db_session.commit()
+    return {'creados': creados, 'actualizados': actualizados, 'total': len(TIENDA_ITEMS_SEED)}
 
 
 # ═══════════════════════════════════════════════════════════════════

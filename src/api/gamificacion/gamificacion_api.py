@@ -540,14 +540,11 @@ def tienda_catalogo():
 
     try:
         from src.models.colombia_data.ratings.negocio_gamificacion import (
-            TiendaItem, TiendaCompra, TIENDA_ITEMS_SEED
+            TiendaItem, TiendaCompra, seed_tienda_items
         )
 
-        # Inicializar ítems si la tabla está vacía
-        if TiendaItem.query.count() == 0:
-            for item_data in TIENDA_ITEMS_SEED:
-                db.session.add(TiendaItem(**item_data))
-            db.session.commit()
+        # Sembrar/actualizar catálogo de items (idempotente — incluye nuevos)
+        seed_tienda_items(db.session)
 
         items = TiendaItem.query.filter_by(activo=True).order_by(TiendaItem.precio_tukoins).all()
 

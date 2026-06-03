@@ -281,8 +281,15 @@ try:
                 f"{_res['creados']} creados, {_res['actualizados']} actualizados, "
                 f"{_res['total']} en total"
             )
+            # Catálogo de items de la tienda TuKoins (idempotente)
+            from src.models.colombia_data.ratings.negocio_gamificacion import seed_tienda_items
+            _resi = seed_tienda_items(_db5.session)
+            logger.warning(
+                f"🛒 Tienda TuKoins sembrada: {_resi['creados']} creados, "
+                f"{_resi['actualizados']} actualizados, {_resi['total']} en total"
+            )
         except Exception as seed_err:
-            logger.warning(f"⚠️  No se pudo sembrar catálogo de badges: {seed_err}")
+            logger.warning(f"⚠️  No se pudo sembrar catálogo de badges/tienda: {seed_err}")
         # ─────────────────────────────────────────────────────────────────────
 
         # ==========================================
