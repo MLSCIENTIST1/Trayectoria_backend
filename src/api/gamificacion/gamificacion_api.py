@@ -351,6 +351,157 @@ _MESES_ES = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
 REFERIDO_XP_REFERIDOR = 50      # XP personal para quien refirió
 REFERIDO_TUKOINS      = 30      # TuKoins para el negocio del referidor
 
+# Recompensa de duelo (S31)
+DUELO_XP_GANADOR      = 80
+DUELO_TUKOINS_GANADOR = 40
+
+
+def _ventas_negocio_rango(negocio_id, desde, hasta):
+    """Pedidos entregados de un negocio en [desde, hasta). Seguro."""
+    from sqlalchemy import text as _t
+    try:
+        return int(db.session.execute(_t("""
+            SELECT COUNT(*) FROM pedidos WHERE negocio_id=:nid AND estado='entregado'
+              AND fecha_pedido>=:d AND fecha_pedido<:h
+        """), {'nid': negocio_id, 'd': desde, 'h': hasta}).fetchone()[0] or 0)
+    except Exception:
+        return 0
+
+
+def _resolver_duelo_si_corresponde(duelo):
+    """Si el duelo activo ya terminó, calcula ganador y premia. Idempotente."""
+    from src.models.colombia_data.ratings.duelo import determinar_ganador
+    if duelo.estado != 'activo' or not duelo.fecha_fin:
+        return
+    if datetime.utcnow() < duelo.fecha_fin:
+        return  # aún en curso
+    vr = _ventas_negocio_rango(duelo.retador_negocio_id, duelo.fecha_inicio, duelo.fecha_fin)
+    vt = _ventas_negocio_rango(duelo.retado_negocio_id, duelo.fecha_inicio, duelo.fecha_fin)
+    duelo.ventas_retador = vr
+    duelo.ventas_retado = vt
+    duelo.ganador_negocio_id = determinar_ganador(
+        duelo.retador_negocio_id, vr, duelo.retado_negocio_id, vt)
+    duelo.estado = 'finalizado'
+    # Premiar al ganador (si no hay empate)
+    if duelo.ganador_negocio_id:
+        try:
+            from src.models.colombia_data.ratings.negocio_gamificacion import NegocioGamificacion
+            g = NegocioGamificacion.obtener_o_crear(duelo.ganador_negocio_id, db.session)
+            g.agregar_xp(DUELO_XP_GANADOR, "Duelo ganado")
+            g.agregar_tukoins(DUELO_TUKOINS_GANADOR, "Duelo ganado", db_session=db.session)
+        except Exception:
+            pass
+    db.session.commit()
+
+
+@gamificacion_bp.route('/gamificacion/duelos/retar', methods=['POST', 'OPTIONS'])
+@login_required
+def duelo_retar():
+    """Crea un duelo pendiente contra otro negocio. Body: {rival_negocio_id}."""
+    if request.method == 'OPTIONS':
+        return jsonify({'ok': True}), 200
+    nid = _get_nid(request.args.get('negocio_id') or (request.get_json(silent=True) or {}).get('negocio_id'))
+    data = request.get_json(silent=True) or {}
+    rival = data.get('rival_negocio_id')
+    if not nid or not rival:
+        return jsonify({'success': False, 'error': 'Falta negocio o rival'}), 400
+    try:
+        rival = int(rival)
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': 'Rival inválido'}), 400
+    if rival == nid:
+        return jsonify({'success': False, 'error': 'No puedes retarte a ti mismo'}), 400
+    try:
+        from src.models.colombia_data.ratings.duelo import Duelo
+        # ¿ya hay un duelo en curso entre ellos?
+        activo = Duelo.query.filter(
+            Duelo.estado.in_(['pendiente', 'activo']),
+            ((Duelo.retador_negocio_id == nid) & (Duelo.retado_negocio_id == rival)) |
+            ((Duelo.retador_negocio_id == rival) & (Duelo.retado_negocio_id == nid))
+        ).first()
+        if activo:
+            return jsonify({'success': False, 'error': 'Ya hay un duelo en curso con ese negocio'}), 409
+        d = Duelo(retador_negocio_id=nid, retado_negocio_id=rival, estado='pendiente')
+        db.session.add(d)
+        db.session.commit()
+        return jsonify({'success': True, 'duelo': d.serialize()}), 201
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error en duelo_retar: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error interno'}), 500
+
+
+@gamificacion_bp.route('/gamificacion/duelos/<int:duelo_id>/responder', methods=['POST', 'OPTIONS'])
+@login_required
+def duelo_responder(duelo_id):
+    """El retado acepta o rechaza. Body: {aceptar: true/false}."""
+    if request.method == 'OPTIONS':
+        return jsonify({'ok': True}), 200
+    nid = _get_nid(request.args.get('negocio_id') or (request.get_json(silent=True) or {}).get('negocio_id'))
+    aceptar = bool((request.get_json(silent=True) or {}).get('aceptar'))
+    try:
+        from src.models.colombia_data.ratings.duelo import Duelo
+        d = Duelo.query.get(duelo_id)
+        if not d or d.estado != 'pendiente':
+            return jsonify({'success': False, 'error': 'Duelo no disponible'}), 404
+        if d.retado_negocio_id != nid:
+            return jsonify({'success': False, 'error': 'Solo el retado puede responder'}), 403
+        if aceptar:
+            d.aceptar()
+        else:
+            d.estado = 'rechazado'
+        db.session.commit()
+        return jsonify({'success': True, 'duelo': d.serialize()}), 200
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error en duelo_responder: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error interno'}), 500
+
+
+@gamificacion_bp.route('/gamificacion/duelos', methods=['GET'])
+@login_required
+def duelos_listar():
+    """Lista los duelos del negocio (resuelve los vencidos al vuelo)."""
+    nid = _get_nid(request.args.get('negocio_id'))
+    if not nid:
+        return jsonify({'success': False, 'error': 'Negocio no encontrado'}), 404
+    try:
+        from src.models.colombia_data.ratings.duelo import Duelo
+        duelos = Duelo.query.filter(
+            (Duelo.retador_negocio_id == nid) | (Duelo.retado_negocio_id == nid)
+        ).order_by(Duelo.creado_en.desc()).limit(20).all()
+        # Resolver los activos vencidos
+        for d in duelos:
+            try:
+                _resolver_duelo_si_corresponde(d)
+            except Exception:
+                pass
+        # Nombres de los rivales (para mostrar)
+        nombres = {}
+        try:
+            from src.models.colombia_data.negocio import Negocio
+            ids = set()
+            for d in duelos:
+                ids.add(d.retador_negocio_id); ids.add(d.retado_negocio_id)
+            for n in Negocio.query.filter(Negocio.id_negocio.in_(list(ids))).all():
+                nombres[n.id_negocio] = n.nombre_negocio
+        except Exception:
+            pass
+        out = []
+        for d in duelos:
+            s = d.serialize()
+            soy_retador = d.retador_negocio_id == nid
+            rival_id = d.retado_negocio_id if soy_retador else d.retador_negocio_id
+            s['soy_retador'] = soy_retador
+            s['rival_nombre'] = nombres.get(rival_id, f'Negocio #{rival_id}')
+            s['mis_ventas'] = d.ventas_retador if soy_retador else d.ventas_retado
+            s['ventas_rival'] = d.ventas_retado if soy_retador else d.ventas_retador
+            out.append(s)
+        return jsonify({'success': True, 'mi_negocio_id': nid, 'duelos': out}), 200
+    except Exception as e:
+        logger.error(f"Error en duelos_listar: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error interno', 'duelos': []}), 200
+
 
 @gamificacion_bp.route('/gamificacion/referidos/mi-codigo', methods=['GET'])
 @login_required

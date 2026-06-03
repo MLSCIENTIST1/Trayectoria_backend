@@ -130,6 +130,7 @@ from src.models.colombia_data.ratings.negocio_badge import NegocioBadge, BADGES_
 from src.models.colombia_data.ratings.negocio_badge_obtenido import NegocioBadgeObtenido, BadgeVerificationService
 from src.models.colombia_data.ratings.usuario_gamificacion import UsuarioGamificacion
 from src.models.colombia_data.ratings.referido import Referido
+from src.models.colombia_data.ratings.duelo import Duelo
 
 # ==========================================
 # BIZSCORE - PERFIL PÚBLICO Y VIDEOS

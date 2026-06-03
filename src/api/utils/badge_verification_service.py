@@ -647,6 +647,15 @@ class BadgeVerificationService:
             except Exception:
                 metricas['referidos_exitosos'] = 0
 
+            # Duelos ganados (badge Campeón de Duelos, S31)
+            try:
+                metricas['duelos_ganados'] = db.session.execute(text("""
+                    SELECT COUNT(*) FROM duelos
+                    WHERE ganador_negocio_id = :nid AND estado = 'finalizado'
+                """), {'nid': negocio_id}).fetchone()[0] or 0
+            except Exception:
+                metricas['duelos_ganados'] = 0
+
             # ═══════════════════════════════════════════
             # NO SOPORTADOS AÚN (retorna None → se skipean)
             # ═══════════════════════════════════════════

@@ -791,6 +791,16 @@ BADGES_INICIALES = [
         "criterio_tipo": "resenas_recibidas", "criterio_valor": 25, "criterio_operador": ">=",
     },
 
+    # ═══ CAMPEÓN DE DUELO (S31) ═══
+    {
+        "codigo": "campeon_duelo", "nombre": "Campeón de Duelos",
+        "descripcion": "Gana 5 duelos contra otros negocios",
+        "icono": "bi-trophy-fill", "color_primario": "#f59e0b",
+        "color_fondo": "rgba(245,158,11,0.15)", "categoria": "popularidad",
+        "nivel": 3, "puntos": 70,
+        "criterio_tipo": "duelos_ganados", "criterio_valor": 5, "criterio_operador": ">=",
+    },
+
     # ═══ MENTOR (S29) — referidos convertidos ═══
     {
         "codigo": "mentor", "nombre": "Mentor",
