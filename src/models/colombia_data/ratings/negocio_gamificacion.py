@@ -447,6 +447,43 @@ POOL_MISIONES_DIARIAS = [
         'auto':        False,
         'dificultad':  'facil',
     },
+    # ── Ampliación S14 (más variedad en la rotación diaria) ──
+    {
+        'codigo': 'vender_3', 'nombre': 'Cierra 3 ventas hoy',
+        'descripcion': 'Entrega 3 pedidos en el mismo día',
+        'icono': '🔥', 'xp': 45, 'tukoins': 20, 'tipo': 'diaria',
+        'auto': True, 'dificultad': 'alta',
+    },
+    {
+        'codigo': 'dos_productos', 'nombre': 'Agrega 2 productos',
+        'descripcion': 'Suma dos productos nuevos a tu catálogo hoy',
+        'icono': '📦', 'xp': 25, 'tukoins': 10, 'tipo': 'diaria',
+        'auto': True, 'dificultad': 'media',
+    },
+    {
+        'codigo': 'compartir_producto', 'nombre': 'Comparte un producto',
+        'descripcion': 'Comparte un producto de tu tienda en redes',
+        'icono': '🔗', 'xp': 12, 'tukoins': 6, 'tipo': 'diaria',
+        'auto': False, 'dificultad': 'facil',
+    },
+    {
+        'codigo': 'revisar_inventario', 'nombre': 'Revisa tu inventario',
+        'descripcion': 'Verifica tus niveles de stock del día',
+        'icono': '📋', 'xp': 10, 'tukoins': 5, 'tipo': 'diaria',
+        'auto': False, 'dificultad': 'facil',
+    },
+    {
+        'codigo': 'responder_resena', 'nombre': 'Responde una reseña',
+        'descripcion': 'Agradece o responde la reseña de un cliente',
+        'icono': '⭐', 'xp': 12, 'tukoins': 6, 'tipo': 'diaria',
+        'auto': False, 'dificultad': 'facil',
+    },
+    {
+        'codigo': 'revisar_pedidos', 'nombre': 'Gestiona tus pedidos',
+        'descripcion': 'Revisa y actualiza el estado de tus pedidos',
+        'icono': '🚚', 'xp': 10, 'tukoins': 5, 'tipo': 'diaria',
+        'auto': False, 'dificultad': 'facil',
+    },
 ]
 
 POOL_MISIONES_SEMANALES = [
@@ -482,5 +519,30 @@ POOL_MISIONES_SEMANALES = [
         'tipo':        'semanal',
         'auto':        True,
         'dificultad':  'media',
+    },
+]
+
+# ═══════════════════════════════════════════════════════════════════
+# POOL DE MISIONES MENSUALES (S14) — objetivos grandes de mes calendario
+# Se auto-completan al consultar el dashboard (igual que las semanales).
+# ═══════════════════════════════════════════════════════════════════
+POOL_MISIONES_MENSUALES = [
+    {
+        'codigo': 'ventas_mes_20', 'nombre': 'Cierra 20 ventas este mes',
+        'descripcion': 'Veinte pedidos entregados en el mes',
+        'icono': '🏆', 'xp': 300, 'tukoins': 150, 'tipo': 'mensual',
+        'auto': True, 'dificultad': 'alta',
+    },
+    {
+        'codigo': 'productos_mes_15', 'nombre': 'Agrega 15 productos este mes',
+        'descripcion': 'Haz crecer tu catálogo con 15 productos nuevos',
+        'icono': '📦', 'xp': 180, 'tukoins': 90, 'tipo': 'mensual',
+        'auto': True, 'dificultad': 'media',
+    },
+    {
+        'codigo': 'videos_mes_8', 'nombre': 'Sube 8 videos este mes',
+        'descripcion': 'Mantente activo como creador de contenido',
+        'icono': '🎥', 'xp': 200, 'tukoins': 100, 'tipo': 'mensual',
+        'auto': True, 'dificultad': 'media',
     },
 ]

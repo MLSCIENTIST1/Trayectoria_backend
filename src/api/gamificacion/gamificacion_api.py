@@ -161,6 +161,16 @@ def _mision_completada_semana(negocio_id, codigo):
     ).first() is not None
 
 
+def _mision_completada_mes(negocio_id, codigo):
+    from src.models.colombia_data.ratings.negocio_gamificacion import NegocioMisionCompletada
+    inicio_mes = date.today().replace(day=1)
+    return NegocioMisionCompletada.query.filter(
+        NegocioMisionCompletada.negocio_id == negocio_id,
+        NegocioMisionCompletada.mision_codigo == codigo,
+        NegocioMisionCompletada.fecha >= inicio_mes,
+    ).first() is not None
+
+
 def _verificar_mision_auto(negocio_id, mision):
     """Verifica si una misión auto-detectable está cumplida."""
     codigo = mision['codigo']
@@ -186,6 +196,25 @@ def _verificar_mision_auto(negocio_id, mision):
             ProductoCatalogo.negocio_id == negocio_id,
             cast(ProductoCatalogo.fecha_creacion, SADate) >= inicio_semana
         ).count() >= 5
+
+    # ── Nuevas diarias (S14) ──
+    if codigo == 'vender_3':
+        return _contar_pedidos_entregados(negocio_id, desde=hoy) >= 3
+    if codigo == 'dos_productos':
+        return _contar_productos_creados_hoy(negocio_id) >= 2
+
+    # ── Mensuales (S14) — mes calendario ──
+    inicio_mes = hoy.replace(day=1)
+    if codigo == 'ventas_mes_20':
+        return _contar_pedidos_entregados(negocio_id, desde=inicio_mes) >= 20
+    if codigo == 'videos_mes_8':
+        return _contar_videos_creados(negocio_id, desde=datetime.combine(inicio_mes, datetime.min.time())) >= 8
+    if codigo == 'productos_mes_15':
+        from src.models.colombia_data.contabilidad.operaciones_y_catalogo import ProductoCatalogo
+        return ProductoCatalogo.query.filter(
+            ProductoCatalogo.negocio_id == negocio_id,
+            cast(ProductoCatalogo.fecha_creacion, SADate) >= inicio_mes
+        ).count() >= 15
     return False
 
 
@@ -211,8 +240,12 @@ def _elegir_misiones_diarias(negocio_id):
 def _registrar_mision_completada(negocio_id, gami, mision, tipo='diaria'):
     """Registra la misión, suma XP y TuKoins. Idempotente."""
     from src.models.colombia_data.ratings.negocio_gamificacion import NegocioMisionCompletada
-    ya = _mision_completada_hoy(negocio_id, mision['codigo']) if tipo == 'diaria' \
-        else _mision_completada_semana(negocio_id, mision['codigo'])
+    if tipo == 'diaria':
+        ya = _mision_completada_hoy(negocio_id, mision['codigo'])
+    elif tipo == 'mensual':
+        ya = _mision_completada_mes(negocio_id, mision['codigo'])
+    else:
+        ya = _mision_completada_semana(negocio_id, mision['codigo'])
     if ya:
         return False
 
@@ -270,7 +303,7 @@ def dashboard():
 
     try:
         from src.models.colombia_data.ratings.negocio_gamificacion import (
-            POOL_MISIONES_DIARIAS, POOL_MISIONES_SEMANALES
+            POOL_MISIONES_DIARIAS, POOL_MISIONES_SEMANALES, POOL_MISIONES_MENSUALES
         )
 
         gami = _get_gami(nid)
@@ -287,6 +320,11 @@ def dashboard():
             if m['auto'] and _verificar_mision_auto(nid, m):
                 _registrar_mision_completada(nid, gami, m, 'semanal')
 
+        # ── Auto-completar misiones mensuales (S14) ──────────────
+        for m in POOL_MISIONES_MENSUALES:
+            if m['auto'] and _verificar_mision_auto(nid, m):
+                _registrar_mision_completada(nid, gami, m, 'mensual')
+
         db.session.commit()
 
         # ── Rachas ───────────────────────────────────────────────
@@ -302,6 +340,11 @@ def dashboard():
         for m in POOL_MISIONES_SEMANALES:
             completada = _mision_completada_semana(nid, m['codigo'])
             misiones_semanales_estado.append({**m, 'completada': completada})
+
+        misiones_mensuales_estado = []
+        for m in POOL_MISIONES_MENSUALES:
+            completada = _mision_completada_mes(nid, m['codigo'])
+            misiones_mensuales_estado.append({**m, 'completada': completada})
 
         misiones_completadas_hoy = sum(1 for m in misiones_estado if m['completada'])
         bonus_completado = misiones_completadas_hoy == 3
@@ -325,6 +368,7 @@ def dashboard():
             'misiones': {
                 'diarias':  misiones_estado,
                 'semanales': misiones_semanales_estado,
+                'mensuales': misiones_mensuales_estado,
                 'completadas_hoy': misiones_completadas_hoy,
                 'total_hoy': len(misiones_hoy),
                 'bonus_desbloqueado': bonus_completado,
@@ -353,11 +397,11 @@ def completar_mision_manual():
 
     try:
         from src.models.colombia_data.ratings.negocio_gamificacion import (
-            POOL_MISIONES_DIARIAS, POOL_MISIONES_SEMANALES
+            POOL_MISIONES_DIARIAS, POOL_MISIONES_SEMANALES, POOL_MISIONES_MENSUALES
         )
 
         # Buscar la misión en los pools
-        pool = POOL_MISIONES_DIARIAS + POOL_MISIONES_SEMANALES
+        pool = POOL_MISIONES_DIARIAS + POOL_MISIONES_SEMANALES + POOL_MISIONES_MENSUALES
         mision = next((m for m in pool if m['codigo'] == codigo), None)
         if not mision:
             return jsonify({'error': 'Misión no reconocida'}), 404
