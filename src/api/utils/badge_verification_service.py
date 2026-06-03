@@ -122,6 +122,28 @@ logger = logging.getLogger(__name__)
 FUNDADOR_CUPO = 50
 
 
+def temporadas_activas(hoy):
+    """
+    Dada una fecha, devuelve las temporadas ACTIVAS y su ventana [desde, hasta].
+    Los badges de temporada solo son otorgables si HOY cae dentro de su ventana.
+    Función pura → testeable con fechas inyectadas.
+    """
+    activas = {}
+    y, m, d = hoy.year, hoy.month, hoy.day
+    if m == 12:
+        activas['ventas_navidad'] = (datetime(y, 12, 1), datetime(y, 12, 31, 23, 59, 59))
+    if m == 9:
+        activas['ventas_amor_amistad'] = (datetime(y, 9, 1), datetime(y, 9, 30, 23, 59, 59))
+    if m == 5:
+        activas['ventas_dia_madre'] = (datetime(y, 5, 1), datetime(y, 5, 31, 23, 59, 59))
+    if m == 11 and 20 <= d <= 30:
+        activas['ventas_black_friday'] = (datetime(y, 11, 20), datetime(y, 11, 30, 23, 59, 59))
+    return activas
+
+
+SEASONAL_METRICS = ['ventas_navidad', 'ventas_amor_amistad', 'ventas_dia_madre', 'ventas_black_friday']
+
+
 class BadgeVerificationService:
     """
     Servicio que verifica si un negocio cumple los criterios para cada badge
@@ -566,6 +588,24 @@ class BadgeVerificationService:
                 """), {'nid': negocio_id}).fetchone()[0] or 0
             except Exception:
                 metricas['ventas_fin_semana'] = 0
+
+            # ═══════════════════════════════════════════
+            # TEMPORADA (S13) — solo otorgables DURANTE la fecha especial
+            # ═══════════════════════════════════════════
+            activas = temporadas_activas(datetime.utcnow())
+            for metrica in SEASONAL_METRICS:
+                if metrica in activas:
+                    desde, hasta = activas[metrica]
+                    try:
+                        metricas[metrica] = db.session.execute(text("""
+                            SELECT COUNT(*) FROM pedidos
+                            WHERE negocio_id = :nid AND estado = 'entregado'
+                              AND fecha_pedido >= :desde AND fecha_pedido <= :hasta
+                        """), {'nid': negocio_id, 'desde': desde, 'hasta': hasta}).fetchone()[0] or 0
+                    except Exception:
+                        metricas[metrica] = 0
+                else:
+                    metricas[metrica] = 0  # fuera de temporada → no otorgable
 
             # ═══════════════════════════════════════════
             # NO SOPORTADOS AÚN (retorna None → se skipean)

@@ -699,6 +699,42 @@ BADGES_INICIALES = [
         "color_fondo": "rgba(16,185,129,0.15)", "categoria": "especial",
         "nivel": 2, "puntos": 45, "es_secreto": True,
         "criterio_tipo": "ventas_fin_semana", "criterio_valor": 20, "criterio_operador": ">=",
+    },
+
+    # ═══ TEMPORADA 🎄 (S13) — solo se ganan vendiendo DURANTE la fecha ═══
+    # La métrica devuelve >=1 únicamente si HOY cae dentro de la temporada
+    # y el negocio vendió en ella. Fuera de temporada → 0 (no otorgable).
+    {
+        "codigo": "navidad_2026", "nombre": "Espíritu Navideño",
+        "descripcion": "Vendiste durante la temporada navideña (diciembre)",
+        "icono": "bi-snow2", "color_primario": "#ef4444",
+        "color_fondo": "rgba(239,68,68,0.15)", "categoria": "especial",
+        "nivel": 2, "puntos": 40, "es_secreto": False,
+        "criterio_tipo": "ventas_navidad", "criterio_valor": 1, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "amor_amistad", "nombre": "Amor y Amistad",
+        "descripcion": "Vendiste en septiembre, mes del Amor y la Amistad",
+        "icono": "bi-heart-fill", "color_primario": "#ec4899",
+        "color_fondo": "rgba(236,72,153,0.15)", "categoria": "especial",
+        "nivel": 2, "puntos": 40, "es_secreto": False,
+        "criterio_tipo": "ventas_amor_amistad", "criterio_valor": 1, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "dia_madre", "nombre": "Para Mamá",
+        "descripcion": "Vendiste en mayo, mes de las madres",
+        "icono": "bi-flower1", "color_primario": "#f59e0b",
+        "color_fondo": "rgba(245,158,11,0.15)", "categoria": "especial",
+        "nivel": 2, "puntos": 40, "es_secreto": False,
+        "criterio_tipo": "ventas_dia_madre", "criterio_valor": 1, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "black_friday", "nombre": "Black Friday",
+        "descripcion": "Vendiste durante el Black Friday (20–30 de noviembre)",
+        "icono": "bi-bag-heart-fill", "color_primario": "#0f172a",
+        "color_fondo": "rgba(15,23,42,0.35)", "categoria": "especial",
+        "nivel": 3, "puntos": 55, "es_secreto": False,
+        "criterio_tipo": "ventas_black_friday", "criterio_valor": 1, "criterio_operador": ">=",
     }
 ]
 
