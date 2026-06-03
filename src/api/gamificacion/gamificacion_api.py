@@ -466,6 +466,98 @@ def _rango_mes(hoy=None):
     return inicio, fin, etiqueta
 
 
+def _rango_mes_anterior(hoy=None):
+    """Rango [inicio, fin) del MES ANTERIOR + etiqueta. Pura."""
+    if hoy is None:
+        hoy = datetime.utcnow()
+    if hoy.month == 1:
+        ini = datetime(hoy.year - 1, 12, 1)
+        fin = datetime(hoy.year, 1, 1)
+        et = f"{_MESES_ES[12]} {hoy.year - 1}"
+    else:
+        ini = datetime(hoy.year, hoy.month - 1, 1)
+        fin = datetime(hoy.year, hoy.month, 1)
+        et = f"{_MESES_ES[hoy.month - 1]} {hoy.year}"
+    return ini, fin, et
+
+
+def _pct_top(posicion, total):
+    """Devuelve el 'top X%' (entero 1-100) dado rango y total. Pura."""
+    if not total or total <= 0 or not posicion:
+        return None
+    return max(1, min(100, round(posicion / total * 100)))
+
+
+def _crecimiento_pct(actual, anterior):
+    """% de cambio actual vs anterior. None si no hay base. Pura."""
+    actual = actual or 0
+    anterior = anterior or 0
+    if anterior == 0:
+        return None if actual == 0 else 100  # de 0 a algo = +100% (debut)
+    return round((actual - anterior) / anterior * 100)
+
+
+@gamificacion_bp.route('/gamificacion/comparativas', methods=['GET'])
+@login_required
+def comparativas():
+    """
+    Comparaciones contextuales (S30): percentil en la ciudad + crecimiento
+    vs el mes anterior. GET /api/gamificacion/comparativas?negocio_id=4
+    """
+    nid = _get_nid(request.args.get('negocio_id'))
+    if not nid:
+        return jsonify({'success': False, 'error': 'Negocio no encontrado'}), 404
+
+    from sqlalchemy import text as _t
+    ini, fin, _ = _rango_mes()
+    ini_ant, fin_ant, et_ant = _rango_mes_anterior()
+    out = {'percentil_ciudad': None, 'crecimiento': None}
+
+    def _ventas(nid_, desde, hasta):
+        try:
+            return int(db.session.execute(_t("""
+                SELECT COUNT(*) FROM pedidos WHERE negocio_id=:nid AND estado='entregado'
+                  AND fecha_pedido>=:d AND fecha_pedido<:h
+            """), {'nid': nid_, 'd': desde, 'h': hasta}).fetchone()[0] or 0)
+        except Exception:
+            return 0
+
+    mis_ventas = _ventas(nid, ini, fin)
+
+    # Crecimiento vs mes anterior
+    ventas_ant = _ventas(nid, ini_ant, fin_ant)
+    out['crecimiento'] = {
+        'pct': _crecimiento_pct(mis_ventas, ventas_ant),
+        'actual': mis_ventas, 'anterior': ventas_ant, 'mes_anterior': et_ant,
+    }
+
+    # Percentil en la ciudad
+    try:
+        from src.models.colombia_data.negocio import Negocio
+        mn = Negocio.query.get(nid)
+        ciudad = (getattr(mn, 'ciudad', '') or '').strip()
+        if ciudad and mis_ventas >= 0:
+            filas = db.session.execute(_t("""
+                SELECT n.id_negocio, COUNT(p.id_pedido) AS v
+                FROM negocios n
+                LEFT JOIN pedidos p ON p.negocio_id = n.id_negocio
+                    AND p.estado='entregado' AND p.fecha_pedido>=:d AND p.fecha_pedido<:h
+                WHERE n.activo = true AND LOWER(n.ciudad) = :ciu
+                GROUP BY n.id_negocio
+            """), {'d': ini, 'h': fin, 'ciu': ciudad.lower()}).fetchall()
+            total = len(filas)
+            mejores = sum(1 for f in filas if (f[1] or 0) > mis_ventas)
+            posicion = mejores + 1
+            out['percentil_ciudad'] = {
+                'ciudad': ciudad, 'total': total, 'posicion': posicion,
+                'top_pct': _pct_top(posicion, total),
+            }
+    except Exception as e:
+        logger.warning(f"[comparativas] percentil: {e}")
+
+    return jsonify({'success': True, **out}), 200
+
+
 @gamificacion_bp.route('/gamificacion/resumen-mensual', methods=['GET'])
 @login_required
 def resumen_mensual():
