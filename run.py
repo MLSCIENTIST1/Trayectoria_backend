@@ -290,6 +290,20 @@ try:
             )
         except Exception as seed_err:
             logger.warning(f"⚠️  No se pudo sembrar catálogo de badges/tienda: {seed_err}")
+
+        # ── negocio_gamificacion.prestigio (S33) ─────────────────────────────
+        try:
+            from sqlalchemy import text as _sql_text6
+            from src.models.database import db as _db6
+            conn6 = _db6.engine.connect()
+            conn6.execute(_sql_text6(
+                "ALTER TABLE negocio_gamificacion ADD COLUMN IF NOT EXISTS prestigio INTEGER NOT NULL DEFAULT 0"
+            ))
+            conn6.commit()
+            conn6.close()
+            logger.info("✅ negocio_gamificacion.prestigio verificada")
+        except Exception as pg_err6:
+            logger.warning(f"⚠️  No se pudo verificar prestigio: {pg_err6}")
         # ─────────────────────────────────────────────────────────────────────
 
         # ==========================================

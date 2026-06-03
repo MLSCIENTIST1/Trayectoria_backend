@@ -37,6 +37,9 @@ class NegocioGamificacion(db.Model):
     # ── TuKoins (moneda virtual) ─────────────────────────────────
     tukoins     = Column(Integer, default=0, nullable=False)
 
+    # ── Prestigio (S33): veces que llegó a Leyenda y reinició ────
+    prestigio   = Column(Integer, default=0, nullable=False)
+
     # ── Racha de actividad (uso del dashboard) ───────────────────
     racha_actividad_dias  = Column(Integer, default=0, nullable=False)
     racha_actividad_max   = Column(Integer, default=0, nullable=False)
@@ -93,6 +96,28 @@ class NegocioGamificacion(db.Model):
         self.calcular_nivel()
         return self.nivel > nivel_antes
 
+    @property
+    def xp_maximo(self):
+        """XP del último nivel (Leyenda)."""
+        return self.NIVELES[-1][0]
+
+    def puede_prestigiar(self):
+        """True si alcanzó el XP máximo y puede reiniciar por prestigio."""
+        return self.xp_total >= self.xp_maximo
+
+    def prestigiar(self):
+        """
+        Reinicia el progreso a cambio de +1 estrella de prestigio.
+        Retorna True si se aplicó; False si aún no es elegible.
+        Conserva TuKoins (no se pierden).
+        """
+        if not self.puede_prestigiar():
+            return False
+        self.prestigio = (self.prestigio or 0) + 1
+        self.xp_total = 0
+        self.calcular_nivel()
+        return True
+
     def agregar_tukoins(self, cantidad: int, concepto: str, db_session=None):
         """Agrega TuKoins y registra transacción."""
         self.tukoins = max(0, self.tukoins + cantidad)
@@ -145,6 +170,8 @@ class NegocioGamificacion(db.Model):
             'xp_para_siguiente': xp_para_sig,
             'progreso_pct': progreso_pct,
             'tukoins':      self.tukoins,
+            'prestigio':    self.prestigio or 0,
+            'puede_prestigiar': self.puede_prestigiar(),
             'racha_actividad': {
                 'dias':  self.racha_actividad_dias,
                 'max':   self.racha_actividad_max,

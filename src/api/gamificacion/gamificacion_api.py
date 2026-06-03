@@ -323,6 +323,36 @@ def _registrar_mision_completada(negocio_id, gami, mision, tipo='diaria'):
 # ENDPOINTS
 # ─────────────────────────────────────────────────────────────────
 
+PRESTIGIO_TUKOINS_BONO = 500  # bono al prestigiar (S33)
+
+
+@gamificacion_bp.route('/gamificacion/prestigio', methods=['POST', 'OPTIONS'])
+@login_required
+def prestigiar():
+    """
+    Reinicia el progreso del negocio a cambio de +1 estrella de prestigio (S33).
+    Solo si alcanzó el nivel máximo (Leyenda). POST /api/gamificacion/prestigio
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({'ok': True}), 200
+    nid = _get_nid(request.args.get('negocio_id') or (request.get_json(silent=True) or {}).get('negocio_id'))
+    if not nid:
+        return jsonify({'success': False, 'error': 'Negocio no encontrado'}), 404
+    try:
+        gami = _get_gami(nid)
+        if not gami.puede_prestigiar():
+            return jsonify({'success': False, 'error': 'Aún no alcanzas el nivel Leyenda'}), 400
+        gami.prestigiar()
+        gami.agregar_tukoins(PRESTIGIO_TUKOINS_BONO, "Bono de Prestigio", db_session=db.session)
+        db.session.commit()
+        return jsonify({'success': True, 'mensaje': '¡Prestigio alcanzado!',
+                        'gamificacion': gami.serialize()}), 200
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error en prestigiar: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error interno'}), 500
+
+
 @gamificacion_bp.route('/gamificacion/usuario', methods=['GET'])
 @login_required
 def gamificacion_usuario():
