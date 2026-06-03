@@ -344,6 +344,75 @@ def gamificacion_usuario():
         return jsonify({'success': False, 'error': 'Error interno'}), 500
 
 
+_MESES_ES = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+             'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+
+
+def _rango_mes(hoy=None):
+    """Devuelve (inicio_mes, fin_exclusivo, etiqueta) del mes de 'hoy'.
+    Función pura (hoy inyectable) → testeable."""
+    if hoy is None:
+        hoy = datetime.utcnow()
+    inicio = datetime(hoy.year, hoy.month, 1)
+    if hoy.month == 12:
+        fin = datetime(hoy.year + 1, 1, 1)
+    else:
+        fin = datetime(hoy.year, hoy.month + 1, 1)
+    etiqueta = f"{_MESES_ES[hoy.month]} {hoy.year}"
+    return inicio, fin, etiqueta
+
+
+@gamificacion_bp.route('/gamificacion/resumen-mensual', methods=['GET'])
+@login_required
+def resumen_mensual():
+    """
+    "Tu mes en números" — resumen compartible del mes actual del negocio.
+    GET /api/gamificacion/resumen-mensual?negocio_id=4
+    """
+    nid = _get_nid(request.args.get('negocio_id'))
+    if not nid:
+        return jsonify({'success': False, 'error': 'Negocio no encontrado'}), 404
+
+    from sqlalchemy import text as _t
+    inicio, fin, etiqueta = _rango_mes()
+    params = {'nid': nid, 'ini': inicio, 'fin': fin}
+    data = {'mes': etiqueta, 'ventas': 0, 'ingresos': 0.0,
+            'clientes': 0, 'badges': 0, 'misiones': 0, 'nivel': 1, 'nombre_nivel': ''}
+
+    def _scalar(sql, default=0):
+        try:
+            return db.session.execute(_t(sql), params).fetchone()[0] or default
+        except Exception:
+            return default
+
+    data['ventas']   = int(_scalar(
+        "SELECT COUNT(*) FROM pedidos WHERE negocio_id=:nid AND estado='entregado' "
+        "AND fecha_pedido>=:ini AND fecha_pedido<:fin"))
+    data['ingresos'] = float(_scalar(
+        "SELECT COALESCE(SUM(COALESCE(subtotal,0)-COALESCE(descuento,0)),0) FROM pedidos "
+        "WHERE negocio_id=:nid AND estado='entregado' AND fecha_pedido>=:ini AND fecha_pedido<:fin", 0.0))
+    data['clientes'] = int(_scalar(
+        "SELECT COUNT(DISTINCT comprador_id) FROM pedidos WHERE negocio_id=:nid "
+        "AND estado='entregado' AND fecha_pedido>=:ini AND fecha_pedido<:fin AND comprador_id IS NOT NULL"))
+    data['badges']   = int(_scalar(
+        "SELECT COUNT(*) FROM negocio_badges_obtenidos WHERE negocio_id=:nid "
+        "AND fecha_obtencion>=:ini AND fecha_obtencion<:fin"))
+    data['misiones'] = int(_scalar(
+        "SELECT COUNT(*) FROM negocio_misiones_completadas WHERE negocio_id=:nid "
+        "AND fecha>=:ini AND fecha<:fin", 0))
+
+    try:
+        gami = _get_gami(nid)
+        nivel, nombre = gami.calcular_nivel()
+        data['nivel'] = nivel
+        data['nombre_nivel'] = nombre
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    return jsonify({'success': True, 'resumen': data}), 200
+
+
 @gamificacion_bp.route('/gamificacion/dashboard', methods=['GET', 'POST'])
 @login_required
 def dashboard():
