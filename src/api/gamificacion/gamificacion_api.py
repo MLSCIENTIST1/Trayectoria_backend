@@ -413,6 +413,85 @@ def resumen_mensual():
     return jsonify({'success': True, 'resumen': data}), 200
 
 
+def _merge_eventos(listas, limite=15):
+    """
+    Fusiona varias listas de eventos (cada uno con clave 'ts' ordenable) en
+    un único feed ordenado por fecha desc. Función PURA → testeable.
+    """
+    todos = []
+    for lst in listas:
+        todos.extend(lst or [])
+    todos.sort(key=lambda e: e.get('ts', 0), reverse=True)
+    return todos[:limite]
+
+
+@gamificacion_bp.route('/gamificacion/feed-logros', methods=['GET'])
+@login_required
+def feed_logros():
+    """
+    Timeline de logros recientes del negocio (S23): insignias ganadas +
+    misiones completadas, fusionadas y ordenadas por fecha.
+    GET /api/gamificacion/feed-logros?negocio_id=4
+    """
+    nid = _get_nid(request.args.get('negocio_id'))
+    if not nid:
+        return jsonify({'success': False, 'error': 'Negocio no encontrado'}), 404
+
+    from sqlalchemy import text as _t
+    eventos_badges, eventos_mis = [], []
+
+    # Insignias ganadas
+    try:
+        rows = db.session.execute(_t("""
+            SELECT b.nombre, b.icono, b.color_primario, o.fecha_obtencion
+            FROM negocio_badges_obtenidos o
+            JOIN negocio_badges b ON b.id = o.badge_id
+            WHERE o.negocio_id = :nid AND (o.activo IS TRUE OR o.activo IS NULL)
+            ORDER BY o.fecha_obtencion DESC LIMIT 12
+        """), {'nid': nid}).fetchall()
+        for r in rows:
+            f = r[3]
+            eventos_badges.append({
+                'tipo': 'badge', 'icono': r[1] or 'bi-award-fill',
+                'color': r[2] or '#fbbf24',
+                'titulo': f'Ganaste la insignia «{r[0]}»',
+                'fecha': f.isoformat() if f else None,
+                'ts': f.timestamp() if f else 0,
+            })
+    except Exception as e:
+        logger.warning(f"[feed] badges: {e}")
+
+    # Misiones completadas (mapea código → nombre/ícono con los pools)
+    try:
+        from src.models.colombia_data.ratings.negocio_gamificacion import (
+            POOL_MISIONES_DIARIAS, POOL_MISIONES_SEMANALES, POOL_MISIONES_MENSUALES
+        )
+        mp = {m['codigo']: m for m in
+              (POOL_MISIONES_DIARIAS + POOL_MISIONES_SEMANALES + POOL_MISIONES_MENSUALES)}
+        rows = db.session.execute(_t("""
+            SELECT mision_codigo, fecha, xp_ganado
+            FROM negocio_misiones_completadas
+            WHERE negocio_id = :nid
+            ORDER BY fecha DESC LIMIT 12
+        """), {'nid': nid}).fetchall()
+        for r in rows:
+            m = mp.get(r[0], {})
+            f = r[1]  # date
+            # date → datetime medianoche para ordenar junto a los badges
+            ts = datetime(f.year, f.month, f.day).timestamp() if f else 0
+            eventos_mis.append({
+                'tipo': 'mision', 'icono': 'bi-check-circle-fill', 'color': '#10b981',
+                'titulo': f"Misión completada: {m.get('nombre', r[0])}",
+                'detalle': f"+{r[2] or 0} XP",
+                'fecha': f.isoformat() if f else None, 'ts': ts,
+            })
+    except Exception as e:
+        logger.warning(f"[feed] misiones: {e}")
+
+    feed = _merge_eventos([eventos_badges, eventos_mis], limite=15)
+    return jsonify({'success': True, 'feed': feed}), 200
+
+
 @gamificacion_bp.route('/gamificacion/proximos-badges', methods=['GET'])
 @login_required
 def proximos_badges():
