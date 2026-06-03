@@ -72,25 +72,29 @@ def _completar_mision(negocio_id, gami, mision, tipo='diaria'):
     if _mision_ya_completada(negocio_id, mision['codigo'], tipo):
         return None
 
-    from src.models.colombia_data.ratings.negocio_gamificacion import NegocioMisionCompletada
+    from src.models.colombia_data.ratings.negocio_gamificacion import (
+        NegocioMisionCompletada, bono_tukoins
+    )
+    mult, _ = bono_tukoins()                      # S36: multiplicador por fecha (domingo x2)
+    tukoins_final = (mision['tukoins'] or 0) * mult
     registro = NegocioMisionCompletada(
         negocio_id=negocio_id,
         gamificacion_id=gami.id,
         mision_codigo=mision['codigo'],
         fecha=date.today(),
         xp_ganado=mision['xp'],
-        tukoins_ganados=mision['tukoins'],
+        tukoins_ganados=tukoins_final,
         tipo=tipo,
     )
     db.session.add(registro)
     subio = gami.agregar_xp(mision['xp'], f"Misión: {mision['nombre']}")
-    gami.agregar_tukoins(mision['tukoins'], f"Misión: {mision['nombre']}", db_session=db.session)
+    gami.agregar_tukoins(tukoins_final, f"Misión: {mision['nombre']}", db_session=db.session)
     return {
         'codigo':   mision['codigo'],
         'nombre':   mision['nombre'],
         'icono':    mision['icono'],
         'xp':       mision['xp'],
-        'tukoins':  mision['tukoins'],
+        'tukoins':  tukoins_final,
         'tipo':     tipo,
         'subio_nivel': subio,
     }

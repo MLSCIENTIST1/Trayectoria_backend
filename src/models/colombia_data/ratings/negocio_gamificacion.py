@@ -15,6 +15,24 @@ from src.models.database import db
 
 
 # ═══════════════════════════════════════════════════════════════════
+# ECONOMÍA TUKOINS — bonos por fecha (S36)
+# ═══════════════════════════════════════════════════════════════════
+def bono_tukoins(fecha=None):
+    """
+    Devuelve (multiplicador, nombre_bono) de TuKoins para la fecha dada.
+    Función PURA → testeable con fechas inyectadas.
+      - Domingo: x2 "Domingo de TuKoins"
+      - Resto:   x1 (sin bono)
+    """
+    if fecha is None:
+        fecha = datetime.utcnow()
+    # weekday(): lunes=0 … domingo=6
+    if fecha.weekday() == 6:
+        return 2, 'Domingo de TuKoins'
+    return 1, None
+
+
+# ═══════════════════════════════════════════════════════════════════
 # TABLA PRINCIPAL DE GAMIFICACIÓN POR NEGOCIO
 # ═══════════════════════════════════════════════════════════════════
 

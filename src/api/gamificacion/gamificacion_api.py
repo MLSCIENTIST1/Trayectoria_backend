@@ -326,6 +326,19 @@ def _registrar_mision_completada(negocio_id, gami, mision, tipo='diaria'):
 PRESTIGIO_TUKOINS_BONO = 500  # bono al prestigiar (S33)
 
 
+@gamificacion_bp.route('/gamificacion/bono-hoy', methods=['GET'])
+def bono_hoy():
+    """Bono de TuKoins activo hoy (S36). Público. Ej: domingo x2."""
+    try:
+        from src.models.colombia_data.ratings.negocio_gamificacion import bono_tukoins
+        mult, nombre = bono_tukoins()
+        return jsonify({'success': True, 'multiplicador': mult,
+                        'nombre': nombre, 'activo': mult > 1}), 200
+    except Exception as e:
+        logger.error(f"Error en bono_hoy: {e}")
+        return jsonify({'success': False, 'multiplicador': 1, 'activo': False}), 200
+
+
 @gamificacion_bp.route('/gamificacion/prestigio', methods=['POST', 'OPTIONS'])
 @login_required
 def prestigiar():
