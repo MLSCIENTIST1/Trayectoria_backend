@@ -413,6 +413,25 @@ def resumen_mensual():
     return jsonify({'success': True, 'resumen': data}), 200
 
 
+@gamificacion_bp.route('/gamificacion/proximos-badges', methods=['GET'])
+@login_required
+def proximos_badges():
+    """
+    Insignias más cercanas a desbloquear, con progreso (S22).
+    GET /api/gamificacion/proximos-badges?negocio_id=4
+    """
+    nid = _get_nid(request.args.get('negocio_id'))
+    if not nid:
+        return jsonify({'success': False, 'error': 'Negocio no encontrado'}), 404
+    try:
+        from src.api.utils.badge_verification_service import BadgeVerificationService
+        proximos = BadgeVerificationService.progreso_proximos_badges(nid, limite=4)
+        return jsonify({'success': True, 'proximos': proximos}), 200
+    except Exception as e:
+        logger.error(f"Error en proximos_badges: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error interno', 'proximos': []}), 200
+
+
 @gamificacion_bp.route('/gamificacion/dashboard', methods=['GET', 'POST'])
 @login_required
 def dashboard():

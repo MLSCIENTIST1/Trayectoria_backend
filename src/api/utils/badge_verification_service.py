@@ -683,6 +683,68 @@ class BadgeVerificationService:
     
     
     @staticmethod
+    def calcular_progreso(catalogo: list, metricas: dict, obtenidos: set, limite: int = 4) -> list:
+        """
+        Función PURA. Dado el catálogo de badges, las métricas actuales y los
+        badges ya obtenidos, devuelve los más cercanos a desbloquear (no logrados),
+        ordenados por progreso descendente. Testeable sin DB.
+
+        Cada badge requiere: id, codigo, nombre, criterio_tipo, criterio_valor,
+        criterio_operador, nivel, (opcional) icono, color, es_secreto.
+        """
+        proximos = []
+        for b in catalogo:
+            if b['id'] in obtenidos:
+                continue
+            if b.get('es_secreto'):
+                continue
+            if b.get('criterio_operador', '>=') != '>=':
+                continue  # solo metas acumulativas tienen "progreso"
+            objetivo = float(b.get('criterio_valor') or 0)
+            if objetivo <= 0:
+                continue
+            actual = metricas.get(b['criterio_tipo'])
+            if actual is None:
+                continue
+            actual = float(actual)
+            if actual >= objetivo:
+                continue  # ya cumple (se otorgará); no es "próximo"
+            pct = max(0.0, min(99.0, round(actual / objetivo * 100, 1)))
+            proximos.append({
+                'codigo': b['codigo'], 'nombre': b['nombre'],
+                'icono': b.get('icono') or 'bi-award-fill',
+                'color': b.get('color') or '#a855f7',
+                'nivel': b.get('nivel') or 1,
+                'actual': actual, 'objetivo': objetivo,
+                'falta': round(objetivo - actual, 2),
+                'progreso_pct': pct,
+            })
+        proximos.sort(key=lambda x: x['progreso_pct'], reverse=True)
+        return proximos[:limite]
+
+    @staticmethod
+    def progreso_proximos_badges(negocio_id: int, limite: int = 4) -> list:
+        """Wrapper con DB: arma catálogo+métricas+obtenidos y calcula progreso."""
+        try:
+            metricas = BadgeVerificationService._calcular_metricas_para_badges(negocio_id)
+            obtenidos = BadgeVerificationService._get_badges_obtenidos(negocio_id)
+            rows = db.session.execute(text("""
+                SELECT id, codigo, nombre, criterio_tipo, criterio_valor,
+                       criterio_operador, nivel, icono, color_primario, es_secreto
+                FROM negocio_badges WHERE activo = true
+            """)).fetchall()
+            catalogo = [{
+                'id': r[0], 'codigo': r[1], 'nombre': r[2], 'criterio_tipo': r[3],
+                'criterio_valor': float(r[4]) if r[4] is not None else 0,
+                'criterio_operador': r[5] or '>=', 'nivel': r[6] or 1,
+                'icono': r[7], 'color': r[8], 'es_secreto': bool(r[9]),
+            } for r in rows]
+            return BadgeVerificationService.calcular_progreso(catalogo, metricas, obtenidos, limite)
+        except Exception as e:
+            logger.warning(f"[badges] progreso_proximos_badges falló: {e}")
+            return []
+
+    @staticmethod
     def _get_badges_obtenidos(negocio_id: int) -> set:
         """Obtiene IDs de badges que el negocio ya tiene."""
         try:
