@@ -117,6 +117,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Cupo de fundadores: los primeros N usuarios registrados son "Fundadores".
+# Cambiar este número aquí ajusta el cupo de la insignia premium.
+FUNDADOR_CUPO = 50
+
 
 class BadgeVerificationService:
     """
@@ -375,6 +379,45 @@ class BadgeVerificationService:
             except Exception:
                 metricas['tiene_whatsapp'] = 0
             
+            # ═══════════════════════════════════════════
+            # ORDEN DE REGISTRO DEL NEGOCIO (arregla badge 'pioneer')
+            # Posición del negocio = cuántos negocios se crearon hasta este.
+            # ═══════════════════════════════════════════
+            try:
+                result = db.session.execute(text("""
+                    SELECT COUNT(*)
+                    FROM negocios
+                    WHERE id_negocio <= :nid
+                """), {'nid': negocio_id})
+                metricas['orden_registro'] = result.fetchone()[0] or 999999
+            except Exception:
+                metricas['orden_registro'] = 999999
+
+            # ═══════════════════════════════════════════
+            # ES FUNDADOR (insignia premium)
+            # 1 si el DUEÑO está entre los primeros FUNDADOR_CUPO usuarios
+            # registrados (cuenta usuarios reales, robusto ante gaps de id).
+            # ═══════════════════════════════════════════
+            try:
+                result = db.session.execute(text("""
+                    SELECT u.id_usuario
+                    FROM negocios n
+                    JOIN usuarios u ON n.usuario_id = u.id_usuario
+                    WHERE n.id_negocio = :nid
+                """), {'nid': negocio_id})
+                row = result.fetchone()
+                if row and row[0] is not None:
+                    owner_id = row[0]
+                    cnt = db.session.execute(text("""
+                        SELECT COUNT(*) FROM usuarios WHERE id_usuario <= :oid
+                    """), {'oid': owner_id}).fetchone()[0] or 999999
+                    metricas['es_fundador'] = 1 if cnt <= FUNDADOR_CUPO else 0
+                else:
+                    metricas['es_fundador'] = 0
+            except Exception as e:
+                logger.warning(f"No se pudo calcular es_fundador: {e}")
+                metricas['es_fundador'] = 0
+
             # ═══════════════════════════════════════════
             # NO SOPORTADOS AÚN (retorna None → se skipean)
             # ═══════════════════════════════════════════

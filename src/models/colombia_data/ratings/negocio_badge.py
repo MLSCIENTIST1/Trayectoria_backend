@@ -247,6 +247,31 @@ class NegocioBadge(db.Model):
 # DATOS INICIALES DE BADGES (para seed)
 # ═══════════════════════════════════════════════════════════════════
 BADGES_INICIALES = [
+    # ═══════════════════════════════════════════════════════════════
+    # ★★★ FUNDADOR — insignia premium, exclusiva de los primeros 50 ★★★
+    # Es la insignia más prestigiosa de la plataforma. Diseño único.
+    # Criterio: el dueño del negocio está entre los primeros 50 usuarios
+    # registrados (ver FUNDADOR_CUPO en badge_verification_service).
+    # ═══════════════════════════════════════════════════════════════
+    {
+        "codigo": "fundador",
+        "nombre": "Fundador",
+        "descripcion": "Miembro fundador de TuKomercio — uno de los primeros 50 en creer en el sueño",
+        "icono": "bi-patch-check-fill",
+        "color_primario": "#fbbf24",
+        "color_fondo": "rgba(251,191,36,0.18)",
+        "gradiente": "linear-gradient(135deg, #fde68a 0%, #fbbf24 35%, #a855f7 75%, #6366f1 100%)",
+        "categoria": "especial",
+        "nivel": 5,                       # Diamante
+        "puntos": 250,
+        "criterio_tipo": "es_fundador",
+        "criterio_valor": 1,
+        "criterio_operador": ">=",
+        "es_exclusivo": True,
+        "max_otorgamientos": None,        # el cupo (50 usuarios) lo gobierna el criterio
+        "orden": 0,                       # aparece de primero
+    },
+
     # ═══ CALIDAD ═══
     {
         "codigo": "perfeccionista",
@@ -516,3 +541,74 @@ BADGES_INICIALES = [
         "criterio_operador": ">="
     }
 ]
+
+
+# ═══════════════════════════════════════════════════════════════════
+# SEEDER IDEMPOTENTE DEL CATÁLOGO DE BADGES
+# ═══════════════════════════════════════════════════════════════════
+# IMPORTANTE: BADGES_INICIALES estaba definido pero NUNCA se insertaba en
+# la base de datos. Esta función siembra/actualiza el catálogo de forma
+# idempotente (upsert por 'codigo'). Se llama al arranque (run.py).
+# ═══════════════════════════════════════════════════════════════════
+
+# Campos visuales/textuales que SÍ se actualizan en cada arranque (permite
+# mejorar diseños sin perder los badges ya otorgados). Los criterios NO se
+# tocan si el badge ya existe, para no alterar reglas en caliente sin querer.
+_CAMPOS_ACTUALIZABLES = (
+    'nombre', 'descripcion', 'icono', 'color_primario',
+    'color_fondo', 'gradiente', 'categoria', 'nivel', 'puntos', 'orden',
+)
+
+
+def seed_badges_catalogo(db_session, actualizar_visual=True):
+    """
+    Inserta los badges de BADGES_INICIALES que falten y (opcionalmente)
+    refresca los campos visuales de los existentes. Idempotente.
+
+    Returns: dict {creados, actualizados, total}
+    """
+    creados = 0
+    actualizados = 0
+
+    existentes = {b.codigo: b for b in db_session.query(NegocioBadge).all()}
+
+    for data in BADGES_INICIALES:
+        codigo = data['codigo']
+        existente = existentes.get(codigo)
+
+        if existente is None:
+            badge = NegocioBadge(
+                codigo=codigo,
+                nombre=data['nombre'],
+                descripcion=data.get('descripcion'),
+                icono=data.get('icono', 'bi-award'),
+                color_primario=data.get('color_primario', '#f59e0b'),
+                color_fondo=data.get('color_fondo', 'rgba(245,158,11,0.15)'),
+                gradiente=data.get('gradiente'),
+                imagen_url=data.get('imagen_url'),
+                categoria=data.get('categoria', 'general'),
+                nivel=data.get('nivel', 1),
+                puntos=data.get('puntos', 10),
+                criterio_tipo=data['criterio_tipo'],
+                criterio_valor=data['criterio_valor'],
+                criterio_operador=data.get('criterio_operador', '>='),
+                activo=data.get('activo', True),
+                visible_en_catalogo=data.get('visible_en_catalogo', True),
+                es_secreto=data.get('es_secreto', False),
+                orden=data.get('orden', 0),
+                es_exclusivo=data.get('es_exclusivo', False),
+                max_otorgamientos=data.get('max_otorgamientos'),
+            )
+            db_session.add(badge)
+            creados += 1
+        elif actualizar_visual:
+            cambio = False
+            for campo in _CAMPOS_ACTUALIZABLES:
+                if campo in data and getattr(existente, campo, None) != data[campo]:
+                    setattr(existente, campo, data[campo])
+                    cambio = True
+            if cambio:
+                actualizados += 1
+
+    db_session.commit()
+    return {'creados': creados, 'actualizados': actualizados, 'total': len(BADGES_INICIALES)}

@@ -271,6 +271,20 @@ try:
             logger.warning(f"⚠️  No se pudo verificar columnas de feedback: {pg_err4}")
         # ─────────────────────────────────────────────────────────────────────
 
+        # ── Seed idempotente del catálogo de badges (incluye Fundador) ───────
+        try:
+            from src.models.database import db as _db5
+            from src.models.colombia_data.ratings.negocio_badge import seed_badges_catalogo
+            _res = seed_badges_catalogo(_db5.session, actualizar_visual=True)
+            logger.warning(
+                f"🏅 Catálogo de badges sembrado: "
+                f"{_res['creados']} creados, {_res['actualizados']} actualizados, "
+                f"{_res['total']} en total"
+            )
+        except Exception as seed_err:
+            logger.warning(f"⚠️  No se pudo sembrar catálogo de badges: {seed_err}")
+        # ─────────────────────────────────────────────────────────────────────
+
         # ==========================================
         # INSPECTOR DE RUTAS
         # ==========================================
