@@ -784,6 +784,7 @@ def actualizar_negocio(negocio_id):
         logger.info(f"📝 Actualizando negocio {negocio_id} por usuario {user_id}")
         
         slug_anterior = negocio.slug
+        tiene_pagina_anterior = bool(getattr(negocio, 'tiene_pagina', False))
 
         # ══════════════════════════════════════════════════════════════
         # FASE 1 — Campos críticos (tienen_pagina, slug, etc.)
@@ -906,8 +907,19 @@ def actualizar_negocio(negocio_id):
 
         logger.info(f"✅ Negocio actualizado: {negocio.nombre_negocio}")
 
+        # ★ GAMIFICACIÓN (S4) — tienda publicada (transición False→True)
+        # +100 XP especial + verificación de badge "Vitrina". Aislado y seguro.
+        celebracion_gamif = None
+        if bool(negocio.tiene_pagina) and not tiene_pagina_anterior:
+            try:
+                from src.api.gamificacion.gamificacion_hooks import on_tienda_publicada
+                celebracion_gamif = on_tienda_publicada(negocio_id)
+            except Exception as ge:
+                logger.warning(f"[gamif] Hook tienda_publicada no crítico: {ge}")
+
         response_data = serialize_negocio(negocio)
         response_data['qr_regenerated'] = qr_regenerated
+        response_data['gamificacion'] = celebracion_gamif
         # Devolver info de diagnóstico al frontend
         if not tipo_pagina_saved:
             response_data['tipo_pagina_warning'] = (

@@ -136,6 +136,35 @@ def main():
         check("badges_nuevos vacío tras fallo controlado",
               cel4 and cel4['badges_nuevos'] == [])
 
+        # ── Test 4: hooks S3/S4 (producto, tienda) ───────────────────
+        print("\n[4] Hooks de producto y tienda (S3/S4)")
+        from src.api.gamificacion.gamificacion_hooks import (
+            on_producto_creado, on_tienda_publicada, on_login
+        )
+        NID2 = 1001
+        cp = on_producto_creado(NID2)
+        xp_prod = XP_EVENTOS['producto_creado']['xp'] + 15  # base + misión agregar_producto
+        check(f"producto_creado otorga {xp_prod} XP (base+misión)",
+              cp and cp['xp_ganado'] == xp_prod)
+
+        NID3 = 1002
+        ct = on_tienda_publicada(NID3)
+        check("tienda_publicada otorga 100 XP",
+              ct and ct['xp_ganado'] == XP_EVENTOS['tienda_publicada']['xp'])
+
+        # ── Test 5: hook de login (S2) — racha + XP diario ───────────
+        print("\n[5] Hook de login (S2)")
+        NID4 = 1003
+        l1 = on_login(NID4)
+        check("1er login: +5 XP y racha=1",
+              l1 and l1['xp_ganado'] == XP_EVENTOS['login_diario']['xp'] and l1['racha_dias'] == 1)
+        l2 = on_login(NID4)  # mismo día
+        check("2do login mismo día: 0 XP (no duplica)",
+              l2 and l2['xp_ganado'] == 0)
+        gami4 = NegocioGamificacion.query.filter_by(negocio_id=NID4).first()
+        check("Racha sigue en 1 tras 2do login mismo día",
+              gami4 and gami4.racha_actividad_dias == 1)
+
     # ── Resumen ──────────────────────────────────────────────────────
     print(f"\n{'='*50}")
     print(f"  RESULTADO: {PASS} pasaron, {FAIL} fallaron")

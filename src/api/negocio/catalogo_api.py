@@ -891,6 +891,15 @@ def guardar_producto_catalogo():
         db.session.add(nuevo_prod)
         db.session.commit()
 
+        # ★ GAMIFICACIÓN (S3) — producto creado: XP + misión agregar_producto + badges
+        # Tras el commit y aislado: nunca afecta la creación del producto.
+        celebracion_gamif = None
+        try:
+            from src.api.gamificacion.gamificacion_hooks import on_producto_creado
+            celebracion_gamif = on_producto_creado(negocio_id)
+        except Exception as ge:
+            logger.warning(f"[gamif] Hook producto_creado no crítico: {ge}")
+
         producto_dict = safe_to_dict(nuevo_prod, ['id_producto', 'nombre', 'precio', 'stock', 'categoria'])
         producto_dict['id'] = nuevo_prod.id_producto
         producto_dict['imagenes'] = galeria_urls
@@ -909,7 +918,8 @@ def guardar_producto_catalogo():
             "producto": producto_dict,
             "url": imagen_url,
             "imagenes": galeria_urls,
-            "videos": videos
+            "videos": videos,
+            "gamificacion": celebracion_gamif
         }), 201
 
     except Exception as e:

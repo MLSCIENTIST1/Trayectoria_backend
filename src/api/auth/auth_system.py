@@ -280,7 +280,20 @@ def login():
         except Exception as e:
             logger.error(f"Error actualizando last_login: {e}")
             db.session.rollback()
-        
+
+        # ★ GAMIFICACIÓN (S2) — racha de actividad + XP diario por negocio.
+        # En su propio try/except: jamás puede afectar el login.
+        # Solo otorga XP una vez al día (lo controla la racha interna).
+        try:
+            from src.api.gamificacion.gamificacion_hooks import on_login
+            from src.models.colombia_data.negocio import Negocio
+            negocios_usuario = Negocio.query.filter_by(
+                usuario_id=usuario.id_usuario).with_entities(Negocio.id_negocio).all()
+            for (nid,) in negocios_usuario:
+                on_login(nid)
+        except Exception as ge:
+            logger.warning(f"[gamif] Hook login no crítico: {ge}")
+
         logger.info(f"✅ Login exitoso: {correo} (ID: {usuario.id_usuario})")
         
         # Generar tokens JWT si está disponible
