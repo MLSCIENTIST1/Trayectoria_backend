@@ -509,3 +509,75 @@ def on_login(negocio_id):
         except Exception:
             pass
         return None
+
+
+# Recompensa por completar el onboarding (S40)
+XP_ONBOARDING = 150
+TUKOINS_ONBOARDING = 50
+
+
+def on_onboarding_completado(negocio_id):
+    """
+    Se dispara cuando el negocio termina el onboarding guiado (S40).
+    Idempotente: solo recompensa la PRIMERA vez. Otorga XP (con multiplicador
+    de evento especial), TuKoins y desbloquea el badge "Setup Completo".
+    A prueba de fallos. Retorna celebracion o None.
+    """
+    if not negocio_id:
+        return None
+    try:
+        from src.models.colombia_data.ratings.negocio_gamificacion import (
+            NegocioGamificacion, multiplicador_xp
+        )
+        gami = NegocioGamificacion.obtener_o_crear(negocio_id, db.session)
+
+        # Idempotencia: si ya estaba completado, no recompensa de nuevo
+        if gami.onboarding_completado:
+            return {
+                'negocio_id': negocio_id, 'evento': 'onboarding_completado',
+                'ya_completado': True, 'xp_ganado': 0, 'tukoins_ganados': 0,
+                'subio_nivel': False, 'misiones': [], 'badges_nuevos': [],
+            }
+
+        nivel_antes = gami.nivel
+        xp_mult = multiplicador_xp()
+        xp_final = XP_ONBOARDING * xp_mult
+
+        gami.onboarding_completado = True
+        gami.agregar_xp(xp_final, "Onboarding completado")
+        gami.agregar_tukoins(TUKOINS_ONBOARDING, "Onboarding completado", db_session=db.session)
+
+        nivel_actual, nombre_nivel = gami.calcular_nivel()
+        celebracion = {
+            'negocio_id': negocio_id,
+            'evento': 'onboarding_completado',
+            'ya_completado': False,
+            'xp_ganado': xp_final,
+            'tukoins_ganados': TUKOINS_ONBOARDING,
+            'subio_nivel': nivel_actual > nivel_antes,
+            'nivel_nuevo': nivel_actual,
+            'nombre_nivel': nombre_nivel,
+            'misiones': [],
+            'badges_nuevos': [],
+        }
+
+        db.session.commit()
+
+        # Verifica/otorga el badge "Setup Completo" (ya hay flag persistido)
+        celebracion['badges_nuevos'] = _verificar_badges_seguro(negocio_id)
+
+        # Notificaciones (nivel + badges)
+        try:
+            _emitir_notificaciones(negocio_id, celebracion)
+        except Exception:
+            pass
+
+        return celebracion
+
+    except Exception as e:
+        logger.error(f"[gamif] Error en on_onboarding_completado negocio {negocio_id}: {e}", exc_info=True)
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        return None

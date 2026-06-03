@@ -360,6 +360,30 @@ def evento_activo():
         return jsonify({'success': False, 'activo': False, 'evento': None}), 200
 
 
+@gamificacion_bp.route('/gamificacion/onboarding-completado', methods=['POST', 'OPTIONS'])
+@login_required
+def onboarding_completado():
+    """
+    Marca el onboarding como completado y entrega la recompensa (S40).
+    Idempotente. POST /api/gamificacion/onboarding-completado
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({'ok': True}), 200
+    nid = _get_nid(request.args.get('negocio_id') or (request.get_json(silent=True) or {}).get('negocio_id'))
+    if not nid:
+        return jsonify({'success': False, 'error': 'Negocio no encontrado'}), 404
+    try:
+        from src.api.gamificacion.gamificacion_hooks import on_onboarding_completado
+        cel = on_onboarding_completado(nid)
+        if cel is None:
+            return jsonify({'success': False, 'error': 'No se pudo procesar'}), 200
+        return jsonify({'success': True, 'gamificacion': cel,
+                        'ya_completado': cel.get('ya_completado', False)}), 200
+    except Exception as e:
+        logger.error(f"Error en onboarding_completado: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error interno'}), 200
+
+
 @gamificacion_bp.route('/gamificacion/prestigio', methods=['POST', 'OPTIONS'])
 @login_required
 def prestigiar():

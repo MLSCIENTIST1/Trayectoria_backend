@@ -306,6 +306,21 @@ try:
             logger.warning(f"⚠️  No se pudo verificar prestigio: {pg_err6}")
         # ─────────────────────────────────────────────────────────────────────
 
+        # ── negocio_gamificacion.onboarding_completado (S40) ─────────────────
+        try:
+            from sqlalchemy import text as _sql_text7
+            from src.models.database import db as _db7
+            conn7 = _db7.engine.connect()
+            conn7.execute(_sql_text7(
+                "ALTER TABLE negocio_gamificacion ADD COLUMN IF NOT EXISTS onboarding_completado BOOLEAN NOT NULL DEFAULT FALSE"
+            ))
+            conn7.commit()
+            conn7.close()
+            logger.info("✅ negocio_gamificacion.onboarding_completado verificada")
+        except Exception as pg_err7:
+            logger.warning(f"⚠️  No se pudo verificar onboarding_completado: {pg_err7}")
+        # ─────────────────────────────────────────────────────────────────────
+
         # ==========================================
         # INSPECTOR DE RUTAS
         # ==========================================

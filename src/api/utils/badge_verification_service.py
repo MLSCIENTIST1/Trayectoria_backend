@@ -441,6 +441,20 @@ class BadgeVerificationService:
                 metricas['es_fundador'] = 0
 
             # ═══════════════════════════════════════════
+            # ONBOARDING COMPLETADO (S40)
+            # 1 si el negocio terminó la configuración inicial guiada.
+            # ═══════════════════════════════════════════
+            try:
+                result = db.session.execute(text("""
+                    SELECT onboarding_completado FROM negocio_gamificacion
+                    WHERE negocio_id = :nid
+                """), {'nid': negocio_id})
+                row = result.fetchone()
+                metricas['onboarding_completado'] = 1 if (row and row[0]) else 0
+            except Exception:
+                metricas['onboarding_completado'] = 0
+
+            # ═══════════════════════════════════════════
             # E-COMMERCE · PEDIDOS COMPLETADOS (S9)
             # ═══════════════════════════════════════════
             try:

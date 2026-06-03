@@ -87,6 +87,9 @@ class NegocioGamificacion(db.Model):
     # ── Prestigio (S33): veces que llegó a Leyenda y reinició ────
     prestigio   = Column(Integer, default=0, nullable=False)
 
+    # ── Onboarding completado (S40) ──────────────────────────────
+    onboarding_completado = Column(Boolean, default=False, nullable=False)
+
     # ── Racha de actividad (uso del dashboard) ───────────────────
     racha_actividad_dias  = Column(Integer, default=0, nullable=False)
     racha_actividad_max   = Column(Integer, default=0, nullable=False)
@@ -219,6 +222,7 @@ class NegocioGamificacion(db.Model):
             'tukoins':      self.tukoins,
             'prestigio':    self.prestigio or 0,
             'puede_prestigiar': self.puede_prestigiar(),
+            'onboarding_completado': bool(self.onboarding_completado),
             'racha_actividad': {
                 'dias':  self.racha_actividad_dias,
                 'max':   self.racha_actividad_max,

@@ -267,6 +267,22 @@ CURVA_DIFICULTAD = {
 # DATOS INICIALES DE BADGES (para seed)
 # ═══════════════════════════════════════════════════════════════════
 BADGES_INICIALES = [
+    # ═══ ONBOARDING (S40) ═══
+    {
+        "codigo": "setup_completo",
+        "nombre": "Setup Completo",
+        "descripcion": "Completaste la configuración inicial de tu negocio en TuKomercio",
+        "icono": "bi-rocket-takeoff-fill",
+        "color_primario": "#22c55e",
+        "color_fondo": "rgba(34,197,94,0.15)",
+        "categoria": "especial",
+        "nivel": 2,
+        "puntos": 30,
+        "criterio_tipo": "onboarding_completado",
+        "criterio_valor": 1,
+        "criterio_operador": ">=",
+    },
+
     # ═══════════════════════════════════════════════════════════════
     # ★★★ FUNDADOR — insignia premium, exclusiva de los primeros 50 ★★★
     # Es la insignia más prestigiosa de la plataforma. Diseño único.
