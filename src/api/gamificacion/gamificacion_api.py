@@ -1394,6 +1394,55 @@ def _titulo_evento_comunidad(nombre_negocio, nombre_badge):
     return f"🏆 {nombre_negocio} ganó «{nombre_badge}»"
 
 
+@gamificacion_bp.route('/widget/badges/<slug>', methods=['GET'])
+def widget_badges(slug):
+    """
+    Insignias públicas de un negocio para widget embebible (S39).
+    Solo datos públicos. GET /api/widget/badges/<slug>
+    Devuelve nivel + insignias (no secretas) del negocio activo y con perfil público.
+    """
+    from sqlalchemy import text as _t
+    data = {'success': False, 'negocio': None, 'nivel': 1, 'nombre_nivel': '',
+            'badges': [], 'total': 0}
+    try:
+        neg = db.session.execute(_t("""
+            SELECT id_negocio, nombre_negocio, logo_url
+            FROM negocios
+            WHERE slug = :slug AND activo = true AND perfil_publico = true
+            LIMIT 1
+        """), {'slug': slug}).fetchone()
+        if not neg:
+            return jsonify(data), 200
+        nid = neg[0]
+        data['negocio'] = {'nombre': neg[1], 'logo_url': neg[2], 'slug': slug}
+
+        # Nivel del negocio (si tiene gamificación)
+        try:
+            gami = _get_gami(nid)
+            data['nivel'] = gami.nivel
+            data['nombre_nivel'] = gami.nombre_nivel
+        except Exception:
+            pass
+
+        rows = db.session.execute(_t("""
+            SELECT b.nombre, b.icono, b.color_primario, b.nivel
+            FROM negocio_badges_obtenidos o
+            JOIN negocio_badges b ON b.id = o.badge_id
+            WHERE o.negocio_id = :nid
+              AND (o.activo IS TRUE OR o.activo IS NULL)
+              AND (b.es_secreto IS FALSE OR b.es_secreto IS NULL)
+            ORDER BY b.nivel DESC, o.fecha_obtencion DESC
+        """), {'nid': nid}).fetchall()
+        data['badges'] = [{'nombre': r[0], 'icono': r[1] or 'bi-award-fill',
+                           'color': r[2] or '#fbbf24', 'nivel': r[3] or 1} for r in rows]
+        data['total'] = len(data['badges'])
+        data['success'] = True
+        return jsonify(data), 200
+    except Exception as e:
+        logger.error(f"Error en widget_badges: {e}", exc_info=True)
+        return jsonify(data), 200
+
+
 @gamificacion_bp.route('/gamificacion/eventos-comunidad', methods=['GET'])
 def eventos_comunidad():
     """
