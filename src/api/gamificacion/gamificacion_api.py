@@ -83,35 +83,90 @@ def _dias_con_ventas(negocio_id):
     return [r.dia for r in rows]
 
 
-def _calcular_racha_ventas(negocio_id):
-    """Calcula racha de ventas actual y máxima a partir de pedidos."""
-    dias = _dias_con_ventas(negocio_id)
-    if not dias:
+def _racha_desde_dias(dias_desc, hoy=None):
+    """
+    Dada una lista de fechas DISTINTAS en orden descendente, calcula
+    (racha_actual_hasta_hoy, racha_maxima_historica).
+    Función PURA (hoy inyectable) → testeable sin depender del reloj.
+    La racha actual cuenta si hay actividad hoy o ayer (tolerancia de 1 día).
+    """
+    if not dias_desc:
         return 0, 0
+    if hoy is None:
+        hoy = date.today()
 
-    # Racha actual (desde hoy hacia atrás)
-    hoy = date.today()
+    # Racha actual: arranca desde hoy o ayer (tolera que aún no haya actividad hoy)
     racha_actual = 0
-    esperado = hoy
-    for d in dias:
-        if d == esperado:
-            racha_actual += 1
-            esperado -= timedelta(days=1)
-        elif d < esperado:
-            break
+    if dias_desc[0] == hoy:
+        esperado = hoy
+    elif dias_desc[0] == hoy - timedelta(days=1):
+        esperado = hoy - timedelta(days=1)
+    else:
+        esperado = None
+    if esperado is not None:
+        for d in dias_desc:
+            if d == esperado:
+                racha_actual += 1
+                esperado -= timedelta(days=1)
+            elif d < esperado:
+                break
 
     # Racha máxima histórica
     racha_max = 0
     temp = 1
-    for i in range(len(dias) - 1):
-        if (dias[i] - dias[i + 1]).days == 1:
+    for i in range(len(dias_desc) - 1):
+        if (dias_desc[i] - dias_desc[i + 1]).days == 1:
             temp += 1
         else:
             racha_max = max(racha_max, temp)
             temp = 1
     racha_max = max(racha_max, temp, racha_actual)
-
     return racha_actual, racha_max
+
+
+def _calcular_racha_ventas(negocio_id):
+    """Racha de ventas (días consecutivos con pedidos entregados)."""
+    return _racha_desde_dias(_dias_con_ventas(negocio_id))
+
+
+def _dias_con_productos(negocio_id):
+    """Fechas distintas (desc) con al menos 1 producto creado."""
+    try:
+        from src.models.colombia_data.contabilidad.operaciones_y_catalogo import ProductoCatalogo
+        rows = (
+            db.session.query(cast(ProductoCatalogo.fecha_creacion, SADate).label('dia'))
+            .filter(ProductoCatalogo.negocio_id == negocio_id)
+            .distinct()
+            .order_by(cast(ProductoCatalogo.fecha_creacion, SADate).desc())
+            .all()
+        )
+        return [r.dia for r in rows]
+    except Exception:
+        return []
+
+
+def _dias_con_videos(negocio_id):
+    """Fechas distintas (desc) con al menos 1 video subido."""
+    try:
+        from src.models.colombia_data.negocio_video import NegocioVideo
+        rows = (
+            db.session.query(cast(NegocioVideo.created_at, SADate).label('dia'))
+            .filter(NegocioVideo.negocio_id == negocio_id)
+            .distinct()
+            .order_by(cast(NegocioVideo.created_at, SADate).desc())
+            .all()
+        )
+        return [r.dia for r in rows]
+    except Exception:
+        return []
+
+
+def _calcular_racha_productos(negocio_id):
+    return _racha_desde_dias(_dias_con_productos(negocio_id))
+
+
+def _calcular_racha_videos(negocio_id):
+    return _racha_desde_dias(_dias_con_videos(negocio_id))
 
 
 def _contar_productos_creados_hoy(negocio_id):
@@ -329,6 +384,8 @@ def dashboard():
 
         # ── Rachas ───────────────────────────────────────────────
         racha_ventas_actual, racha_ventas_max = _calcular_racha_ventas(nid)
+        racha_prod_actual, racha_prod_max = _calcular_racha_productos(nid)
+        racha_vid_actual, racha_vid_max = _calcular_racha_videos(nid)
 
         # ── Estado de misiones de hoy ────────────────────────────
         misiones_estado = []
@@ -363,6 +420,18 @@ def dashboard():
                     'max':    gami.racha_actividad_max,
                     'icono':  '📅',
                     'nombre': 'Racha de actividad',
+                },
+                'productos': {
+                    'actual': racha_prod_actual,
+                    'max':    racha_prod_max,
+                    'icono':  '📦',
+                    'nombre': 'Racha de productos',
+                },
+                'videos': {
+                    'actual': racha_vid_actual,
+                    'max':    racha_vid_max,
+                    'icono':  '🎬',
+                    'nombre': 'Racha de videos',
                 },
             },
             'misiones': {
