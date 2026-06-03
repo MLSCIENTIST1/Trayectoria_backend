@@ -647,6 +647,75 @@ def _rango_mes(hoy=None):
     return inicio, fin, etiqueta
 
 
+def _rango_anio(hoy=None):
+    """Rango [inicio, fin) del año en curso + el año. Pura."""
+    if hoy is None:
+        hoy = datetime.utcnow()
+    return datetime(hoy.year, 1, 1), datetime(hoy.year + 1, 1, 1), hoy.year
+
+
+@gamificacion_bp.route('/gamificacion/anio-revision', methods=['GET'])
+@login_required
+def anio_revision():
+    """
+    "Tu año en TuKomercio" — resumen anual compartible (S34).
+    GET /api/gamificacion/anio-revision?negocio_id=4
+    """
+    nid = _get_nid(request.args.get('negocio_id'))
+    if not nid:
+        return jsonify({'success': False, 'error': 'Negocio no encontrado'}), 404
+    from sqlalchemy import text as _t
+    ini, fin, anio = _rango_anio()
+    p = {'nid': nid, 'ini': ini, 'fin': fin}
+    data = {'anio': anio, 'ventas': 0, 'ingresos': 0.0, 'clientes': 0,
+            'badges': 0, 'nivel': 1, 'nombre_nivel': '', 'prestigio': 0,
+            'mejor_mes': None}
+
+    def _scalar(sql, d=0):
+        try:
+            return db.session.execute(_t(sql), p).fetchone()[0] or d
+        except Exception:
+            return d
+
+    data['ventas']   = int(_scalar(
+        "SELECT COUNT(*) FROM pedidos WHERE negocio_id=:nid AND estado='entregado' "
+        "AND fecha_pedido>=:ini AND fecha_pedido<:fin"))
+    data['ingresos'] = float(_scalar(
+        "SELECT COALESCE(SUM(COALESCE(subtotal,0)-COALESCE(descuento,0)),0) FROM pedidos "
+        "WHERE negocio_id=:nid AND estado='entregado' AND fecha_pedido>=:ini AND fecha_pedido<:fin", 0.0))
+    data['clientes'] = int(_scalar(
+        "SELECT COUNT(DISTINCT comprador_id) FROM pedidos WHERE negocio_id=:nid "
+        "AND estado='entregado' AND fecha_pedido>=:ini AND fecha_pedido<:fin AND comprador_id IS NOT NULL"))
+    data['badges']   = int(_scalar(
+        "SELECT COUNT(*) FROM negocio_badges_obtenidos WHERE negocio_id=:nid "
+        "AND fecha_obtencion>=:ini AND fecha_obtencion<:fin"))
+
+    # Mejor mes del año (más ventas)
+    try:
+        row = db.session.execute(_t("""
+            SELECT EXTRACT(MONTH FROM fecha_pedido) AS m, COUNT(*) AS c
+            FROM pedidos WHERE negocio_id=:nid AND estado='entregado'
+              AND fecha_pedido>=:ini AND fecha_pedido<:fin
+            GROUP BY m ORDER BY c DESC LIMIT 1
+        """), p).fetchone()
+        if row and row[0]:
+            data['mejor_mes'] = {'mes': _MESES_ES[int(row[0])], 'ventas': int(row[1])}
+    except Exception:
+        pass
+
+    try:
+        gami = _get_gami(nid)
+        nivel, nombre = gami.calcular_nivel()
+        data['nivel'] = nivel
+        data['nombre_nivel'] = nombre
+        data['prestigio'] = gami.prestigio or 0
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    return jsonify({'success': True, 'revision': data}), 200
+
+
 def _rango_mes_anterior(hoy=None):
     """Rango [inicio, fin) del MES ANTERIOR + etiqueta. Pura."""
     if hoy is None:
