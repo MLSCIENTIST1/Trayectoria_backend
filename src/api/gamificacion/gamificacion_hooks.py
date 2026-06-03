@@ -73,27 +73,29 @@ def _completar_mision(negocio_id, gami, mision, tipo='diaria'):
         return None
 
     from src.models.colombia_data.ratings.negocio_gamificacion import (
-        NegocioMisionCompletada, bono_tukoins
+        NegocioMisionCompletada, bono_tukoins, multiplicador_xp
     )
     mult, _ = bono_tukoins()                      # S36: multiplicador por fecha (domingo x2)
     tukoins_final = (mision['tukoins'] or 0) * mult
+    xp_mult = multiplicador_xp()                  # S38: evento especial (Semana del Tendero x3)
+    xp_final = (mision['xp'] or 0) * xp_mult
     registro = NegocioMisionCompletada(
         negocio_id=negocio_id,
         gamificacion_id=gami.id,
         mision_codigo=mision['codigo'],
         fecha=date.today(),
-        xp_ganado=mision['xp'],
+        xp_ganado=xp_final,
         tukoins_ganados=tukoins_final,
         tipo=tipo,
     )
     db.session.add(registro)
-    subio = gami.agregar_xp(mision['xp'], f"Misión: {mision['nombre']}")
+    subio = gami.agregar_xp(xp_final, f"Misión: {mision['nombre']}")
     gami.agregar_tukoins(tukoins_final, f"Misión: {mision['nombre']}", db_session=db.session)
     return {
         'codigo':   mision['codigo'],
         'nombre':   mision['nombre'],
         'icono':    mision['icono'],
-        'xp':       mision['xp'],
+        'xp':       xp_final,
         'tukoins':  tukoins_final,
         'tipo':     tipo,
         'subio_nivel': subio,
@@ -176,11 +178,14 @@ def _procesar_evento(negocio_id, evento, misiones_diarias=None,
     """
     try:
         from src.models.colombia_data.ratings.negocio_gamificacion import (
-            NegocioGamificacion, POOL_MISIONES_DIARIAS, POOL_MISIONES_SEMANALES
+            NegocioGamificacion, POOL_MISIONES_DIARIAS, POOL_MISIONES_SEMANALES,
+            multiplicador_xp, evento_especial
         )
 
         gami = NegocioGamificacion.obtener_o_crear(negocio_id, db.session)
         nivel_antes = gami.nivel
+        xp_mult = multiplicador_xp()              # S38: evento especial activo (x2/x3)
+        ev_activo = evento_especial()
 
         celebracion = {
             'negocio_id':      negocio_id,
@@ -192,13 +197,16 @@ def _procesar_evento(negocio_id, evento, misiones_diarias=None,
             'nombre_nivel':    None,
             'misiones':        [],
             'badges_nuevos':   [],
+            'evento_especial': ({'nombre': ev_activo['nombre'], 'icono': ev_activo['icono'],
+                                 'xp_mult': ev_activo['xp_mult']} if ev_activo else None),
         }
 
-        # 1) XP base del evento
+        # 1) XP base del evento (×multiplicador si hay evento especial activo)
         cfg = XP_EVENTOS.get(evento, {'xp': 0, 'tukoins': 0})
         if cfg['xp']:
-            gami.agregar_xp(cfg['xp'], f"Evento: {evento}")
-            celebracion['xp_ganado'] += cfg['xp']
+            xp_base = cfg['xp'] * xp_mult
+            gami.agregar_xp(xp_base, f"Evento: {evento}")
+            celebracion['xp_ganado'] += xp_base
         if cfg['tukoins']:
             gami.agregar_tukoins(cfg['tukoins'], f"Evento: {evento}", db_session=db.session)
             celebracion['tukoins_ganados'] += cfg['tukoins']

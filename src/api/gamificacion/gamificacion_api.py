@@ -339,6 +339,27 @@ def bono_hoy():
         return jsonify({'success': False, 'multiplicador': 1, 'activo': False}), 200
 
 
+@gamificacion_bp.route('/gamificacion/evento-activo', methods=['GET'])
+def evento_activo():
+    """Evento especial activo hoy (S38). Público. Ej: Semana del Tendero XP x3."""
+    try:
+        from src.models.colombia_data.ratings.negocio_gamificacion import (
+            evento_especial, EVENTOS_ESPECIALES
+        )
+        ev = evento_especial()
+        return jsonify({
+            'success': True,
+            'activo': ev is not None,
+            'evento': ({'codigo': ev['codigo'], 'nombre': ev['nombre'],
+                        'icono': ev['icono'], 'xp_mult': ev['xp_mult']} if ev else None),
+            'calendario': [{'codigo': e['codigo'], 'nombre': e['nombre'], 'icono': e['icono'],
+                            'xp_mult': e['xp_mult']} for e in EVENTOS_ESPECIALES],
+        }), 200
+    except Exception as e:
+        logger.error(f"Error en evento_activo: {e}")
+        return jsonify({'success': False, 'activo': False, 'evento': None}), 200
+
+
 @gamificacion_bp.route('/gamificacion/prestigio', methods=['POST', 'OPTIONS'])
 @login_required
 def prestigiar():

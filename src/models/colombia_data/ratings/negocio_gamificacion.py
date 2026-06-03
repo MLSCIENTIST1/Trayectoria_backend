@@ -33,6 +33,35 @@ def bono_tukoins(fecha=None):
 
 
 # ═══════════════════════════════════════════════════════════════════
+# EVENTOS ESPECIALES — ventanas de fecha con XP multiplicado (S38)
+# ═══════════════════════════════════════════════════════════════════
+EVENTOS_ESPECIALES = [
+    {'codigo': 'semana_tendero', 'nombre': 'Semana del Tendero', 'icono': '🛍️',
+     'mes': 7, 'dia_ini': 1, 'dia_fin': 7, 'xp_mult': 3},
+    {'codigo': 'aniversario', 'nombre': 'Aniversario TuKomercio', 'icono': '🎂',
+     'mes': 7, 'dia_ini': 24, 'dia_fin': 31, 'xp_mult': 2},
+    {'codigo': 'navidad_xp', 'nombre': 'Diciembre Mágico', 'icono': '🎄',
+     'mes': 12, 'dia_ini': 15, 'dia_fin': 31, 'xp_mult': 2},
+]
+
+
+def evento_especial(fecha=None):
+    """Devuelve el evento especial activo en 'fecha', o None. Función PURA."""
+    if fecha is None:
+        fecha = datetime.utcnow()
+    for ev in EVENTOS_ESPECIALES:
+        if fecha.month == ev['mes'] and ev['dia_ini'] <= fecha.day <= ev['dia_fin']:
+            return ev
+    return None
+
+
+def multiplicador_xp(fecha=None):
+    """Multiplicador de XP activo (1 si no hay evento). Función PURA."""
+    ev = evento_especial(fecha)
+    return ev['xp_mult'] if ev else 1
+
+
+# ═══════════════════════════════════════════════════════════════════
 # TABLA PRINCIPAL DE GAMIFICACIÓN POR NEGOCIO
 # ═══════════════════════════════════════════════════════════════════
 
