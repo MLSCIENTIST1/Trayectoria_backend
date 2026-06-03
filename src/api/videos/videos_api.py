@@ -625,21 +625,34 @@ def upload_video():
 def get_negocio_badges_for_video(negocio_id):
     """Obtiene los badges de un negocio para el editor de video"""
     try:
+        # FIX: la columna real es color_primario (no 'color'). Antes esto
+        # lanzaba excepción y SIEMPRE caía a los badges de prueba.
+        # Se agrega categoria → ámbito (creador vs negocio) para diferenciar (S25).
         result = db.session.execute(text("""
-            SELECT b.id, b.nombre, b.descripcion, b.icono, b.color, nb.nivel
+            SELECT b.id, b.nombre, b.descripcion, b.icono, b.color_primario,
+                   nb.nivel, b.categoria, b.codigo
             FROM negocio_badges_obtenidos nb
             JOIN negocio_badges b ON nb.badge_id = b.id
             WHERE nb.negocio_id = :negocio_id AND nb.activo = true
-            ORDER BY nb.fecha_obtencion DESC
+            ORDER BY b.nivel DESC, nb.fecha_obtencion DESC
         """), {'negocio_id': negocio_id})
-        
+
+        # Categorías/badges que representan al CREADOR (la persona), no al negocio
+        CREADOR_CATS = {'trayectoria'}
+        CREADOR_CODIGOS = {'fundador', 'multi_negocio', 'emprendedor_serial',
+                           'veterano_tuko', 'pilar_comunidad', 'pioneer'}
+
         badges = []
         for row in result.fetchall():
+            categoria = row[6] or 'general'
+            codigo = row[7] or ''
+            ambito = 'creador' if (categoria in CREADOR_CATS or codigo in CREADOR_CODIGOS) else 'negocio'
             badges.append({
                 'id': row[0], 'nombre': row[1], 'descripcion': row[2],
-                'icono': row[3] or 'bi-award', 'color': row[4] or '#a855f7', 'nivel': row[5] or 1
+                'icono': row[3] or 'bi-award', 'color': row[4] or '#a855f7',
+                'nivel': row[5] or 1, 'categoria': categoria, 'ambito': ambito,
             })
-        
+
         return jsonify({'success': True, 'data': {'badges': badges, 'total': len(badges)}})
         
     except Exception as e:
