@@ -138,6 +138,13 @@ class Notification(db.Model):
         'sistema': {'label': 'Sistema', 'icon': '⚙️', 'color': '#64748b', 'categoria': 'sistema'},
         'recordatorio': {'label': 'Recordatorio', 'icon': '🔔', 'color': '#f59e0b', 'categoria': 'sistema'},
         'actualizacion': {'label': 'Actualización', 'icon': '🆕', 'color': '#3b82f6', 'categoria': 'sistema'},
+
+        # Gamificación (Sistema → Negocio)
+        'nivel_subido': {'label': 'Subiste de Nivel', 'icon': '⬆️', 'color': '#8b5cf6', 'categoria': 'gamificacion'},
+        'badge_nuevo': {'label': 'Nueva Insignia', 'icon': '🏆', 'color': '#f59e0b', 'categoria': 'gamificacion'},
+        'mision_completada': {'label': 'Misión Completada', 'icon': '✅', 'color': '#10b981', 'categoria': 'gamificacion'},
+        'racha_record': {'label': 'Récord de Racha', 'icon': '🔥', 'color': '#ef4444', 'categoria': 'gamificacion'},
+
         'default_type': {'label': 'Notificación', 'icon': '🔔', 'color': '#64748b', 'categoria': 'sistema'}
     }
     

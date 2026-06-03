@@ -230,6 +230,17 @@ def cambiar_estado_pedido(pedido_id):
 
         logger.info(f"Pedido {pedido.codigo_pedido}: {estado_anterior} → {nuevo_estado}")
 
+        # ★ GAMIFICACIÓN — venta completada (pedido entregado)
+        # Se dispara DESPUÉS del commit del pedido y en su propio try/except:
+        # un fallo aquí jamás afecta el cambio de estado ya persistido.
+        celebracion_gamif = None
+        if nuevo_estado == 'entregado' and estado_anterior != 'entregado':
+            try:
+                from src.api.gamificacion.gamificacion_hooks import on_venta_completada
+                celebracion_gamif = on_venta_completada(pedido.negocio_id, pedido=pedido)
+            except Exception as ge:
+                logger.warning(f"[gamif] Hook venta_completada no crítico: {ge}")
+
         # ★ v2.2: Auto-construir URL de WA cuando pasa a "enviado"
         wa_notify_url = None
         if nuevo_estado == 'enviado':
@@ -256,6 +267,7 @@ def cambiar_estado_pedido(pedido_id):
             "success": True,
             "message": f"Estado actualizado a: {nuevo_estado}",
             "wa_notify_url": wa_notify_url,
+            "gamificacion": celebracion_gamif,   # null si no aplica
             "pedido": {
                 "id": pedido.id_pedido,
                 "codigo": pedido.codigo_pedido,
@@ -1537,9 +1549,19 @@ def crear_pedido_manual():
             f"(origen={origen}, estado={estado_inicial}, total={pedido.total})"
         )
 
+        # ★ GAMIFICACIÓN — si la venta manual se crea ya 'entregada', cuenta como venta completada
+        celebracion_gamif = None
+        if estado_inicial == 'entregado':
+            try:
+                from src.api.gamificacion.gamificacion_hooks import on_venta_completada
+                celebracion_gamif = on_venta_completada(int(negocio_id), pedido=pedido)
+            except Exception as ge:
+                logger.warning(f"[gamif] Hook venta manual no crítico: {ge}")
+
         return jsonify({
             "success": True,
             "message": "Venta manual registrada correctamente",
+            "gamificacion": celebracion_gamif,
             "pedido": pedido.to_dict() if hasattr(pedido, 'to_dict') else {
                 "id_pedido": pedido.id_pedido,
                 "codigo_pedido": pedido.codigo_pedido,
