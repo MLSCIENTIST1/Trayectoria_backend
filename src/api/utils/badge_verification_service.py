@@ -419,6 +419,73 @@ class BadgeVerificationService:
                 metricas['es_fundador'] = 0
 
             # ═══════════════════════════════════════════
+            # E-COMMERCE · PEDIDOS COMPLETADOS (S9)
+            # ═══════════════════════════════════════════
+            try:
+                result = db.session.execute(text("""
+                    SELECT COUNT(*) FROM pedidos
+                    WHERE negocio_id = :nid AND estado = 'entregado'
+                """), {'nid': negocio_id})
+                metricas['pedidos_completados'] = result.fetchone()[0] or 0
+            except Exception:
+                metricas['pedidos_completados'] = 0
+
+            # ═══════════════════════════════════════════
+            # E-COMMERCE · VENTAS EN COP (S10)
+            # Ingreso del negocio = subtotal - descuento (excluye envío).
+            # ═══════════════════════════════════════════
+            try:
+                result = db.session.execute(text("""
+                    SELECT COALESCE(SUM(COALESCE(subtotal,0) - COALESCE(descuento,0)), 0)
+                    FROM pedidos
+                    WHERE negocio_id = :nid AND estado = 'entregado'
+                """), {'nid': negocio_id})
+                metricas['ventas_cop'] = float(result.fetchone()[0] or 0)
+            except Exception:
+                metricas['ventas_cop'] = 0
+
+            # ═══════════════════════════════════════════
+            # E-COMMERCE · ENTREGAS NETAS SIN DEVOLUCIÓN (S10)
+            # ═══════════════════════════════════════════
+            try:
+                entregados = metricas.get('pedidos_completados', 0)
+                devs = db.session.execute(text("""
+                    SELECT COUNT(*) FROM pedidos
+                    WHERE negocio_id = :nid AND estado = 'devuelto'
+                """), {'nid': negocio_id}).fetchone()[0] or 0
+                metricas['pedidos_sin_devolucion'] = max(0, entregados - devs)
+            except Exception:
+                metricas['pedidos_sin_devolucion'] = 0
+
+            # ═══════════════════════════════════════════
+            # CATÁLOGO · PRODUCTOS ACTIVOS (S10)
+            # ═══════════════════════════════════════════
+            try:
+                result = db.session.execute(text("""
+                    SELECT COUNT(*) FROM productos_catalogo
+                    WHERE negocio_id = :nid AND activo = true
+                """), {'nid': negocio_id})
+                metricas['productos_activos'] = result.fetchone()[0] or 0
+            except Exception:
+                metricas['productos_activos'] = 0
+
+            # ═══════════════════════════════════════════
+            # CALIDAD · CALIFICACIÓN CON MÍNIMO DE RESEÑAS (S10)
+            # Solo "cuenta" si hay >= 10 reseñas; si no, 0 (no califica).
+            # ═══════════════════════════════════════════
+            try:
+                row = db.session.execute(text("""
+                    SELECT COUNT(*) AS n, COALESCE(AVG(rating), 0) AS prom
+                    FROM producto_reviews
+                    WHERE negocio_id = :nid
+                """), {'nid': negocio_id}).fetchone()
+                total_reviews = row[0] or 0
+                promedio = float(row[1] or 0)
+                metricas['calificacion_calificada'] = promedio if total_reviews >= 10 else 0
+            except Exception:
+                metricas['calificacion_calificada'] = 0
+
+            # ═══════════════════════════════════════════
             # NO SOPORTADOS AÚN (retorna None → se skipean)
             # ═══════════════════════════════════════════
             # metricas['tiempo_respuesta_hrs'] = None

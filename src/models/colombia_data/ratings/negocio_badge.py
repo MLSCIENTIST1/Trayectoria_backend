@@ -539,6 +539,98 @@ BADGES_INICIALES = [
         "criterio_tipo": "videos_subidos",
         "criterio_valor": 5,
         "criterio_operador": ">="
+    },
+
+    # ═══ E-COMMERCE · PEDIDOS COMPLETADOS (S9) ═══
+    {
+        "codigo": "primera_venta", "nombre": "Primera Venta",
+        "descripcion": "Tu primer pedido entregado",
+        "icono": "bi-bag-check-fill", "color_primario": "#10b981",
+        "color_fondo": "rgba(16,185,129,0.15)", "categoria": "ventas",
+        "nivel": 1, "puntos": 15,
+        "criterio_tipo": "pedidos_completados", "criterio_valor": 1, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "despegando", "nombre": "Despegando",
+        "descripcion": "10 pedidos entregados",
+        "icono": "bi-rocket-takeoff-fill", "color_primario": "#3b82f6",
+        "color_fondo": "rgba(59,130,246,0.15)", "categoria": "ventas",
+        "nivel": 1, "puntos": 25,
+        "criterio_tipo": "pedidos_completados", "criterio_valor": 10, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "en_vuelo", "nombre": "En Vuelo",
+        "descripcion": "50 pedidos entregados",
+        "icono": "bi-airplane-fill", "color_primario": "#6366f1",
+        "color_fondo": "rgba(99,102,241,0.15)", "categoria": "ventas",
+        "nivel": 2, "puntos": 40,
+        "criterio_tipo": "pedidos_completados", "criterio_valor": 50, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "maquina_ventas", "nombre": "Máquina de Ventas",
+        "descripcion": "200 pedidos entregados",
+        "icono": "bi-gear-wide-connected", "color_primario": "#a855f7",
+        "color_fondo": "rgba(168,85,247,0.15)", "categoria": "ventas",
+        "nivel": 3, "puntos": 75,
+        "criterio_tipo": "pedidos_completados", "criterio_valor": 200, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "leyenda_ventas", "nombre": "Leyenda de Ventas",
+        "descripcion": "500 pedidos entregados",
+        "icono": "bi-trophy-fill", "color_primario": "#fbbf24",
+        "color_fondo": "rgba(251,191,36,0.15)", "categoria": "ventas",
+        "nivel": 4, "puntos": 150,
+        "criterio_tipo": "pedidos_completados", "criterio_valor": 500, "criterio_operador": ">=",
+    },
+
+    # ═══ E-COMMERCE · INGRESOS Y CALIDAD (S10) ═══
+    {
+        "codigo": "primer_millon", "nombre": "Primer Millón",
+        "descripcion": "$1.000.000 en ventas acumuladas",
+        "icono": "bi-cash-stack", "color_primario": "#10b981",
+        "color_fondo": "rgba(16,185,129,0.15)", "categoria": "ventas",
+        "nivel": 2, "puntos": 50,
+        "criterio_tipo": "ventas_cop", "criterio_valor": 1000000, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "top_vendedor", "nombre": "Top Vendedor",
+        "descripcion": "$10.000.000 en ventas acumuladas",
+        "icono": "bi-graph-up-arrow", "color_primario": "#f59e0b",
+        "color_fondo": "rgba(245,158,11,0.15)", "categoria": "ventas",
+        "nivel": 3, "puntos": 90,
+        "criterio_tipo": "ventas_cop", "criterio_valor": 10000000, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "unicornio", "nombre": "Unicornio",
+        "descripcion": "$100.000.000 en ventas acumuladas",
+        "icono": "bi-stars", "color_primario": "#a855f7",
+        "color_fondo": "rgba(168,85,247,0.15)", "categoria": "ventas",
+        "nivel": 5, "puntos": 200,
+        "criterio_tipo": "ventas_cop", "criterio_valor": 100000000, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "bien_calificado", "nombre": "Bien Calificado",
+        "descripcion": "4.5★ o más con 10+ reseñas",
+        "icono": "bi-star-fill", "color_primario": "#fbbf24",
+        "color_fondo": "rgba(251,191,36,0.15)", "categoria": "calidad",
+        "nivel": 2, "puntos": 40,
+        "criterio_tipo": "calificacion_calificada", "criterio_valor": 4.5, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "confiable", "nombre": "Confiable",
+        "descripcion": "50 entregas netas sin devolución",
+        "icono": "bi-shield-fill-check", "color_primario": "#06b6d4",
+        "color_fondo": "rgba(6,182,212,0.15)", "categoria": "confianza",
+        "nivel": 3, "puntos": 60,
+        "criterio_tipo": "pedidos_sin_devolucion", "criterio_valor": 50, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "catalogo_rico", "nombre": "Catálogo Rico",
+        "descripcion": "20 o más productos activos",
+        "icono": "bi-grid-3x3-gap-fill", "color_primario": "#8b5cf6",
+        "color_fondo": "rgba(139,92,246,0.15)", "categoria": "trayectoria",
+        "nivel": 1, "puntos": 20,
+        "criterio_tipo": "productos_activos", "criterio_valor": 20, "criterio_operador": ">=",
     }
 ]
 
