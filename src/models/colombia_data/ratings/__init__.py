@@ -8,8 +8,10 @@ from .service_qualifiers import ServiceQualifiers
 from .negocio_badge import NegocioBadge, BADGES_INICIALES, seed_badges_catalogo
 from .negocio_badge_obtenido import NegocioBadgeObtenido, BadgeVerificationService
 from .usuario_gamificacion import UsuarioGamificacion
+from .referido import Referido
 
 __all__ = [
+    'Referido',
     'ServiceRatings',
     'ServiceOverallScores',
     'ServiceQualifiers',

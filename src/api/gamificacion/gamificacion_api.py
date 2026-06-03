@@ -347,6 +347,110 @@ def gamificacion_usuario():
 _MESES_ES = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
              'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
 
+# Recompensas de referido (S29)
+REFERIDO_XP_REFERIDOR = 50      # XP personal para quien refirió
+REFERIDO_TUKOINS      = 30      # TuKoins para el negocio del referidor
+
+
+@gamificacion_bp.route('/gamificacion/referidos/mi-codigo', methods=['GET'])
+@login_required
+def referidos_mi_codigo():
+    """Código y link de referido del usuario + estadísticas."""
+    try:
+        from src.models.colombia_data.ratings.referido import Referido
+        uid = current_user.id_usuario
+        codigo = Referido.codigo_de_usuario(uid)
+        total = Referido.query.filter_by(referidor_usuario_id=uid).count()
+        convertidos = Referido.query.filter_by(referidor_usuario_id=uid, convertido=True).count()
+        return jsonify({
+            'success': True,
+            'codigo': codigo,
+            'link': f"https://tukomercio.co/?ref={codigo}",
+            'total_referidos': total,
+            'convertidos': convertidos,
+        }), 200
+    except Exception as e:
+        logger.error(f"Error en referidos_mi_codigo: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error interno'}), 500
+
+
+@gamificacion_bp.route('/gamificacion/referidos/registrar', methods=['POST', 'OPTIONS'])
+@login_required
+def referidos_registrar():
+    """
+    Registra al usuario actual como referido por el código dado.
+    Body: { "codigo": "TK12" }. Idempotente; evita auto-referirse y duplicados.
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({'ok': True}), 200
+    try:
+        from src.models.colombia_data.ratings.referido import Referido
+        data = request.get_json(silent=True) or {}
+        referidor_id = Referido.usuario_de_codigo(data.get('codigo'))
+        yo = current_user.id_usuario
+
+        if not referidor_id:
+            return jsonify({'success': False, 'error': 'Código inválido'}), 400
+        if referidor_id == yo:
+            return jsonify({'success': False, 'error': 'No puedes referirte a ti mismo'}), 400
+        # ¿ya fui referido por alguien? (constraint único en referido_usuario_id)
+        if Referido.query.filter_by(referido_usuario_id=yo).first():
+            return jsonify({'success': False, 'error': 'Ya tienes un referidor registrado'}), 409
+
+        ref = Referido(referidor_usuario_id=referidor_id, referido_usuario_id=yo)
+        db.session.add(ref)
+        db.session.commit()
+        return jsonify({'success': True, 'mensaje': '¡Referido registrado!'}), 201
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error en referidos_registrar: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error interno'}), 500
+
+
+def procesar_conversion_referido(referido_usuario_id):
+    """
+    Llamar cuando un negocio completa una venta. Si su dueño fue referido y
+    aún no se ha recompensado, marca la conversión y premia al referidor.
+    Idempotente y a prueba de fallos. Retorna dict de recompensa o None.
+    """
+    try:
+        from src.models.colombia_data.ratings.referido import Referido
+        from src.models.colombia_data.ratings.usuario_gamificacion import UsuarioGamificacion
+        ref = Referido.query.filter_by(
+            referido_usuario_id=referido_usuario_id, recompensado=False).first()
+        if not ref:
+            return None
+
+        if not ref.convertido:
+            ref.convertido = True
+            ref.fecha_conversion = datetime.utcnow()
+
+        # Recompensa al referidor (XP personal + TuKoins a su primer negocio)
+        gu = UsuarioGamificacion.obtener_o_crear(ref.referidor_usuario_id, db.session)
+        gu.agregar_xp(REFERIDO_XP_REFERIDOR, "Referido convertido")
+        try:
+            from src.models.colombia_data.negocio import Negocio
+            from src.models.colombia_data.ratings.negocio_gamificacion import NegocioGamificacion
+            neg = Negocio.query.filter_by(usuario_id=ref.referidor_usuario_id).first()
+            if neg:
+                gn = NegocioGamificacion.obtener_o_crear(neg.id_negocio, db.session)
+                gn.agregar_tukoins(REFERIDO_TUKOINS, "Referido convertido", db_session=db.session)
+        except Exception:
+            pass
+
+        ref.recompensado = True
+        db.session.commit()
+        logger.info(f"🎁 Referido convertido: referidor={ref.referidor_usuario_id} premiado")
+        return {'referidor_usuario_id': ref.referidor_usuario_id,
+                'xp': REFERIDO_XP_REFERIDOR, 'tukoins': REFERIDO_TUKOINS}
+    except Exception as e:
+        logger.warning(f"[referidos] conversión no crítica: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        return None
+
 
 def _rango_mes(hoy=None):
     """Devuelve (inicio_mes, fin_exclusivo, etiqueta) del mes de 'hoy'.

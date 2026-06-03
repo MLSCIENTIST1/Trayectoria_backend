@@ -307,13 +307,22 @@ def on_venta_completada(negocio_id, pedido=None):
     if not negocio_id:
         return None
     ventas_semana = _contar_ventas_semana(negocio_id)
-    return _procesar_evento(
+    resultado = _procesar_evento(
         negocio_id,
         evento='venta_completada',
         misiones_diarias=['completar_venta'],
         misiones_semanales=[('ventas_semana_5', ventas_semana >= 5)],
         verificar_badges=True,
     )
+    # ★ S29 — conversión de referido: si el dueño fue referido, premia al referidor
+    try:
+        owner = _owner_user_id(negocio_id)
+        if owner:
+            from src.api.gamificacion.gamificacion_api import procesar_conversion_referido
+            procesar_conversion_referido(owner)
+    except Exception as e:
+        logger.warning(f"[gamif] conversión referido no crítica: {e}")
+    return resultado
 
 
 def on_producto_creado(negocio_id):

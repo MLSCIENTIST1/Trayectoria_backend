@@ -789,6 +789,16 @@ BADGES_INICIALES = [
         "color_fondo": "rgba(236,72,153,0.15)", "categoria": "popularidad",
         "nivel": 3, "puntos": 60,
         "criterio_tipo": "resenas_recibidas", "criterio_valor": 25, "criterio_operador": ">=",
+    },
+
+    # ═══ MENTOR (S29) — referidos convertidos ═══
+    {
+        "codigo": "mentor", "nombre": "Mentor",
+        "descripcion": "5 personas que referiste hicieron su primera venta",
+        "icono": "bi-person-arms-up", "color_primario": "#8b5cf6",
+        "color_fondo": "rgba(139,92,246,0.15)", "categoria": "trayectoria",
+        "nivel": 3, "puntos": 80,
+        "criterio_tipo": "referidos_exitosos", "criterio_valor": 5, "criterio_operador": ">=",
     }
 ]
 

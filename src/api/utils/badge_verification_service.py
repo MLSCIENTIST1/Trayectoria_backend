@@ -637,6 +637,16 @@ class BadgeVerificationService:
             except Exception:
                 metricas['votos_emitidos_owner'] = 0
 
+            # Referidos convertidos del DUEÑO (badge Mentor, S29)
+            try:
+                metricas['referidos_exitosos'] = db.session.execute(text("""
+                    SELECT COUNT(*) FROM referidos r
+                    JOIN negocios n ON n.usuario_id = r.referidor_usuario_id
+                    WHERE n.id_negocio = :nid AND r.convertido = true
+                """), {'nid': negocio_id}).fetchone()[0] or 0
+            except Exception:
+                metricas['referidos_exitosos'] = 0
+
             # ═══════════════════════════════════════════
             # NO SOPORTADOS AÚN (retorna None → se skipean)
             # ═══════════════════════════════════════════
