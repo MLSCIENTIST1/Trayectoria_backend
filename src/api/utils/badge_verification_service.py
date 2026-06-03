@@ -519,6 +519,55 @@ class BadgeVerificationService:
                 metricas['dias_registrado_owner'] = 0
 
             # ═══════════════════════════════════════════
+            # SECRETOS · MÉTRICAS TEMPORALES (S12)  [PostgreSQL]
+            # Cada una en su try/except: si falla, queda en 0 (no se otorga).
+            # ═══════════════════════════════════════════
+
+            # Noctámbulo: ventas entregadas entre 00:00 y 04:59
+            try:
+                metricas['ventas_madrugada'] = db.session.execute(text("""
+                    SELECT COUNT(*) FROM pedidos
+                    WHERE negocio_id = :nid AND estado = 'entregado'
+                      AND EXTRACT(HOUR FROM fecha_pedido) < 5
+                """), {'nid': negocio_id}).fetchone()[0] or 0
+            except Exception:
+                metricas['ventas_madrugada'] = 0
+
+            # Velocista: máximo de pedidos entregados en un mismo día
+            try:
+                metricas['max_pedidos_dia'] = db.session.execute(text("""
+                    SELECT COALESCE(MAX(c), 0) FROM (
+                        SELECT COUNT(*) AS c FROM pedidos
+                        WHERE negocio_id = :nid AND estado = 'entregado'
+                        GROUP BY DATE(fecha_pedido)
+                    ) t
+                """), {'nid': negocio_id}).fetchone()[0] or 0
+            except Exception:
+                metricas['max_pedidos_dia'] = 0
+
+            # Cumpleañero: vendió el día del aniversario del negocio (mismo MM-DD)
+            try:
+                metricas['ventas_aniversario'] = db.session.execute(text("""
+                    SELECT COUNT(*) FROM pedidos p
+                    JOIN negocios n ON p.negocio_id = n.id_negocio
+                    WHERE p.negocio_id = :nid AND p.estado = 'entregado'
+                      AND n.fecha_registro IS NOT NULL
+                      AND to_char(p.fecha_pedido, 'MM-DD') = to_char(n.fecha_registro, 'MM-DD')
+                """), {'nid': negocio_id}).fetchone()[0] or 0
+            except Exception:
+                metricas['ventas_aniversario'] = 0
+
+            # Guerrero de fin de semana: ventas entregadas en sábado/domingo
+            try:
+                metricas['ventas_fin_semana'] = db.session.execute(text("""
+                    SELECT COUNT(*) FROM pedidos
+                    WHERE negocio_id = :nid AND estado = 'entregado'
+                      AND EXTRACT(DOW FROM fecha_pedido) IN (0, 6)
+                """), {'nid': negocio_id}).fetchone()[0] or 0
+            except Exception:
+                metricas['ventas_fin_semana'] = 0
+
+            # ═══════════════════════════════════════════
             # NO SOPORTADOS AÚN (retorna None → se skipean)
             # ═══════════════════════════════════════════
             # metricas['tiempo_respuesta_hrs'] = None

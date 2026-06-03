@@ -665,6 +665,40 @@ BADGES_INICIALES = [
         "color_fondo": "rgba(251,191,36,0.15)", "categoria": "trayectoria",
         "nivel": 4, "puntos": 120,
         "criterio_tipo": "dias_registrado_owner", "criterio_valor": 365, "criterio_operador": ">=",
+    },
+
+    # ═══ SECRETOS 🔒 (S12) — criterio oculto, se revela al ganarlo ═══
+    {
+        "codigo": "noctambulo", "nombre": "Noctámbulo",
+        "descripcion": "Cerraste una venta entre la medianoche y las 4 a. m.",
+        "icono": "bi-moon-stars-fill", "color_primario": "#6366f1",
+        "color_fondo": "rgba(99,102,241,0.15)", "categoria": "especial",
+        "nivel": 2, "puntos": 30, "es_secreto": True,
+        "criterio_tipo": "ventas_madrugada", "criterio_valor": 1, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "velocista", "nombre": "Velocista",
+        "descripcion": "10 pedidos entregados en un mismo día",
+        "icono": "bi-lightning-charge-fill", "color_primario": "#f59e0b",
+        "color_fondo": "rgba(245,158,11,0.15)", "categoria": "especial",
+        "nivel": 3, "puntos": 60, "es_secreto": True,
+        "criterio_tipo": "max_pedidos_dia", "criterio_valor": 10, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "cumpleanero", "nombre": "En tu Aniversario",
+        "descripcion": "Vendiste el día del aniversario de tu negocio",
+        "icono": "bi-balloon-heart-fill", "color_primario": "#ec4899",
+        "color_fondo": "rgba(236,72,153,0.15)", "categoria": "especial",
+        "nivel": 3, "puntos": 50, "es_secreto": True,
+        "criterio_tipo": "ventas_aniversario", "criterio_valor": 1, "criterio_operador": ">=",
+    },
+    {
+        "codigo": "guerrero_finde", "nombre": "Guerrero de Fin de Semana",
+        "descripcion": "20 pedidos entregados en fines de semana",
+        "icono": "bi-emoji-sunglasses-fill", "color_primario": "#10b981",
+        "color_fondo": "rgba(16,185,129,0.15)", "categoria": "especial",
+        "nivel": 2, "puntos": 45, "es_secreto": True,
+        "criterio_tipo": "ventas_fin_semana", "criterio_valor": 20, "criterio_operador": ">=",
     }
 ]
 
