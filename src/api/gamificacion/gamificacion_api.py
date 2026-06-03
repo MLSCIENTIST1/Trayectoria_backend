@@ -666,6 +666,81 @@ def completar_mision_manual():
         return jsonify({'error': str(e)}), 500
 
 
+def _armar_ranking(filas, mi_negocio_id=None):
+    """
+    Función PURA. Recibe filas [(id, nombre, ciudad, categoria, logo, slug, score)]
+    YA ordenadas desc por score, y devuelve {ranking, mi_posicion}.
+    """
+    medallas = ['🥇', '🥈', '🥉']
+    ranking = []
+    mi_posicion = None
+    for i, f in enumerate(filas):
+        pos = i + 1
+        if mi_negocio_id is not None and f[0] == mi_negocio_id:
+            mi_posicion = pos
+        ranking.append({
+            'posicion': pos, 'medalla': medallas[i] if i < 3 else '',
+            'negocio_id': f[0], 'nombre': f[1], 'ciudad': f[2],
+            'categoria': f[3], 'logo_url': f[4], 'slug': f[5],
+            'puntaje': int(f[6] or 0),
+        })
+    return {'ranking': ranking, 'mi_posicion': mi_posicion}
+
+
+@gamificacion_bp.route('/gamificacion/ligas', methods=['GET'])
+def ligas():
+    """
+    Liga MENSUAL competitiva (S26/S27): ranking por pedidos entregados en el
+    mes actual. Resetea cada mes. Filtros opcionales por ciudad y categoría.
+    GET /api/gamificacion/ligas?ciudad=Bogota&categoria=ropa&limit=10
+    Público.
+    """
+    from sqlalchemy import text as _t
+    ciudad    = request.args.get('ciudad', '').strip()
+    categoria = request.args.get('categoria', '').strip()
+    limit     = min(int(request.args.get('limit', 10)), 50)
+    inicio, fin, etiqueta = _rango_mes()
+
+    try:
+        sql = """
+            SELECT n.id_negocio, n.nombre_negocio, n.ciudad, n.categoria,
+                   n.logo_url, n.slug, COUNT(p.id_pedido) AS ventas_mes
+            FROM negocios n
+            LEFT JOIN pedidos p ON p.negocio_id = n.id_negocio
+                 AND p.estado = 'entregado'
+                 AND p.fecha_pedido >= :ini AND p.fecha_pedido < :fin
+            WHERE n.activo = true AND n.perfil_publico = true
+        """
+        params = {'ini': inicio, 'fin': fin, 'lim': limit}
+        if ciudad:
+            sql += " AND LOWER(n.ciudad) LIKE :ciudad"; params['ciudad'] = f"%{ciudad.lower()}%"
+        if categoria:
+            sql += " AND LOWER(n.categoria) LIKE :categoria"; params['categoria'] = f"%{categoria.lower()}%"
+        sql += """
+            GROUP BY n.id_negocio, n.nombre_negocio, n.ciudad, n.categoria, n.logo_url, n.slug
+            HAVING COUNT(p.id_pedido) > 0
+            ORDER BY ventas_mes DESC
+            LIMIT :lim
+        """
+        filas = db.session.execute(_t(sql), params).fetchall()
+
+        mi_id = None
+        if current_user.is_authenticated:
+            try:
+                from src.models.colombia_data.negocio import Negocio
+                mn = Negocio.query.filter_by(usuario_id=current_user.id_usuario).first()
+                mi_id = mn.id_negocio if mn else None
+            except Exception:
+                pass
+
+        data = _armar_ranking([tuple(f) for f in filas], mi_id)
+        liga = ciudad or categoria or 'Nacional'
+        return jsonify({'success': True, 'mes': etiqueta, 'liga': liga, **data}), 200
+    except Exception as e:
+        logger.error(f"Error en ligas: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error interno', 'ranking': []}), 200
+
+
 @gamificacion_bp.route('/gamificacion/leaderboard', methods=['GET'])
 def leaderboard():
     """
