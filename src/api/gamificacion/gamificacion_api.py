@@ -1095,6 +1095,59 @@ def reto_mes():
         return jsonify({'success': False, 'error': 'Error interno', 'ranking': []}), 200
 
 
+# Eventos de comunidad (S32): un badge se considera "destacado" (digno de
+# aparecer en el feed de la comunidad) si es de nivel Oro o superior.
+NIVEL_EVENTO_DESTACADO = 3
+
+
+def _es_evento_destacado(nivel):
+    """True si el badge merece anunciarse en el feed de comunidad. Pura."""
+    return (nivel or 0) >= NIVEL_EVENTO_DESTACADO
+
+
+def _titulo_evento_comunidad(nombre_negocio, nombre_badge):
+    """Texto del evento de comunidad. Pura."""
+    return f"🏆 {nombre_negocio} ganó «{nombre_badge}»"
+
+
+@gamificacion_bp.route('/gamificacion/eventos-comunidad', methods=['GET'])
+def eventos_comunidad():
+    """
+    Feed de logros destacados (Oro+) de TODA la comunidad (S32).
+    Prueba social: ver a otros ganando inspira. Público.
+    GET /api/gamificacion/eventos-comunidad
+    """
+    from sqlalchemy import text as _t
+    try:
+        rows = db.session.execute(_t("""
+            SELECT n.nombre_negocio, n.slug, b.nombre, b.icono, b.color_primario,
+                   b.nivel, o.fecha_obtencion
+            FROM negocio_badges_obtenidos o
+            JOIN negocio_badges b ON b.id = o.badge_id
+            JOIN negocios n ON n.id_negocio = o.negocio_id
+            WHERE b.nivel >= :niv
+              AND (o.activo IS TRUE OR o.activo IS NULL)
+              AND (b.es_secreto IS FALSE OR b.es_secreto IS NULL)
+              AND n.activo = true AND n.perfil_publico = true
+            ORDER BY o.fecha_obtencion DESC
+            LIMIT 15
+        """), {'niv': NIVEL_EVENTO_DESTACADO}).fetchall()
+        eventos = []
+        for r in rows:
+            f = r[6]
+            eventos.append({
+                'negocio': r[0], 'slug': r[1],
+                'titulo': _titulo_evento_comunidad(r[0], r[2]),
+                'badge': r[2], 'icono': r[3] or 'bi-award-fill',
+                'color': r[4] or '#fbbf24', 'nivel': r[5] or 3,
+                'fecha': f.isoformat() if f else None,
+            })
+        return jsonify({'success': True, 'eventos': eventos}), 200
+    except Exception as e:
+        logger.error(f"Error en eventos_comunidad: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error interno', 'eventos': []}), 200
+
+
 def _armar_ranking(filas, mi_negocio_id=None):
     """
     Función PURA. Recibe filas [(id, nombre, ciudad, categoria, logo, slug, score)]
