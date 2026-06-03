@@ -1038,6 +1038,89 @@ def proximos_badges():
         return jsonify({'success': False, 'error': 'Error interno', 'proximos': []}), 200
 
 
+@gamificacion_bp.route('/creador/<int:usuario_id>', methods=['GET'])
+def perfil_creador(usuario_id):
+    """
+    Perfil PÚBLICO del creador/emprendedor (S37): nivel personal, sus negocios
+    públicos, insignias y prestigio. Solo datos públicos (no email/teléfono).
+    GET /api/creador/123
+    """
+    from sqlalchemy import text as _t
+    try:
+        from src.models.usuarios import Usuario
+        u = Usuario.query.get(usuario_id)
+        if not u:
+            return jsonify({'success': False, 'error': 'Creador no encontrado'}), 404
+
+        data = {
+            'usuario_id': usuario_id,
+            'nombre': getattr(u, 'nombre', 'Creador'),
+            'desde': u.created_at.year if getattr(u, 'created_at', None) else None,
+            'nivel': 1, 'nombre_nivel': '🌱 Aprendiz', 'xp_personal': 0,
+            'negocios': [], 'badges': [], 'prestigio_total': 0, 'referidos': 0,
+        }
+
+        # Gamificación personal (S8)
+        try:
+            from src.models.colombia_data.ratings.usuario_gamificacion import UsuarioGamificacion
+            gu = UsuarioGamificacion.query.filter_by(usuario_id=usuario_id).first()
+            if gu:
+                niv, nom = gu.calcular_nivel()
+                data['nivel'] = niv; data['nombre_nivel'] = nom
+                data['xp_personal'] = gu.xp_personal
+        except Exception:
+            pass
+
+        # Negocios públicos del creador
+        try:
+            from src.models.colombia_data.negocio import Negocio
+            negs = Negocio.query.filter_by(usuario_id=usuario_id, activo=True).all()
+            for n in negs:
+                if getattr(n, 'perfil_publico', True):
+                    data['negocios'].append({
+                        'nombre': n.nombre_negocio, 'slug': n.slug,
+                        'logo_url': getattr(n, 'logo_url', None),
+                        'ciudad': getattr(n, 'ciudad', None),
+                    })
+        except Exception:
+            pass
+
+        # Prestigio total (suma de sus negocios) + insignias destacadas
+        try:
+            data['prestigio_total'] = int(db.session.execute(_t("""
+                SELECT COALESCE(SUM(g.prestigio),0) FROM negocio_gamificacion g
+                JOIN negocios n ON n.id_negocio = g.negocio_id
+                WHERE n.usuario_id = :uid
+            """), {'uid': usuario_id}).fetchone()[0] or 0)
+        except Exception:
+            pass
+        try:
+            rows = db.session.execute(_t("""
+                SELECT DISTINCT b.nombre, b.icono, b.color_primario, b.nivel
+                FROM negocio_badges_obtenidos o
+                JOIN negocio_badges b ON b.id = o.badge_id
+                JOIN negocios n ON n.id_negocio = o.negocio_id
+                WHERE n.usuario_id = :uid AND (o.activo IS TRUE OR o.activo IS NULL)
+                  AND (b.es_secreto IS FALSE OR b.es_secreto IS NULL)
+                ORDER BY b.nivel DESC LIMIT 12
+            """), {'uid': usuario_id}).fetchall()
+            data['badges'] = [{'nombre': r[0], 'icono': r[1] or 'bi-award-fill',
+                               'color': r[2] or '#fbbf24', 'nivel': r[3] or 1} for r in rows]
+        except Exception:
+            pass
+        try:
+            data['referidos'] = int(db.session.execute(_t("""
+                SELECT COUNT(*) FROM referidos WHERE referidor_usuario_id=:uid AND convertido=true
+            """), {'uid': usuario_id}).fetchone()[0] or 0)
+        except Exception:
+            pass
+
+        return jsonify({'success': True, 'creador': data}), 200
+    except Exception as e:
+        logger.error(f"Error en perfil_creador: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error interno'}), 500
+
+
 @gamificacion_bp.route('/gamificacion/dashboard', methods=['GET', 'POST'])
 @login_required
 def dashboard():
