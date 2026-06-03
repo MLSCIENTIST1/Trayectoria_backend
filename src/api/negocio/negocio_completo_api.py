@@ -461,6 +461,34 @@ def obtener_negocio(negocio_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+def _badges_destacados_negocio(negocio_id, limite=3):
+    """
+    Devuelve los badges más relevantes (de mayor nivel) que el negocio ha
+    ganado, para mostrar como sello de confianza en la tienda pública.
+    Excluye secretos. Seguro: si algo falla, retorna [].
+    """
+    try:
+        from sqlalchemy import text as _t
+        rows = db.session.execute(_t("""
+            SELECT nb.codigo, nb.nombre, nb.icono, nb.color_primario, nb.nivel
+            FROM negocio_badges_obtenidos o
+            JOIN negocio_badges nb ON nb.id = o.badge_id
+            WHERE o.negocio_id = :nid
+              AND (o.activo IS TRUE OR o.activo IS NULL)
+              AND nb.activo IS TRUE
+              AND (nb.es_secreto IS FALSE OR nb.es_secreto IS NULL)
+            ORDER BY nb.nivel DESC, nb.puntos DESC
+            LIMIT :lim
+        """), {'nid': negocio_id, 'lim': limite}).fetchall()
+        return [{
+            'codigo': r[0], 'nombre': r[1], 'icono': r[2] or 'bi-award-fill',
+            'color': r[3] or '#fbbf24', 'nivel': r[4] or 1,
+        } for r in rows]
+    except Exception as e:
+        logger.warning(f"[badges] No se pudieron cargar badges públicos: {e}")
+        return []
+
+
 @negocio_api_bp.route('/negocio/slug/<string:slug>', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def obtener_negocio_por_slug(slug):
@@ -490,7 +518,8 @@ def obtener_negocio_por_slug(slug):
                 "telefono": negocio.telefono,
                 "tipo_pagina": getattr(negocio, 'tipo_pagina', 'landing'),
                 "logo_url": getattr(negocio, 'logo_url', None),
-                "config_tienda": getattr(negocio, 'config_tienda', {}) or {}
+                "config_tienda": getattr(negocio, 'config_tienda', {}) or {},
+                "badges": _badges_destacados_negocio(negocio.id_negocio, 3)
             }
         }), 200
         
