@@ -2713,3 +2713,124 @@ def coherencia_insignia():
     except Exception as e:
         logger.error(f"Error en coherencia_insignia: {e}")
         return build_cors_response({'success': False, 'error': str(e), 'advertencias': []}, 200)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# INSIGNIAS — PROGRESO / OTORGAMIENTOS (Admin Panel A20)
+# Distribución global por tier + estadísticas por insignia (quién la tiene, cercanía).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/insignias/distribucion', methods=['GET'])
+@requiere_permiso('insignias')
+def insignias_distribucion():
+    """GET /api/admin/insignias/distribucion → conteo de insignias y otorgamientos por tier."""
+    try:
+        conn = get_db_connection(); cur = conn.cursor()
+        cur.execute("""
+            SELECT nivel, COUNT(*) AS badges, COALESCE(SUM(total_otorgados),0) AS otorgados
+            FROM negocio_badges GROUP BY nivel ORDER BY nivel
+        """)
+        por_tier = [{'tier': r['nivel'] or 1, 'badges': r['badges'], 'otorgados': int(r['otorgados'] or 0)}
+                    for r in cur.fetchall()]
+        cur.close(); conn.close()
+        return build_cors_response({
+            'success': True, 'por_tier': por_tier,
+            'total_badges': sum(t['badges'] for t in por_tier),
+            'total_otorgados': sum(t['otorgados'] for t in por_tier),
+        })
+    except Exception as e:
+        logger.error(f"Error en insignias_distribucion: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'por_tier': []}, 200)
+
+
+@admin_bp.route('/insignias/<int:badge_id>/estadisticas', methods=['GET'])
+@requiere_permiso('insignias')
+def insignia_estadisticas(badge_id):
+    """
+    GET /api/admin/insignias/<id>/estadisticas → cuántos la tienen, últimos en obtenerla
+    y ranking de cercanía (negocios sin ella, ordenados por % de progreso).
+    """
+    try:
+        from src.models.colombia_data.ratings.negocio_badge import NegocioBadge
+        from src.api.utils.badge_verification_service import BadgeVerificationService
+        from src.models.colombia_data.ratings.negocio_gamificacion import NegocioGamificacion
+
+        badge = NegocioBadge.query.get(badge_id)
+        if not badge:
+            return build_cors_response({'success': False, 'error': 'Insignia no encontrada'}, 404)
+
+        total = int(_scalar_admin(
+            "SELECT COUNT(*) AS v FROM negocio_badges_obtenidos WHERE badge_id=%s AND (activo IS TRUE OR activo IS NULL)",
+            (badge_id,)))
+
+        # Últimos en obtenerla
+        recientes = []
+        try:
+            conn = get_db_connection(); cur = conn.cursor()
+            cur.execute("""
+                SELECT o.negocio_id, n.nombre_negocio, o.fecha_obtencion
+                FROM negocio_badges_obtenidos o
+                LEFT JOIN negocios n ON n.id_negocio = o.negocio_id
+                WHERE o.badge_id=%s AND (o.activo IS TRUE OR o.activo IS NULL)
+                ORDER BY o.fecha_obtencion DESC LIMIT 5
+            """, (badge_id,))
+            for r in cur.fetchall():
+                recientes.append({'negocio_id': r['negocio_id'],
+                                  'nombre': r['nombre_negocio'] or f"Negocio {r['negocio_id']}",
+                                  'fecha': r['fecha_obtencion'].isoformat() if r['fecha_obtencion'] else None})
+            cur.close(); conn.close()
+        except Exception:
+            pass
+
+        # Ranking de cercanía (solo criterios numéricos acumulativos >=)
+        cercanos, nota = [], None
+        if badge.criterio_operador == '>=' and (badge.criterio_valor or 0) > 0 and not badge.es_secreto:
+            objetivo = float(badge.criterio_valor)
+            ya = set(int(x) for x in (_scalar_admin_list(
+                "SELECT negocio_id FROM negocio_badges_obtenidos WHERE badge_id=%s AND (activo IS TRUE OR activo IS NULL)",
+                (badge_id,)) or []))
+            CAP = 800
+            filas = (NegocioGamificacion.query.with_entities(NegocioGamificacion.negocio_id).limit(CAP).all())
+            tmp = []
+            for (nid,) in filas:
+                if nid in ya:
+                    continue
+                try:
+                    val = BadgeVerificationService._calcular_metricas_para_badges(nid).get(badge.criterio_tipo)
+                    if val is None:
+                        continue
+                    val = float(val)
+                    if val >= objetivo:
+                        continue  # ya cumple (se otorgará solo)
+                    pct = max(0.0, min(99.0, round(val / objetivo * 100, 1)))
+                    tmp.append({'negocio_id': nid, 'actual': val, 'objetivo': objetivo,
+                                'falta': round(objetivo - val, 2), 'pct': pct})
+                except Exception:
+                    continue
+            tmp.sort(key=lambda x: x['pct'], reverse=True)
+            cercanos = tmp[:10]
+            # nombres
+            for c in cercanos:
+                c['nombre'] = (_scalar_admin("SELECT nombre_negocio AS v FROM negocios WHERE id_negocio=%s",
+                                             (c['negocio_id'],)) or f"Negocio {c['negocio_id']}")
+        else:
+            nota = 'Ranking de cercanía solo disponible para criterios numéricos acumulativos (>=) no secretos.'
+
+        return build_cors_response({
+            'success': True, 'badge': _badge_admin_dict(badge),
+            'total_otorgados': total, 'recientes': recientes,
+            'cercanos': cercanos, 'nota': nota,
+        })
+    except Exception as e:
+        logger.error(f"Error en insignia_estadisticas: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
+def _scalar_admin_list(sql, params):
+    """Devuelve una lista de la primera columna (tolerante a fallos)."""
+    try:
+        conn = get_db_connection(); cur = conn.cursor()
+        cur.execute(sql, params); rows = cur.fetchall(); cur.close(); conn.close()
+        return [list(r.values())[0] for r in rows]
+    except Exception:
+        return []
