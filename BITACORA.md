@@ -11,6 +11,21 @@
 
 ---
 
+## 2026-06-04 — Panel admin A19 (insignias de temporada)
+
+**Sprint actual:** Panel de Administración, Fase 2 (Insignias). Avance **19/49**.
+
+### ✅ Completado
+- **A19 — Insignias de temporada/evento:** columnas `vigencia_inicio/vigencia_fin` por insignia (null=siempre) + migración. `badge_vigente()` puro; el servicio (`verificar_badges`/`simular_badges`) no otorga fuera de la ventana → cualquier insignia se puede programar por fechas SIN código (generaliza el hardcode de `temporadas_activas`). Frontend: campos de fecha en el modal + indicador 🗓️ en la lista. `test_admin_temporada_a19.py` 19/19 → **suite 763/0**. Commits: back `6046799`, front `deda213`.
+
+### ⏳ Pendiente
+- Fase 2: A20 (vista de progreso/otorgamientos por insignia), A21 (preview en vivo del diseño). Con eso se cierra la Fase 2.
+
+### 👉 Siguiente paso sugerido
+**A20 — Vista de progreso/otorgamientos** (por insignia: cuántos la tienen, distribución por tier, ranking de cercanía).
+
+---
+
 ## 2026-06-04 — Panel admin A18 (coherencia de tier)
 
 **Sprint actual:** Panel de Administración, Fase 2 (Insignias). Avance **18/49**.
