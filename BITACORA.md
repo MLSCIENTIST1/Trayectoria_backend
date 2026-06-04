@@ -11,6 +11,22 @@
 
 ---
 
+## 2026-06-04 — Panel admin A21 · 🎉 FASE 2 COMPLETA
+
+**Sprint actual:** Panel de Administración. **Fase 2 (Insignias) COMPLETA (A15-A21).** Avance **21/49**.
+
+### ✅ Completado
+- **A21 — Preview en vivo del diseño:** chip en el modal de insignia que refleja ícono/color/nombre/tier mientras se edita; el color pasó a `<input type="color">` (siempre hex válido). Solo frontend → **suite 781/0**. Commit: front `5df6434`.
+- **🎉 Cierre de la Fase 2:** el admin gestiona las insignias SIN código → CRUD (A15), editor de criterios + cobertura (A16), otorgar/revocar (A17), coherencia por tier (A18), temporada/vigencia (A19), progreso/otorgamientos (A20), preview en vivo (A21).
+
+### ⏳ Pendiente
+- **Fase 3 — Eventos, Retos y Competencia (A22-A28):** gestor de eventos especiales (XP x), retos mensuales, ligas, recompensas de liga (cron), duelos, referidos, challenges 2.0.
+
+### 👉 Siguiente paso sugerido
+Abrir la **Fase 3 con A22 — Gestor de eventos especiales** (mover `EVENTOS_ESPECIALES` a BD: CRUD de eventos por fecha con multiplicador de XP).
+
+---
+
 ## 2026-06-04 — Panel admin A20 (progreso/otorgamientos)
 
 **Sprint actual:** Panel de Administración, Fase 2 (Insignias). Avance **20/49**.
