@@ -11,6 +11,21 @@
 
 ---
 
+## 2026-06-04 — Panel admin A18 (coherencia de tier)
+
+**Sprint actual:** Panel de Administración, Fase 2 (Insignias). Avance **18/49**.
+
+### ✅ Completado
+- **A18 — Validador de coherencia (CURVA_DIFICULTAD):** la coherencia real no existía (la constante era solo tier→nombre). `evaluar_coherencia_tier()` puro avisa si, dentro de una métrica, la dificultad rompe la monotonicidad por tier (>=/> creciente; <=/< decreciente). `POST /insignias/coherencia`. Frontend: la vista previa muestra ✓/⚠️ y al guardar pide confirmación si hay avisos (no bloquea). `test_admin_coherencia_a18.py` 15/15 → **suite 744/0**. Commits: back `7395917`, front `9bd968f`.
+
+### ⏳ Pendiente
+- Fase 2: A19 (insignias por temporada/evento programadas), A20 (vista de progreso/otorgamientos por insignia), A21 (preview en vivo del diseño).
+
+### 👉 Siguiente paso sugerido
+**A19 — Insignias de temporada/evento** (activar insignias por ventana de fecha, calendario).
+
+---
+
 ## 2026-06-04 — Panel admin A17 (otorgar/revocar insignias)
 
 **Sprint actual:** Panel de Administración, Fase 2 (Insignias). Avance **17/49**.
