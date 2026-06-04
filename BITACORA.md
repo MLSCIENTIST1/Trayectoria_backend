@@ -11,6 +11,38 @@
 
 ---
 
+## 2026-06-04 — 🔐 A-SEC-2 · Tenant isolation / IDOR (dominios de pagos y datos)
+
+**Sprint:** auditoría IDOR + fixes en pedidos, checkout, wompi, cupones, crm, carritos, reseñas, analytics, catálogo, negocio, página, qr. Suite **697/0**.
+
+### 🔎 Hallazgos (qué estaba vulnerable)
+- **pedidos_api (18/18 endpoints):** sin `@login_required` ni validación de propiedad. Cualquiera con un `pedido_id` (enumerable) podía ver/editar/cancelar pedidos ajenos, **marcarlos como pagados**, registrar guías, crear devoluciones. Identidad vía `X-User-ID` (header forjable).
+- **crm_api (4/4):** exposición de PII (nombre, teléfono, correo, historial de compras) de cualquier negocio sin auth.
+- **catalogo_api (TODO el módulo):** `get_authorized_user_id()` **priorizaba el header `X-User-ID` sobre la sesión** → suplantación total: con cualquier sesión, `X-User-ID: <víctima>` daba acceso a sus productos/inventario.
+- **cupones / carritos / reseñas / analytics:** endpoints de panel (`/negocio/<id>/...`) sin validar dueño → editar cupones, moderar/eliminar reseñas, ver carritos/analytics de otros.
+- **wompi config (GET/PUT):** leer/editar llaves Wompi de cualquier negocio sin auth.
+- **wompi webhook (crítico):** la firma solo se validaba *si* había `events_key` y header → **sin esos, marcaba el pedido como pagado igual**. Sin validación de monto (replay/parcial).
+
+### ✅ Corregido
+- **Helper central** `api/utils/seguridad.py`: `usuario_sesion_id()` (solo sesión), `negocio_es_de_usuario`, `pedido_es_de_usuario`, y `crear_guard_tenant()` → un **`before_request` por blueprint** que exige sesión y valida propiedad de `negocio_id`/`pedido_id`, con **allowlist explícita de rutas públicas**.
+- Guards cableados en **pedidos, wompi, cupones, crm, carritos, reseñas, analytics** → IDOR cerrado en bloque (usuario A → recurso de negocio B = **403**; sin sesión = **401**).
+- **catalogo:** `get_authorized_user_id()` ahora **solo usa la sesión** (header ignorado). `pedidos.get_user_id()` sin fallback a header.
+- **pedidos:** búsqueda por teléfono exige dueño (la pública magic-link es solo por `?codigo=`); `recibir_devolucion` valida usuario→negocio→devolución.
+- **wompi webhook:** firma **obligatoria** (rechaza 401 si no hay `events_key`/checksum), valida **monto == total del pedido** (rechaza 400 si no), e **idempotente** (no re-marca pagado).
+- Recursos hijos (cupón/reseña/carrito) ya estaban scopeados por `negocio_id` (verificado).
+- **Públicos legítimos marcados** y verificados (solo exponen lo necesario): checkout, magic-link por código, validar cupón, guardar/recuperar carrito, reseña pública (crear/leer), visita/trust, wompi config-pub/session/verify/webhook, micrositio por slug, QR (ya validaban dueño).
+- Test `test_seguridad_asec2.py`: **29/29**. Commit: back `5bc73ef`.
+
+### ⏳ Pendiente / notas
+- **Verificar en staging** que los paneles del tendero (pedidos, contabilidad, etc.) envían la cookie de sesión (`credentials:'include'`); ahora los endpoints exigen sesión real. Si algún fetch del front mandaba solo `X-User-ID` sin credenciales, hay que añadirle `credentials:'include'`.
+- `checkout_api` es público (comprador): validar que el `negocio_id` exista/activo (mejora menor, no IDOR).
+- Considerar transacción/lock atómico en el webhook para TOCTOU extremo (hoy mitigado con idempotencia + monto).
+
+### 👉 Siguiente paso sugerido
+Retomar la **Fase 2 del panel con A16** (editor visual de criterios), ya con la base de seguridad sólida.
+
+---
+
 ## 2026-06-04 — 🔐 A-SEC-1 · Sprint de seguridad transversal
 
 **Sprint:** auditoría + fixes de seguridad (no feature). Suite **668/0**.
