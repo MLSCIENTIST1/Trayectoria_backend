@@ -248,8 +248,35 @@ class BadgeVerificationService:
                 'nuevos': [],
                 'total_nuevos': 0
             }
-    
-    
+
+    @staticmethod
+    def simular_badges(negocio_id: int) -> list:
+        """
+        DRY-RUN: devuelve la lista de badges que SE OTORGARÍAN a un negocio
+        (cumplen criterio y aún no los tiene), SIN escribir nada en la BD.
+        Solo evalúa criterios; no persiste ni otorga.
+        """
+        try:
+            metricas = BadgeVerificationService._calcular_metricas_para_badges(negocio_id)
+            catalogo = BadgeVerificationService._get_catalogo_badges()
+            obtenidos = BadgeVerificationService._get_badges_obtenidos(negocio_id)
+            pendientes = []
+            for badge in catalogo:
+                if badge['id'] in obtenidos:
+                    continue
+                valor = metricas.get(badge['criterio_tipo'])
+                if valor is None:
+                    continue
+                if BadgeVerificationService._evaluar_criterio(
+                        valor, badge['criterio_operador'], badge['criterio_valor']):
+                    pendientes.append({'codigo': badge['codigo'], 'nombre': badge['nombre'],
+                                       'nivel': badge['nivel']})
+            return pendientes
+        except Exception as e:
+            logger.warning(f"[simular_badges] negocio {negocio_id}: {e}")
+            return []
+
+
     @staticmethod
     def _calcular_metricas_para_badges(negocio_id: int) -> dict:
         """

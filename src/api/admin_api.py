@@ -2182,3 +2182,142 @@ def simular_gamificacion():
     except Exception as e:
         logger.error(f"Error en simular_gamificacion: {e}")
         return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GAMIFICACIÓN — RECÁLCULO MASIVO (Admin Panel A14)
+# Condición 1: dry-run OBLIGATORIO (preview) antes de aplicar.
+# Condición 2: aplicar exige @superadmin_required y queda auditado con el conteo.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+RECALC_CAP = 2000  # tope de negocios procesados por corrida (se reporta si se alcanza)
+
+
+def _recalc_niveles_diffs(limite=RECALC_CAP):
+    """Calcula (sin escribir) qué negocios cambiarían de nivel. Devuelve (diffs, total, capado)."""
+    from src.models.colombia_data.ratings.negocio_gamificacion import NegocioGamificacion
+    from src.models.colombia_data.ratings.config_gamificacion import nivel_por_xp
+    niveles = NegocioGamificacion.NIVELES
+    filas = (NegocioGamificacion.query
+             .order_by(NegocioGamificacion.negocio_id)
+             .limit(limite + 1).all())
+    capado = len(filas) > limite
+    filas = filas[:limite]
+    diffs = []
+    for g in filas:
+        nuevo, nombre = nivel_por_xp(g.xp_total or 0, niveles)
+        if nuevo != g.nivel:
+            diffs.append({'negocio_id': g.negocio_id, 'nivel_antes': g.nivel,
+                          'nivel_despues': nuevo, 'nombre_despues': nombre})
+    return diffs, len(filas), capado
+
+
+def _recalc_insignias_preview(limite=RECALC_CAP):
+    """Cuenta (sin escribir) cuántas insignias se otorgarían por negocio. (diffs, total, capado)."""
+    from src.models.colombia_data.ratings.negocio_gamificacion import NegocioGamificacion
+    from src.api.utils.badge_verification_service import BadgeVerificationService
+    filas = (NegocioGamificacion.query
+             .order_by(NegocioGamificacion.negocio_id)
+             .limit(limite + 1).all())
+    capado = len(filas) > limite
+    filas = filas[:limite]
+    diffs = []
+    for g in filas:
+        pend = BadgeVerificationService.simular_badges(g.negocio_id)
+        if pend:
+            diffs.append({'negocio_id': g.negocio_id, 'nuevas': len(pend),
+                          'codigos': [p['codigo'] for p in pend][:8]})
+    return diffs, len(filas), capado
+
+
+@admin_bp.route('/gamificacion/recalcular/preview', methods=['POST', 'OPTIONS'])
+@requiere_permiso('gamificacion')
+def recalcular_preview():
+    """
+    POST /api/admin/gamificacion/recalcular/preview  body: { tipo: 'niveles'|'insignias' }
+    DRY-RUN obligatorio: muestra cuántos negocios cambiarían y una muestra. NO escribe.
+    """
+    if request.method == 'OPTIONS':
+        return build_cors_response()
+    try:
+        tipo = (request.get_json(silent=True) or {}).get('tipo', 'niveles')
+        if tipo not in ('niveles', 'insignias'):
+            return build_cors_response({'success': False, 'error': 'tipo inválido'}, 400)
+        if tipo == 'niveles':
+            diffs, total, capado = _recalc_niveles_diffs()
+            total_afectados = len(diffs)
+        else:
+            diffs, total, capado = _recalc_insignias_preview()
+            total_afectados = sum(d['nuevas'] for d in diffs)
+        return build_cors_response({
+            'success': True, 'tipo': tipo, 'dry_run': True,
+            'negocios_revisados': total,
+            'negocios_afectados': len(diffs),
+            'total_cambios': total_afectados,
+            'muestra': diffs[:50],
+            'capado': capado, 'cap': RECALC_CAP,
+        })
+    except Exception as e:
+        logger.error(f"Error en recalcular_preview: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
+@admin_bp.route('/gamificacion/recalcular/aplicar', methods=['POST', 'OPTIONS'])
+@superadmin_required   # Condición 2: solo superadmin puede aplicar
+def recalcular_aplicar():
+    """
+    POST /api/admin/gamificacion/recalcular/aplicar  body: { tipo, confirmar: true }
+    Aplica el recálculo. Requiere superadmin + confirmar=true (el panel solo lo envía tras el preview).
+    Auditado con el conteo de registros modificados.
+    """
+    if request.method == 'OPTIONS':
+        return build_cors_response()
+    try:
+        data = request.get_json(silent=True) or {}
+        tipo = data.get('tipo', 'niveles')
+        if tipo not in ('niveles', 'insignias'):
+            return build_cors_response({'success': False, 'error': 'tipo inválido'}, 400)
+        if data.get('confirmar') is not True:
+            return build_cors_response({'success': False,
+                'error': 'Debes ejecutar y confirmar la vista previa antes de aplicar'}, 400)
+
+        from src.models.database import db
+        modificados = 0
+        detalle = {}
+
+        if tipo == 'niveles':
+            from src.models.colombia_data.ratings.negocio_gamificacion import NegocioGamificacion
+            from src.models.colombia_data.ratings.config_gamificacion import nivel_por_xp
+            niveles = NegocioGamificacion.NIVELES
+            for g in NegocioGamificacion.query.limit(RECALC_CAP).all():
+                nuevo, _ = nivel_por_xp(g.xp_total or 0, niveles)
+                if nuevo != g.nivel:
+                    g.nivel = nuevo
+                    modificados += 1
+            db.session.commit()
+            detalle = {'niveles_actualizados': modificados}
+        else:
+            from src.models.colombia_data.ratings.negocio_gamificacion import NegocioGamificacion
+            from src.api.utils.badge_verification_service import BadgeVerificationService
+            insignias_nuevas = 0
+            for g in NegocioGamificacion.query.limit(RECALC_CAP).all():
+                res = BadgeVerificationService.verificar_badges(g.negocio_id)
+                n = res.get('total_nuevos', 0) if isinstance(res, dict) else 0
+                if n:
+                    modificados += 1
+                    insignias_nuevas += n
+            detalle = {'negocios_con_insignias_nuevas': modificados, 'insignias_otorgadas': insignias_nuevas}
+
+        registrar_auditoria('recalcular', f'gamif_{tipo}', None,
+                            {'tipo': tipo, 'modificados': modificados, **detalle})
+        return build_cors_response({'success': True, 'tipo': tipo,
+                                    'modificados': modificados, 'detalle': detalle,
+                                    'message': f'Recálculo aplicado: {modificados} registros modificados'})
+    except Exception as e:
+        logger.error(f"Error en recalcular_aplicar: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
