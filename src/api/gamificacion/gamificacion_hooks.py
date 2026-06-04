@@ -29,13 +29,11 @@ logger = logging.getLogger(__name__)
 # ═══════════════════════════════════════════════════════════════════
 # ECONOMÍA DE XP POR EVENTO (XP base, además de misiones/badges)
 # ═══════════════════════════════════════════════════════════════════
-XP_EVENTOS = {
-    'venta_completada':   {'xp': 10, 'tukoins': 3},
-    'producto_creado':    {'xp': 5,  'tukoins': 2},
-    'tienda_publicada':   {'xp': 100, 'tukoins': 50},
-    'login_diario':       {'xp': 5,  'tukoins': 1},
-    'video_subido':       {'xp': 10, 'tukoins': 3},
-}
+# XP/TuKoins por evento. El DEFAULT vive en config_gamificacion; desde el panel
+# de admin (A6) se puede sobreescribir en BD. _xp_eventos() devuelve el efectivo.
+from src.models.colombia_data.ratings.config_gamificacion import (
+    XP_EVENTOS_DEFAULT as XP_EVENTOS, get_xp_eventos as _xp_eventos
+)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -202,7 +200,7 @@ def _procesar_evento(negocio_id, evento, misiones_diarias=None,
         }
 
         # 1) XP base del evento (×multiplicador si hay evento especial activo)
-        cfg = XP_EVENTOS.get(evento, {'xp': 0, 'tukoins': 0})
+        cfg = _xp_eventos().get(evento, {'xp': 0, 'tukoins': 0})
         if cfg['xp']:
             xp_base = cfg['xp'] * xp_mult
             gami.agregar_xp(xp_base, f"Evento: {evento}")
@@ -468,7 +466,7 @@ def on_login(negocio_id):
 
         if not ya_activo_hoy:
             nivel_antes = gami.nivel
-            cfg = XP_EVENTOS['login_diario']
+            cfg = _xp_eventos().get('login_diario', {'xp': 5, 'tukoins': 1})
             gami.agregar_xp(cfg['xp'], "Login diario")
             gami.agregar_tukoins(cfg['tukoins'], "Login diario", db_session=db.session)
             celebracion['xp_ganado'] = cfg['xp']

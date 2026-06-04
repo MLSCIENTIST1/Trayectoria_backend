@@ -1604,3 +1604,58 @@ def update_admin_permisos(admin_id):
     except Exception as e:
         logger.error(f"Error actualizando permisos de admin {admin_id}: {e}")
         return build_cors_response({'error': str(e)}, 500)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GAMIFICACIÓN — CONFIG EDITABLE (Admin Panel A6)
+# XP por evento editable desde el panel (con fallback al DEFAULT). Niveles: lectura.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/gamificacion/config', methods=['GET'])
+@requiere_permiso('gamificacion')
+def get_gamif_config():
+    """GET /api/admin/gamificacion/config → XP por evento (efectivo + default) y niveles."""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            get_xp_eventos, XP_EVENTOS_DEFAULT, XP_EVENTOS_LABELS
+        )
+        from src.models.colombia_data.ratings.negocio_gamificacion import NegocioGamificacion
+        niveles = [{'xp_req': x, 'nivel': n, 'nombre': nom} for (x, n, nom) in NegocioGamificacion.NIVELES]
+        return build_cors_response({
+            'success': True,
+            'xp_eventos': get_xp_eventos(),
+            'xp_eventos_default': XP_EVENTOS_DEFAULT,
+            'labels': XP_EVENTOS_LABELS,
+            'niveles': niveles,
+        })
+    except Exception as e:
+        logger.error(f"Error en get_gamif_config: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
+@admin_bp.route('/gamificacion/xp-eventos', methods=['PUT'])
+@requiere_permiso('gamificacion')
+def update_gamif_xp_eventos():
+    """PUT /api/admin/gamificacion/xp-eventos  body: { xp_eventos: {evento:{xp,tukoins}} }"""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            validar_xp_eventos, set_xp_eventos, get_xp_eventos
+        )
+        data = request.get_json(silent=True) or {}
+        payload = data.get('xp_eventos', data)
+        antes = get_xp_eventos()
+        ok, limpio, error = validar_xp_eventos(payload)
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        efectivo = set_xp_eventos(limpio)
+        registrar_auditoria('editar', 'gamif_xp_eventos', None,
+                            {'antes': antes, 'despues': efectivo})
+        return build_cors_response({'success': True, 'xp_eventos': efectivo,
+                                    'message': 'XP por evento actualizado'})
+    except Exception as e:
+        logger.error(f"Error en update_gamif_xp_eventos: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)

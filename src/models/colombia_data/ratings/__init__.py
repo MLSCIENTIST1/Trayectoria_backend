@@ -10,11 +10,22 @@ from .negocio_badge_obtenido import NegocioBadgeObtenido, BadgeVerificationServi
 from .usuario_gamificacion import UsuarioGamificacion
 from .referido import Referido
 from .duelo import Duelo, determinar_ganador
+from .config_gamificacion import (
+    GamifConfig, XP_EVENTOS_DEFAULT, XP_EVENTOS_LABELS,
+    merge_xp_eventos, validar_xp_eventos, get_xp_eventos, set_xp_eventos,
+)
 
 __all__ = [
     'Referido',
     'Duelo',
     'determinar_ganador',
+    'GamifConfig',
+    'XP_EVENTOS_DEFAULT',
+    'XP_EVENTOS_LABELS',
+    'merge_xp_eventos',
+    'validar_xp_eventos',
+    'get_xp_eventos',
+    'set_xp_eventos',
     'ServiceRatings',
     'ServiceOverallScores',
     'ServiceQualifiers',

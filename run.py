@@ -353,6 +353,25 @@ try:
             logger.warning(f"⚠️  No se pudo verificar admin_audit_log: {pg_err8}")
         # ─────────────────────────────────────────────────────────────────────
 
+        # ── gamif_config: config editable de gamificación (A6) ───────────────
+        try:
+            from sqlalchemy import text as _sql_text9
+            from src.models.database import db as _db9
+            conn9 = _db9.engine.connect()
+            conn9.execute(_sql_text9("""
+                CREATE TABLE IF NOT EXISTS gamif_config (
+                    clave      VARCHAR(50) PRIMARY KEY,
+                    valor      JSONB DEFAULT '{}'::jsonb,
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            conn9.commit()
+            conn9.close()
+            logger.info("✅ gamif_config verificada")
+        except Exception as pg_err9:
+            logger.warning(f"⚠️  No se pudo verificar gamif_config: {pg_err9}")
+        # ─────────────────────────────────────────────────────────────────────
+
         # ==========================================
         # INSPECTOR DE RUTAS
         # ==========================================
