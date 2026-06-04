@@ -531,9 +531,25 @@ class Pedido(db.Model):
     # ==========================================
     # MÉTODOS DE CLASE
     # ==========================================
+    @staticmethod
+    def _prefijo_codigo(negocio_data):
+        """
+        Deriva un prefijo de código de pedido NO vacío (F4).
+        Usa el slug; si está vacío cae al nombre; si no, 'PED'. Solo alfanuméricos, 3 chars, mayúsculas.
+        Evita el bug de códigos tipo '-2026-0043' (prefijo vacío).
+        """
+        import re as _re
+        fuente = ''
+        if isinstance(negocio_data, dict):
+            fuente = (negocio_data.get('slug') or negocio_data.get('nombre') or '').strip()
+        fuente = _re.sub(r'[^A-Za-z0-9]', '', fuente)
+        prefijo = fuente[:3].upper()
+        return prefijo or 'PED'
+
     @classmethod
     def generar_codigo(cls, negocio_id, prefijo='PED'):
         """Genera un código único para el pedido."""
+        prefijo = (prefijo or 'PED').strip() or 'PED'
         año = datetime.utcnow().strftime('%Y')
         
         # Contar pedidos del negocio en este año
@@ -558,8 +574,8 @@ class Pedido(db.Model):
                      referencia_pago=None):  # ★ referencia Wompi / pasarela
         """Crea un nuevo pedido."""
 
-        # Generar código
-        prefijo = negocio_data.get('slug', 'PED')[:3].upper()
+        # Generar código (prefijo robusto, nunca vacío — F4)
+        prefijo = cls._prefijo_codigo(negocio_data)
         codigo = cls.generar_codigo(negocio_data['id'], prefijo)
 
         pedido = cls(

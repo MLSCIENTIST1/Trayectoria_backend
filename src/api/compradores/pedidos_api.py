@@ -440,8 +440,13 @@ class Pedido(db.Model):
                      notas_cliente=None, metodo_contacto='whatsapp', origen='web'):  # ★ NUEVO parámetro
         """Crea un nuevo pedido."""
         
-        # Generar código
-        prefijo = negocio_data.get('slug', 'PED')[:3].upper()
+        # Generar código (prefijo robusto, nunca vacío — F4)
+        import re as _re
+        _fuente = ''
+        if isinstance(negocio_data, dict):
+            _fuente = (negocio_data.get('slug') or negocio_data.get('nombre') or '').strip()
+        _fuente = _re.sub(r'[^A-Za-z0-9]', '', _fuente)
+        prefijo = _fuente[:3].upper() or 'PED'
         codigo = cls.generar_codigo(negocio_data['id'], prefijo)
         
         pedido = cls(

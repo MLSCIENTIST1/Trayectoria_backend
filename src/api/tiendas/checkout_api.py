@@ -335,7 +335,9 @@ def _html_email_confirmacion_comprador(pedido, negocio, comprador, productos_pay
           <td style="padding:8px 12px;font-size:13px;color:#2563EB;text-align:right;font-weight:600;">{_fmt_cop(costo_envio)}</td>
         </tr>"""
 
-    link_seguimiento = f"https://tukomercio.co/heyden.html?c={codigo}&slug={slug}"
+    # Ruta limpia (F4); si no hay slug, cae al formato con parámetros legibles.
+    link_seguimiento = (f"https://tukomercio.co/pedido/{slug}/{codigo}" if slug
+                        else f"https://tukomercio.co/heyden.html?pedido={codigo}")
     link_tienda      = f"https://tukomercio.co/tienda/{slug}" if slug else "https://tukomercio.co"
     notas_fila = f"""
         <tr>
@@ -646,6 +648,15 @@ def procesar_checkout(slug):
         # Guardar el descuento en el pedido
         if descuento_aplicado > 0:
             pedido.descuento = descuento_aplicado
+
+        # F2: persistir modo de entrega y bandera "a convenir" en datos_envio (fuente única del envío)
+        try:
+            de = dict(pedido.datos_envio or {})
+            de['modo_entrega'] = data.get('modo_entrega') or direccion_data.get('modo_entrega') or 'domicilio'
+            de['envio_a_convenir'] = bool(direccion_data.get('envio_a_convenir', False))
+            pedido.datos_envio = de   # reasignación → SQLAlchemy detecta el cambio del JSONB
+        except Exception as _e:
+            print(f"⚠️  No se pudo anexar modo_entrega a datos_envio: {_e}")
 
         print(f"✅ Pedido creado: {pedido.codigo_pedido}")
         
