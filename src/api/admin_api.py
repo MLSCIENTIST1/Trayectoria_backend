@@ -1938,3 +1938,131 @@ def update_gamif_bono():
         except Exception:
             pass
         return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GAMIFICACIÓN — FICHA POR NEGOCIO (Admin Panel A10)
+# Ver y corregir XP/nivel/prestigio/rachas/TuKoins de un negocio (soporte).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/gamificacion/negocio/<int:negocio_id>', methods=['GET'])
+@requiere_permiso('gamificacion')
+def get_gamif_negocio(negocio_id):
+    """GET /api/admin/gamificacion/negocio/<id> → ficha de gamificación del negocio."""
+    try:
+        from src.models.colombia_data.ratings.negocio_gamificacion import NegocioGamificacion
+        from src.models.database import db
+        gami = NegocioGamificacion.query.filter_by(negocio_id=negocio_id).first()
+        if not gami:
+            return build_cors_response({'success': True, 'existe': False,
+                                        'message': 'Este negocio aún no tiene gamificación.'}, 200)
+        data = gami.serialize()
+        # nombre del negocio
+        try:
+            cur = get_db_connection().cursor()
+            cur.execute("SELECT nombre_negocio FROM negocios WHERE id_negocio = %s", (negocio_id,))
+            row = cur.fetchone(); cur.close()
+            data['nombre_negocio'] = row['nombre_negocio'] if row else f"Negocio {negocio_id}"
+        except Exception:
+            data['nombre_negocio'] = f"Negocio {negocio_id}"
+        # insignias obtenidas (conteo)
+        data['insignias'] = int(_scalar_admin(
+            "SELECT COUNT(*) AS v FROM negocio_badges_obtenidos WHERE negocio_id = %s "
+            "AND (activo IS TRUE OR activo IS NULL)", (negocio_id,)))
+        return build_cors_response({'success': True, 'existe': True, 'gamificacion': data})
+    except Exception as e:
+        logger.error(f"Error en get_gamif_negocio: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
+def _scalar_admin(sql, params):
+    """Helper: escalar tolerante a fallos para consultas admin puntuales."""
+    try:
+        conn = get_db_connection(); cur = conn.cursor()
+        cur.execute(sql, params); row = cur.fetchone(); cur.close(); conn.close()
+        if not row:
+            return 0
+        v = list(row.values())[0]
+        return v if v is not None else 0
+    except Exception:
+        return 0
+
+
+@admin_bp.route('/gamificacion/negocio/<int:negocio_id>/ajuste', methods=['POST'])
+@requiere_permiso('gamificacion')
+def ajustar_gamif_negocio(negocio_id):
+    """
+    POST /api/admin/gamificacion/negocio/<id>/ajuste
+    body: { xp_total?, prestigio?, tukoins?, reset_racha?, motivo }
+    Corrige los valores de gamificación de un negocio. Auditado.
+    """
+    try:
+        from src.models.colombia_data.ratings.negocio_gamificacion import NegocioGamificacion
+        from src.models.database import db
+        data = request.get_json(silent=True) or {}
+        motivo = str(data.get('motivo', '')).strip()
+        if not motivo:
+            return build_cors_response({'success': False, 'error': 'El motivo es obligatorio'}, 400)
+
+        gami = NegocioGamificacion.obtener_o_crear(negocio_id, db.session)
+        antes = {'xp_total': gami.xp_total, 'nivel': gami.nivel, 'prestigio': gami.prestigio,
+                 'tukoins': gami.tukoins, 'racha': gami.racha_actividad_dias}
+        cambios = {}
+
+        def _int(v):
+            return int(v)
+
+        if 'xp_total' in data and data['xp_total'] not in (None, ''):
+            try:
+                xp = max(0, _int(data['xp_total']))
+            except (TypeError, ValueError):
+                return build_cors_response({'success': False, 'error': 'xp_total inválido'}, 400)
+            if xp > 100000000:
+                return build_cors_response({'success': False, 'error': 'xp_total fuera de rango'}, 400)
+            gami.xp_total = xp
+            gami.calcular_nivel()
+            cambios['xp_total'] = xp
+
+        if 'prestigio' in data and data['prestigio'] not in (None, ''):
+            try:
+                pr = max(0, _int(data['prestigio']))
+            except (TypeError, ValueError):
+                return build_cors_response({'success': False, 'error': 'prestigio inválido'}, 400)
+            if pr > 1000:
+                return build_cors_response({'success': False, 'error': 'prestigio fuera de rango'}, 400)
+            gami.prestigio = pr
+            cambios['prestigio'] = pr
+
+        if 'tukoins' in data and data['tukoins'] not in (None, ''):
+            try:
+                tk = max(0, _int(data['tukoins']))
+            except (TypeError, ValueError):
+                return build_cors_response({'success': False, 'error': 'tukoins inválido'}, 400)
+            if tk > 100000000:
+                return build_cors_response({'success': False, 'error': 'tukoins fuera de rango'}, 400)
+            delta = tk - gami.tukoins
+            if delta != 0:
+                gami.agregar_tukoins(delta, f"Ajuste admin (ficha): {motivo}", db_session=db.session)
+            cambios['tukoins'] = tk
+
+        if data.get('reset_racha'):
+            gami.racha_actividad_dias = 0
+            gami.racha_actividad_fecha = None
+            cambios['racha'] = 0
+
+        if not cambios:
+            return build_cors_response({'success': False, 'error': 'No se indicó ningún cambio'}, 400)
+
+        db.session.commit()
+        registrar_auditoria('ajustar', 'gamif_negocio', negocio_id,
+                            {'motivo': motivo, 'antes': antes, 'cambios': cambios})
+        return build_cors_response({'success': True, 'gamificacion': gami.serialize(),
+                                    'message': 'Gamificación del negocio actualizada'})
+    except Exception as e:
+        logger.error(f"Error en ajustar_gamif_negocio: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
