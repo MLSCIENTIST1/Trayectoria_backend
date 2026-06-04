@@ -11,6 +11,21 @@
 
 ---
 
+## 2026-06-04 — Panel admin A20 (progreso/otorgamientos)
+
+**Sprint actual:** Panel de Administración, Fase 2 (Insignias). Avance **20/49**.
+
+### ✅ Completado
+- **A20 — Vista de progreso/otorgamientos:** `GET /insignias/distribucion` (por tier) + `GET /insignias/<id>/estadisticas` (total otorgados, últimos en obtenerla, **ranking de cercanía** de negocios sin ella por % al criterio; solo `>=` numérico no secreto; acotado; sin escribir). Frontend: botón 📊 → modal (total + recientes + barras de cercanía) + distribución por tier en la cabecera. `test_admin_progreso_a20.py` 18/18 → **suite 781/0**. Commits: back `6408c8e`, front `75861ce`.
+
+### ⏳ Pendiente
+- Fase 2: **A21** (preview en vivo del diseño del badge) → cierra la Fase 2.
+
+### 👉 Siguiente paso sugerido
+**A21 — Preview en vivo del diseño** (mostrar cómo se verá la insignia con su ícono/color/tier mientras se edita) y con eso se cierra la Fase 2.
+
+---
+
 ## 2026-06-04 — Panel admin A19 (insignias de temporada)
 
 **Sprint actual:** Panel de Administración, Fase 2 (Insignias). Avance **19/49**.
