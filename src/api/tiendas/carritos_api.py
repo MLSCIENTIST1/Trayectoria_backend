@@ -206,3 +206,8 @@ def actualizar_estado(negocio_id, carrito_id):
         try: _db.session.rollback()
         except Exception: pass
         return _err(str(e), 500)
+
+
+# ═══ A-SEC-2: tenant isolation ═══
+from src.api.utils.seguridad import crear_guard_tenant as _guard_tenant
+carritos_bp.before_request(_guard_tenant(publicos={"guardar_carrito", "marcar_recuperado"}))

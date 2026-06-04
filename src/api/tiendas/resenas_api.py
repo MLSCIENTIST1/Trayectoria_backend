@@ -322,3 +322,10 @@ def eliminar_resena(negocio_id, resena_id):
         db.session.rollback()
         logger.error(f"❌ Error eliminando reseña: {e}")
         return jsonify({'success': False, 'error': 'Error interno'}), 500
+
+
+# ═══ A-SEC-2: tenant isolation ═══
+from src.api.utils.seguridad import crear_guard_tenant as _guard_tenant
+resenas_bp.before_request(_guard_tenant(
+    publicos={"crear_resena", "listar_resenas_producto", "resumen_negocio"},
+))

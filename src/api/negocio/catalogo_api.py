@@ -130,22 +130,14 @@ catalogo_api_bp = Blueprint('catalogo_api_bp', __name__)
 
 def get_authorized_user_id():
     """
-    Obtiene el ID del usuario autenticado (Header prioritario)
+    Obtiene el ID del usuario autenticado SOLO desde la sesión (A-SEC-2).
+    ANTES priorizaba el header X-User-ID (forjable) → permitía suplantar usuarios.
+    Ahora la sesión es la única fuente de verdad; el header se ignora para auth.
     """
     try:
-        header_id = request.headers.get('X-User-ID')
-        session_id = None
-        
         if current_user and hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
-            session_id = str(getattr(current_user, 'id_usuario', ''))
-
-        logger.debug(f"🔍 [AUTH] Header: {header_id} | Sesión: {session_id}")
-
-        if header_id and header_id != session_id:
-            logger.warning(f"⚠️ Header {header_id} != Sesión {session_id}. Usando Header.")
-            return header_id
-        
-        return header_id or session_id
+            return str(getattr(current_user, 'id_usuario', '')) or None
+        return None
     except Exception as e:
         logger.error(f"❌ Error en get_authorized_user_id: {e}")
         return None

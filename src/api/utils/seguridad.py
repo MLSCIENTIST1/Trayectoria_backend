@@ -184,6 +184,98 @@ def limpiar_intentos(ip, email):
             pass
 
 
+# ═══════════════════════════════════════════════════════════════════
+# TENANT ISOLATION / IDOR (A-SEC-2)
+# La identidad SIEMPRE sale de la sesión (current_user), NUNCA del header
+# X-User-ID (forjable). Validación usuario → negocio → recurso.
+# ═══════════════════════════════════════════════════════════════════
+
+def usuario_sesion_id():
+    """ID del usuario autenticado SOLO desde la sesión (no headers). None si no hay sesión."""
+    try:
+        from flask_login import current_user
+        if getattr(current_user, 'is_authenticated', False):
+            return current_user.id_usuario
+    except Exception:
+        pass
+    return None
+
+
+def negocio_es_de_usuario(negocio_id, user_id):
+    """True si el negocio pertenece al usuario. Función de BD a prueba de fallos."""
+    try:
+        from src.models.colombia_data.negocio import Negocio
+        return Negocio.query.filter_by(
+            id_negocio=int(negocio_id), usuario_id=int(user_id)
+        ).first() is not None
+    except Exception:
+        return False
+
+
+def pedido_es_de_usuario(pedido_id, user_id):
+    """
+    Valida la cadena usuario → negocio → pedido.
+    Retorna: True (es suyo) / False (existe pero NO es suyo) / None (no existe).
+    """
+    try:
+        from src.models.compradores.pedido import Pedido
+        p = Pedido.query.get(int(pedido_id))
+        if not p:
+            return None
+        return negocio_es_de_usuario(p.negocio_id, user_id)
+    except Exception:
+        return False
+
+
+def crear_guard_tenant(publicos=None, leer_negocio_de_body=False):
+    """
+    Crea un `before_request` para un blueprint que:
+      - deja pasar OPTIONS y los endpoints en `publicos` (set de NOMBRES de función view);
+      - exige sesión real (401 si no);
+      - valida propiedad de negocio_id / pedido_id presentes en la ruta (403/404);
+      - opcionalmente valida negocio_id tomado del body/query (para endpoints sin id en ruta).
+    Centraliza el tenant-isolation por dominio con una sola función.
+    """
+    publicos = set(publicos or [])
+
+    def _guard():
+        from flask import request, jsonify
+        if request.method == 'OPTIONS':
+            return None
+        endpoint = (request.endpoint or '').split('.')[-1]
+        if endpoint in publicos:
+            return None
+
+        uid = usuario_sesion_id()
+        if not uid:
+            return jsonify({'success': False, 'error': 'no_autenticado',
+                            'message': 'Debes iniciar sesión'}), 401
+
+        va = request.view_args or {}
+
+        # pedido_id en la ruta → validar cadena usuario→negocio→pedido
+        if 'pedido_id' in va:
+            res = pedido_es_de_usuario(va['pedido_id'], uid)
+            if res is None:
+                return jsonify({'success': False, 'error': 'no_encontrado'}), 404
+            if res is False:
+                return jsonify({'success': False, 'error': 'forbidden',
+                                'message': 'Ese pedido no es de tu negocio'}), 403
+
+        # negocio_id en la ruta → validar propiedad
+        nid = va.get('negocio_id')
+        if nid is None and leer_negocio_de_body:
+            data = request.get_json(silent=True) or {}
+            nid = data.get('negocio_id') or request.args.get('negocio_id')
+        if nid is not None:
+            if not negocio_es_de_usuario(nid, uid):
+                return jsonify({'success': False, 'error': 'forbidden',
+                                'message': 'Ese negocio no es tuyo'}), 403
+        return None
+
+    return _guard
+
+
 def registrar_evento_seguridad(accion, entidad, detalle=None, ip=None, email=None):
     """
     Inserta un evento en admin_audit_log SIN requerir g.admin (actor 'sistema').

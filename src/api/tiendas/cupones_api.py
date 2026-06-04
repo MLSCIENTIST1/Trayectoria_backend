@@ -286,3 +286,8 @@ def validar_cupon():
     except Exception as e:
         logger.error(f"❌ Error validando cupón: {e}")
         return jsonify({'success': False, 'error': 'Error interno'}), 500
+
+
+# ═══ A-SEC-2: tenant isolation ═══
+from src.api.utils.seguridad import crear_guard_tenant as _guard_tenant
+cupones_bp.before_request(_guard_tenant(publicos={"validar_cupon"}))

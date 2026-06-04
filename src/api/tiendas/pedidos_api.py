@@ -112,14 +112,14 @@ tiendas_pedidos_bp = Blueprint('tiendas_pedidos_bp', __name__, url_prefix='/api'
 # HELPER: Obtener User ID
 # ==========================================
 def get_user_id():
-    """Obtiene el user_id del header o sesión."""
+    """Obtiene el user_id SOLO desde la sesión (A-SEC-2: el header X-User-ID es forjable)."""
     try:
         from flask_login import current_user
         if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
             return current_user.id_usuario
-    except:
+    except Exception:
         pass
-    return request.headers.get('X-User-ID', type=int)
+    return None
 
 
 # ==========================================
@@ -860,6 +860,12 @@ def recibir_devolucion(devolucion_id):
         if not result:
             return jsonify({"success": False, "error": "Devolución no encontrada"}), 404
 
+        # A-SEC-2: la devolución (vía su pedido) debe ser del negocio del usuario
+        from src.api.utils.seguridad import usuario_sesion_id, negocio_es_de_usuario
+        _uid = usuario_sesion_id()
+        if not _uid or not negocio_es_de_usuario(result.negocio_id, _uid):
+            return jsonify({"success": False, "error": "forbidden"}), 403
+
         if result.estado != 'en_transito':
             return jsonify({
                 "success": False,
@@ -1256,11 +1262,15 @@ def buscar_pedido():
                 return jsonify({"success": False, "error": "Pedido no encontrado"}), 404
 
         if telefono:
+            # A-SEC-2: la búsqueda por teléfono SOLO para el dueño del negocio
+            # (la búsqueda pública por magic-link usa ?codigo=, que es el secreto).
+            from src.api.utils.seguridad import usuario_sesion_id, negocio_es_de_usuario
+            uid = usuario_sesion_id()
+            if not uid or not negocio_id or not negocio_es_de_usuario(negocio_id, uid):
+                return jsonify({"success": False, "error": "forbidden"}), 403
             query = Pedido.query.filter(
                 Pedido.datos_comprador['telefono'].astext == telefono
-            )
-            if negocio_id:
-                query = query.filter_by(negocio_id=negocio_id)
+            ).filter_by(negocio_id=negocio_id)
             pedidos = query.order_by(Pedido.fecha_pedido.desc()).limit(10).all()
             return jsonify({
                 "success": True,
@@ -1592,3 +1602,10 @@ def pedidos_health():
         "module": "pedidos_api",
         "version": "2.1.0"
     }), 200
+
+# ═══ A-SEC-2: tenant isolation (guard por blueprint) ═══
+from src.api.utils.seguridad import crear_guard_tenant as _guard_tenant
+tiendas_pedidos_bp.before_request(_guard_tenant(
+    publicos={"buscar_pedido", "pedidos_health"},  # magic-link por codigo + health
+    leer_negocio_de_body=True,  # venta manual / devolucion libre traen negocio_id en el body
+))

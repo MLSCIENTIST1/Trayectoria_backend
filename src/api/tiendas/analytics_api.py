@@ -239,3 +239,8 @@ def get_trust_data(negocio_id):
             logger.error(f'Error visitas trust {negocio_id}: {e}')
 
     return jsonify(trust)
+
+
+# ═══ A-SEC-2: tenant isolation ═══
+from src.api.utils.seguridad import crear_guard_tenant as _guard_tenant
+analytics_bp.before_request(_guard_tenant(publicos={"registrar_visita", "get_trust_data"}))

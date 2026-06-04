@@ -270,3 +270,8 @@ def pedidos_del_invitado(negocio_id):
     except Exception as e:
         logger.error(f'Error pedidos_del_invitado {negocio_id} tel={tel}: {e}')
         return _err(str(e), 500)
+
+
+# ═══ A-SEC-2: tenant isolation (CRM = PII, todo privado) ═══
+from src.api.utils.seguridad import crear_guard_tenant as _guard_tenant
+crm_bp.before_request(_guard_tenant(publicos=set()))

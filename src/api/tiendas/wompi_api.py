@@ -276,23 +276,26 @@ def wompi_webhook():
         logger.warning(f'Wompi webhook: referencia no parseable "{reference}"')
         return jsonify({'ok': True}), 200
 
-    # ── Validar checksum ────────────────────────────────────────────────────
+    # ── Validar checksum (A-SEC-2: OBLIGATORIO; sin firma válida NO se procesa) ──
     checksum_header = request.headers.get('X-Event-Checksum', '')
     cfg = WompiConfig.query.filter_by(negocio_id=negocio_id).first()
-    if cfg and cfg.events_key and checksum_header:
-        pre = (
-            str(tx.get('id', ''))
-            + str(tx.get('status', ''))
-            + str(tx.get('reference', ''))
-            + str(tx.get('amount_in_cents', ''))
-            + str(tx.get('currency', ''))
-            + str(tx.get('payment_method_type', ''))
-            + cfg.events_key
-        )
-        expected = hashlib.sha256(pre.encode('utf-8')).hexdigest()
-        if not hmac.compare_digest(expected, checksum_header):
-            logger.warning(f'Wompi webhook: checksum inválido para negocio {negocio_id}')
-            return jsonify({'ok': False, 'reason': 'checksum inválido'}), 401
+    if not (cfg and cfg.events_key) or not checksum_header:
+        # Sin clave de eventos configurada o sin firma → no podemos confiar en el evento.
+        logger.warning(f'Wompi webhook RECHAZADO (sin firma verificable) negocio {negocio_id}')
+        return jsonify({'ok': False, 'reason': 'firma_requerida'}), 401
+    pre = (
+        str(tx.get('id', ''))
+        + str(tx.get('status', ''))
+        + str(tx.get('reference', ''))
+        + str(tx.get('amount_in_cents', ''))
+        + str(tx.get('currency', ''))
+        + str(tx.get('payment_method_type', ''))
+        + cfg.events_key
+    )
+    expected = hashlib.sha256(pre.encode('utf-8')).hexdigest()
+    if not hmac.compare_digest(expected, checksum_header):
+        logger.warning(f'Wompi webhook: checksum inválido para negocio {negocio_id}')
+        return jsonify({'ok': False, 'reason': 'checksum inválido'}), 401
 
     # ── Actualizar pedido ───────────────────────────────────────────────────
     try:
@@ -310,6 +313,18 @@ def wompi_webhook():
 
         status = tx.get('status', '')
         if status == 'APPROVED':
+            # A-SEC-2: el monto pagado debe coincidir con el total del pedido (evita replay/parcial).
+            try:
+                pagado_cents = int(tx.get('amount_in_cents') or 0)
+                esperado_cents = int(round(float(pedido.total or 0) * 100))
+            except (TypeError, ValueError):
+                pagado_cents, esperado_cents = -1, -2
+            if pagado_cents != esperado_cents:
+                logger.error(f'🚨 Wompi webhook: monto no coincide pedido {pedido.codigo_pedido} '
+                             f'(pagado {pagado_cents} vs esperado {esperado_cents}) — NO se marca pagado')
+                return jsonify({'ok': False, 'reason': 'monto_no_coincide'}), 400
+            if pedido.estado_pago == 'pagado':
+                return jsonify({'ok': True, 'idempotente': True}), 200   # ya procesado
             pedido.estado_pago = 'pagado'
             pedido.estado = 'confirmado'
         elif status == 'DECLINED':
@@ -328,3 +343,10 @@ def wompi_webhook():
         return jsonify({'ok': False, 'reason': str(e)}), 200
 
     return jsonify({'ok': True}), 200
+
+
+# ═══ A-SEC-2: tenant isolation ═══
+from src.api.utils.seguridad import crear_guard_tenant as _guard_tenant
+wompi_bp.before_request(_guard_tenant(
+    publicos={"get_wompi_config_pub", "crear_sesion_wompi", "verify_wompi_transaction", "wompi_webhook"},
+))
