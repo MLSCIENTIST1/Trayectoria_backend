@@ -11,6 +11,32 @@
 
 ---
 
+## 2026-06-04 — ✅ Verificación de flujos del panel + deploy (post A-SEC-2)
+
+**Tarea:** confirmar que el frontend manda `credentials:'include'` a los endpoints ahora protegidos. Deploy a producción.
+
+### 🔎 Hallazgo
+- Tras A-SEC-2, varios `fetch` de los módulos del tendero **no enviaban la cookie de sesión** (antes pasaban por el header `X-User-ID`, ya ignorado): `pedidos.html` (15/16 sin credentials), `crm`, `cupones`, `carritos`, `analytics`, `wompi`, `venta`, `dropshipping`, parte de `inventario.js`. Sin esto, esos paneles habrían dado 401 tras el deploy.
+
+### ✅ Corregido
+- **Wrapper de `window.fetch`** inyectado en `<head>` de cada módulo del tendero (cargan como **iframe** → ejecuta en cada doc) que añade `credentials:'include'` SOLO a llamadas al API propio (onrender.com / `/api/`), respeta credenciales explícitas y deja intactas las de terceros (Cloudinary). Idempotente. 11 módulos.
+- Admin (`admin.html` 65/65) y `wizard.js` ya enviaban credentials → sin cambios.
+- Verificado: `/producto/<id>/vista` y `/productos/publicos/<id>` siguen **públicos** (compradores sin sesión) → tienda pública intacta.
+- Validado JS (`node --check`) en los 11 módulos.
+
+### 🧪 Prueba mental de los 3 flujos críticos → OK
+1. **Tendero ve sus pedidos:** iframe pedidos → wrapper añade cookie → guard valida sesión + propiedad de negocio → ve solo los suyos.
+2. **Tendero edita un producto:** iframe inventario → `require_auth` con sesión → producto scopeado por `usuario_id` → no puede tocar ajenos.
+3. **Comprador magic link:** heyden → `/pedidos/buscar?codigo=` (público allowlist) + catálogo público → sin sesión, ve solo SU pedido por el código.
+
+### 🚀 Deploy
+- Push a `main` en ambos repos → Render (backend) + Cloudflare Pages (frontend) auto-deploy. Commits: back A-SEC-2 `5bc73ef`, front `5421624`.
+
+### 👉 Siguiente paso sugerido
+Tras validación manual de Carlos → retomar **A16** (editor visual de criterios).
+
+---
+
 ## 2026-06-04 — 🔐 A-SEC-2 · Tenant isolation / IDOR (dominios de pagos y datos)
 
 **Sprint:** auditoría IDOR + fixes en pedidos, checkout, wompi, cupones, crm, carritos, reseñas, analytics, catálogo, negocio, página, qr. Suite **697/0**.
