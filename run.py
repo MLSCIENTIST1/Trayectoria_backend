@@ -321,6 +321,38 @@ try:
             logger.warning(f"⚠️  No se pudo verificar onboarding_completado: {pg_err7}")
         # ─────────────────────────────────────────────────────────────────────
 
+        # ── admin_audit_log: log de auditoría del panel admin (A2) ───────────
+        try:
+            from sqlalchemy import text as _sql_text8
+            from src.models.database import db as _db8
+            conn8 = _db8.engine.connect()
+            conn8.execute(_sql_text8("""
+                CREATE TABLE IF NOT EXISTS admin_audit_log (
+                    id           SERIAL PRIMARY KEY,
+                    admin_id     INTEGER,
+                    admin_email  VARCHAR(255),
+                    accion       VARCHAR(50) NOT NULL,
+                    entidad      VARCHAR(100),
+                    entidad_id   VARCHAR(100),
+                    detalle      JSONB DEFAULT '{}'::jsonb,
+                    ip           VARCHAR(64),
+                    user_agent   VARCHAR(300),
+                    created_at   TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            conn8.execute(_sql_text8(
+                "CREATE INDEX IF NOT EXISTS idx_audit_created ON admin_audit_log (created_at DESC)"))
+            conn8.execute(_sql_text8(
+                "CREATE INDEX IF NOT EXISTS idx_audit_entidad ON admin_audit_log (entidad)"))
+            conn8.execute(_sql_text8(
+                "CREATE INDEX IF NOT EXISTS idx_audit_admin ON admin_audit_log (admin_id)"))
+            conn8.commit()
+            conn8.close()
+            logger.info("✅ admin_audit_log verificada")
+        except Exception as pg_err8:
+            logger.warning(f"⚠️  No se pudo verificar admin_audit_log: {pg_err8}")
+        # ─────────────────────────────────────────────────────────────────────
+
         # ==========================================
         # INSPECTOR DE RUTAS
         # ==========================================

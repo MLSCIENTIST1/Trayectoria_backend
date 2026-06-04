@@ -159,6 +159,7 @@ from .password_reset_token import PasswordResetToken
 # MODELOS DE ADMINISTRACIÓN
 # ==========================================
 from .administrador import Administrador
+from .admin_audit import AdminAuditLog
 
 from src.models.feature_models import FeatureFlag, Plan, PlanFeature, NegocioPlan
 
@@ -224,6 +225,7 @@ __all__ = [
     
     # Administración
     "Administrador",
+    "AdminAuditLog",
 
 # Feature Flags y Planes
     "FeatureFlag",

@@ -381,7 +381,9 @@ def add_admin():
         conn.commit()
         cur.close()
         conn.close()
-        
+
+        registrar_auditoria('crear', 'administrador', new_admin['id'],
+                            {'email': email, 'rol': rol, 'permisos': permisos})
         return jsonify({
             'success': True,
             'message': f'Administrador {email} agregado exitosamente',
@@ -433,12 +435,14 @@ def remove_admin(admin_id):
         conn.commit()
         cur.close()
         conn.close()
-        
+
+        registrar_auditoria('desactivar', 'administrador', admin_id,
+                            {'email': admin_to_remove['email']})
         return jsonify({
             'success': True,
             'message': f'Administrador {admin_to_remove["email"]} desactivado'
         }), 200
-        
+
     except Exception as e:
         logger.error(f"Error removiendo admin: {e}")
         return jsonify({'error': str(e)}), 500
@@ -472,12 +476,14 @@ def reactivate_admin(admin_id):
         conn.commit()
         cur.close()
         conn.close()
-        
+
+        registrar_auditoria('activar', 'administrador', admin_id,
+                            {'email': result['email']})
         return jsonify({
             'success': True,
             'message': f'Administrador {result["email"]} reactivado'
         }), 200
-        
+
     except Exception as e:
         logger.error(f"Error reactivando admin: {e}")
         return jsonify({'error': str(e)}), 500
@@ -1181,6 +1187,9 @@ def delete_usuario(user_id):
             f"id={user_id} | correo={correo_eliminado} | negocios_borrados={total_negocios}"
         )
 
+        registrar_auditoria('eliminar', 'usuario', user_id,
+                            {'correo': correo_eliminado, 'nombre': nombre_eliminado,
+                             'negocios_eliminados': total_negocios})
         return build_cors_response({
             'success': True,
             'message': f'Usuario "{nombre_eliminado}" ({correo_eliminado}) eliminado permanentemente.',
@@ -1190,3 +1199,105 @@ def delete_usuario(user_id):
     except Exception as e:
         logger.error(f"Error eliminando usuario {user_id}: {e}")
         return build_cors_response({'error': str(e)}, 500)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LOG DE AUDITORÍA (Admin Panel A2)
+# Registra toda acción mutante del admin. A PRUEBA DE FALLOS: usa su propia
+# conexión y nunca interrumpe la operación principal si algo falla.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def registrar_auditoria(accion, entidad, entidad_id=None, detalle=None):
+    """
+    Registra una acción de admin en admin_audit_log. Lee el admin de g.admin.
+    Silencioso ante errores (jamás rompe el endpoint que la llama).
+    """
+    try:
+        from src.models.admin_audit import normalizar_accion
+        admin = getattr(g, 'admin', None) or {}
+        admin_id = admin.get('id')
+        admin_email = admin.get('email') or getattr(g, 'user_email', None)
+        ip = (request.headers.get('X-Forwarded-For', '') or request.remote_addr or '')[:64]
+        ua = (request.headers.get('User-Agent', '') or '')[:300]
+        det = detalle if isinstance(detalle, dict) else ({'info': detalle} if detalle else {})
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO admin_audit_log
+                (admin_id, admin_email, accion, entidad, entidad_id, detalle, ip, user_agent, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        """, (admin_id, admin_email, normalizar_accion(accion), entidad,
+              str(entidad_id) if entidad_id is not None else None,
+              json.dumps(det), ip, ua))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        logger.warning(f"[auditoria] no se pudo registrar ({accion} {entidad}): {e}")
+
+
+@admin_bp.route('/auditoria', methods=['GET'])
+@admin_required
+def list_auditoria():
+    """
+    GET /api/admin/auditoria
+    Lista el log de auditoría con filtros: ?entidad=&accion=&admin_id=&q=&page=&limit=
+    """
+    try:
+        entidad  = (request.args.get('entidad') or '').strip()
+        accion   = (request.args.get('accion') or '').strip()
+        admin_id = (request.args.get('admin_id') or '').strip()
+        q        = (request.args.get('q') or '').strip()
+        try:
+            page  = max(1, int(request.args.get('page', 1)))
+            limit = min(100, max(1, int(request.args.get('limit', 50))))
+        except (TypeError, ValueError):
+            page, limit = 1, 50
+        offset = (page - 1) * limit
+
+        where, params = ["1=1"], []
+        if entidad:
+            where.append("entidad = %s"); params.append(entidad)
+        if accion:
+            where.append("accion = %s"); params.append(accion)
+        if admin_id.isdigit():
+            where.append("admin_id = %s"); params.append(int(admin_id))
+        if q:
+            where.append("(admin_email ILIKE %s OR entidad_id ILIKE %s OR detalle::text ILIKE %s)")
+            like = f"%{q}%"; params += [like, like, like]
+        where_sql = " AND ".join(where)
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(f"SELECT COUNT(*) AS total FROM admin_audit_log WHERE {where_sql}", params)
+        total = cur.fetchone()['total']
+        cur.execute(f"""
+            SELECT id, admin_id, admin_email, accion, entidad, entidad_id, detalle, ip, created_at
+            FROM admin_audit_log
+            WHERE {where_sql}
+            ORDER BY created_at DESC
+            LIMIT %s OFFSET %s
+        """, params + [limit, offset])
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        eventos = []
+        for r in rows:
+            d = dict(r)
+            if d.get('created_at'):
+                d['created_at'] = d['created_at'].isoformat()
+            eventos.append(d)
+
+        return build_cors_response({
+            'success': True,
+            'eventos': eventos,
+            'total': total,
+            'page': page,
+            'limit': limit,
+            'pages': (total + limit - 1) // limit,
+        })
+    except Exception as e:
+        logger.error(f"Error listando auditoría: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'eventos': []}, 200)
