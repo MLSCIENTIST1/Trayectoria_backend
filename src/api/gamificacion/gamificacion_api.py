@@ -857,9 +857,13 @@ def comparativas():
             total = len(filas)
             mejores = sum(1 for f in filas if (f[1] or 0) > mis_ventas)
             posicion = mejores + 1
+            top_pct = _pct_top(posicion, total)
+            from src.models.colombia_data.ratings.config_gamificacion import get_sugerencias_config
+            umbral_destacado = get_sugerencias_config().get('destacado_top_pct', 10)
             out['percentil_ciudad'] = {
                 'ciudad': ciudad, 'total': total, 'posicion': posicion,
-                'top_pct': _pct_top(posicion, total),
+                'top_pct': top_pct,
+                'destacado': bool(top_pct is not None and top_pct <= umbral_destacado),
             }
     except Exception as e:
         logger.warning(f"[comparativas] percentil: {e}")
@@ -1008,25 +1012,35 @@ _UNIDAD_METRICA = {
 }
 
 
-def generar_sugerencias(proximos, racha_ventas=0, limite=3):
+def generar_sugerencias(proximos, racha_ventas=0, limite=None, cfg=None):
     """
     Genera sugerencias accionables a partir de los badges más cercanos y la
     racha. Función PURA → testeable. Retorna lista de {icono, texto, prioridad}.
+    Los umbrales/límites vienen de cfg (A12); por defecto SUGERENCIAS_DEFAULT.
+    `limite` (si se pasa) tiene prioridad sobre cfg['max_sugerencias'].
     """
+    from src.models.colombia_data.ratings.config_gamificacion import SUGERENCIAS_DEFAULT
+    cfg = cfg or SUGERENCIAS_DEFAULT
+    u_casi = cfg.get('umbral_casi', 70)
+    u_avance = cfg.get('umbral_avance', 40)
+    racha_min = cfg.get('racha_minima', 2)
+    considerar = cfg.get('badges_considerar', 2)
+    max_sug = limite if limite is not None else cfg.get('max_sugerencias', 3)
+
     sugerencias = []
-    for p in (proximos or [])[:2]:
+    for p in (proximos or [])[:considerar]:
         unidad = _UNIDAD_METRICA.get(p.get('criterio_tipo'), 'puntos')
         falta = p.get('falta') or 0
         falta_txt = (f"${int(falta):,}".replace(',', '.')
                      if p.get('criterio_tipo') == 'ventas_cop' else int(falta))
         pct = p.get('progreso_pct') or 0
-        animo = '¡vas casi!' if pct >= 70 else ('¡buen avance!' if pct >= 40 else '¡tú puedes!')
+        animo = '¡vas casi!' if pct >= u_casi else ('¡buen avance!' if pct >= u_avance else '¡tú puedes!')
         sugerencias.append({
             'icono': p.get('icono') or 'bi-trophy',
             'texto': f"Faltan {falta_txt} {unidad} para «{p.get('nombre')}» — {animo} ({pct}%)",
-            'prioridad': 'alta' if pct >= 70 else 'media',
+            'prioridad': 'alta' if pct >= u_casi else 'media',
         })
-    if racha_ventas and racha_ventas >= 2:
+    if racha_ventas and racha_ventas >= racha_min:
         sugerencias.append({
             'icono': 'bi-fire',
             'texto': f"Llevas {racha_ventas} días vendiendo seguido. ¡Vende hoy para no romper tu racha! 🔥",
@@ -1038,7 +1052,7 @@ def generar_sugerencias(proximos, racha_ventas=0, limite=3):
             'texto': "¡Vas increíble! Sigue vendiendo y subiendo productos para desbloquear más insignias.",
             'prioridad': 'baja',
         })
-    return sugerencias[:limite]
+    return sugerencias[:max_sug]
 
 
 @gamificacion_bp.route('/gamificacion/sugerencias', methods=['GET'])
@@ -1053,13 +1067,15 @@ def sugerencias():
         return jsonify({'success': False, 'error': 'Negocio no encontrado'}), 404
     try:
         from src.api.utils.badge_verification_service import BadgeVerificationService
+        from src.models.colombia_data.ratings.config_gamificacion import get_sugerencias_config
         proximos = BadgeVerificationService.progreso_proximos_badges(nid, limite=4)
         try:
             racha, _ = _calcular_racha_ventas(nid)
         except Exception:
             racha = 0
+        cfg = get_sugerencias_config()
         return jsonify({'success': True,
-                        'sugerencias': generar_sugerencias(proximos, racha)}), 200
+                        'sugerencias': generar_sugerencias(proximos, racha, cfg=cfg)}), 200
     except Exception as e:
         logger.error(f"Error en sugerencias: {e}", exc_info=True)
         return jsonify({'success': False, 'error': 'Error interno', 'sugerencias': []}), 200

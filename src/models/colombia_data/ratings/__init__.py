@@ -20,6 +20,8 @@ from .config_gamificacion import (
     get_bono_config, set_bono_config,
     RACHAS_DEFAULT, validar_rachas_config, get_rachas_config, set_rachas_config,
     nivel_por_xp, simular_evento,
+    SUGERENCIAS_DEFAULT, validar_sugerencias_config,
+    get_sugerencias_config, set_sugerencias_config,
 )
 
 __all__ = [
@@ -52,6 +54,10 @@ __all__ = [
     'set_rachas_config',
     'nivel_por_xp',
     'simular_evento',
+    'SUGERENCIAS_DEFAULT',
+    'validar_sugerencias_config',
+    'get_sugerencias_config',
+    'set_sugerencias_config',
     'ServiceRatings',
     'ServiceOverallScores',
     'ServiceQualifiers',

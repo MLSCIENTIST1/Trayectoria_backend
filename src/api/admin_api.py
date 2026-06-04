@@ -2321,3 +2321,48 @@ def recalcular_aplicar():
         except Exception:
             pass
         return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GAMIFICACIÓN — PARÁMETROS DE SUGERENCIAS/COMPARATIVAS (Admin Panel A12)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/gamificacion/sugerencias-config', methods=['GET'])
+@requiere_permiso('gamificacion')
+def get_gamif_sugerencias():
+    """GET /api/admin/gamificacion/sugerencias-config → parámetros efectivos + default."""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            get_sugerencias_config, SUGERENCIAS_DEFAULT
+        )
+        return build_cors_response({'success': True,
+                                    'config': get_sugerencias_config(),
+                                    'default': SUGERENCIAS_DEFAULT})
+    except Exception as e:
+        logger.error(f"Error en get_gamif_sugerencias: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
+@admin_bp.route('/gamificacion/sugerencias-config', methods=['PUT'])
+@requiere_permiso('gamificacion')
+def update_gamif_sugerencias():
+    """PUT /api/admin/gamificacion/sugerencias-config → ajusta umbrales y límites."""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            validar_sugerencias_config, set_sugerencias_config, get_sugerencias_config
+        )
+        antes = get_sugerencias_config()
+        ok, limpio, error = validar_sugerencias_config(request.get_json(silent=True) or {})
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        set_sugerencias_config(limpio)
+        registrar_auditoria('editar', 'gamif_sugerencias', None, {'antes': antes, 'despues': limpio})
+        return build_cors_response({'success': True, 'config': limpio, 'message': 'Parámetros actualizados'})
+    except Exception as e:
+        logger.error(f"Error en update_gamif_sugerencias: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)

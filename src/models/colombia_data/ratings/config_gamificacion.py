@@ -303,6 +303,68 @@ def set_bono_config(limpio, db_session=None):
 
 
 # ═══════════════════════════════════════════════════════════════════
+# SUGERENCIAS / COMPARATIVAS (A12) — parámetros configurables
+# ═══════════════════════════════════════════════════════════════════
+SUGERENCIAS_DEFAULT = {
+    'umbral_casi': 70,        # % de progreso para "¡vas casi!" + prioridad alta
+    'umbral_avance': 40,      # % para "¡buen avance!"
+    'racha_minima': 2,        # días de racha para mostrar el aviso "no rompas tu racha"
+    'max_sugerencias': 3,     # cuántas sugerencias mostrar
+    'badges_considerar': 2,   # cuántos badges próximos convertir en sugerencia
+    'destacado_top_pct': 10,  # comparativas: top X% se considera "destacado"
+}
+
+
+def validar_sugerencias_config(payload):
+    """Valida la config de sugerencias/comparativas. Función PURA. (ok, limpio, error)."""
+    if not isinstance(payload, dict):
+        return False, {}, 'Payload inválido'
+    limpio = dict(SUGERENCIAS_DEFAULT)
+    rangos = {
+        'umbral_casi': (1, 100), 'umbral_avance': (0, 100), 'racha_minima': (1, 60),
+        'max_sugerencias': (1, 10), 'badges_considerar': (1, 10), 'destacado_top_pct': (1, 100),
+    }
+    for k, (lo, hi) in rangos.items():
+        if k in payload and payload[k] is not None and payload[k] != '':
+            try:
+                v = int(payload[k])
+            except (TypeError, ValueError):
+                return False, {}, f'{k} debe ser un número'
+            if v < lo or v > hi:
+                return False, {}, f'{k} fuera de rango ({lo}-{hi})'
+            limpio[k] = v
+    if limpio['umbral_avance'] > limpio['umbral_casi']:
+        return False, {}, 'umbral_avance no puede ser mayor que umbral_casi'
+    return True, limpio, None
+
+
+def get_sugerencias_config():
+    """Config efectiva de sugerencias (BD + fallback al DEFAULT)."""
+    try:
+        row = GamifConfig.query.get('sugerencias')
+        if row and isinstance(row.valor, dict):
+            merged = dict(SUGERENCIAS_DEFAULT)
+            merged.update(row.valor)
+            return merged
+    except Exception:
+        pass
+    return dict(SUGERENCIAS_DEFAULT)
+
+
+def set_sugerencias_config(limpio, db_session=None):
+    """Guarda la config de sugerencias en gamif_config."""
+    sess = db_session or db.session
+    row = GamifConfig.query.get('sugerencias')
+    if row:
+        row.valor = limpio
+        row.updated_at = datetime.utcnow()
+    else:
+        sess.add(GamifConfig(clave='sugerencias', valor=limpio))
+    sess.commit()
+    return limpio
+
+
+# ═══════════════════════════════════════════════════════════════════
 # SIMULADOR / MODO PRUEBA (A13) — dry-run, sin tocar la BD
 # ═══════════════════════════════════════════════════════════════════
 
