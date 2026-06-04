@@ -11,6 +11,29 @@
 
 ---
 
+## 2026-06-04 — Panel admin A15 · arranca FASE 2 (Insignias)
+
+**Sprint actual:** Panel de Administración, Fase 2 (Insignias). Avance **15/49**.
+
+### ✅ Completado
+- **A15 — CRUD de insignias:** catálogo (`negocio_badges`) editable desde el panel.
+  - **Bug resuelto:** el seeder corría con `actualizar_visual=True` y pisaba los badges en cada arranque → nueva columna `editado_admin`; el seeder ahora respeta lo editado por el admin (migración `ADD COLUMN IF NOT EXISTS`).
+  - `validar_badge()` puro + endpoints GET/POST/PUT (editar marca `editado_admin`) y DELETE (`@superadmin_required`, solo si `total_otorgados==0`). Nueva sección "Insignias" en el sidebar con tabla + modal crear/editar.
+  - `test_admin_insignias_a15.py` 27/27 → **suite 633/0**. Commits: back `3cf2960`, front `d78e69b`.
+
+### ⏳ Pendiente
+- Fase 2: A16 (editor visual de criterios + preview de cuántos cumplirían), A17 (otorgar/revocar manual), A18 (validador CURVA_DIFICULTAD), A19 (insignias por temporada), A20 (vista de progreso/otorgamientos), A21 (preview en vivo del diseño).
+- F3 (auditoría recibo) y F5 (ícono PWA) en backlog.
+
+### 🐞 Problemas encontrados / decisiones
+- Sin la columna `editado_admin`, cualquier edición de badge se revertiría al reiniciar Render. Esa fue la pieza clave para que A15 sea real ("sin programador").
+- El código del badge se bloquea en el modal al editar (es la clave única / criterio del catálogo).
+
+### 👉 Siguiente paso sugerido
+**A16 — Editor visual de criterios** (elegir `criterio_tipo` de la lista de métricas disponibles + preview "cuántos negocios cumplirían").
+
+---
+
 ## 2026-06-04 — Panel admin A12 · 🎉 FASE 1 COMPLETA
 
 **Sprint actual:** Panel de Administración. **Fase 1 (Gamificación/Economía) COMPLETA (A6-A14).** Avance **14/49**.
