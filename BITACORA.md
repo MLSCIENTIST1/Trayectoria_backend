@@ -11,6 +11,21 @@
 
 ---
 
+## 2026-06-04 — Panel admin A16 (editor visual de criterios)
+
+**Sprint actual:** Panel de Administración, Fase 2 (Insignias). Avance **16/49**.
+
+### ✅ Completado
+- **A16 — Editor visual de criterios:** `METRICAS_CRITERIO` (~28 métricas key→label, todas verificadas contra `BadgeVerificationService`). Endpoints `GET /insignias/metricas` y `POST /insignias/criterio/preview` (cuenta cuántos negocios cumplirían un criterio, acotado, sin escribir). En el modal de insignia, el criterio pasó de input libre a **selector de métricas** + botón "Vista previa de cobertura". `test_admin_criterios_a16.py` 16/16 → **suite 713/0**. Commits: back `8f4cdf4`, front `8b26569`.
+
+### ⏳ Pendiente
+- Fase 2: A17 (otorgar/revocar manual), A18 (validador CURVA_DIFICULTAD), A19 (insignias por temporada), A20 (vista de progreso/otorgamientos), A21 (preview en vivo del diseño).
+
+### 👉 Siguiente paso sugerido
+**A17 — Otorgar / revocar insignias manualmente** (dar o quitar un badge a un negocio, auditado).
+
+---
+
 ## 2026-06-04 — ✅ Verificación de flujos del panel + deploy (post A-SEC-2)
 
 **Tarea:** confirmar que el frontend manda `credentials:'include'` a los endpoints ahora protegidos. Deploy a producción.
