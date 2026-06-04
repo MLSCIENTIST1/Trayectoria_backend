@@ -1005,6 +1005,87 @@ def get_admin_stats():
         return jsonify({'error': str(e)}), 500
 
 
+@admin_bp.route('/metrics', methods=['GET'])
+@admin_required
+def get_admin_metrics():
+    """
+    GET /api/admin/metrics
+    KPIs reales de la plataforma para el dashboard (A4).
+    Cada métrica es tolerante a fallos: si una consulta falla, devuelve 0
+    y las demás siguen funcionando.
+    """
+    conn = None
+    metrics = {}
+    try:
+        conn = get_db_connection()
+
+        def escalar(sql, default=0):
+            try:
+                cur = conn.cursor()
+                cur.execute(sql)
+                row = cur.fetchone()
+                cur.close()
+                if not row:
+                    return default
+                val = list(row.values())[0]
+                return val if val is not None else default
+            except Exception as e:
+                logger.warning(f"[metrics] consulta falló: {e}")
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                return default
+
+        # ── Usuarios y negocios ──
+        metrics['usuarios_total']   = int(escalar("SELECT COUNT(*) AS v FROM usuarios WHERE active = true"))
+        metrics['negocios_total']   = int(escalar("SELECT COUNT(*) AS v FROM negocios"))
+        metrics['negocios_activos'] = int(escalar("SELECT COUNT(*) AS v FROM negocios WHERE activo = true"))
+        metrics['negocios_publicos']= int(escalar("SELECT COUNT(*) AS v FROM negocios WHERE perfil_publico = true"))
+
+        # ── Pedidos / ventas ──
+        metrics['pedidos_entregados'] = int(escalar("SELECT COUNT(*) AS v FROM pedidos WHERE estado = 'entregado'"))
+        metrics['pedidos_total']      = int(escalar("SELECT COUNT(*) AS v FROM pedidos"))
+        metrics['ventas_volumen']     = float(escalar(
+            "SELECT COALESCE(SUM(COALESCE(subtotal,0) - COALESCE(descuento,0)),0) AS v "
+            "FROM pedidos WHERE estado = 'entregado'"))
+
+        # ── Gamificación / economía ──
+        metrics['xp_repartido']      = int(escalar("SELECT COALESCE(SUM(xp_total),0) AS v FROM negocio_gamificacion"))
+        metrics['tukoins_circulando']= int(escalar("SELECT COALESCE(SUM(tukoins),0) AS v FROM negocio_gamificacion"))
+        metrics['negocios_jugando']  = int(escalar("SELECT COUNT(*) AS v FROM negocio_gamificacion WHERE xp_total > 0"))
+        metrics['insignias_otorgadas'] = int(escalar(
+            "SELECT COUNT(*) AS v FROM negocio_badges_obtenidos WHERE activo IS TRUE OR activo IS NULL"))
+        metrics['onboarding_completos'] = int(escalar(
+            "SELECT COUNT(*) AS v FROM negocio_gamificacion WHERE onboarding_completado = true"))
+
+        # ── Soporte / contenido ──
+        metrics['admins_activos'] = int(escalar("SELECT COUNT(*) AS v FROM administradores WHERE activo = true"))
+        metrics['acciones_admin_30d'] = int(escalar(
+            "SELECT COUNT(*) AS v FROM admin_audit_log WHERE created_at >= NOW() - INTERVAL '30 days'"))
+
+        conn.close()
+
+        # ── Evento especial activo (Python, no DB) ──
+        try:
+            from src.models.colombia_data.ratings.negocio_gamificacion import evento_especial
+            ev = evento_especial()
+            metrics['evento_activo'] = ({'nombre': ev['nombre'], 'icono': ev['icono'],
+                                         'xp_mult': ev['xp_mult']} if ev else None)
+        except Exception:
+            metrics['evento_activo'] = None
+
+        return build_cors_response({'success': True, 'metrics': metrics})
+    except Exception as e:
+        logger.error(f"Error obteniendo metrics: {e}")
+        try:
+            if conn:
+                conn.close()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e), 'metrics': metrics}, 200)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # GESTIÓN DE USUARIOS (CRUD SUPERADMIN)
 # ═══════════════════════════════════════════════════════════════════════════════
