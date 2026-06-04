@@ -2108,3 +2108,77 @@ def update_gamif_rachas():
         except Exception:
             pass
         return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GAMIFICACIÓN — SIMULADOR / MODO PRUEBA (Admin Panel A13)
+# Dry-run: calcula qué otorgaría un evento con la config ACTUAL. NO persiste nada.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/gamificacion/simular', methods=['POST', 'OPTIONS'])
+@requiere_permiso('gamificacion')
+def simular_gamificacion():
+    """
+    POST /api/admin/gamificacion/simular
+    body: { evento, negocio_id?, xp_inicial?, misiones?:[codigos] }
+    Devuelve el desglose de recompensas SIN tocar la base de datos.
+    """
+    if request.method == 'OPTIONS':
+        return build_cors_response()
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            get_xp_eventos, simular_evento, get_pool
+        )
+        from src.models.colombia_data.ratings.negocio_gamificacion import (
+            NegocioGamificacion, multiplicador_xp, bono_tukoins, evento_especial
+        )
+        data = request.get_json(silent=True) or {}
+        evento = (data.get('evento') or '').strip()
+        xp_eventos = get_xp_eventos()
+        if not evento or evento not in xp_eventos:
+            return build_cors_response({'success': False,
+                'error': 'Evento inválido', 'eventos_validos': list(xp_eventos.keys())}, 400)
+
+        # XP inicial: del negocio (solo lectura) o el indicado, o 0
+        xp_inicial = 0
+        negocio_id = data.get('negocio_id')
+        if negocio_id:
+            try:
+                gami = NegocioGamificacion.query.filter_by(negocio_id=int(negocio_id)).first()
+                if gami:
+                    xp_inicial = gami.xp_total
+            except Exception:
+                pass
+        elif data.get('xp_inicial') not in (None, ''):
+            try:
+                xp_inicial = max(0, int(data['xp_inicial']))
+            except (TypeError, ValueError):
+                xp_inicial = 0
+
+        # Misiones a simular (por código), desde los pools efectivos
+        codigos = data.get('misiones') or []
+        misiones = []
+        if codigos:
+            pool = get_pool('diaria') + get_pool('semanal') + get_pool('mensual')
+            por_codigo = {m['codigo']: m for m in pool}
+            misiones = [por_codigo[c] for c in codigos if c in por_codigo]
+
+        # Config actual (la misma que usa el motor real)
+        xp_mult = multiplicador_xp()
+        bono_mult, bono_nombre = bono_tukoins()
+        ev_esp = evento_especial()
+
+        resultado = simular_evento(
+            evento, xp_inicial, xp_eventos, xp_mult, bono_mult,
+            NegocioGamificacion.NIVELES, misiones
+        )
+        resultado['evento_especial'] = ({'nombre': ev_esp['nombre'], 'icono': ev_esp['icono'],
+                                         'xp_mult': ev_esp['xp_mult']} if ev_esp else None)
+        resultado['bono_tukoins'] = ({'nombre': bono_nombre, 'mult': bono_mult} if bono_mult > 1 else None)
+        # Auditoría suave: registrar que se hizo una simulación (sin efecto sobre datos)
+        registrar_auditoria('simular', 'gamif_simulacion', None,
+                            {'evento': evento, 'xp_inicial': xp_inicial, 'dry_run': True})
+        return build_cors_response({'success': True, 'simulacion': resultado})
+    except Exception as e:
+        logger.error(f"Error en simular_gamificacion: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)

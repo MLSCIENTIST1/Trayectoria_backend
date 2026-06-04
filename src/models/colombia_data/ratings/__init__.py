@@ -19,6 +19,7 @@ from .config_gamificacion import (
     BONO_DEFAULT, DIAS_SEMANA, calcular_bono, validar_bono_config,
     get_bono_config, set_bono_config,
     RACHAS_DEFAULT, validar_rachas_config, get_rachas_config, set_rachas_config,
+    nivel_por_xp, simular_evento,
 )
 
 __all__ = [
@@ -49,6 +50,8 @@ __all__ = [
     'validar_rachas_config',
     'get_rachas_config',
     'set_rachas_config',
+    'nivel_por_xp',
+    'simular_evento',
     'ServiceRatings',
     'ServiceOverallScores',
     'ServiceQualifiers',

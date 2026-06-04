@@ -303,6 +303,65 @@ def set_bono_config(limpio, db_session=None):
 
 
 # ═══════════════════════════════════════════════════════════════════
+# SIMULADOR / MODO PRUEBA (A13) — dry-run, sin tocar la BD
+# ═══════════════════════════════════════════════════════════════════
+
+def nivel_por_xp(xp, niveles):
+    """Calcula (nivel, nombre) para un XP dado, a partir de la tabla NIVELES. Función PURA."""
+    nivel, nombre = 1, (niveles[0][2] if niveles else '')
+    for xp_req, n, nom in niveles:
+        if xp >= xp_req:
+            nivel, nombre = n, nom
+    return nivel, nombre
+
+
+def simular_evento(evento, xp_inicial, xp_eventos, xp_mult, bono_mult, niveles, misiones=None):
+    """
+    Calcula qué otorgaría un evento con la config dada, SIN persistir nada. Función PURA.
+    Replica la lógica de los hooks: el XP base del evento y el XP de misiones se multiplican por
+    xp_mult (evento especial); los TuKoins de misiones se multiplican por bono_mult; los TuKoins
+    base del evento NO se multiplican por el bono (igual que en el motor real).
+    """
+    try:
+        xp_inicial = max(0, int(xp_inicial))
+    except (TypeError, ValueError):
+        xp_inicial = 0
+    cfg = xp_eventos.get(evento, {'xp': 0, 'tukoins': 0})
+    xp_evento = int(cfg.get('xp', 0)) * xp_mult
+    tk_evento = int(cfg.get('tukoins', 0))
+
+    det_mis, xp_mis, tk_mis = [], 0, 0
+    for m in (misiones or []):
+        mx = int(m.get('xp', 0)) * xp_mult
+        mt = int(m.get('tukoins', 0)) * bono_mult
+        xp_mis += mx; tk_mis += mt
+        det_mis.append({'codigo': m.get('codigo'), 'nombre': m.get('nombre'),
+                        'xp': mx, 'tukoins': mt})
+
+    xp_total = xp_evento + xp_mis
+    tk_total = tk_evento + tk_mis
+    nivel_antes, nombre_antes = nivel_por_xp(xp_inicial, niveles)
+    nivel_desp, nombre_desp = nivel_por_xp(xp_inicial + xp_total, niveles)
+    return {
+        'evento': evento,
+        'xp_inicial': xp_inicial,
+        'xp_evento': xp_evento,
+        'tukoins_evento': tk_evento,
+        'misiones': det_mis,
+        'xp_total_otorgado': xp_total,
+        'tukoins_total_otorgado': tk_total,
+        'xp_mult': xp_mult,
+        'bono_mult': bono_mult,
+        'xp_final': xp_inicial + xp_total,
+        'nivel_antes': nivel_antes,
+        'nivel_despues': nivel_desp,
+        'nombre_nivel_antes': nombre_antes,
+        'nombre_nivel_despues': nombre_desp,
+        'subio_nivel': nivel_desp > nivel_antes,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════
 # REGLAS DE RACHAS (A11) — configurables desde el panel
 # ═══════════════════════════════════════════════════════════════════
 RACHAS_DEFAULT = {

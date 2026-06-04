@@ -16,7 +16,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 ACCIONES_VALIDAS = {
     'crear', 'editar', 'eliminar', 'restaurar', 'activar', 'desactivar',
     'toggle', 'otorgar', 'revocar', 'ajustar', 'asignar', 'aprobar',
-    'rechazar', 'login', 'export', 'recalcular', 'enviar',
+    'rechazar', 'login', 'export', 'recalcular', 'enviar', 'simular',
 }
 
 
