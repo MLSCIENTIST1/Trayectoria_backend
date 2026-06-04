@@ -2567,3 +2567,105 @@ def preview_criterio():
     except Exception as e:
         logger.error(f"Error en preview_criterio: {e}")
         return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# INSIGNIAS — OTORGAR / REVOCAR MANUALMENTE (Admin Panel A17)
+# Para soporte y premios especiales. Idempotente y auditado.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/insignias/<int:badge_id>/otorgar', methods=['POST', 'OPTIONS'])
+@requiere_permiso('insignias')
+def otorgar_insignia(badge_id):
+    """POST /api/admin/insignias/<badge_id>/otorgar  body: {negocio_id, motivo?}"""
+    if request.method == 'OPTIONS':
+        return build_cors_response()
+    try:
+        from src.models.colombia_data.ratings.negocio_badge import NegocioBadge
+        from src.models.colombia_data.ratings.negocio_badge_obtenido import NegocioBadgeObtenido
+        from src.models.database import db
+        from datetime import datetime as _dt
+        data = request.get_json(silent=True) or {}
+        try:
+            nid = int(data.get('negocio_id'))
+        except (TypeError, ValueError):
+            return build_cors_response({'success': False, 'error': 'negocio_id inválido'}, 400)
+        motivo = str(data.get('motivo', '')).strip()[:255]
+
+        badge = NegocioBadge.query.get(badge_id)
+        if not badge:
+            return build_cors_response({'success': False, 'error': 'Insignia no encontrada'}, 404)
+        # validar que el negocio exista
+        if not _scalar_admin("SELECT 1 AS v FROM negocios WHERE id_negocio = %s", (nid,)):
+            return build_cors_response({'success': False, 'error': 'Negocio no encontrado'}, 404)
+
+        ob = NegocioBadgeObtenido.query.filter_by(negocio_id=nid, badge_id=badge_id).first()
+        if ob and ob.activo:
+            return build_cors_response({'success': True, 'ya_tenia': True,
+                                        'message': 'El negocio ya tiene esta insignia'})
+        if ob and not ob.activo:
+            ob.activo = True
+            ob.fecha_revocacion = None
+            ob.motivo_revocacion = None
+            ob.contexto = f'Otorgada por admin{": " + motivo if motivo else ""}'
+        else:
+            ob = NegocioBadgeObtenido(
+                negocio_id=nid, badge_id=badge_id, fecha_obtencion=_dt.utcnow(),
+                contexto=f'Otorgada por admin{": " + motivo if motivo else ""}',
+                notificado=False, visto=False, activo=True)
+            db.session.add(ob)
+        badge.total_otorgados = (badge.total_otorgados or 0) + 1
+        db.session.commit()
+        registrar_auditoria('otorgar', 'insignia', badge_id,
+                            {'negocio_id': nid, 'codigo': badge.codigo, 'motivo': motivo})
+        return build_cors_response({'success': True, 'message': f'Insignia «{badge.nombre}» otorgada al negocio {nid}'})
+    except Exception as e:
+        logger.error(f"Error en otorgar_insignia: {e}")
+        try:
+            from src.models.database import db as _db; _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+@admin_bp.route('/insignias/<int:badge_id>/revocar', methods=['POST', 'OPTIONS'])
+@superadmin_required   # revocar = solo superadmin (acción sensible)
+def revocar_insignia(badge_id):
+    """POST /api/admin/insignias/<badge_id>/revocar  body: {negocio_id, motivo}"""
+    if request.method == 'OPTIONS':
+        return build_cors_response()
+    try:
+        from src.models.colombia_data.ratings.negocio_badge import NegocioBadge
+        from src.models.colombia_data.ratings.negocio_badge_obtenido import NegocioBadgeObtenido
+        from src.models.database import db
+        from datetime import datetime as _dt
+        data = request.get_json(silent=True) or {}
+        try:
+            nid = int(data.get('negocio_id'))
+        except (TypeError, ValueError):
+            return build_cors_response({'success': False, 'error': 'negocio_id inválido'}, 400)
+        motivo = str(data.get('motivo', '')).strip()[:255]
+        if not motivo:
+            return build_cors_response({'success': False, 'error': 'El motivo es obligatorio para revocar'}, 400)
+
+        ob = NegocioBadgeObtenido.query.filter_by(negocio_id=nid, badge_id=badge_id, activo=True).first()
+        if not ob:
+            return build_cors_response({'success': False, 'error': 'El negocio no tiene esa insignia activa'}, 404)
+        ob.activo = False
+        ob.fecha_revocacion = _dt.utcnow()
+        ob.motivo_revocacion = motivo
+        badge = NegocioBadge.query.get(badge_id)
+        if badge:
+            badge.total_otorgados = max(0, (badge.total_otorgados or 0) - 1)
+        db.session.commit()
+        registrar_auditoria('revocar', 'insignia', badge_id,
+                            {'negocio_id': nid, 'motivo': motivo,
+                             'codigo': badge.codigo if badge else None})
+        return build_cors_response({'success': True, 'message': f'Insignia revocada al negocio {nid}'})
+    except Exception as e:
+        logger.error(f"Error en revocar_insignia: {e}")
+        try:
+            from src.models.database import db as _db; _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
