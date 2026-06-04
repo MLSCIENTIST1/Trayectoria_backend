@@ -26,10 +26,15 @@ def bono_tukoins(fecha=None):
     """
     if fecha is None:
         fecha = datetime.utcnow()
-    # weekday(): lunes=0 … domingo=6
-    if fecha.weekday() == 6:
-        return 2, 'Domingo de TuKoins'
-    return 1, None
+    # A9: la config del bono es editable desde el panel (gamif_config).
+    try:
+        from .config_gamificacion import calcular_bono, get_bono_config
+        return calcular_bono(fecha, get_bono_config())
+    except Exception:
+        # Fallback al comportamiento por defecto (domingo x2)
+        if fecha.weekday() == 6:
+            return 2, 'Domingo de TuKoins'
+        return 1, None
 
 
 # ═══════════════════════════════════════════════════════════════════

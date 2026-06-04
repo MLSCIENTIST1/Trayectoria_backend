@@ -1816,3 +1816,125 @@ def create_gamif_tienda_item():
         except Exception:
             pass
         return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GAMIFICACIÓN — ECONOMÍA DE TUKOINS (Admin Panel A9)
+# Circulación, top holders, ajuste manual y bono por fecha configurable.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/gamificacion/economia', methods=['GET'])
+@requiere_permiso('gamificacion')
+def get_gamif_economia():
+    """GET /api/admin/gamificacion/economia → circulación, top holders, bono."""
+    data = {'success': True, 'tukoins_circulando': 0, 'xp_repartido': 0,
+            'negocios_con_saldo': 0, 'top_holders': [], 'bono': None}
+    try:
+        conn = get_db_connection()
+
+        def escalar(sql, default=0):
+            try:
+                cur = conn.cursor(); cur.execute(sql); row = cur.fetchone(); cur.close()
+                v = list(row.values())[0] if row else default
+                return v if v is not None else default
+            except Exception:
+                try: conn.rollback()
+                except Exception: pass
+                return default
+
+        data['tukoins_circulando'] = int(escalar("SELECT COALESCE(SUM(tukoins),0) AS v FROM negocio_gamificacion"))
+        data['xp_repartido'] = int(escalar("SELECT COALESCE(SUM(xp_total),0) AS v FROM negocio_gamificacion"))
+        data['negocios_con_saldo'] = int(escalar("SELECT COUNT(*) AS v FROM negocio_gamificacion WHERE tukoins > 0"))
+
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT g.negocio_id, g.tukoins, g.nivel, n.nombre_negocio
+                FROM negocio_gamificacion g
+                LEFT JOIN negocios n ON n.id_negocio = g.negocio_id
+                WHERE g.tukoins > 0
+                ORDER BY g.tukoins DESC
+                LIMIT 10
+            """)
+            data['top_holders'] = [{'negocio_id': r['negocio_id'],
+                                    'nombre': r['nombre_negocio'] or f"Negocio {r['negocio_id']}",
+                                    'tukoins': r['tukoins'], 'nivel': r['nivel']} for r in cur.fetchall()]
+            cur.close()
+        except Exception as e:
+            logger.warning(f"[economia] top_holders: {e}"); conn.rollback()
+
+        conn.close()
+
+        from src.models.colombia_data.ratings.config_gamificacion import get_bono_config, DIAS_SEMANA
+        bono = get_bono_config()
+        bono['dia_nombre'] = DIAS_SEMANA[bono['dia_semana']] if 0 <= bono.get('dia_semana', 6) <= 6 else ''
+        data['bono'] = bono
+        return build_cors_response(data)
+    except Exception as e:
+        logger.error(f"Error en get_gamif_economia: {e}")
+        return build_cors_response(data, 200)
+
+
+@admin_bp.route('/gamificacion/economia/ajuste', methods=['POST'])
+@requiere_permiso('gamificacion')
+def ajustar_tukoins():
+    """POST /api/admin/gamificacion/economia/ajuste  body: {negocio_id, cantidad, motivo}"""
+    try:
+        from src.models.colombia_data.ratings.negocio_gamificacion import NegocioGamificacion
+        from src.models.database import db
+        data = request.get_json(silent=True) or {}
+        try:
+            nid = int(data.get('negocio_id'))
+            cantidad = int(data.get('cantidad'))
+        except (TypeError, ValueError):
+            return build_cors_response({'success': False, 'error': 'negocio_id y cantidad deben ser números'}, 400)
+        motivo = str(data.get('motivo', '')).strip()
+        if not motivo:
+            return build_cors_response({'success': False, 'error': 'El motivo es obligatorio'}, 400)
+        if cantidad == 0:
+            return build_cors_response({'success': False, 'error': 'La cantidad no puede ser 0'}, 400)
+        if abs(cantidad) > 1000000:
+            return build_cors_response({'success': False, 'error': 'Cantidad fuera de rango'}, 400)
+
+        gami = NegocioGamificacion.obtener_o_crear(nid, db.session)
+        saldo_antes = gami.tukoins
+        gami.agregar_tukoins(cantidad, f"Ajuste admin: {motivo}", db_session=db.session)
+        db.session.commit()
+        registrar_auditoria('ajustar', 'tukoins', nid,
+                            {'cantidad': cantidad, 'motivo': motivo,
+                             'saldo_antes': saldo_antes, 'saldo_despues': gami.tukoins})
+        return build_cors_response({'success': True, 'saldo': gami.tukoins,
+                                    'message': f'Ajuste aplicado. Nuevo saldo: {gami.tukoins} TuKoins'})
+    except Exception as e:
+        logger.error(f"Error en ajustar_tukoins: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+@admin_bp.route('/gamificacion/bono', methods=['PUT'])
+@requiere_permiso('gamificacion')
+def update_gamif_bono():
+    """PUT /api/admin/gamificacion/bono → configura el bono de TuKoins por fecha."""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            validar_bono_config, set_bono_config, get_bono_config
+        )
+        antes = get_bono_config()
+        ok, limpio, error = validar_bono_config(request.get_json(silent=True) or {})
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        set_bono_config(limpio)
+        registrar_auditoria('editar', 'gamif_bono', None, {'antes': antes, 'despues': limpio})
+        return build_cors_response({'success': True, 'bono': limpio, 'message': 'Bono actualizado'})
+    except Exception as e:
+        logger.error(f"Error en update_gamif_bono: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)

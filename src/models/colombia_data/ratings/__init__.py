@@ -16,6 +16,8 @@ from .config_gamificacion import (
     merge_misiones, validar_misiones_override, get_pool,
     get_misiones_override, set_misiones_override,
     validar_item_tienda, TIPOS_ITEM_VALIDOS,
+    BONO_DEFAULT, DIAS_SEMANA, calcular_bono, validar_bono_config,
+    get_bono_config, set_bono_config,
 )
 
 __all__ = [
@@ -36,6 +38,12 @@ __all__ = [
     'set_misiones_override',
     'validar_item_tienda',
     'TIPOS_ITEM_VALIDOS',
+    'BONO_DEFAULT',
+    'DIAS_SEMANA',
+    'calcular_bono',
+    'validar_bono_config',
+    'get_bono_config',
+    'set_bono_config',
     'ServiceRatings',
     'ServiceOverallScores',
     'ServiceQualifiers',

@@ -228,6 +228,81 @@ def set_misiones_override(limpio, db_session=None):
 
 
 # ═══════════════════════════════════════════════════════════════════
+# BONO DE TUKOINS POR FECHA (A9) — configurable desde el panel
+# ═══════════════════════════════════════════════════════════════════
+BONO_DEFAULT = {
+    'activo': True,
+    'dia_semana': 6,        # 0=lunes … 6=domingo
+    'multiplicador': 2,
+    'nombre': 'Domingo de TuKoins',
+}
+DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+
+
+def calcular_bono(fecha, config):
+    """Devuelve (multiplicador, nombre) del bono para una fecha. Función PURA."""
+    cfg = config if isinstance(config, dict) else BONO_DEFAULT
+    if not cfg.get('activo', True):
+        return 1, None
+    try:
+        dia = int(cfg.get('dia_semana', 6))
+        mult = int(cfg.get('multiplicador', 2))
+    except (TypeError, ValueError):
+        return 1, None
+    if fecha.weekday() == dia and mult > 1:
+        return mult, cfg.get('nombre') or 'Bono de TuKoins'
+    return 1, None
+
+
+def validar_bono_config(payload):
+    """Valida la config del bono. Función PURA. Retorna (ok, limpio, error)."""
+    if not isinstance(payload, dict):
+        return False, {}, 'Payload inválido'
+    try:
+        dia = int(payload.get('dia_semana', BONO_DEFAULT['dia_semana']))
+        mult = int(payload.get('multiplicador', BONO_DEFAULT['multiplicador']))
+    except (TypeError, ValueError):
+        return False, {}, 'dia_semana y multiplicador deben ser números'
+    if dia < 0 or dia > 6:
+        return False, {}, 'dia_semana debe estar entre 0 (lunes) y 6 (domingo)'
+    if mult < 1 or mult > 10:
+        return False, {}, 'multiplicador debe estar entre 1 y 10'
+    limpio = {
+        'activo': bool(payload.get('activo', True)),
+        'dia_semana': dia,
+        'multiplicador': mult,
+        'nombre': str(payload.get('nombre', '') or 'Bono de TuKoins')[:60],
+    }
+    return True, limpio, None
+
+
+def get_bono_config():
+    """Lee la config del bono de la BD. Fallback a BONO_DEFAULT."""
+    try:
+        row = GamifConfig.query.get('bono_tukoins')
+        if row and isinstance(row.valor, dict):
+            merged = dict(BONO_DEFAULT)
+            merged.update(row.valor)
+            return merged
+    except Exception:
+        pass
+    return dict(BONO_DEFAULT)
+
+
+def set_bono_config(limpio, db_session=None):
+    """Guarda la config del bono en gamif_config."""
+    sess = db_session or db.session
+    row = GamifConfig.query.get('bono_tukoins')
+    if row:
+        row.valor = limpio
+        row.updated_at = datetime.utcnow()
+    else:
+        sess.add(GamifConfig(clave='bono_tukoins', valor=limpio))
+    sess.commit()
+    return limpio
+
+
+# ═══════════════════════════════════════════════════════════════════
 # TIENDA DE ÍTEMS (A8) — la tabla tienda_items ya existe; aquí solo validación
 # ═══════════════════════════════════════════════════════════════════
 TIPOS_ITEM_VALIDOS = {
