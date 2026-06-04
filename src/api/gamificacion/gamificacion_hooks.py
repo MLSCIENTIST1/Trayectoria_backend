@@ -409,7 +409,9 @@ def on_login_usuario(usuario_id):
             cel['nivel_nuevo'] = nivel_actual
             cel['nombre_nivel'] = nombre_nivel
             cel['subio_nivel'] = nivel_actual > nivel_antes
-            if gu.racha_login_dias > record_antes and gu.racha_login_dias >= 3:
+            from src.models.colombia_data.ratings.config_gamificacion import get_rachas_config
+            _umbral_u = get_rachas_config().get('umbral_record', 3)
+            if gu.racha_login_dias > record_antes and gu.racha_login_dias >= _umbral_u:
                 cel['racha_record'] = True
 
         db.session.commit()
@@ -477,9 +479,17 @@ def on_login(negocio_id):
             celebracion['nombre_nivel'] = nombre_nivel
             celebracion['subio_nivel'] = nivel_actual > nivel_antes
 
-        # ¿Nuevo récord de racha?
-        if gami.racha_actividad_dias > record_antes and gami.racha_actividad_dias >= 3:
+        # ¿Nuevo récord de racha? (A11: umbral configurable + bono opcional)
+        from src.models.colombia_data.ratings.config_gamificacion import get_rachas_config
+        _rc = get_rachas_config()
+        _umbral = _rc.get('umbral_record', 3)
+        if gami.racha_actividad_dias > record_antes and gami.racha_actividad_dias >= _umbral:
             celebracion['racha_record'] = True
+            # Bono opcional de TuKoins al ALCANZAR el umbral exacto (una vez por racha)
+            _bono = _rc.get('tukoins_por_record', 0)
+            if _bono and gami.racha_actividad_dias == _umbral:
+                gami.agregar_tukoins(_bono, f"Bono por racha de {_umbral} días", db_session=db.session)
+                celebracion['tukoins_ganados'] += _bono
 
         db.session.commit()
 

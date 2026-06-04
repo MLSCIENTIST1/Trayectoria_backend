@@ -303,6 +303,57 @@ def set_bono_config(limpio, db_session=None):
 
 
 # ═══════════════════════════════════════════════════════════════════
+# REGLAS DE RACHAS (A11) — configurables desde el panel
+# ═══════════════════════════════════════════════════════════════════
+RACHAS_DEFAULT = {
+    'umbral_record': 3,        # días mínimos para considerar/notificar "récord" de racha
+    'tukoins_por_record': 0,   # bono de TuKoins al ALCANZAR el umbral (0 = sin bono)
+}
+
+
+def validar_rachas_config(payload):
+    """Valida la config de rachas. Función PURA. Retorna (ok, limpio, error)."""
+    if not isinstance(payload, dict):
+        return False, {}, 'Payload inválido'
+    try:
+        umbral = int(payload.get('umbral_record', RACHAS_DEFAULT['umbral_record']))
+        bono = int(payload.get('tukoins_por_record', RACHAS_DEFAULT['tukoins_por_record']))
+    except (TypeError, ValueError):
+        return False, {}, 'umbral_record y tukoins_por_record deben ser números'
+    if umbral < 1 or umbral > 365:
+        return False, {}, 'umbral_record debe estar entre 1 y 365'
+    if bono < 0 or bono > 100000:
+        return False, {}, 'tukoins_por_record fuera de rango'
+    return True, {'umbral_record': umbral, 'tukoins_por_record': bono}, None
+
+
+def get_rachas_config():
+    """Config de rachas efectiva (BD + fallback al DEFAULT)."""
+    try:
+        row = GamifConfig.query.get('rachas')
+        if row and isinstance(row.valor, dict):
+            merged = dict(RACHAS_DEFAULT)
+            merged.update(row.valor)
+            return merged
+    except Exception:
+        pass
+    return dict(RACHAS_DEFAULT)
+
+
+def set_rachas_config(limpio, db_session=None):
+    """Guarda la config de rachas en gamif_config."""
+    sess = db_session or db.session
+    row = GamifConfig.query.get('rachas')
+    if row:
+        row.valor = limpio
+        row.updated_at = datetime.utcnow()
+    else:
+        sess.add(GamifConfig(clave='rachas', valor=limpio))
+    sess.commit()
+    return limpio
+
+
+# ═══════════════════════════════════════════════════════════════════
 # TIENDA DE ÍTEMS (A8) — la tabla tienda_items ya existe; aquí solo validación
 # ═══════════════════════════════════════════════════════════════════
 TIPOS_ITEM_VALIDOS = {

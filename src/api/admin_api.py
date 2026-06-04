@@ -2066,3 +2066,45 @@ def ajustar_gamif_negocio(negocio_id):
         except Exception:
             pass
         return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GAMIFICACIÓN — REGLAS DE RACHAS (Admin Panel A11)
+# Umbral de récord + bono opcional de TuKoins al alcanzarlo.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/gamificacion/rachas', methods=['GET'])
+@requiere_permiso('gamificacion')
+def get_gamif_rachas():
+    """GET /api/admin/gamificacion/rachas → config efectiva de rachas + default."""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import get_rachas_config, RACHAS_DEFAULT
+        return build_cors_response({'success': True, 'rachas': get_rachas_config(), 'default': RACHAS_DEFAULT})
+    except Exception as e:
+        logger.error(f"Error en get_gamif_rachas: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
+@admin_bp.route('/gamificacion/rachas', methods=['PUT'])
+@requiere_permiso('gamificacion')
+def update_gamif_rachas():
+    """PUT /api/admin/gamificacion/rachas  body: { umbral_record, tukoins_por_record }"""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            validar_rachas_config, set_rachas_config, get_rachas_config
+        )
+        antes = get_rachas_config()
+        ok, limpio, error = validar_rachas_config(request.get_json(silent=True) or {})
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        set_rachas_config(limpio)
+        registrar_auditoria('editar', 'gamif_rachas', None, {'antes': antes, 'despues': limpio})
+        return build_cors_response({'success': True, 'rachas': limpio, 'message': 'Reglas de rachas actualizadas'})
+    except Exception as e:
+        logger.error(f"Error en update_gamif_rachas: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
