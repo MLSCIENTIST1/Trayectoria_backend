@@ -372,6 +372,20 @@ try:
             logger.warning(f"⚠️  No se pudo verificar gamif_config: {pg_err9}")
         # ─────────────────────────────────────────────────────────────────────
 
+        # ── negocio_badges.editado_admin (A15) ───────────────────────────────
+        try:
+            from sqlalchemy import text as _sql_text10
+            from src.models.database import db as _db10
+            conn10 = _db10.engine.connect()
+            conn10.execute(_sql_text10(
+                "ALTER TABLE negocio_badges ADD COLUMN IF NOT EXISTS editado_admin BOOLEAN DEFAULT FALSE"))
+            conn10.commit()
+            conn10.close()
+            logger.info("✅ negocio_badges.editado_admin verificada")
+        except Exception as pg_err10:
+            logger.warning(f"⚠️  No se pudo verificar editado_admin: {pg_err10}")
+        # ─────────────────────────────────────────────────────────────────────
+
         # ==========================================
         # INSPECTOR DE RUTAS
         # ==========================================

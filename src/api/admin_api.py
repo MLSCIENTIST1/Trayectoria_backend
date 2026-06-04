@@ -2366,3 +2366,126 @@ def update_gamif_sugerencias():
         except Exception:
             pass
         return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# INSIGNIAS — CRUD del catálogo (Admin Panel A15)
+# Editar/crear/desactivar badges sin tocar código. Editar marca editado_admin=True
+# para que el seeder de arranque NO sobreescriba los cambios.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _badge_admin_dict(b):
+    return {
+        'id': b.id, 'codigo': b.codigo, 'nombre': b.nombre, 'descripcion': b.descripcion,
+        'icono': b.icono, 'color_primario': b.color_primario, 'color_fondo': b.color_fondo,
+        'gradiente': b.gradiente, 'categoria': b.categoria, 'nivel': b.nivel,
+        'nivel_nombre': b.get_nivel_nombre(), 'puntos': b.puntos,
+        'criterio_tipo': b.criterio_tipo, 'criterio_valor': b.criterio_valor,
+        'criterio_operador': b.criterio_operador, 'activo': bool(b.activo),
+        'es_secreto': bool(b.es_secreto), 'es_exclusivo': bool(b.es_exclusivo),
+        'visible_en_catalogo': bool(b.visible_en_catalogo), 'orden': b.orden,
+        'max_otorgamientos': b.max_otorgamientos, 'total_otorgados': b.total_otorgados or 0,
+        'editado_admin': bool(getattr(b, 'editado_admin', False)),
+    }
+
+
+@admin_bp.route('/insignias', methods=['GET'])
+@requiere_permiso('insignias')
+def list_insignias():
+    """GET /api/admin/insignias → catálogo completo (incl. inactivas y secretas)."""
+    try:
+        from src.models.colombia_data.ratings.negocio_badge import NegocioBadge
+        badges = NegocioBadge.query.order_by(NegocioBadge.orden, NegocioBadge.nivel.desc()).all()
+        return build_cors_response({'success': True, 'total': len(badges),
+                                    'insignias': [_badge_admin_dict(b) for b in badges]})
+    except Exception as e:
+        logger.error(f"Error en list_insignias: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'insignias': []}, 200)
+
+
+@admin_bp.route('/insignias', methods=['POST'])
+@requiere_permiso('insignias')
+def create_insignia():
+    """POST /api/admin/insignias → crea un badge nuevo."""
+    try:
+        from src.models.colombia_data.ratings.negocio_badge import NegocioBadge
+        from src.models.colombia_data.ratings.config_gamificacion import validar_badge
+        from src.models.database import db
+        ok, limpio, error = validar_badge(request.get_json(silent=True) or {}, requerir_codigo=True)
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        if NegocioBadge.query.filter_by(codigo=limpio['codigo']).first():
+            return build_cors_response({'success': False, 'error': 'Ya existe una insignia con ese código'}, 400)
+        limpio['editado_admin'] = True
+        badge = NegocioBadge(**limpio)
+        db.session.add(badge)
+        db.session.commit()
+        registrar_auditoria('crear', 'insignia', badge.id, {'codigo': badge.codigo, 'nombre': badge.nombre})
+        return build_cors_response({'success': True, 'insignia': _badge_admin_dict(badge),
+                                    'message': 'Insignia creada'}, 201)
+    except Exception as e:
+        logger.error(f"Error en create_insignia: {e}")
+        try:
+            from src.models.database import db as _db; _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+@admin_bp.route('/insignias/<int:badge_id>', methods=['PUT'])
+@requiere_permiso('insignias')
+def update_insignia(badge_id):
+    """PUT /api/admin/insignias/<id> → edita un badge (marca editado_admin)."""
+    try:
+        from src.models.colombia_data.ratings.negocio_badge import NegocioBadge
+        from src.models.colombia_data.ratings.config_gamificacion import validar_badge
+        from src.models.database import db
+        badge = NegocioBadge.query.get(badge_id)
+        if not badge:
+            return build_cors_response({'error': 'Insignia no encontrada'}, 404)
+        ok, limpio, error = validar_badge(request.get_json(silent=True) or {})
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        antes = {'nombre': badge.nombre, 'nivel': badge.nivel, 'puntos': badge.puntos,
+                 'activo': bool(badge.activo)}
+        for campo, valor in limpio.items():
+            setattr(badge, campo, valor)
+        badge.editado_admin = True
+        db.session.commit()
+        registrar_auditoria('editar', 'insignia', badge_id, {'antes': antes, 'cambios': limpio})
+        return build_cors_response({'success': True, 'insignia': _badge_admin_dict(badge),
+                                    'message': 'Insignia actualizada'})
+    except Exception as e:
+        logger.error(f"Error en update_insignia: {e}")
+        try:
+            from src.models.database import db as _db; _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+@admin_bp.route('/insignias/<int:badge_id>', methods=['DELETE'])
+@superadmin_required   # borrado = solo superadmin
+def delete_insignia(badge_id):
+    """DELETE /api/admin/insignias/<id> → elimina un badge SOLO si nadie lo tiene."""
+    try:
+        from src.models.colombia_data.ratings.negocio_badge import NegocioBadge
+        from src.models.database import db
+        badge = NegocioBadge.query.get(badge_id)
+        if not badge:
+            return build_cors_response({'error': 'Insignia no encontrada'}, 404)
+        if (badge.total_otorgados or 0) > 0:
+            return build_cors_response({'success': False,
+                'error': 'No se puede eliminar: ya fue otorgada. Desactívala en su lugar.'}, 400)
+        cod = badge.codigo
+        db.session.delete(badge)
+        db.session.commit()
+        registrar_auditoria('eliminar', 'insignia', badge_id, {'codigo': cod})
+        return build_cors_response({'success': True, 'message': 'Insignia eliminada'})
+    except Exception as e:
+        logger.error(f"Error en delete_insignia: {e}")
+        try:
+            from src.models.database import db as _db; _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)

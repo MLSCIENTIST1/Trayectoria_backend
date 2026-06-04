@@ -303,6 +303,103 @@ def set_bono_config(limpio, db_session=None):
 
 
 # ═══════════════════════════════════════════════════════════════════
+# INSIGNIAS (A15) — validación para el CRUD del catálogo (tabla negocio_badges)
+# ═══════════════════════════════════════════════════════════════════
+OPERADORES_CRITERIO = {'>=', '<=', '==', '>', '<', '!='}
+TIERS_BADGE = {1: 'Bronce', 2: 'Plata', 3: 'Oro', 4: 'Platino', 5: 'Diamante'}
+
+
+def validar_badge(payload, requerir_codigo=False):
+    """
+    Valida/sanea un badge del catálogo. Función PURA. (ok, limpio, error).
+    En creación (requerir_codigo=True) exige codigo, nombre y criterio.
+    """
+    if not isinstance(payload, dict):
+        return False, {}, 'Payload inválido'
+    limpio = {}
+
+    if requerir_codigo:
+        import re as _re
+        codigo = _re.sub(r'[^a-z0-9_]', '', str(payload.get('codigo', '')).strip().lower().replace(' ', '_'))
+        if not codigo:
+            return False, {}, 'El código es obligatorio (solo letras, números y _)'
+        if len(codigo) > 50:
+            return False, {}, 'Código demasiado largo (máx 50)'
+        limpio['codigo'] = codigo
+
+    if 'nombre' in payload or requerir_codigo:
+        nombre = str(payload.get('nombre', '')).strip()
+        if requerir_codigo and not nombre:
+            return False, {}, 'El nombre es obligatorio'
+        if nombre:
+            limpio['nombre'] = nombre[:100]
+
+    # Criterio (obligatorio al crear; opcional al editar)
+    if 'criterio_tipo' in payload or requerir_codigo:
+        ctipo = str(payload.get('criterio_tipo', '')).strip()
+        if requerir_codigo and not ctipo:
+            return False, {}, 'El criterio (criterio_tipo) es obligatorio'
+        if ctipo:
+            limpio['criterio_tipo'] = ctipo[:50]
+    if 'criterio_valor' in payload or requerir_codigo:
+        try:
+            limpio['criterio_valor'] = float(payload.get('criterio_valor', 0))
+        except (TypeError, ValueError):
+            return False, {}, 'criterio_valor debe ser numérico'
+    if 'criterio_operador' in payload and payload['criterio_operador']:
+        op = str(payload['criterio_operador']).strip()
+        if op not in OPERADORES_CRITERIO:
+            return False, {}, f'Operador inválido (usa: {", ".join(sorted(OPERADORES_CRITERIO))})'
+        limpio['criterio_operador'] = op
+    elif requerir_codigo:
+        limpio['criterio_operador'] = '>='
+
+    if 'nivel' in payload:
+        try:
+            niv = int(payload['nivel'])
+        except (TypeError, ValueError):
+            return False, {}, 'nivel debe ser un número'
+        if niv not in TIERS_BADGE:
+            return False, {}, 'nivel (tier) debe estar entre 1 y 5'
+        limpio['nivel'] = niv
+    if 'puntos' in payload:
+        try:
+            pts = int(payload['puntos'])
+        except (TypeError, ValueError):
+            return False, {}, 'puntos debe ser un número'
+        if pts < 0 or pts > 100000:
+            return False, {}, 'puntos fuera de rango'
+        limpio['puntos'] = pts
+    if 'orden' in payload and payload['orden'] != '':
+        try:
+            limpio['orden'] = int(payload['orden'])
+        except (TypeError, ValueError):
+            return False, {}, 'orden debe ser un número'
+    if 'max_otorgamientos' in payload:
+        mo = payload['max_otorgamientos']
+        if mo in (None, ''):
+            limpio['max_otorgamientos'] = None
+        else:
+            try:
+                limpio['max_otorgamientos'] = max(1, int(mo))
+            except (TypeError, ValueError):
+                return False, {}, 'max_otorgamientos debe ser un número o vacío'
+
+    for campo, maxlen in (('descripcion', 255), ('icono', 50), ('color_primario', 7),
+                          ('color_fondo', 30), ('gradiente', 200), ('categoria', 50),
+                          ('imagen_url', 500)):
+        if campo in payload and payload[campo] is not None:
+            limpio[campo] = str(payload[campo])[:maxlen]
+    for campo in ('activo', 'es_secreto', 'es_exclusivo', 'visible_en_catalogo'):
+        if campo in payload:
+            limpio[campo] = bool(payload[campo])
+
+    if not limpio:
+        return False, {}, 'Nada que guardar'
+    return True, limpio, None
+
+
+# ═══════════════════════════════════════════════════════════════════
 # SUGERENCIAS / COMPARATIVAS (A12) — parámetros configurables
 # ═══════════════════════════════════════════════════════════════════
 SUGERENCIAS_DEFAULT = {

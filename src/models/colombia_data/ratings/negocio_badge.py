@@ -170,6 +170,9 @@ class NegocioBadge(db.Model):
     # ═══════════════════════════════════════════════════════════
     total_otorgados = Column(Integer, default=0)
 
+    # A15: marca que el badge fue editado desde el panel admin → el seeder no lo sobreescribe
+    editado_admin = Column(Boolean, default=False)
+
     # ═══════════════════════════════════════════════════════════
     # RELACIONES
     # ═══════════════════════════════════════════════════════════
@@ -887,7 +890,8 @@ def seed_badges_catalogo(db_session, actualizar_visual=True):
             )
             db_session.add(badge)
             creados += 1
-        elif actualizar_visual:
+        elif actualizar_visual and not getattr(existente, 'editado_admin', False):
+            # A15: si el admin editó este badge desde el panel, NO lo sobreescribimos
             cambio = False
             for campo in _CAMPOS_ACTUALIZABLES:
                 if campo in data and getattr(existente, campo, None) != data[campo]:

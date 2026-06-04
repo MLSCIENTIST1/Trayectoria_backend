@@ -22,6 +22,7 @@ from .config_gamificacion import (
     nivel_por_xp, simular_evento,
     SUGERENCIAS_DEFAULT, validar_sugerencias_config,
     get_sugerencias_config, set_sugerencias_config,
+    validar_badge, OPERADORES_CRITERIO, TIERS_BADGE,
 )
 
 __all__ = [
@@ -58,6 +59,9 @@ __all__ = [
     'validar_sugerencias_config',
     'get_sugerencias_config',
     'set_sugerencias_config',
+    'validar_badge',
+    'OPERADORES_CRITERIO',
+    'TIERS_BADGE',
     'ServiceRatings',
     'ServiceOverallScores',
     'ServiceQualifiers',
