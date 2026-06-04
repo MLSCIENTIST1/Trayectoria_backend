@@ -342,6 +342,55 @@ METRICAS_CRITERIO = [
 ]
 METRICAS_CRITERIO_KEYS = {m['key'] for m in METRICAS_CRITERIO}
 
+# Dirección de dificultad según operador: True = "más valor es más difícil" (>=, >),
+# False = "menos valor es más difícil" (<=, <). None = no evaluable (==, !=).
+def _direccion_dificultad(operador):
+    if operador in ('>=', '>'):
+        return True
+    if operador in ('<=', '<'):
+        return False
+    return None
+
+
+def evaluar_coherencia_tier(nivel, criterio_tipo, operador, valor, otros):
+    """
+    A18: avisa (no bloquea) si la dificultad rompe la monotonicidad por tier
+    entre insignias de la MISMA métrica. Función PURA.
+    `otros`: lista de dicts {nivel, criterio_valor, nombre, criterio_operador}.
+    Retorna lista de advertencias (strings). Vacía = coherente.
+    """
+    adv = []
+    dir_self = _direccion_dificultad(operador)
+    if dir_self is None:
+        return adv
+    try:
+        nivel = int(nivel); valor = float(valor)
+    except (TypeError, ValueError):
+        return adv
+    for o in (otros or []):
+        if o.get('criterio_tipo', criterio_tipo) != criterio_tipo:
+            continue
+        if _direccion_dificultad(o.get('criterio_operador', operador)) != dir_self:
+            continue
+        try:
+            o_nivel = int(o.get('nivel')); o_valor = float(o.get('criterio_valor'))
+        except (TypeError, ValueError):
+            continue
+        if o_nivel == nivel:
+            continue
+        nombre = o.get('nombre', f'tier {o_nivel}')
+        if dir_self:  # más es más difícil → tier mayor debe exigir más
+            if o_nivel < nivel and o_valor > valor:
+                adv.append(f'«{nombre}» (tier {o_nivel}) exige {o_valor:g}, MÁS que este tier {nivel} ({valor:g}).')
+            elif o_nivel > nivel and o_valor < valor:
+                adv.append(f'«{nombre}» (tier {o_nivel}) exige {o_valor:g}, MENOS que este tier {nivel} ({valor:g}).')
+        else:  # menos es más difícil → tier mayor debe exigir menos
+            if o_nivel < nivel and o_valor < valor:
+                adv.append(f'«{nombre}» (tier {o_nivel}) exige {o_valor:g}, más difícil que este tier {nivel} ({valor:g}).')
+            elif o_nivel > nivel and o_valor > valor:
+                adv.append(f'«{nombre}» (tier {o_nivel}) exige {o_valor:g}, más fácil que este tier {nivel} ({valor:g}).')
+    return adv
+
 
 def validar_badge(payload, requerir_codigo=False):
     """

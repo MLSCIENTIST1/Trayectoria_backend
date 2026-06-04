@@ -23,7 +23,7 @@ from .config_gamificacion import (
     SUGERENCIAS_DEFAULT, validar_sugerencias_config,
     get_sugerencias_config, set_sugerencias_config,
     validar_badge, OPERADORES_CRITERIO, TIERS_BADGE,
-    METRICAS_CRITERIO, METRICAS_CRITERIO_KEYS,
+    METRICAS_CRITERIO, METRICAS_CRITERIO_KEYS, evaluar_coherencia_tier,
 )
 
 __all__ = [
@@ -65,6 +65,7 @@ __all__ = [
     'TIERS_BADGE',
     'METRICAS_CRITERIO',
     'METRICAS_CRITERIO_KEYS',
+    'evaluar_coherencia_tier',
     'ServiceRatings',
     'ServiceOverallScores',
     'ServiceQualifiers',

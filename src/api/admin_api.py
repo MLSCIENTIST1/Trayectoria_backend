@@ -2669,3 +2669,45 @@ def revocar_insignia(badge_id):
         except Exception:
             pass
         return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# INSIGNIAS — VALIDADOR DE COHERENCIA POR TIER (Admin Panel A18)
+# Avisa (no bloquea) si la dificultad rompe la monotonicidad por tier.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/insignias/coherencia', methods=['POST', 'OPTIONS'])
+@requiere_permiso('insignias')
+def coherencia_insignia():
+    """
+    POST /api/admin/insignias/coherencia
+    body: { criterio_tipo, criterio_operador, criterio_valor, nivel, id? }
+    Devuelve advertencias de coherencia de dificultad por tier (no bloquea).
+    """
+    if request.method == 'OPTIONS':
+        return build_cors_response()
+    try:
+        from src.models.colombia_data.ratings.negocio_badge import NegocioBadge
+        from src.models.colombia_data.ratings.config_gamificacion import evaluar_coherencia_tier
+        data = request.get_json(silent=True) or {}
+        tipo = (data.get('criterio_tipo') or '').strip()
+        op = (data.get('criterio_operador') or '>=').strip()
+        try:
+            valor = float(data.get('criterio_valor'))
+            nivel = int(data.get('nivel'))
+        except (TypeError, ValueError):
+            return build_cors_response({'success': False, 'error': 'nivel/valor inválidos'}, 400)
+        propio_id = data.get('id')
+
+        otros = []
+        for b in NegocioBadge.query.filter_by(criterio_tipo=tipo).all():
+            if propio_id and b.id == propio_id:
+                continue
+            otros.append({'nivel': b.nivel, 'criterio_valor': b.criterio_valor,
+                          'criterio_operador': b.criterio_operador, 'nombre': b.nombre})
+        adv = evaluar_coherencia_tier(nivel, tipo, op, valor, otros)
+        return build_cors_response({'success': True, 'coherente': len(adv) == 0,
+                                    'advertencias': adv})
+    except Exception as e:
+        logger.error(f"Error en coherencia_insignia: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'advertencias': []}, 200)
