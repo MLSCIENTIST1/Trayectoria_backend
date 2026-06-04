@@ -392,6 +392,32 @@ def evaluar_coherencia_tier(nivel, criterio_tipo, operador, valor, otros):
     return adv
 
 
+def badge_vigente(inicio, fin, hoy):
+    """
+    A19: ¿el badge está dentro de su ventana de vigencia? Función PURA.
+    inicio/fin son date|None; None = sin límite por ese lado. hoy es date.
+    Sin ventana (ambos None) → siempre vigente.
+    """
+    if inicio is not None and hoy < inicio:
+        return False
+    if fin is not None and hoy > fin:
+        return False
+    return True
+
+
+def _parse_fecha(v):
+    """Parsea 'YYYY-MM-DD' (o date) → date | None. Función auxiliar."""
+    from datetime import date as _date, datetime as _dt
+    if v in (None, ''):
+        return None
+    if isinstance(v, _date):
+        return v
+    try:
+        return _dt.strptime(str(v)[:10], '%Y-%m-%d').date()
+    except (TypeError, ValueError):
+        return 'ERROR'
+
+
 def validar_badge(payload, requerir_codigo=False):
     """
     Valida/sanea un badge del catálogo. Función PURA. (ok, limpio, error).
@@ -490,6 +516,17 @@ def validar_badge(payload, requerir_codigo=False):
     for campo in ('activo', 'es_secreto', 'es_exclusivo', 'visible_en_catalogo'):
         if campo in payload:
             limpio[campo] = bool(payload[campo])
+
+    # A19: ventana de vigencia (temporada/evento)
+    for campo in ('vigencia_inicio', 'vigencia_fin'):
+        if campo in payload:
+            f = _parse_fecha(payload[campo])
+            if f == 'ERROR':
+                return False, {}, f'{campo} debe ser una fecha válida (YYYY-MM-DD) o vacío'
+            limpio[campo] = f   # date | None
+    if (limpio.get('vigencia_inicio') and limpio.get('vigencia_fin')
+            and limpio['vigencia_inicio'] > limpio['vigencia_fin']):
+        return False, {}, 'La vigencia de inicio no puede ser posterior a la de fin'
 
     if not limpio:
         return False, {}, 'Nada que guardar'

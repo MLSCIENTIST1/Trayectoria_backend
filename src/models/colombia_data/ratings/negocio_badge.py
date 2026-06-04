@@ -84,7 +84,7 @@ Define todas las insignias disponibles en el sistema.
 Cada insignia tiene criterios de desbloqueo automáticos.
 """
 
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Date
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from src.models.database import db
@@ -172,6 +172,11 @@ class NegocioBadge(db.Model):
 
     # A15: marca que el badge fue editado desde el panel admin → el seeder no lo sobreescribe
     editado_admin = Column(Boolean, default=False)
+
+    # A19: ventana de vigencia (temporada/evento). Null/Null = siempre vigente.
+    # Fuera de la ventana, el badge NO se otorga (aunque se cumpla el criterio).
+    vigencia_inicio = Column(Date, nullable=True)
+    vigencia_fin    = Column(Date, nullable=True)
 
     # ═══════════════════════════════════════════════════════════
     # RELACIONES

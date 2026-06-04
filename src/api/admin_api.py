@@ -2388,6 +2388,8 @@ def _badge_admin_dict(b):
         'visible_en_catalogo': bool(b.visible_en_catalogo), 'orden': b.orden,
         'max_otorgamientos': b.max_otorgamientos, 'total_otorgados': b.total_otorgados or 0,
         'editado_admin': bool(getattr(b, 'editado_admin', False)),
+        'vigencia_inicio': b.vigencia_inicio.isoformat() if getattr(b, 'vigencia_inicio', None) else None,
+        'vigencia_fin': b.vigencia_fin.isoformat() if getattr(b, 'vigencia_fin', None) else None,
     }
 
 

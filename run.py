@@ -406,6 +406,20 @@ try:
             logger.warning(f"⚠️  No se pudo verificar intentos_login: {pg_err11}")
         # ─────────────────────────────────────────────────────────────────────
 
+        # ── negocio_badges.vigencia_inicio/fin (A19) ─────────────────────────
+        try:
+            from sqlalchemy import text as _sql_text12
+            from src.models.database import db as _db12
+            conn12 = _db12.engine.connect()
+            conn12.execute(_sql_text12("ALTER TABLE negocio_badges ADD COLUMN IF NOT EXISTS vigencia_inicio DATE"))
+            conn12.execute(_sql_text12("ALTER TABLE negocio_badges ADD COLUMN IF NOT EXISTS vigencia_fin DATE"))
+            conn12.commit()
+            conn12.close()
+            logger.info("✅ negocio_badges.vigencia_inicio/fin verificadas")
+        except Exception as pg_err12:
+            logger.warning(f"⚠️  No se pudo verificar vigencia de badges: {pg_err12}")
+        # ─────────────────────────────────────────────────────────────────────
+
         # ==========================================
         # INSPECTOR DE RUTAS
         # ==========================================

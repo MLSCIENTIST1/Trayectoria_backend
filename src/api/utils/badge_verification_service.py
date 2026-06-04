@@ -189,7 +189,13 @@ class BadgeVerificationService:
                 # Skip si ya lo tiene
                 if badge_id in badges_obtenidos:
                     continue
-                
+
+                # A19: solo otorgable dentro de su ventana de vigencia (temporada/evento)
+                from src.models.colombia_data.ratings.config_gamificacion import badge_vigente
+                if not badge_vigente(badge.get('vigencia_inicio'), badge.get('vigencia_fin'),
+                                     datetime.utcnow().date()):
+                    continue
+
                 # Obtener valor actual de la métrica
                 valor_actual = metricas.get(criterio_tipo)
                 
@@ -260,9 +266,13 @@ class BadgeVerificationService:
             metricas = BadgeVerificationService._calcular_metricas_para_badges(negocio_id)
             catalogo = BadgeVerificationService._get_catalogo_badges()
             obtenidos = BadgeVerificationService._get_badges_obtenidos(negocio_id)
+            from src.models.colombia_data.ratings.config_gamificacion import badge_vigente
+            from datetime import datetime as _dt
             pendientes = []
             for badge in catalogo:
                 if badge['id'] in obtenidos:
+                    continue
+                if not badge_vigente(badge.get('vigencia_inicio'), badge.get('vigencia_fin'), _dt.utcnow().date()):
                     continue
                 valor = metricas.get(badge['criterio_tipo'])
                 if valor is None:
@@ -715,13 +725,14 @@ class BadgeVerificationService:
         """Obtiene todos los badges activos del catálogo."""
         try:
             result = db.session.execute(text("""
-                SELECT id, codigo, nombre, criterio_tipo, criterio_valor, 
-                       criterio_operador, nivel, max_otorgamientos
-                FROM negocio_badges 
+                SELECT id, codigo, nombre, criterio_tipo, criterio_valor,
+                       criterio_operador, nivel, max_otorgamientos,
+                       vigencia_inicio, vigencia_fin
+                FROM negocio_badges
                 WHERE activo = true
                 ORDER BY id
             """))
-            
+
             badges = []
             for row in result.fetchall():
                 badges.append({
@@ -732,9 +743,11 @@ class BadgeVerificationService:
                     'criterio_valor': float(row[4]) if row[4] else 0,
                     'criterio_operador': row[5] or '>=',
                     'nivel': row[6] or 1,
-                    'max_otorgamientos': row[7]
+                    'max_otorgamientos': row[7],
+                    'vigencia_inicio': row[8],   # A19
+                    'vigencia_fin': row[9],
                 })
-            
+
             return badges
             
         except Exception as e:
