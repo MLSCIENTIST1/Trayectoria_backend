@@ -11,6 +11,26 @@
 
 ---
 
+## 2026-06-04 — Panel admin A13 (simulador)
+
+**Sprint actual:** Panel de Administración, Fase 1 (Gamificación/Economía). Avance **12/49**.
+
+### ✅ Completado
+- **A13 — Simulador / modo prueba:** helpers puros `nivel_por_xp` + `simular_evento` (replican la lógica del motor sin tocar BD) + `POST /api/admin/gamificacion/simular` (dry-run, sin commit; parte del XP real de un negocio o un XP inicial; resuelve evento especial, bono y misiones efectivas). Card "🧪 Simulador" en el panel con desglose y subida de nivel. `'simular'` añadido a `ACCIONES_VALIDAS`. `test_admin_simulador_a13.py` 21/21 → **suite 571/0**. Commits: back `6e6e801`, front `a034501`.
+- Sirve para **validar en vivo** los cambios de A6 (XP), A9 (bono) y A11 (rachas) antes de que afecten a los negocios.
+
+### ⏳ Pendiente
+- Fase 1: A12 (parámetros de sugerencias/comparativas), A14 (recálculo masivo de niveles/insignias) → cierra la Fase 1.
+- F3 (auditoría end-to-end del recibo) y F5 (ícono PWA) en backlog.
+
+### 🐞 Problemas encontrados / decisiones
+- El simulador NO reutiliza los hooks reales (que hacen commit); replica su lógica en una función pura para garantizar cero efectos secundarios. Test verifica que el endpoint no contiene `commit`.
+
+### 👉 Siguiente paso sugerido
+**A14 — Recálculo masivo** (recalcular niveles/insignias de todos tras cambios de criterio; con dry-run y barra de progreso) para cerrar la Fase 1, o A12 (bajo riesgo).
+
+---
+
 ## 2026-06-04 — Panel admin A11 + backlog F5
 
 **Sprint actual:** Panel de Administración, Fase 1 (Gamificación/Economía).
