@@ -308,6 +308,40 @@ def set_bono_config(limpio, db_session=None):
 OPERADORES_CRITERIO = {'>=', '<=', '==', '>', '<', '!='}
 TIERS_BADGE = {1: 'Bronce', 2: 'Plata', 3: 'Oro', 4: 'Platino', 5: 'Diamante'}
 
+# A16: catálogo de métricas disponibles para el criterio de una insignia (key → etiqueta legible).
+# Las claves deben existir en BadgeVerificationService._calcular_metricas_para_badges.
+METRICAS_CRITERIO = [
+    {'key': 'pedidos_completados',   'label': 'Pedidos entregados'},
+    {'key': 'ventas_cop',            'label': 'Ventas acumuladas (COP)'},
+    {'key': 'productos_activos',     'label': 'Productos activos'},
+    {'key': 'pedidos_sin_devolucion','label': 'Pedidos sin devolución'},
+    {'key': 'calificaciones_5',      'label': 'Calificaciones de 5★'},
+    {'key': 'trabajos_perfectos',    'label': 'Trabajos perfectos (5★)'},
+    {'key': 'contratos_completados', 'label': 'Contratos completados'},
+    {'key': 'clientes_recurrentes',  'label': 'Clientes recurrentes'},
+    {'key': 'entregas_anticipadas',  'label': 'Entregas anticipadas'},
+    {'key': 'resenas_recibidas',     'label': 'Reseñas recibidas'},
+    {'key': 'visitas_tienda',        'label': 'Visitas a la tienda'},
+    {'key': 'videos_subidos',        'label': 'Videos subidos'},
+    {'key': 'referidos_exitosos',    'label': 'Referidos exitosos'},
+    {'key': 'duelos_ganados',        'label': 'Duelos ganados'},
+    {'key': 'votos_emitidos_owner',  'label': 'Votos emitidos'},
+    {'key': 'dias_registrado_owner', 'label': 'Días registrado'},
+    {'key': 'negocios_del_owner',    'label': 'Negocios del dueño'},
+    {'key': 'max_pedidos_dia',       'label': 'Máx. pedidos en un día'},
+    {'key': 'onboarding_completado', 'label': 'Onboarding completado (1/0)'},
+    {'key': 'es_fundador',           'label': 'Es fundador (1/0)'},
+    {'key': 'verificado',            'label': 'Negocio verificado (1/0)'},
+    {'key': 'perfil_completo',       'label': 'Perfil completo (1/0)'},
+    {'key': 'tiene_whatsapp',        'label': 'Tiene WhatsApp (1/0)'},
+    {'key': 'tiene_direccion',       'label': 'Tiene dirección (1/0)'},
+    {'key': 'orden_registro',        'label': 'Orden de registro (nº)'},
+    {'key': 'ventas_fin_semana',     'label': 'Ventas en fin de semana'},
+    {'key': 'ventas_madrugada',      'label': 'Ventas de madrugada'},
+    {'key': 'ventas_aniversario',    'label': 'Ventas en aniversario'},
+]
+METRICAS_CRITERIO_KEYS = {m['key'] for m in METRICAS_CRITERIO}
+
 
 def validar_badge(payload, requerir_codigo=False):
     """

@@ -2491,3 +2491,79 @@ def delete_insignia(badge_id):
         except Exception:
             pass
         return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# INSIGNIAS — EDITOR VISUAL DE CRITERIOS (Admin Panel A16)
+# Lista de métricas disponibles + vista previa de cuántos negocios cumplirían.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/insignias/metricas', methods=['GET'])
+@requiere_permiso('insignias')
+def list_metricas_criterio():
+    """GET /api/admin/insignias/metricas → métricas disponibles + operadores."""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            METRICAS_CRITERIO, OPERADORES_CRITERIO
+        )
+        return build_cors_response({'success': True, 'metricas': METRICAS_CRITERIO,
+                                    'operadores': sorted(OPERADORES_CRITERIO)})
+    except Exception as e:
+        logger.error(f"Error en list_metricas_criterio: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'metricas': []}, 200)
+
+
+@admin_bp.route('/insignias/criterio/preview', methods=['POST', 'OPTIONS'])
+@requiere_permiso('insignias')
+def preview_criterio():
+    """
+    POST /api/admin/insignias/criterio/preview
+    body: { criterio_tipo, criterio_operador, criterio_valor }
+    Cuenta cuántos negocios CUMPLIRÍAN el criterio (sin otorgar nada). Acotado.
+    """
+    if request.method == 'OPTIONS':
+        return build_cors_response()
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            METRICAS_CRITERIO_KEYS, OPERADORES_CRITERIO
+        )
+        from src.api.utils.badge_verification_service import BadgeVerificationService
+        from src.models.colombia_data.ratings.negocio_gamificacion import NegocioGamificacion
+
+        data = request.get_json(silent=True) or {}
+        tipo = (data.get('criterio_tipo') or '').strip()
+        op = (data.get('criterio_operador') or '>=').strip()
+        if tipo not in METRICAS_CRITERIO_KEYS:
+            return build_cors_response({'success': False, 'error': 'Métrica desconocida'}, 400)
+        if op not in OPERADORES_CRITERIO:
+            return build_cors_response({'success': False, 'error': 'Operador inválido'}, 400)
+        try:
+            valor = float(data.get('criterio_valor'))
+        except (TypeError, ValueError):
+            return build_cors_response({'success': False, 'error': 'Valor inválido'}, 400)
+
+        CAP = 1000
+        filas = (NegocioGamificacion.query
+                 .with_entities(NegocioGamificacion.negocio_id)
+                 .limit(CAP + 1).all())
+        capado = len(filas) > CAP
+        filas = filas[:CAP]
+        revisados = cumplen = 0
+        for (nid,) in filas:
+            try:
+                metr = BadgeVerificationService._calcular_metricas_para_badges(nid)
+                val_actual = metr.get(tipo)
+                if val_actual is None:
+                    continue
+                revisados += 1
+                if BadgeVerificationService._evaluar_criterio(val_actual, op, valor):
+                    cumplen += 1
+            except Exception:
+                continue
+        return build_cors_response({
+            'success': True, 'cumplen': cumplen, 'revisados': revisados,
+            'capado': capado, 'criterio': f"{tipo} {op} {valor}",
+        })
+    except Exception as e:
+        logger.error(f"Error en preview_criterio: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
