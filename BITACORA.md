@@ -11,6 +11,30 @@
 
 ---
 
+## 2026-06-04 — Panel admin A14 (recálculo masivo)
+
+**Sprint actual:** Panel de Administración, Fase 1. Avance **13/49** (Fase 1: 8/9; falta A12).
+
+### ✅ Completado
+- **A14 — Recálculo masivo (niveles/insignias)** con las 2 condiciones exigidas:
+  1. **Dry-run obligatorio:** `POST /gamificacion/recalcular/preview` muestra cuántos negocios cambiarían + muestra, sin escribir; el botón "Aplicar" en el panel queda **deshabilitado** hasta ejecutar la vista previa (y solo si hay cambios). `BadgeVerificationService.simular_badges()` = dry-run de insignias.
+  2. **Aplicar = superadmin + auditado:** `POST /gamificacion/recalcular/aplicar` con `@superadmin_required`, exige `confirmar=true`, y **audita con el conteo de registros modificados**.
+  - Tope `RECALC_CAP=2000` reportado (sin cap silencioso). `test_admin_recalculo_a14.py` 16/16 → **suite 587/0**. Commits: back `7776bbc`, front `819aba3`.
+
+### ⏳ Pendiente
+- **A12 — Parámetros de sugerencias/comparativas** (único que falta para cerrar la Fase 1).
+- Fase 2 (Insignias, A15-A21) en adelante.
+- F3 (auditoría recibo) y F5 (ícono PWA) en backlog.
+
+### 🐞 Problemas encontrados / decisiones
+- El servicio de insignias no tenía dry-run; se añadió `simular_badges()` (evalúa criterios sin `_asignar_badge` ni commit) para poder mostrar la vista previa sin efectos.
+- Corrección de seguimiento: marqué la Fase 1 como completa por error; **A12 sigue pendiente** → Fase 1 = 8/9.
+
+### 👉 Siguiente paso sugerido
+Cerrar la Fase 1 con **A12 — Parámetros de sugerencias/comparativas**, y luego abrir la **Fase 2 (Insignias)**.
+
+---
+
 ## 2026-06-04 — Panel admin A13 (simulador)
 
 **Sprint actual:** Panel de Administración, Fase 1 (Gamificación/Economía). Avance **12/49**.
