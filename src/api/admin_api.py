@@ -250,9 +250,69 @@ def superadmin_required(f):
         
         g.user_email = email
         g.admin = admin_data
-        
+
         return f(*args, **kwargs)
     return decorated
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PERMISOS GRANULARES POR MÓDULO (Admin Panel A3)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Catálogo canónico de módulos del panel. La clave coincide con `data-section`
+# del frontend para poder ocultar secciones según los permisos del admin.
+MODULOS_PERMISOS = [
+    {'key': 'challenges',      'label': 'Challenges',          'grupo': 'Gestión'},
+    {'key': 'participaciones', 'label': 'Participaciones',     'grupo': 'Gestión'},
+    {'key': 'reportes',        'label': 'Reportes de errores', 'grupo': 'Gestión'},
+    {'key': 'features',        'label': 'Feature Flags',       'grupo': 'Plataforma'},
+    {'key': 'planes',          'label': 'Planes',              'grupo': 'Plataforma'},
+    {'key': 'negocios',        'label': 'Negocios',            'grupo': 'Plataforma'},
+    {'key': 'usuarios',        'label': 'Usuarios',            'grupo': 'Usuarios'},
+    {'key': 'gamificacion',    'label': 'Gamificación',        'grupo': 'Gamificación'},
+    {'key': 'insignias',       'label': 'Insignias',           'grupo': 'Gamificación'},
+    {'key': 'eventos',         'label': 'Eventos',             'grupo': 'Gamificación'},
+    {'key': 'economia',        'label': 'Economía / TuKoins',  'grupo': 'Gamificación'},
+    {'key': 'pagos',           'label': 'Pagos',               'grupo': 'Finanzas'},
+    {'key': 'auditoria',       'label': 'Auditoría',           'grupo': 'Configuración'},
+    {'key': 'admins',          'label': 'Administradores',     'grupo': 'Configuración'},
+    {'key': 'configuracion',   'label': 'Configuración',       'grupo': 'Configuración'},
+]
+PERMISOS_VALIDOS = {m['key'] for m in MODULOS_PERMISOS}
+
+
+def admin_tiene_permiso(admin_data, permiso):
+    """Función PURA: ¿este admin tiene el permiso? El superadmin siempre sí."""
+    if not admin_data:
+        return False
+    if admin_data.get('rol') == 'superadmin':
+        return True
+    return permiso in (admin_data.get('permisos') or [])
+
+
+def requiere_permiso(permiso):
+    """
+    Decorator para proteger un endpoint por permiso de módulo.
+    superadmin pasa siempre; un admin necesita el permiso en su lista.
+    Listo para que los nuevos módulos (gamificación, insignias, pagos…) lo adopten.
+    """
+    def deco(f):
+        @wraps(f)
+        @login_required
+        def inner(*args, **kwargs):
+            email = get_current_user_email()
+            if not email:
+                return jsonify({'error': 'No autorizado'}), 401
+            is_adm, admin_data = is_admin(email)
+            if not is_adm:
+                return jsonify({'error': 'Acceso denegado. No eres administrador.'}), 403
+            if not admin_tiene_permiso(admin_data, permiso):
+                return jsonify({'error': f'No tienes permiso para el módulo: {permiso}'}), 403
+            g.user_email = email
+            g.admin = admin_data
+            return f(*args, **kwargs)
+        return inner
+    return deco
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1301,3 +1361,59 @@ def list_auditoria():
     except Exception as e:
         logger.error(f"Error listando auditoría: {e}")
         return build_cors_response({'success': False, 'error': str(e), 'eventos': []}, 200)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PERMISOS GRANULARES — ENDPOINTS (A3)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/permisos/modulos', methods=['GET'])
+@admin_required
+def list_modulos_permisos():
+    """GET /api/admin/permisos/modulos → catálogo de módulos para asignar permisos."""
+    return build_cors_response({'success': True, 'modulos': MODULOS_PERMISOS})
+
+
+@admin_bp.route('/<int:admin_id>/permisos', methods=['PUT'])
+@superadmin_required
+def update_admin_permisos(admin_id):
+    """
+    PUT /api/admin/<id>/permisos  body: { permisos: [...] }
+    Actualiza los permisos de módulo de un admin (solo superadmin). Auditado.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        permisos_in = data.get('permisos', [])
+        if not isinstance(permisos_in, list):
+            return build_cors_response({'error': 'permisos debe ser una lista'}, 400)
+        # Saneo: solo claves válidas, sin duplicados, preservando orden del catálogo
+        limpios = [m['key'] for m in MODULOS_PERMISOS if m['key'] in set(permisos_in)]
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT id, email, rol, permisos FROM administradores WHERE id = %s", (admin_id,))
+        target = cur.fetchone()
+        if not target:
+            cur.close(); conn.close()
+            return build_cors_response({'error': 'Administrador no encontrado'}, 404)
+        if target['rol'] == 'superadmin':
+            cur.close(); conn.close()
+            return build_cors_response({'error': 'El superadmin ya tiene todos los permisos'}, 400)
+
+        cur.execute("""
+            UPDATE administradores
+            SET permisos = %s, updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+            RETURNING id, email, nombre, rol, permisos, activo
+        """, (json.dumps(limpios), admin_id))
+        actualizado = cur.fetchone()
+        conn.commit()
+        cur.close(); conn.close()
+
+        registrar_auditoria('editar', 'permisos_admin', admin_id,
+                            {'email': target['email'], 'antes': target['permisos'] or [], 'despues': limpios})
+        return build_cors_response({'success': True, 'admin': dict(actualizado),
+                                    'message': 'Permisos actualizados'})
+    except Exception as e:
+        logger.error(f"Error actualizando permisos de admin {admin_id}: {e}")
+        return build_cors_response({'error': str(e)}, 500)
