@@ -11,6 +11,33 @@
 
 ---
 
+## 2026-06-04 — Organización de documentación
+
+**Sprint actual:** tarea transversal de documentación (no consume sprint del roadmap A*).
+
+### ✅ Completado
+- **README profesional en ambos repos** (antes eran stubs de 24 bytes "# TRAYECTORIA_Python_mvc"):
+  - Backend `README.md`: qué es, stack, instalar/correr local, tests, estructura, despliegue Render, enlaces a CLAUDE/BITACORA/API/CHANGELOG.
+  - Frontend `README.md`: vanilla JS, Cloudflare Pages, ruteo del `_worker.js`, correr local, validar JS, convenciones.
+- **`docs/API.md`** (nuevo): referencia de ~30 endpoints clave por dominio (auth, negocio/catálogo, tiendas/pedidos/pagos, gamificación, admin), generada leyendo los blueprints reales y sus prefijos.
+- **`CHANGELOG.md`** (nuevo): inicia en **v2.19.0** con resumen de lo grande ya construido + regla de actualizar en cada versión.
+- **`memory/project_tukomercio.md`**: reducido a nota breve que apunta a `CLAUDE.md` como **fuente única de verdad técnica** (evita divergencia).
+- `INVENTARIO_DOCS.md` (creado en la tarea previa) sigue vigente.
+
+### ⏳ Pendiente
+- Retomar el roadmap del panel admin en **A11** (Fase 1, 5/9).
+- Bugs de tienda/checkout **F1–F3** en cola.
+- `docs/API.md` es no-exhaustivo: ampliar con parámetros/respuestas cuando haga falta.
+
+### 🐞 Problemas encontrados
+- Los README existían pero eran stubs vacíos. El repo frontend tiene su git root en `proyecto_sena/TRAYECTORIA_Python_mvc/` (no en `public/`).
+- `requirements.txt` en UTF-16 (afecta cómo se lee, no la instalación).
+
+### 👉 Siguiente paso sugerido
+Continuar con **A11 — Reglas de rachas configurables** (mismo patrón `gamif_config`).
+
+---
+
 ## 2026-06-03 — Panel de Administración · Fase 1 (Gamificación/Economía)
 
 **Sprint actual:** Roadmap del Panel de Administración (`admin_panel_roadmap.md`). Objetivo global:
