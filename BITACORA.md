@@ -11,6 +11,26 @@
 
 ---
 
+## 2026-06-04 — Panel admin A11 + backlog F5
+
+**Sprint actual:** Panel de Administración, Fase 1 (Gamificación/Economía).
+
+### ✅ Completado
+- **A11 — Reglas de rachas configurables:** umbral de récord editable (reemplaza `>= 3` hardcodeado en hooks de login-usuario y actividad-negocio) + bono opcional de TuKoins al alcanzar el umbral (default 0 = sin cambio). Endpoints `GET/PUT /api/admin/gamificacion/rachas` (auditado) + card en el panel. `test_admin_rachas_a11.py` 23/23 → **suite 550/0**. Commits: back `45bba30`, front `932917a`.
+- **F5 (backlog)** registrado en `fixes_tienda_checkout.md`: ícono PWA estirado ("huevito"); causa probable manifest no cuadrado / falta variante maskable. Prioridad baja, NO trabajar aún.
+
+### ⏳ Pendiente
+- Fase 1: A12 (parámetros de sugerencias/comparativas), A13 (simulador), A14 (recálculo masivo).
+- F3 (auditoría end-to-end del recibo) y F5 (ícono PWA) en cola.
+
+### 🐞 Problemas encontrados / decisiones
+- Bono por récord acotado a otorgarse **solo al alcanzar el umbral exacto** (una vez por racha) para evitar farmeo diario. Default 0 → comportamiento sin cambios y tests previos verdes vía fallback.
+
+### 👉 Siguiente paso sugerido
+Continuar con **A12 — Parámetros de sugerencias/comparativas** (bajo riesgo) o A13 (simulador, más visible).
+
+---
+
 ## 2026-06-04 — Fixes de tienda/checkout (F1, F2, F4) · de cara al cliente
 
 **Sprint actual:** bugs de producción de `fixes_tienda_checkout.md` (prioridad sobre A11).
