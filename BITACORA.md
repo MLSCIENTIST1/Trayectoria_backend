@@ -11,6 +11,35 @@
 
 ---
 
+## 2026-06-04 — 🔐 A-SEC-1 · Sprint de seguridad transversal
+
+**Sprint:** auditoría + fixes de seguridad (no feature). Suite **668/0**.
+
+### 🔎 Hallazgos (qué estaba vulnerable)
+1. **CSRF:** sesión por cookie `SameSite=None` sin ninguna validación de origen en requests mutantes → un sitio malicioso podía forzar POST/PUT/DELETE con la cookie del usuario.
+2. **IDOR (grave):** `gamificacion_api._get_nid()` devolvía el `negocio_id` del parámetro **sin validar propiedad** → cualquier usuario logueado operaba sobre la gamificación de otro negocio con `?negocio_id=`. Afectaba TODOS los endpoints de gamificación (prestigio, misiones, onboarding, etc.).
+3. **XSS (stored):** la tienda pública (`tienda.js`) inyectaba `nombre`/`categoría`/`alt` de productos y testimonios **sin escapar** en `innerHTML` → un tendero podía poner `<img onerror=...>` en el nombre de un producto y ejecutar script en el navegador de cada comprador. El CRUD de insignias no validaba color/ícono.
+4. **Fuerza bruta:** el contador de intentos de login estaba en la **cookie de sesión** → el atacante la ignora y nunca se bloquea (ineficaz). Sin límite en password-reset.
+5. **Bug latente:** `admin_api.ALLOWED_ORIGINS` no incluía `tukomercio.co` (CORS del admin habría fallado en producción).
+
+### ✅ Corregido
+1. **CSRF:** guardia global `before_request` en `create_app` que valida `Origin` (con fallback a `Referer`) contra `Config.CORS_ORIGINS` en todo método mutante; exime webhook de Wompi y health. → request con Origin ajeno = **403**.
+2. **IDOR:** `_get_nid` ahora exige `_negocio_es_mio()` (propiedad del negocio); cross-tenant → None → 404. Cierra todos los endpoints de gamificación de una vez.
+3. **XSS:** `tienda.js` escapa producto (nombre/categoría/alt) y testimonios (nombre/texto). Backend: `validar_badge` exige color hex/rgba e ícono seguros (helpers `color_hex_valido`/`icono_valido`/`texto_limpio` en `api/utils/seguridad.py`).
+4. **Fuerza bruta:** rate limit **server-side por IP+email** (tabla `intentos_login`, `evaluar_bloqueo` puro) en login y password-reset; bloqueo 5 fallos / 15 min con backoff; lockout **auditado en `admin_audit_log` con IP**.
+5. Whitelist de admin alineada con `tukomercio.co`/`www`.
+- Test `test_seguridad_asec1.py`: **35/35**. Commits: back `886253e`, front `0ff412d`.
+
+### ⏳ Pendiente / notas
+- IDOR: queda **auditar el resto de dominios** que reciben `negocio_id` en ruta (pedidos, catálogo, wompi, cupones, crm, carritos) — varios ya validan por ruta/login pero conviene una pasada dedicada (A-SEC-2).
+- Rate limit: store en BD es cross-worker; si se migra a Redis, mejor aún.
+- Recomendado: probar manualmente el flujo de login/bloqueo en staging tras el deploy.
+
+### 👉 Siguiente paso sugerido
+Continuar la Fase 2 con **A16 — Editor visual de criterios** (lo pausamos por el sprint de seguridad), o hacer **A-SEC-2** (auditoría IDOR del resto de dominios).
+
+---
+
 ## 2026-06-04 — Panel admin A15 · arranca FASE 2 (Insignias)
 
 **Sprint actual:** Panel de Administración, Fase 2 (Insignias). Avance **15/49**.
