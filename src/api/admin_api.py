@@ -104,6 +104,8 @@ admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
 # ═══════════════════════════════════════════════════════════════════════════════
 
 ALLOWED_ORIGINS = [
+    "https://tukomercio.co",          # A-SEC-1: faltaba el dominio de producción
+    "https://www.tukomercio.co",
     "https://tuko.pages.dev",
     "https://trayectoria-rxdc1.web.app",
     "https://mitrayectoria.web.app",

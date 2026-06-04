@@ -385,8 +385,22 @@ def validar_badge(payload, requerir_codigo=False):
             except (TypeError, ValueError):
                 return False, {}, 'max_otorgamientos debe ser un número o vacío'
 
-    for campo, maxlen in (('descripcion', 255), ('icono', 50), ('color_primario', 7),
-                          ('color_fondo', 30), ('gradiente', 200), ('categoria', 50),
+    # A-SEC-1 (XSS): validar color/ícono estrictos (no confiar en lo que llega del panel)
+    from src.api.utils.seguridad import color_hex_valido, color_css_valido, icono_valido
+    if 'color_primario' in payload and payload['color_primario'] not in (None, ''):
+        if not color_hex_valido(payload['color_primario']):
+            return False, {}, 'color_primario debe ser un hex válido (#rrggbb)'
+        limpio['color_primario'] = str(payload['color_primario']).strip()
+    if 'color_fondo' in payload and payload['color_fondo'] not in (None, ''):
+        if not color_css_valido(payload['color_fondo']):
+            return False, {}, 'color_fondo debe ser hex o rgba() válido'
+        limpio['color_fondo'] = str(payload['color_fondo']).strip()
+    if 'icono' in payload and payload['icono'] not in (None, ''):
+        if not icono_valido(payload['icono']):
+            return False, {}, 'ícono inválido (usa una clase bi-... o un emoji)'
+        limpio['icono'] = str(payload['icono']).strip()
+
+    for campo, maxlen in (('descripcion', 255), ('gradiente', 200), ('categoria', 50),
                           ('imagen_url', 500)):
         if campo in payload and payload[campo] is not None:
             limpio[campo] = str(payload[campo])[:maxlen]

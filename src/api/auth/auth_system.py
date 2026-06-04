@@ -226,27 +226,37 @@ def login():
     if not correo or not password:
         return build_cors_response({"error": "Correo y contraseña son requeridos"}, 400)
     
-    # Control de intentos fallidos
-    attempts_key = f"login_attempts_{correo}"
-    attempts = session.get(attempts_key, 0)
-    
-    if attempts >= 5:
-        logger.warning(f"🚫 Bloqueo por intentos: {correo}")
+    # Control de intentos fallidos (A-SEC-1): server-side por IP+email (la sesión
+    # cookie no sirve: el atacante la ignora). Bloqueo tras 5 fallos en 15 min.
+    import time as _time
+    from src.api.utils.seguridad import (
+        esta_bloqueado, registrar_fallo, limpiar_intentos,
+        registrar_evento_seguridad, UMBRAL_INTENTOS,
+    )
+    _ip = (request.headers.get('X-Forwarded-For', '') or request.remote_addr or '').split(',')[0].strip()
+    _ahora = _time.time()
+    _bloq, _restante = esta_bloqueado(_ip, correo, _ahora)
+    if _bloq:
+        logger.warning(f"🚫 Bloqueo por intentos: {correo} (ip {_ip})")
         return build_cors_response({
             "error": "too_many_attempts",
-            "message": "Demasiados intentos fallidos. Intenta en 15 minutos."
+            "message": f"Demasiados intentos fallidos. Intenta en {max(1, _restante // 60)} minutos."
         }, 429)
-    
+
     # Buscar y validar usuario
     try:
         usuario = Usuario.query.filter_by(correo=correo).first()
-        
+
         # ==========================================
         # 🔐 FIX: SIEMPRE verificar contraseña
         # ==========================================
         if not usuario or not usuario.check_password(password):
-            session[attempts_key] = attempts + 1
-            logger.warning(f"❌ Credenciales incorrectas para: {correo}")
+            _n = registrar_fallo(_ip, correo, _ahora)
+            logger.warning(f"❌ Credenciales incorrectas para: {correo} (intento {_n})")
+            if _n >= UMBRAL_INTENTOS:
+                registrar_evento_seguridad('login', 'login_bloqueado',
+                                           {'intentos': _n, 'motivo': 'fuerza_bruta'},
+                                           ip=_ip, email=correo)
             return build_cors_response({"error": "Credenciales incorrectas"}, 401)
         
         if not usuario.active:
@@ -266,8 +276,8 @@ def login():
         login_user(usuario, remember=True, duration=timedelta(days=7))
         
         session.permanent = True
-        session[attempts_key] = 0
-        
+        limpiar_intentos(_ip, correo)   # A-SEC-1: login OK → reinicia contador
+
         session_token = secrets.token_urlsafe(32)
         session['session_token'] = session_token
         session['user_id'] = usuario.id_usuario

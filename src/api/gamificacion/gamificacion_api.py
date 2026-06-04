@@ -23,10 +23,36 @@ gamificacion_bp = Blueprint('gamificacion', __name__)
 # HELPERS
 # ─────────────────────────────────────────────────────────────────
 
+def _negocio_es_mio(negocio_id):
+    """
+    A-SEC-1 (IDOR): True solo si el negocio pertenece al usuario autenticado.
+    El equipo es por link (sin cuenta de usuario), así que el límite de autorización
+    para usuarios logueados es la propiedad del negocio.
+    """
+    try:
+        from src.models.colombia_data.negocio import Negocio
+        if not getattr(current_user, 'is_authenticated', False):
+            return False
+        n = Negocio.query.filter_by(
+            id_negocio=int(negocio_id), usuario_id=current_user.id_usuario
+        ).first()
+        return n is not None
+    except Exception:
+        return False
+
+
 def _get_nid(negocio_id_param=None):
-    """Resuelve negocio_id desde parámetro o usuario autenticado."""
+    """
+    Resuelve negocio_id desde parámetro o usuario autenticado.
+    A-SEC-1: si viene un negocio_id por parámetro, se EXIGE que sea del usuario
+    autenticado (cierra el IDOR). Si no es suyo → None (el endpoint responde 404).
+    """
     if negocio_id_param:
-        return int(negocio_id_param)
+        try:
+            nid = int(negocio_id_param)
+        except (TypeError, ValueError):
+            return None
+        return nid if _negocio_es_mio(nid) else None
     try:
         from src.models.colombia_data.negocio import Negocio
         n = Negocio.query.filter_by(usuario_id=current_user.id_usuario).first()

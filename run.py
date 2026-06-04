@@ -386,6 +386,26 @@ try:
             logger.warning(f"⚠️  No se pudo verificar editado_admin: {pg_err10}")
         # ─────────────────────────────────────────────────────────────────────
 
+        # ── intentos_login: rate limiting de fuerza bruta (A-SEC-1) ──────────
+        try:
+            from sqlalchemy import text as _sql_text11
+            from src.models.database import db as _db11
+            conn11 = _db11.engine.connect()
+            conn11.execute(_sql_text11("""
+                CREATE TABLE IF NOT EXISTS intentos_login (
+                    clave      VARCHAR(160) PRIMARY KEY,
+                    intentos   INTEGER NOT NULL DEFAULT 0,
+                    primer_ts  DOUBLE PRECISION,
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            conn11.commit()
+            conn11.close()
+            logger.info("✅ intentos_login verificada")
+        except Exception as pg_err11:
+            logger.warning(f"⚠️  No se pudo verificar intentos_login: {pg_err11}")
+        # ─────────────────────────────────────────────────────────────────────
+
         # ==========================================
         # INSPECTOR DE RUTAS
         # ==========================================

@@ -337,10 +337,26 @@ def forgot_password():
         correo = data['correo'].lower().strip()
         logger.info(f"📍 Correo solicitado: {correo}")
 
-        usuario = Usuario.query.filter_by(correo=correo).first()
-
         # Respuesta genérica siempre (no revelar si el correo existe)
         _ok = lambda: _cors_json({"success": True, "message": "Si existe, recibirás un enlace en los próximos minutos."}, 200)
+
+        # A-SEC-1: rate limiting para evitar abuso/enumeración del reset
+        import time as _time
+        from src.api.utils.seguridad import (
+            esta_bloqueado, registrar_fallo, registrar_evento_seguridad, UMBRAL_INTENTOS,
+        )
+        _ip = (request.headers.get('X-Forwarded-For', '') or request.remote_addr or '').split(',')[0].strip()
+        _ahora = _time.time()
+        _bloq, _restante = esta_bloqueado(_ip, f"reset:{correo}", _ahora)
+        if _bloq:
+            logger.warning(f"🚫 Reset bloqueado por intentos: {correo} (ip {_ip})")
+            registrar_evento_seguridad('login', 'reset_bloqueado',
+                                       {'motivo': 'demasiadas_solicitudes'}, ip=_ip, email=correo)
+            return _cors_json({"success": True, "message": "Si existe, recibirás un enlace en los próximos minutos."}, 200)
+        # Cada solicitud cuenta para el umbral (5 en 15 min)
+        registrar_fallo(_ip, f"reset:{correo}", _ahora)
+
+        usuario = Usuario.query.filter_by(correo=correo).first()
 
         if not usuario:
             logger.warning(f"⚠️ Correo no encontrado: {correo}")

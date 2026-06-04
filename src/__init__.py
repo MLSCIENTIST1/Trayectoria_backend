@@ -286,7 +286,37 @@ def create_app():
          }}
     )
     logger.info("✅ CORS configurado con soporte de credenciales")
-    
+
+    # ==========================================
+    # PROTECCIÓN CSRF GLOBAL (A-SEC-1)
+    # La sesión usa cookie SameSite=None → todo request mutante (POST/PUT/DELETE/PATCH)
+    # debe traer un Origin de la whitelist. Bloquea CSRF cross-site.
+    # ==========================================
+    @app.before_request
+    def _csrf_origin_guard():
+        from flask import request as _rq, jsonify as _js
+        try:
+            from src.api.utils.seguridad import requiere_chequeo_csrf, origen_permitido
+        except Exception:
+            return  # si el módulo falla, no romper la app
+        if not requiere_chequeo_csrf(_rq.method, _rq.path):
+            return
+        origin = _rq.headers.get('Origin')
+        # Fallback: si no hay Origin, derivarlo del Referer (algunos navegadores)
+        if not origin:
+            ref = _rq.headers.get('Referer', '')
+            if ref:
+                from urllib.parse import urlparse as _up
+                pu = _up(ref)
+                if pu.scheme and pu.netloc:
+                    origin = f"{pu.scheme}://{pu.netloc}"
+        if not origen_permitido(origin, Config.CORS_ORIGINS):
+            logger.warning(f"🛡️ CSRF bloqueado: {_rq.method} {_rq.path} origin={origin!r}")
+            return _js({'error': 'csrf_origin_no_permitido',
+                        'message': 'Origen no autorizado'}), 403
+
+    logger.info("✅ Guardia CSRF (Origin) activo en métodos mutantes")
+
     # ==========================================
     # BASE DE DATOS
     # ==========================================
