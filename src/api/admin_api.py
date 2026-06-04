@@ -1086,6 +1086,112 @@ def get_admin_metrics():
         return build_cors_response({'success': False, 'error': str(e), 'metrics': metrics}, 200)
 
 
+@admin_bp.route('/search', methods=['GET'])
+@admin_required
+def admin_search():
+    """
+    GET /api/admin/search?q=texto
+    Buscador global del panel (A5): usuarios, negocios y administradores.
+    Cada grupo es tolerante a fallos. Devuelve resultados con la 'seccion'
+    a la que debe saltar el frontend.
+    """
+    q = (request.args.get('q') or '').strip()
+    resultados = {'usuarios': [], 'negocios': [], 'administradores': []}
+    if len(q) < 2:
+        return build_cors_response({'success': True, 'q': q, 'resultados': resultados,
+                                    'total': 0, 'message': 'Escribe al menos 2 caracteres'})
+    like = f"%{q}%"
+    conn = None
+    try:
+        conn = get_db_connection()
+
+        # ── Usuarios ──
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT id_usuario, nombre, apellidos, correo, active
+                FROM usuarios
+                WHERE LOWER(nombre || ' ' || COALESCE(apellidos,'')) LIKE LOWER(%s)
+                   OR LOWER(correo) LIKE LOWER(%s)
+                   OR CAST(cedula AS TEXT) LIKE %s
+                ORDER BY created_at DESC
+                LIMIT 6
+            """, (like, like, like))
+            for r in cur.fetchall():
+                resultados['usuarios'].append({
+                    'id': r['id_usuario'],
+                    'titulo': f"{r['nombre'] or ''} {r['apellidos'] or ''}".strip() or r['correo'],
+                    'subtitulo': r['correo'],
+                    'estado': 'activo' if r['active'] else 'inactivo',
+                    'seccion': 'usuarios',
+                })
+            cur.close()
+        except Exception as e:
+            logger.warning(f"[search] usuarios: {e}")
+            conn.rollback()
+
+        # ── Negocios ──
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT id_negocio, nombre_negocio, ciudad, slug, activo
+                FROM negocios
+                WHERE LOWER(nombre_negocio) LIKE LOWER(%s)
+                   OR LOWER(COALESCE(slug,'')) LIKE LOWER(%s)
+                   OR LOWER(COALESCE(ciudad,'')) LIKE LOWER(%s)
+                ORDER BY id_negocio DESC
+                LIMIT 6
+            """, (like, like, like))
+            for r in cur.fetchall():
+                resultados['negocios'].append({
+                    'id': r['id_negocio'],
+                    'titulo': r['nombre_negocio'],
+                    'subtitulo': r['ciudad'] or '',
+                    'slug': r['slug'],
+                    'estado': 'activo' if r['activo'] else 'inactivo',
+                    'seccion': 'negocios',
+                })
+            cur.close()
+        except Exception as e:
+            logger.warning(f"[search] negocios: {e}")
+            conn.rollback()
+
+        # ── Administradores ──
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT id, email, nombre, rol, activo
+                FROM administradores
+                WHERE LOWER(email) LIKE LOWER(%s) OR LOWER(COALESCE(nombre,'')) LIKE LOWER(%s)
+                ORDER BY id ASC
+                LIMIT 6
+            """, (like, like))
+            for r in cur.fetchall():
+                resultados['administradores'].append({
+                    'id': r['id'],
+                    'titulo': r['nombre'] or r['email'],
+                    'subtitulo': f"{r['email']} · {r['rol']}",
+                    'estado': 'activo' if r['activo'] else 'inactivo',
+                    'seccion': 'admins',
+                })
+            cur.close()
+        except Exception as e:
+            logger.warning(f"[search] admins: {e}")
+            conn.rollback()
+
+        conn.close()
+        total = sum(len(v) for v in resultados.values())
+        return build_cors_response({'success': True, 'q': q, 'resultados': resultados, 'total': total})
+    except Exception as e:
+        logger.error(f"Error en admin_search: {e}")
+        try:
+            if conn:
+                conn.close()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e), 'resultados': resultados, 'total': 0}, 200)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # GESTIÓN DE USUARIOS (CRUD SUPERADMIN)
 # ═══════════════════════════════════════════════════════════════════════════════
