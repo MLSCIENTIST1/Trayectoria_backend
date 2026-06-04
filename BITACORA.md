@@ -11,6 +11,21 @@
 
 ---
 
+## 2026-06-04 — Panel admin A17 (otorgar/revocar insignias)
+
+**Sprint actual:** Panel de Administración, Fase 2 (Insignias). Avance **17/49**.
+
+### ✅ Completado
+- **A17 — Otorgar / revocar insignias manualmente:** `POST /insignias/<id>/otorgar` (idempotente, reactiva revocadas, valida negocio, auditado) y `POST /insignias/<id>/revocar` (`@superadmin_required`, motivo obligatorio, soft-delete, auditado). Reusa `NegocioBadgeObtenido`. Frontend: botón 🎖️ + modal por insignia. `test_admin_otorgar_a17.py` 16/16 → **suite 729/0**. Commits: back `0f97c2f`, front `3df898e`.
+
+### ⏳ Pendiente
+- Fase 2: A18 (validador CURVA_DIFICULTAD), A19 (insignias por temporada), A20 (vista de progreso/otorgamientos), A21 (preview en vivo del diseño).
+
+### 👉 Siguiente paso sugerido
+**A18 — Validador de coherencia (CURVA_DIFICULTAD):** avisar si un criterio rompe la monotonicidad de dificultad por tier antes de guardar.
+
+---
+
 ## 2026-06-04 — Panel admin A16 (editor visual de criterios)
 
 **Sprint actual:** Panel de Administración, Fase 2 (Insignias). Avance **16/49**.
