@@ -225,3 +225,74 @@ def set_misiones_override(limpio, db_session=None):
         sess.add(GamifConfig(clave='misiones_override', valor=limpio))
     sess.commit()
     return limpio
+
+
+# ═══════════════════════════════════════════════════════════════════
+# TIENDA DE ÍTEMS (A8) — la tabla tienda_items ya existe; aquí solo validación
+# ═══════════════════════════════════════════════════════════════════
+TIPOS_ITEM_VALIDOS = {
+    'marco_logo', 'tema_color', 'banner_tienda', 'sticker',
+    'badge_temporal', 'efecto_badge', 'destacado', 'otro',
+}
+
+
+def validar_item_tienda(payload, requerir_codigo=False):
+    """
+    Valida/sanea un ítem de la tienda. Función PURA.
+    requerir_codigo=True para creación (codigo + nombre + precio obligatorios).
+    Retorna (ok, limpio, error).
+    """
+    if not isinstance(payload, dict):
+        return False, {}, 'Payload inválido'
+    limpio = {}
+
+    if requerir_codigo:
+        codigo = str(payload.get('codigo', '')).strip().lower().replace(' ', '_')
+        if not codigo:
+            return False, {}, 'El código es obligatorio'
+        if len(codigo) > 60:
+            return False, {}, 'Código demasiado largo'
+        limpio['codigo'] = codigo
+
+    if 'nombre' in payload or requerir_codigo:
+        nombre = str(payload.get('nombre', '')).strip()
+        if requerir_codigo and not nombre:
+            return False, {}, 'El nombre es obligatorio'
+        if nombre:
+            limpio['nombre'] = nombre[:100]
+
+    if 'precio_tukoins' in payload or requerir_codigo:
+        try:
+            precio = int(payload.get('precio_tukoins', 0))
+        except (TypeError, ValueError):
+            return False, {}, 'precio_tukoins debe ser un número'
+        if precio < 0 or precio > 1000000:
+            return False, {}, 'precio_tukoins fuera de rango'
+        limpio['precio_tukoins'] = precio
+
+    if 'nivel_requerido' in payload:
+        try:
+            niv = int(payload.get('nivel_requerido', 1))
+        except (TypeError, ValueError):
+            return False, {}, 'nivel_requerido debe ser un número'
+        if niv < 1 or niv > 100:
+            return False, {}, 'nivel_requerido fuera de rango'
+        limpio['nivel_requerido'] = niv
+
+    if 'tipo' in payload and payload['tipo']:
+        tipo = str(payload['tipo']).strip()
+        limpio['tipo'] = tipo if tipo in TIPOS_ITEM_VALIDOS else 'otro'
+    elif requerir_codigo:
+        limpio['tipo'] = 'otro'
+
+    for campo, maxlen in (('descripcion', 255), ('css_value', 5000), ('imagen_preview', 500)):
+        if campo in payload and payload[campo] is not None:
+            limpio[campo] = str(payload[campo])[:maxlen]
+    if 'icono' in payload and payload['icono']:
+        limpio['icono'] = str(payload['icono'])[:10]
+    if 'activo' in payload:
+        limpio['activo'] = bool(payload['activo'])
+
+    if not limpio:
+        return False, {}, 'Nada que actualizar'
+    return True, limpio, None

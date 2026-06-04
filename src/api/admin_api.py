@@ -1731,3 +1731,88 @@ def update_gamif_misiones():
         except Exception:
             pass
         return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GAMIFICACIÓN — TIENDA DE ÍTEMS (Admin Panel A8)
+# La tabla tienda_items ya existe; CRUD admin (editar precio/activar/crear).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/gamificacion/tienda', methods=['GET'])
+@requiere_permiso('gamificacion')
+def get_gamif_tienda():
+    """GET /api/admin/gamificacion/tienda → todos los ítems (activos e inactivos)."""
+    try:
+        from src.models.colombia_data.ratings.negocio_gamificacion import TiendaItem, seed_tienda_items
+        from src.models.database import db
+        seed_tienda_items(db.session)  # idempotente: asegura catálogo base
+        items = TiendaItem.query.order_by(TiendaItem.activo.desc(), TiendaItem.precio_tukoins).all()
+        data = []
+        for it in items:
+            d = it.serialize()
+            d['activo'] = bool(it.activo)
+            data.append(d)
+        return build_cors_response({'success': True, 'items': data, 'total': len(data)})
+    except Exception as e:
+        logger.error(f"Error en get_gamif_tienda: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'items': []}, 200)
+
+
+@admin_bp.route('/gamificacion/tienda/<int:item_id>', methods=['PUT'])
+@requiere_permiso('gamificacion')
+def update_gamif_tienda_item(item_id):
+    """PUT /api/admin/gamificacion/tienda/<id> → edita un ítem."""
+    try:
+        from src.models.colombia_data.ratings.negocio_gamificacion import TiendaItem
+        from src.models.colombia_data.ratings.config_gamificacion import validar_item_tienda
+        from src.models.database import db
+        item = TiendaItem.query.get(item_id)
+        if not item:
+            return build_cors_response({'error': 'Ítem no encontrado'}, 404)
+        ok, limpio, error = validar_item_tienda(request.get_json(silent=True) or {})
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        antes = {'precio_tukoins': item.precio_tukoins, 'nombre': item.nombre, 'activo': bool(item.activo)}
+        for campo, valor in limpio.items():
+            setattr(item, campo, valor)
+        db.session.commit()
+        registrar_auditoria('editar', 'tienda_item', item_id, {'antes': antes, 'despues': limpio})
+        d = item.serialize(); d['activo'] = bool(item.activo)
+        return build_cors_response({'success': True, 'item': d, 'message': 'Ítem actualizado'})
+    except Exception as e:
+        logger.error(f"Error en update_gamif_tienda_item: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+@admin_bp.route('/gamificacion/tienda', methods=['POST'])
+@requiere_permiso('gamificacion')
+def create_gamif_tienda_item():
+    """POST /api/admin/gamificacion/tienda → crea un ítem nuevo."""
+    try:
+        from src.models.colombia_data.ratings.negocio_gamificacion import TiendaItem
+        from src.models.colombia_data.ratings.config_gamificacion import validar_item_tienda
+        from src.models.database import db
+        ok, limpio, error = validar_item_tienda(request.get_json(silent=True) or {}, requerir_codigo=True)
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        if TiendaItem.query.filter_by(codigo=limpio['codigo']).first():
+            return build_cors_response({'success': False, 'error': 'Ya existe un ítem con ese código'}, 400)
+        item = TiendaItem(**limpio)
+        db.session.add(item)
+        db.session.commit()
+        registrar_auditoria('crear', 'tienda_item', item.id, limpio)
+        d = item.serialize(); d['activo'] = bool(item.activo)
+        return build_cors_response({'success': True, 'item': d, 'message': 'Ítem creado'}, 201)
+    except Exception as e:
+        logger.error(f"Error en create_gamif_tienda_item: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)

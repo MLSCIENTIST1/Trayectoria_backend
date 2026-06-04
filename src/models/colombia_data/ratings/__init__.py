@@ -15,6 +15,7 @@ from .config_gamificacion import (
     merge_xp_eventos, validar_xp_eventos, get_xp_eventos, set_xp_eventos,
     merge_misiones, validar_misiones_override, get_pool,
     get_misiones_override, set_misiones_override,
+    validar_item_tienda, TIPOS_ITEM_VALIDOS,
 )
 
 __all__ = [
@@ -33,6 +34,8 @@ __all__ = [
     'get_pool',
     'get_misiones_override',
     'set_misiones_override',
+    'validar_item_tienda',
+    'TIPOS_ITEM_VALIDOS',
     'ServiceRatings',
     'ServiceOverallScores',
     'ServiceQualifiers',
