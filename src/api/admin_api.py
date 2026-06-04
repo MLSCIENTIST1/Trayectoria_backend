@@ -1659,3 +1659,75 @@ def update_gamif_xp_eventos():
         except Exception:
             pass
         return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GAMIFICACIÓN — MISIONES (Admin Panel A7)
+# Editar nombre/descripcion/icono/xp/tukoins y activar/desactivar misiones.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/gamificacion/misiones', methods=['GET'])
+@requiere_permiso('gamificacion')
+def get_gamif_misiones():
+    """GET /api/admin/gamificacion/misiones → pools (diaria/semanal/mensual) con estado actual."""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            _default_pool, get_misiones_override
+        )
+        override = get_misiones_override()
+
+        def annotate(pool):
+            res = []
+            for m in pool:
+                ov = override.get(m['codigo'], {}) if isinstance(override, dict) else {}
+                res.append({
+                    'codigo': m['codigo'],
+                    'nombre': ov.get('nombre') or m.get('nombre', ''),
+                    'descripcion': ov.get('descripcion') or m.get('descripcion', ''),
+                    'icono': ov.get('icono') or m.get('icono', '🎯'),
+                    'xp': ov.get('xp', m.get('xp', 0)),
+                    'tukoins': ov.get('tukoins', m.get('tukoins', 0)),
+                    'tipo': m.get('tipo', ''),
+                    'activa': ov.get('activa', True),
+                    'default': {'xp': m.get('xp', 0), 'tukoins': m.get('tukoins', 0)},
+                })
+            return res
+
+        return build_cors_response({
+            'success': True,
+            'diaria':  annotate(_default_pool('diaria')),
+            'semanal': annotate(_default_pool('semanal')),
+            'mensual': annotate(_default_pool('mensual')),
+        })
+    except Exception as e:
+        logger.error(f"Error en get_gamif_misiones: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
+@admin_bp.route('/gamificacion/misiones', methods=['PUT'])
+@requiere_permiso('gamificacion')
+def update_gamif_misiones():
+    """PUT /api/admin/gamificacion/misiones  body: { overrides: {codigo:{...}} }"""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            validar_misiones_override, set_misiones_override, get_misiones_override
+        )
+        data = request.get_json(silent=True) or {}
+        payload = data.get('overrides', data)
+        antes = get_misiones_override()
+        ok, limpio, error = validar_misiones_override(payload)
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        set_misiones_override(limpio)
+        registrar_auditoria('editar', 'gamif_misiones', None,
+                            {'antes': antes, 'despues': limpio})
+        return build_cors_response({'success': True, 'overrides': limpio,
+                                    'message': 'Misiones actualizadas'})
+    except Exception as e:
+        logger.error(f"Error en update_gamif_misiones: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)

@@ -119,3 +119,109 @@ def set_xp_eventos(limpio, db_session=None):
         sess.add(GamifConfig(clave='xp_eventos', valor=limpio))
     sess.commit()
     return merge_xp_eventos(limpio)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# MISIONES — overrides editables (A7)
+# El admin puede editar nombre/descripcion/icono/xp/tukoins y activar/desactivar
+# cada misión. Los pools DEFAULT viven en negocio_gamificacion; aquí se aplican
+# los overrides guardados en gamif_config['misiones_override'].
+# ═══════════════════════════════════════════════════════════════════
+
+def merge_misiones(pool_default, override):
+    """
+    Aplica overrides a un pool de misiones. Función PURA.
+    override = { codigo: {nombre?, descripcion?, icono?, xp?, tukoins?, activa?} }
+    Las misiones con activa=False se EXCLUYEN del pool resultante.
+    """
+    override = override or {}
+    out = []
+    for m in pool_default:
+        ov = override.get(m['codigo'])
+        nm = dict(m)
+        if isinstance(ov, dict):
+            if ov.get('activa') is False:
+                continue
+            for f in ('nombre', 'descripcion', 'icono'):
+                if ov.get(f) not in (None, ''):
+                    nm[f] = ov[f]
+            for f in ('xp', 'tukoins'):
+                if f in ov:
+                    try:
+                        nm[f] = max(0, int(ov[f]))
+                    except (TypeError, ValueError):
+                        pass
+        out.append(nm)
+    return out
+
+
+def validar_misiones_override(payload):
+    """
+    Valida/sanea un payload de overrides de misiones. Función PURA.
+    Retorna (ok, limpio, error).
+    """
+    if not isinstance(payload, dict):
+        return False, {}, 'Payload inválido'
+    limpio = {}
+    for codigo, ov in payload.items():
+        if not isinstance(ov, dict):
+            return False, {}, f'Valor inválido para {codigo}'
+        entry = {}
+        for f in ('nombre', 'descripcion', 'icono'):
+            if ov.get(f) not in (None, ''):
+                entry[f] = str(ov[f])[:120]
+        for f in ('xp', 'tukoins'):
+            if f in ov and ov[f] is not None and ov[f] != '':
+                try:
+                    val = int(ov[f])
+                except (TypeError, ValueError):
+                    return False, {}, f'{f} debe ser número en {codigo}'
+                if val < 0 or val > 100000:
+                    return False, {}, f'{f} fuera de rango en {codigo}'
+                entry[f] = val
+        if 'activa' in ov:
+            entry['activa'] = bool(ov['activa'])
+        if entry:
+            limpio[codigo] = entry
+    return True, limpio, None
+
+
+def _default_pool(tipo):
+    from src.models.colombia_data.ratings.negocio_gamificacion import (
+        POOL_MISIONES_DIARIAS, POOL_MISIONES_SEMANALES, POOL_MISIONES_MENSUALES
+    )
+    return {
+        'diaria':  POOL_MISIONES_DIARIAS,
+        'semanal': POOL_MISIONES_SEMANALES,
+        'mensual': POOL_MISIONES_MENSUALES,
+    }.get(tipo, [])
+
+
+def get_misiones_override():
+    """Lee el override de misiones de la BD. {} si no hay o falla."""
+    try:
+        row = GamifConfig.query.get('misiones_override')
+        return row.valor if (row and isinstance(row.valor, dict)) else {}
+    except Exception:
+        return {}
+
+
+def get_pool(tipo):
+    """Pool efectivo de misiones de un tipo (DEFAULT + overrides). A prueba de fallos."""
+    try:
+        return merge_misiones(_default_pool(tipo), get_misiones_override())
+    except Exception:
+        return _default_pool(tipo)
+
+
+def set_misiones_override(limpio, db_session=None):
+    """Guarda el override de misiones en gamif_config."""
+    sess = db_session or db.session
+    row = GamifConfig.query.get('misiones_override')
+    if row:
+        row.valor = limpio
+        row.updated_at = datetime.utcnow()
+    else:
+        sess.add(GamifConfig(clave='misiones_override', valor=limpio))
+    sess.commit()
+    return limpio

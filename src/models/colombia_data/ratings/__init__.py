@@ -13,6 +13,8 @@ from .duelo import Duelo, determinar_ganador
 from .config_gamificacion import (
     GamifConfig, XP_EVENTOS_DEFAULT, XP_EVENTOS_LABELS,
     merge_xp_eventos, validar_xp_eventos, get_xp_eventos, set_xp_eventos,
+    merge_misiones, validar_misiones_override, get_pool,
+    get_misiones_override, set_misiones_override,
 )
 
 __all__ = [
@@ -26,6 +28,11 @@ __all__ = [
     'validar_xp_eventos',
     'get_xp_eventos',
     'set_xp_eventos',
+    'merge_misiones',
+    'validar_misiones_override',
+    'get_pool',
+    'get_misiones_override',
+    'set_misiones_override',
     'ServiceRatings',
     'ServiceOverallScores',
     'ServiceQualifiers',

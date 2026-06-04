@@ -278,18 +278,19 @@ def _elegir_misiones_diarias(negocio_id):
     Elige 3 misiones diarias usando hash del día para rotación determinista.
     Siempre las mismas 3 misiones en el mismo día para el mismo negocio.
     """
-    from src.models.colombia_data.ratings.negocio_gamificacion import POOL_MISIONES_DIARIAS
+    from src.models.colombia_data.ratings.config_gamificacion import get_pool
+    POOL = get_pool('diaria')   # A7: pool efectivo (DEFAULT + overrides; excluye desactivadas)
+    n = len(POOL)
+    if n == 0:
+        return []
     seed_str = f"{negocio_id}-{date.today().isoformat()}"
     seed = int(hashlib.md5(seed_str.encode()).hexdigest(), 16)
-    n = len(POOL_MISIONES_DIARIAS)
-    indices = sorted(set([seed % n, (seed // n) % n, (seed // n // n) % n]))
-    # Garantizar que sean 3 diferentes
-    todos = list(range(n))
+    # Garantizar hasta 3 diferentes
     seleccionados = []
     for i in [(seed + j) % n for j in range(n)]:
-        if todos[i] not in [x for x in seleccionados] and len(seleccionados) < 3:
-            seleccionados.append(todos[i])
-    return [POOL_MISIONES_DIARIAS[i] for i in seleccionados]
+        if i not in seleccionados and len(seleccionados) < 3:
+            seleccionados.append(i)
+    return [POOL[i] for i in seleccionados]
 
 
 def _registrar_mision_completada(negocio_id, gami, mision, tipo='diaria'):

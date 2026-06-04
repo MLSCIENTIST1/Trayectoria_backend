@@ -32,7 +32,8 @@ logger = logging.getLogger(__name__)
 # XP/TuKoins por evento. El DEFAULT vive en config_gamificacion; desde el panel
 # de admin (A6) se puede sobreescribir en BD. _xp_eventos() devuelve el efectivo.
 from src.models.colombia_data.ratings.config_gamificacion import (
-    XP_EVENTOS_DEFAULT as XP_EVENTOS, get_xp_eventos as _xp_eventos
+    XP_EVENTOS_DEFAULT as XP_EVENTOS, get_xp_eventos as _xp_eventos,
+    get_pool as _get_pool
 )
 
 
@@ -211,7 +212,7 @@ def _procesar_evento(negocio_id, evento, misiones_diarias=None,
 
         # 2) Misiones diarias
         for codigo in (misiones_diarias or []):
-            mision = _buscar_mision(POOL_MISIONES_DIARIAS, codigo)
+            mision = _buscar_mision(_get_pool('diaria'), codigo)
             if not mision:
                 continue
             res = _completar_mision(negocio_id, gami, mision, tipo='diaria')
@@ -224,7 +225,7 @@ def _procesar_evento(negocio_id, evento, misiones_diarias=None,
         for codigo, cumple in (misiones_semanales or []):
             if not cumple:
                 continue
-            mision = _buscar_mision(POOL_MISIONES_SEMANALES, codigo)
+            mision = _buscar_mision(_get_pool('semanal'), codigo)
             if not mision:
                 continue
             res = _completar_mision(negocio_id, gami, mision, tipo='semanal')
