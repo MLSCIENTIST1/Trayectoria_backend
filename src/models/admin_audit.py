@@ -17,6 +17,7 @@ ACCIONES_VALIDAS = {
     'crear', 'editar', 'eliminar', 'restaurar', 'activar', 'desactivar',
     'toggle', 'otorgar', 'revocar', 'ajustar', 'asignar', 'aprobar',
     'rechazar', 'login', 'export', 'recalcular', 'enviar', 'simular',
+    'excluir', 'readmitir',  # A24: moderación de ligas
 }
 
 

@@ -1611,6 +1611,16 @@ def ligas():
             sql += " AND LOWER(n.ciudad) LIKE :ciudad"; params['ciudad'] = f"%{ciudad.lower()}%"
         if categoria:
             sql += " AND LOWER(n.categoria) LIKE :categoria"; params['categoria'] = f"%{categoria.lower()}%"
+        # A24: excluir negocios vetados de las ligas por moderación (anti-fraude).
+        try:
+            from src.models.colombia_data.ratings.config_gamificacion import get_negocios_excluidos_ligas
+            excluidos = get_negocios_excluidos_ligas()
+        except Exception:
+            excluidos = []
+        if excluidos:
+            # IDs garantizados int por get_negocios_excluidos_ligas → inline seguro (sin inyección).
+            ids_in = ','.join(str(int(x)) for x in excluidos)
+            sql += f" AND n.id_negocio NOT IN ({ids_in})"
         sql += """
             GROUP BY n.id_negocio, n.nombre_negocio, n.ciudad, n.categoria, n.logo_url, n.slug
             HAVING COUNT(p.id_pedido) > 0

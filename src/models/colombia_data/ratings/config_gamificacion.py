@@ -874,6 +874,116 @@ def set_programacion_retos(limpio, db_session=None):
 
 
 # ═══════════════════════════════════════════════════════════════════
+# MODERACIÓN DE LIGAS (A24) — segmentación, anomalías y exclusiones
+# Las ligas se calculan al vuelo (ranking por pedidos/mes). Aquí guardamos:
+#   - configuración de segmentación/detección (gamif_config 'ligas_config')
+#   - negocios vetados de las ligas por moderación (gamif_config 'ligas_excluidos')
+# ═══════════════════════════════════════════════════════════════════
+
+LIGAS_CONFIG_DEFAULT = {
+    'min_participantes': 3,    # ligas con menos participantes se consideran "Nacional"
+    'umbral_anomalia': 3.0,    # nº de desviaciones estándar sobre la media para marcar anomalía
+}
+
+
+def validar_ligas_config(payload):
+    """Valida la config de ligas. PURA. (ok, limpio, error)."""
+    if not isinstance(payload, dict):
+        return False, {}, 'Se espera un objeto de configuración'
+    limpio = dict(LIGAS_CONFIG_DEFAULT)
+    try:
+        if 'min_participantes' in payload and payload['min_participantes'] not in (None, ''):
+            mp = int(payload['min_participantes'])
+            if not (1 <= mp <= 100):
+                return False, {}, 'min_participantes fuera de rango (1-100)'
+            limpio['min_participantes'] = mp
+        if 'umbral_anomalia' in payload and payload['umbral_anomalia'] not in (None, ''):
+            ua = float(payload['umbral_anomalia'])
+            if not (1.0 <= ua <= 6.0):
+                return False, {}, 'umbral_anomalia fuera de rango (1.0-6.0)'
+            limpio['umbral_anomalia'] = round(ua, 2)
+    except (TypeError, ValueError):
+        return False, {}, 'Valores numéricos inválidos'
+    return True, limpio, None
+
+
+def detectar_anomalias(filas, umbral=3.0):
+    """
+    Detecta puntajes atípicamente ALTOS (posible fraude/abuso). Función PURA.
+    'filas' = [(id, ..., score)] (score en la última posición).
+    Marca un negocio si su z-score = (score-media)/desv >= umbral, con n>=3 y desv>0.
+    Devuelve {negocio_id: z_score_redondeado}.
+    """
+    scores = []
+    ids = []
+    for f in (filas or []):
+        try:
+            ids.append(f[0]); scores.append(float(f[-1] or 0))
+        except (IndexError, TypeError, ValueError):
+            continue
+    n = len(scores)
+    if n < 3:
+        return {}
+    media = sum(scores) / n
+    var = sum((s - media) ** 2 for s in scores) / n
+    desv = var ** 0.5
+    if desv <= 0:
+        return {}
+    anomalias = {}
+    for nid, s in zip(ids, scores):
+        z = (s - media) / desv
+        if z >= umbral:
+            anomalias[nid] = round(z, 2)
+    return anomalias
+
+
+def get_ligas_config():
+    """Config efectiva de ligas (override BD o DEFAULT). A prueba de fallos."""
+    try:
+        row = GamifConfig.query.get('ligas_config')
+        if row and isinstance(row.valor, dict):
+            cfg = dict(LIGAS_CONFIG_DEFAULT); cfg.update(row.valor)
+            return cfg
+    except Exception:
+        pass
+    return dict(LIGAS_CONFIG_DEFAULT)
+
+
+def set_ligas_config(limpio, db_session=None):
+    sess = db_session or db.session
+    row = GamifConfig.query.get('ligas_config')
+    if row:
+        row.valor = limpio; row.updated_at = datetime.utcnow()
+    else:
+        sess.add(GamifConfig(clave='ligas_config', valor=limpio))
+    sess.commit()
+    return limpio
+
+
+def get_negocios_excluidos_ligas():
+    """Lista de IDs de negocios vetados de las ligas. A prueba de fallos → []."""
+    try:
+        row = GamifConfig.query.get('ligas_excluidos')
+        if row and isinstance(row.valor, list):
+            return [int(x) for x in row.valor if str(x).strip().lstrip('-').isdigit()]
+    except Exception:
+        pass
+    return []
+
+
+def set_negocios_excluidos_ligas(lista, db_session=None):
+    sess = db_session or db.session
+    limpio = sorted({int(x) for x in lista if str(x).strip().lstrip('-').isdigit()})
+    row = GamifConfig.query.get('ligas_excluidos')
+    if row:
+        row.valor = limpio; row.updated_at = datetime.utcnow()
+    else:
+        sess.add(GamifConfig(clave='ligas_excluidos', valor=limpio))
+    sess.commit()
+    return limpio
+
+
+# ═══════════════════════════════════════════════════════════════════
 # REGLAS DE RACHAS (A11) — configurables desde el panel
 # ═══════════════════════════════════════════════════════════════════
 RACHAS_DEFAULT = {

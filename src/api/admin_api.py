@@ -2434,6 +2434,142 @@ def update_gamif_retos():
         return build_cors_response({'success': False, 'error': str(e)}, 500)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# MODERACIÓN DE LIGAS (Admin Panel A24)
+# Ver ligas por ciudad/categoría, detectar anomalías, vetar/readmitir negocios.
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/gamificacion/ligas', methods=['GET'])
+@requiere_permiso('gamificacion')
+def admin_ligas():
+    """GET /api/admin/gamificacion/ligas?ciudad=&categoria=&limit= → ranking + stats + anomalías + excluidos."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        from src.api.gamificacion.gamificacion_api import _rango_mes, _armar_ranking
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            get_ligas_config, get_negocios_excluidos_ligas, detectar_anomalias
+        )
+        ciudad    = (request.args.get('ciudad', '') or '').strip()
+        categoria = (request.args.get('categoria', '') or '').strip()
+        limit     = min(int(request.args.get('limit', 20) or 20), 100)
+        inicio, fin, etiqueta = _rango_mes()
+        cfg = get_ligas_config()
+        excluidos = get_negocios_excluidos_ligas()
+
+        sql = """
+            SELECT n.id_negocio, n.nombre_negocio, n.ciudad, n.categoria,
+                   n.logo_url, n.slug, COUNT(p.id_pedido) AS ventas_mes
+            FROM negocios n
+            LEFT JOIN pedidos p ON p.negocio_id = n.id_negocio
+                 AND p.estado = 'entregado'
+                 AND p.fecha_pedido >= :ini AND p.fecha_pedido < :fin
+            WHERE n.activo = true AND n.perfil_publico = true
+        """
+        params = {'ini': inicio, 'fin': fin, 'lim': limit}
+        if ciudad:
+            sql += " AND LOWER(n.ciudad) LIKE :ciudad"; params['ciudad'] = f"%{ciudad.lower()}%"
+        if categoria:
+            sql += " AND LOWER(n.categoria) LIKE :categoria"; params['categoria'] = f"%{categoria.lower()}%"
+        sql += """
+            GROUP BY n.id_negocio, n.nombre_negocio, n.ciudad, n.categoria, n.logo_url, n.slug
+            HAVING COUNT(p.id_pedido) > 0
+            ORDER BY ventas_mes DESC
+            LIMIT :lim
+        """
+        filas = [tuple(f) for f in _db.session.execute(_t(sql), params).fetchall()]
+        # Anomalías sobre TODOS los participantes (incluye excluidos para no sesgar el cálculo).
+        anomalias = detectar_anomalias(filas, cfg.get('umbral_anomalia', 3.0))
+        data = _armar_ranking(filas, None)
+        # Enriquecer cada fila con flags de moderación.
+        for fila in data['ranking']:
+            nid = fila['negocio_id']
+            fila['excluido'] = nid in excluidos
+            fila['anomalia'] = anomalias.get(nid)  # z-score o None
+
+        puntajes = [int(f[6] or 0) for f in filas]
+        total = len(filas)
+        liga = ciudad or categoria or 'Nacional'
+        stats = {
+            'participantes': total,
+            'segmentada': total >= cfg.get('min_participantes', 3),
+            'ventas_total': sum(puntajes),
+            'promedio': round(sum(puntajes) / total, 2) if total else 0,
+            'top_puntaje': max(puntajes) if puntajes else 0,
+            'anomalias': len(anomalias),
+            'excluidos_en_vista': sum(1 for f in data['ranking'] if f['excluido']),
+        }
+        return build_cors_response({
+            'success': True, 'mes': etiqueta, 'liga': liga,
+            'config': cfg, 'excluidos': excluidos, 'stats': stats, **data,
+        })
+    except Exception as e:
+        logger.error(f"Error en admin_ligas: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'ranking': []}, 200)
+
+
+@admin_bp.route('/gamificacion/ligas/config', methods=['PUT'])
+@requiere_permiso('gamificacion')
+def update_admin_ligas_config():
+    """PUT /api/admin/gamificacion/ligas/config  body: { min_participantes, umbral_anomalia }"""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            validar_ligas_config, set_ligas_config, get_ligas_config
+        )
+        antes = get_ligas_config()
+        ok, limpio, error = validar_ligas_config(request.get_json(silent=True) or {})
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        set_ligas_config(limpio)
+        registrar_auditoria('editar', 'gamif_ligas_config', None, {'antes': antes, 'despues': limpio})
+        return build_cors_response({'success': True, 'config': limpio, 'message': 'Configuración de ligas actualizada'})
+    except Exception as e:
+        logger.error(f"Error en update_admin_ligas_config: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+@admin_bp.route('/gamificacion/ligas/moderar', methods=['POST'])
+@requiere_permiso('gamificacion')
+def moderar_liga_negocio():
+    """
+    POST /api/admin/gamificacion/ligas/moderar  body: { negocio_id, accion: 'excluir'|'readmitir' }
+    Veta o readmite a un negocio en las ligas (anti-fraude). Auditado.
+    """
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            get_negocios_excluidos_ligas, set_negocios_excluidos_ligas
+        )
+        payload = request.get_json(silent=True) or {}
+        try:
+            nid = int(payload.get('negocio_id'))
+        except (TypeError, ValueError):
+            return build_cors_response({'success': False, 'error': 'negocio_id inválido'}, 400)
+        accion = (payload.get('accion') or '').strip().lower()
+        if accion not in ('excluir', 'readmitir'):
+            return build_cors_response({'success': False, 'error': "accion debe ser 'excluir' o 'readmitir'"}, 400)
+        excluidos = set(get_negocios_excluidos_ligas())
+        if accion == 'excluir':
+            excluidos.add(nid)
+        else:
+            excluidos.discard(nid)
+        nueva = set_negocios_excluidos_ligas(list(excluidos))
+        registrar_auditoria(accion, 'gamif_liga_negocio', nid, {'excluidos': nueva})
+        return build_cors_response({'success': True, 'excluidos': nueva,
+                                    'message': f"Negocio {nid} {'vetado de' if accion=='excluir' else 'readmitido en'} las ligas"})
+    except Exception as e:
+        logger.error(f"Error en moderar_liga_negocio: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
 @admin_bp.route('/gamificacion/sugerencias-config', methods=['GET'])
 @requiere_permiso('gamificacion')
 def get_gamif_sugerencias():

@@ -11,6 +11,30 @@
 
 ---
 
+## 2026-06-05 — Panel admin A24 · Moderación de ligas
+
+**Sprint actual:** Panel de Administración. **Fase 3.** Avance **24/49**.
+
+### Completado
+- **A24 — Moderación de ligas.** Las ligas se calculan al vuelo (ranking por pedidos entregados/mes, filtrable por ciudad/categoría); no hay entidad persistida. Se añadió control de moderación:
+  - **Backend:** helpers PUROS `validar_ligas_config(payload)` y `detectar_anomalias(filas, umbral)` (z-score = (puntaje−media)/desv; marca puntajes atípicamente altos = posible fraude; requiere n≥3 y desv>0) + `get/set_ligas_config()` y `get/set_negocios_excluidos_ligas()` en `config_gamificacion.py` (gamif_config `ligas_config` y `ligas_excluidos`). La liga **pública** (`ligas()`) ahora **excluye** a los negocios vetados (`NOT IN`, IDs int inline, a prueba de fallos).
+  - **Endpoints:** `GET /api/admin/gamificacion/ligas` (ranking + stats + anomalías marcadas + excluidos), `PUT .../ligas/config` (min_participantes 1-100, umbral_anomalia 1.0-6.0), `POST .../ligas/moderar` (`excluir`/`readmitir`). Todos `requiere_permiso('gamificacion')` y auditados. Se añadieron `excluir`/`readmitir` a `ACCIONES_VALIDAS`.
+  - **Frontend:** tarjeta "🏟️ Moderación de ligas": filtros ciudad/categoría (con debounce), chips de stats (participantes, segmentada, ventas, promedio, anomalías), tabla con 🚩 z-score y botón vetar/readmitir, y form de config. Responsive (tabla con scroll-x), `escapeHtml`.
+- **Test:** `test_admin_ligas_a24.py` → **29/29**.
+- **Nota matemática:** con un único outlier, el z-score máximo ≈ √(n−1); por eso las anomalías solo se detectan en ligas con suficientes participantes (correcto: importan en ligas grandes).
+
+### Pendiente (Fase 3)
+- A25 recompensas automáticas de liga (cron + UI) · A26 moderación de duelos · A27 gestión de referidos · A28 challenges 2.0.
+
+### Problemas
+- Test inicial usaba 5 participantes con 1 outlier → no detectable (z máx ≈2.0 < umbral 3). Corregido a datos realistas (20+1).
+- `text()` no expande tuplas en `IN`; los IDs (ya validados int) se insertan inline de forma segura.
+
+### Siguiente paso
+- **A25 — Recompensas automáticas de liga (cron + UI)**: job mensual que premia al top-3 de cada liga + pantalla para revisar/forzar la ejecución.
+
+---
+
 ## 2026-06-05 — Panel admin A23 · Editor de retos mensuales
 
 **Sprint actual:** Panel de Administración. **Fase 3 (Eventos/Retos/Competencia).** Avance **23/49**.
