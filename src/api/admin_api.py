@@ -2112,6 +2112,81 @@ def reportes_export():
         return build_cors_response({'success': False, 'error': str(e)}, 500)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# SALUD DEL SISTEMA (Admin Panel A37)
+# Health de BD/API + errores recientes (reportes) + métricas de uso.
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/salud', methods=['GET'])
+@requiere_permiso('reportes')
+def salud_sistema():
+    """GET /api/admin/salud → estado general, health BD, errores recientes y uso."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    import time as _time
+    try:
+        def _scalar(sql, params=None):
+            try:
+                return int(_db.session.execute(_t(sql), params or {}).scalar() or 0)
+            except Exception:
+                return 0
+
+        # ── Health de la BD (latencia de un SELECT 1) ──
+        db_ok = True
+        db_ms = None
+        try:
+            _t0 = _time.time()
+            _db.session.execute(_t("SELECT 1"))
+            db_ms = round((_time.time() - _t0) * 1000, 1)
+        except Exception as _dbe:
+            db_ok = False
+            logger.error(f"[salud] BD no responde: {_dbe}")
+
+        # ── Errores / reportes (sistema de feedback, tipo bug) ──
+        bugs = {
+            'nuevos':      _scalar("SELECT COUNT(*) FROM feedback WHERE tipo_feedback='bug' AND estado='nuevo'"),
+            'en_revision': _scalar("SELECT COUNT(*) FROM feedback WHERE tipo_feedback='bug' AND estado='en_revision'"),
+            'resueltos':   _scalar("SELECT COUNT(*) FROM feedback WHERE tipo_feedback='bug' AND estado='resuelto'"),
+        }
+        recientes = []
+        try:
+            for r in _db.session.execute(_t("""
+                SELECT id_feedback, descripcion, url_contexto, fecha_envio, estado, prioridad
+                FROM feedback WHERE tipo_feedback='bug'
+                ORDER BY fecha_envio DESC NULLS LAST LIMIT 10
+            """)).fetchall():
+                recientes.append({
+                    'id': r[0], 'descripcion': (r[1] or '')[:160], 'url': r[2],
+                    'fecha': r[3].isoformat() if r[3] else None,
+                    'estado': r[4], 'prioridad': r[5],
+                })
+        except Exception:
+            pass
+
+        # ── Métricas de uso ──
+        uso = {
+            'pedidos_24h':        _scalar("SELECT COUNT(*) FROM pedidos WHERE fecha_pedido >= (NOW() - INTERVAL '24 hours')"),
+            'pedidos_7d':         _scalar("SELECT COUNT(*) FROM pedidos WHERE fecha_pedido >= (NOW() - INTERVAL '7 days')"),
+            'negocios_nuevos_7d': _scalar("SELECT COUNT(*) FROM negocios WHERE fecha_registro >= (NOW() - INTERVAL '7 days')"),
+            'usuarios_nuevos_7d': _scalar("SELECT COUNT(*) FROM usuarios WHERE created_at >= (NOW() - INTERVAL '7 days')"),
+            'usuarios_activos_7d':_scalar("SELECT COUNT(*) FROM usuarios WHERE last_login >= (NOW() - INTERVAL '7 days')"),
+            'productos_7d':       _scalar("SELECT COUNT(*) FROM productos_catalogo WHERE fecha_creacion >= (NOW() - INTERVAL '7 days')"),
+        }
+        acciones_admin_24h = _scalar("SELECT COUNT(*) FROM admin_audit_log WHERE created_at >= (NOW() - INTERVAL '24 hours')")
+
+        from src.api.utils.salud_service import evaluar_salud
+        estado = evaluar_salud({'db_ok': db_ok, 'bugs_nuevos': bugs['nuevos']})
+
+        return build_cors_response({
+            'success': True, 'estado': estado,
+            'db': {'ok': db_ok, 'latencia_ms': db_ms},
+            'bugs': bugs, 'errores_recientes': recientes,
+            'uso': uso, 'acciones_admin_24h': acciones_admin_24h,
+        })
+    except Exception as e:
+        logger.error(f"Error en salud_sistema: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
 @admin_bp.route('/usuarios/<int:user_id>', methods=['DELETE'])
 @superadmin_required
 def delete_usuario(user_id):

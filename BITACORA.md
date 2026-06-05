@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-06-05 — Panel admin A37 · Salud del sistema
+
+**Sprint actual:** Panel de Administración. **Fase 5.** Avance **37/51**.
+
+### Completado
+- **A37 — Salud del sistema.** Panel de estado para diagnosticar la plataforma de un vistazo.
+  - **Backend:** helper PURO `evaluar_salud(d)` + `UMBRAL_BUGS_ATENCION` en `api/utils/salud_service.py` (semáforo ok/atención/crítico: BD caída = crítico; bugs nuevos ≥ umbral = atención). Endpoint `GET /api/admin/salud` (`requiere_permiso('reportes')`): health de BD (`SELECT 1` + latencia ms), errores recientes (feedback `tipo_feedback='bug'` + conteos por estado), métricas de uso (pedidos 24h/7d, negocios/usuarios nuevos 7d, activos 7d vía last_login, productos 7d), acciones admin 24h. Tolerante: si la BD falla marca db_ok=False sin reventar.
+  - **Frontend:** sección/nav "Salud del sistema" (grupo Configuración): semáforo de estado general + chips BD/bugs, stat-cards de uso, tabla de errores recientes con link a Reportes.
+- **Test:** `test_admin_salud_a37.py` → **19/19**.
+
+### Pendiente (Fase 5)
+- A38 config global · A39 feature flags v2 · A40 pulido final + docs.
+
+### Siguiente paso
+- **A38 — Configuración global de la plataforma** (modo mantenimiento, registro abierto/cerrado, textos legales/landing).
+
+---
+
 ## 2026-06-05 — Panel admin A36 · Centro de reportes exportables · 📊 ARRANCA FASE 5
 
 **Sprint actual:** Panel de Administración. **Fase 5 (Analítica/Salud/Cierre) iniciada (A36-A40).** Avance **36/51**.
