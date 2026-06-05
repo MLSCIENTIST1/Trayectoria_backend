@@ -485,6 +485,12 @@ def create_app():
                     "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS eliminado_por VARCHAR(120)",
                     # A32 — moderación del feed de comunidad
                     "ALTER TABLE negocio_badges_obtenidos ADD COLUMN IF NOT EXISTS oculto_feed BOOLEAN DEFAULT FALSE",
+                    # A38 — configuración global de la plataforma (tabla sin depender solo de create_all)
+                    """CREATE TABLE IF NOT EXISTS config_global (
+                        clave      VARCHAR(60) PRIMARY KEY,
+                        valor      JSONB DEFAULT '{}'::jsonb,
+                        updated_at TIMESTAMP DEFAULT NOW()
+                    )""",
                 ]
                 for sql in migraciones:
                     try:

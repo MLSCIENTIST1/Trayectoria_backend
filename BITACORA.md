@@ -11,6 +11,25 @@
 
 ---
 
+## 2026-06-05 — Panel admin A38 · Configuración global de la plataforma
+
+**Sprint actual:** Panel de Administración. **Fase 5.** Avance **38/51**.
+
+### Completado
+- **A38 — Configuración global.** Toggles y textos editables sin tocar código.
+  - **Backend:** nuevo modelo `ConfigGlobal` (tabla `config_global`) en `models/colombia_data/config_plataforma.py` — creada por `create_all` (tiene modelo, importado en `models/__init__.py`) **y** por migración en `create_app` (doble garantía, lección F8). `CONFIG_GLOBAL_DEFAULT` (modo_mantenimiento, mensaje, registro_abierto, mensaje_registro_cerrado, textos términos/privacidad/landing) + `validar/get/set_config_global` (parcial, a prueba de fallos). Endpoints `GET /api/admin/config-global` (`requiere_permiso('configuracion')`) y `PUT` (**superadmin**, auditado sin volcar textos largos).
+  - **Cableo real:** endpoint público `GET /api/config-publica` (mantenimiento/registro) y `register_user` ahora **rechaza con 403** si `registro_abierto=false` (tolerante: si falla la lectura, no bloquea).
+  - **Frontend:** sección/nav "Config. global": toggles (mantenimiento, registro) con sus mensajes + editores de términos, privacidad (Habeas Data) y hero de la landing.
+- **Test:** `test_admin_config_global_a38.py` → **22/22**.
+
+### Pendiente (Fase 5)
+- A39 feature flags v2 · A40 pulido final + docs.
+
+### Siguiente paso
+- **A39 — Centro de feature flags v2** (rollout por %, por segmento, por negocio; histórico).
+
+---
+
 ## 2026-06-05 — Panel admin A37 · Salud del sistema
 
 **Sprint actual:** Panel de Administración. **Fase 5.** Avance **37/51**.

@@ -101,6 +101,28 @@ logger = logging.getLogger(__name__)
 register_user_bp = Blueprint('register_user_bp', __name__)
 
 
+# ── A38: configuración pública de la plataforma (mantenimiento / registro) ──
+@register_user_bp.route('/config-publica', methods=['GET', 'OPTIONS'])
+def config_publica():
+    """GET /api/config-publica → flags públicos para que el frontend reaccione."""
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+    try:
+        from src.models.colombia_data.config_plataforma import get_config_global
+        c = get_config_global()
+        return jsonify({
+            'success': True,
+            'modo_mantenimiento': bool(c.get('modo_mantenimiento')),
+            'mensaje_mantenimiento': c.get('mensaje_mantenimiento', ''),
+            'registro_abierto': bool(c.get('registro_abierto', True)),
+            'mensaje_registro_cerrado': c.get('mensaje_registro_cerrado', ''),
+        }), 200
+    except Exception:
+        # A prueba de fallos: si algo falla, asumir todo abierto (no bloquear la plataforma).
+        return jsonify({'success': True, 'modo_mantenimiento': False,
+                        'registro_abierto': True}), 200
+
+
 def normalizar_texto(texto):
     """
     Normaliza texto removiendo acentos y convirtiendo a minúsculas.
@@ -192,6 +214,17 @@ def register_user():
         return jsonify({"success": True}), 200
     
     logger.info("📝 Procesando solicitud de registro de usuario")
+
+    # A38: respetar el toggle global de "registro abierto/cerrado".
+    try:
+        from src.models.colombia_data.config_plataforma import get_config_global
+        _cfg = get_config_global()
+        if not _cfg.get('registro_abierto', True):
+            return jsonify({'error': _cfg.get('mensaje_registro_cerrado')
+                            or 'El registro de nuevas cuentas está temporalmente cerrado.',
+                            'registro_cerrado': True}), 403
+    except Exception:
+        pass  # ante fallo, no bloquear el registro
 
     try:
         # 1. Obtener los datos enviados

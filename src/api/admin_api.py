@@ -2187,6 +2187,51 @@ def salud_sistema():
         return build_cors_response({'success': False, 'error': str(e)}, 200)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# CONFIGURACIÓN GLOBAL DE LA PLATAFORMA (Admin Panel A38)
+# Mantenimiento, registro abierto/cerrado, textos legales/landing.
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/config-global', methods=['GET'])
+@requiere_permiso('configuracion')
+def get_config_global_admin():
+    """GET /api/admin/config-global → configuración global efectiva + defaults."""
+    try:
+        from src.models.colombia_data.config_plataforma import get_config_global, CONFIG_GLOBAL_DEFAULT
+        return build_cors_response({'success': True, 'config': get_config_global(),
+                                    'default': CONFIG_GLOBAL_DEFAULT})
+    except Exception as e:
+        logger.error(f"Error en get_config_global_admin: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
+@admin_bp.route('/config-global', methods=['PUT'])
+@superadmin_required
+def update_config_global_admin():
+    """PUT /api/admin/config-global → actualiza toggles/textos globales. Solo superadmin (mantenimiento es crítico)."""
+    try:
+        from src.models.colombia_data.config_plataforma import (
+            validar_config_global, set_config_global, get_config_global
+        )
+        antes = get_config_global()
+        ok, limpio, error = validar_config_global(request.get_json(silent=True) or {})
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        nueva = set_config_global(limpio)
+        # En el detalle de auditoría no metemos los textos largos completos.
+        registrar_auditoria('editar', 'config_global', None,
+                            {'cambios': {k: (v if not isinstance(v, str) or len(v) <= 80 else v[:80] + '…')
+                                         for k, v in limpio.items()}})
+        return build_cors_response({'success': True, 'config': nueva, 'message': 'Configuración global actualizada'})
+    except Exception as e:
+        logger.error(f"Error en update_config_global_admin: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
 @admin_bp.route('/usuarios/<int:user_id>', methods=['DELETE'])
 @superadmin_required
 def delete_usuario(user_id):
