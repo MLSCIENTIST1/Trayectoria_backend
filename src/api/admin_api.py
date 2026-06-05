@@ -2066,6 +2066,116 @@ def get_gamif_negocio(negocio_id):
         return build_cors_response({'success': False, 'error': str(e)}, 200)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# FICHA 360° DEL NEGOCIO (Admin Panel A29)
+# Todo de un negocio en una vista: datos, dueño, plan/suscripción, gamificación,
+# insignias, pedidos, videos y estado. Cada bloque es a prueba de fallos.
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/negocios/<int:negocio_id>/ficha360', methods=['GET'])
+@requiere_permiso('negocios')
+def ficha_negocio_360(negocio_id):
+    """GET /api/admin/negocios/<id>/ficha360 → agregado completo del negocio."""
+    try:
+        conn = get_db_connection(); cur = conn.cursor()
+        cur.execute("""
+            SELECT id_negocio, nombre_negocio, slug, categoria, ciudad, telefono, whatsapp,
+                   email, logo_url, color_tema, activo, verificado, perfil_publico, tiene_pagina,
+                   plan_key, fecha_registro, usuario_id
+            FROM negocios WHERE id_negocio = %s
+        """, (negocio_id,))
+        n = cur.fetchone()
+        if not n:
+            cur.close(); conn.close()
+            return build_cors_response({'success': False, 'error': 'Negocio no encontrado'}, 404)
+        n = dict(n)
+
+        # Dueño
+        dueno = None
+        try:
+            cur.execute("SELECT id_usuario, nombre, correo FROM usuarios WHERE id_usuario = %s",
+                        (n.get('usuario_id'),))
+            u = cur.fetchone()
+            if u:
+                dueno = {'usuario_id': u['id_usuario'], 'nombre': u['nombre'], 'correo': u['correo']}
+        except Exception:
+            pass
+        cur.close(); conn.close()
+
+        negocio = {
+            'id': n['id_negocio'], 'nombre': n['nombre_negocio'], 'slug': n.get('slug'),
+            'categoria': n.get('categoria'), 'ciudad': n.get('ciudad'),
+            'telefono': n.get('telefono'), 'whatsapp': n.get('whatsapp'), 'email': n.get('email'),
+            'logo_url': n.get('logo_url'), 'color_tema': n.get('color_tema'),
+            'activo': n.get('activo'), 'verificado': n.get('verificado'),
+            'perfil_publico': n.get('perfil_publico'), 'tiene_pagina': n.get('tiene_pagina'),
+            'plan_key': n.get('plan_key') or 'basic',
+            'fecha_registro': n['fecha_registro'].isoformat() if n.get('fecha_registro') else None,
+        }
+
+        # Suscripción (a prueba de fallos: si la tabla/columna falla, queda None)
+        suscripcion = None
+        try:
+            from src.models.colombia_data.suscripcion_negocio import SuscripcionNegocio
+            from src.models.database import db as _db
+            sus = SuscripcionNegocio.query.filter_by(negocio_id=negocio_id).first()
+            if sus:
+                suscripcion = {
+                    'estado': sus.estado, 'es_trial': sus.es_trial,
+                    'fecha_fin_trial': sus.fecha_fin_trial.isoformat() if sus.fecha_fin_trial else None,
+                    'fecha_fin': sus.fecha_fin.isoformat() if sus.fecha_fin else None,
+                    'plan_id': sus.plan_id, 'trial_usado': sus.trial_usado,
+                }
+        except Exception as _se:
+            logger.warning(f"[ficha360] suscripción no disponible: {_se}")
+
+        # Gamificación
+        gamificacion = None
+        try:
+            from src.models.colombia_data.ratings.negocio_gamificacion import NegocioGamificacion
+            gami = NegocioGamificacion.query.filter_by(negocio_id=negocio_id).first()
+            if gami:
+                g = gami.serialize()
+                gamificacion = {
+                    'nivel': g.get('nivel'), 'xp_total': g.get('xp_total'),
+                    'tukoins': g.get('tukoins'), 'prestigio': g.get('prestigio'),
+                    'racha': (g.get('racha_actividad') or {}).get('dias') if isinstance(g.get('racha_actividad'), dict) else g.get('racha_actividad'),
+                }
+        except Exception as _ge:
+            logger.warning(f"[ficha360] gamificación no disponible: {_ge}")
+
+        # Conteos (escalares tolerantes)
+        insignias = int(_scalar_admin(
+            "SELECT COUNT(*) AS v FROM negocio_badges_obtenidos WHERE negocio_id = %s "
+            "AND (activo IS TRUE OR activo IS NULL)", (negocio_id,)))
+        pedidos = {
+            'total': int(_scalar_admin("SELECT COUNT(*) AS v FROM pedidos WHERE negocio_id = %s", (negocio_id,))),
+            'entregados': int(_scalar_admin(
+                "SELECT COUNT(*) AS v FROM pedidos WHERE negocio_id = %s AND estado = 'entregado'", (negocio_id,))),
+            'ventas_total': float(_scalar_admin(
+                "SELECT COALESCE(SUM(total),0) AS v FROM pedidos WHERE negocio_id = %s AND estado = 'entregado'", (negocio_id,))),
+        }
+        productos = int(_scalar_admin(
+            "SELECT COUNT(*) AS v FROM productos_catalogo WHERE negocio_id = %s", (negocio_id,)))
+        videos = {
+            'total': int(_scalar_admin("SELECT COUNT(*) AS v FROM negocio_videos WHERE negocio_id = %s", (negocio_id,))),
+            'aprobados': int(_scalar_admin(
+                "SELECT COUNT(*) AS v FROM negocio_videos WHERE negocio_id = %s AND estado_moderacion = 'aprobado'", (negocio_id,))),
+            'pendientes': int(_scalar_admin(
+                "SELECT COUNT(*) AS v FROM negocio_videos WHERE negocio_id = %s AND estado_moderacion = 'pendiente'", (negocio_id,))),
+        }
+        if gamificacion is not None:
+            gamificacion['insignias'] = insignias
+
+        return build_cors_response({
+            'success': True, 'negocio': negocio, 'dueno': dueno,
+            'suscripcion': suscripcion, 'gamificacion': gamificacion,
+            'insignias': insignias, 'pedidos': pedidos, 'productos': productos, 'videos': videos,
+        })
+    except Exception as e:
+        logger.error(f"Error en ficha_negocio_360: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
 def _scalar_admin(sql, params):
     """Helper: escalar tolerante a fallos para consultas admin puntuales."""
     try:

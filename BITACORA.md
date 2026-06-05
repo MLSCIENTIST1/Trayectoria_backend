@@ -11,6 +11,27 @@
 
 ---
 
+## 2026-06-05 — Panel admin A29 · Ficha 360° del negocio · 🏪 ARRANCA FASE 4
+
+**Sprint actual:** Panel de Administración. **Fase 4 (Negocios) iniciada (A29-A35).** Avance **29/49**.
+
+### Completado
+- **A29 — Ficha 360° del negocio.** Vista agregada de todo un negocio en un modal.
+  - **Backend:** endpoint `GET /api/admin/negocios/<id>/ficha360` (`requiere_permiso('negocios')`). Agrega: datos del negocio (columnas correctas `id_negocio`/`nombre_negocio`), dueño (usuarios), suscripción (try/except, resiste el schema drift de F7), gamificación (nivel/XP/TuKoins/prestigio/racha/insignias), pedidos (total/entregados/ventas_total), productos y videos (por `estado_moderacion`). Conteos vía `_scalar_admin` (tolerante). 404 si el negocio no existe; cada bloque a prueba de fallos.
+  - **Frontend:** modal "Ficha 360°" + botón por fila (icono clipboard) en la tabla de Negocios; render con chips por sección (estado/plan, dueño, suscripción, gamificación, actividad).
+- **Test:** `test_admin_ficha360_a29.py` → **20/20**.
+
+### Pendiente (Fase 4)
+- A30 soft-delete + papelera · A31 moderación feed/videos + perfiles creador · A32 moderación feed comunidad · A33 anuncios/notificaciones masivas · A34 planes/suscripciones avanzada · A35 soporte/impersonar.
+
+### Problemas
+- Ninguno.
+
+### Siguiente paso
+- **A30 — Soft-delete + papelera (usuarios y negocios)**.
+
+---
+
 ## 2026-06-05 — Panel admin A28 · Challenges 2.0 · 🎉 FASE 3 COMPLETA
 
 **Sprint actual:** Panel de Administración. **Fase 3 (Eventos/Retos/Competencia) COMPLETA (A22-A28).** Avance **28/49**.
