@@ -11,6 +11,19 @@
 
 ---
 
+## 2026-06-05 — 🐞 FIX producción F9 · no se podían guardar fotos de producto
+
+**Tipo:** corrección urgente (usuario nuevo bloqueado al cargar fotos, ~17 errores).
+
+### Causa
+- En `contabilidad/modulos/inventario.html` (módulo real de productos; `inventario.js` es legado y no se carga), `handleGaleriaUpload` **rechazaba** toda imagen > 5MB. Fotos de celular (3-8MB) → casi todas rechazadas = los ~17 errores.
+
+### Solución (FRONT)
+- Compresión en el cliente con canvas: helper `comprimirImagen` + `handleGaleriaUpload` async que comprime antes de añadir (8MB → ~300KB). Solo omite si tras comprimir sigue >5MB. `node --check` OK.
+- Detalle en `memory/fixes_tienda_checkout.md` (F9).
+
+---
+
 ## 2026-06-05 — Panel admin A34 · Gestión avanzada de planes
 
 **Sprint actual:** Panel de Administración. **Fase 4.** Avance **34/51**.
