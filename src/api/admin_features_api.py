@@ -230,6 +230,45 @@ def update_plan_features(plan_id):
     return jsonify({'success': True, 'plan': plan.to_dict(include_features=True), 'message': f"Plan '{plan.nombre}' actualizado"})
 
 
+@admin_features_bp.route('/api/admin/planes/<int:plan_id>', methods=['PUT', 'OPTIONS'])
+@admin_required
+def update_plan_datos(plan_id):
+    """
+    PUT /api/admin/planes/<id>  (A34) — edita datos del plan:
+    nombre, descripcion, precio_mensual, precio_anual, orden, color, icono, activo.
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({'success': True}), 200
+    try:
+        from src.models.feature_models import validar_plan_datos
+        plan = Plan.query.get(plan_id)
+        if not plan:
+            return jsonify({'error': 'Plan no encontrado'}), 404
+        ok, limpio, error = validar_plan_datos(request.get_json(silent=True) or {})
+        if not ok:
+            return jsonify({'error': error}), 400
+        antes = {
+            'nombre': plan.nombre, 'precio_mensual': float(plan.precio_mensual or 0),
+            'precio_anual': float(plan.precio_anual or 0), 'activo': plan.activo,
+            'color': plan.color, 'icono': plan.icono, 'orden': plan.orden,
+        }
+        for campo, valor in limpio.items():
+            setattr(plan, campo, valor)
+        db.session.commit()
+        try:
+            from src.api.admin_api import registrar_auditoria
+            registrar_auditoria('editar', 'plan', plan_id, {'antes': antes, 'despues': limpio})
+        except Exception:
+            pass
+        logger.info(f"💳 Plan {plan_id} ({plan.nombre}) editado por {g.user_email}")
+        return jsonify({'success': True, 'plan': plan.to_dict(include_features=True),
+                        'message': f"Plan '{plan.nombre}' actualizado"})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error editando plan {plan_id}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # ASIGNACIÓN DE PLANES A NEGOCIOS
 # ═══════════════════════════════════════════════════════════════════════════════

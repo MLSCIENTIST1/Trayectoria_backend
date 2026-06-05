@@ -13,6 +13,48 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def validar_plan_datos(payload):
+    """
+    Valida y normaliza los datos editables de un Plan (A34). Función PURA.
+    Devuelve (ok, limpio, error). 'limpio' solo trae los campos presentes y válidos.
+    """
+    import re as _re
+    if not isinstance(payload, dict):
+        return False, {}, 'Se espera un objeto'
+    limpio = {}
+    if 'nombre' in payload:
+        nombre = str(payload.get('nombre', '')).strip()
+        if not nombre:
+            return False, {}, 'El nombre es obligatorio'
+        limpio['nombre'] = nombre[:100]
+    if 'descripcion' in payload:
+        limpio['descripcion'] = str(payload.get('descripcion') or '').strip()[:1000]
+    for campo in ('precio_mensual', 'precio_anual'):
+        if campo in payload and payload[campo] not in (None, ''):
+            try:
+                v = float(payload[campo])
+            except (TypeError, ValueError):
+                return False, {}, f'{campo} debe ser numérico'
+            if not (0 <= v <= 100000000):
+                return False, {}, f'{campo} fuera de rango'
+            limpio[campo] = round(v, 2)
+    if 'orden' in payload and payload['orden'] not in (None, ''):
+        try:
+            limpio['orden'] = int(payload['orden'])
+        except (TypeError, ValueError):
+            return False, {}, 'orden debe ser entero'
+    if 'color' in payload and payload.get('color'):
+        color = str(payload['color']).strip()
+        if not _re.fullmatch(r'#[0-9a-fA-F]{6}', color):
+            return False, {}, 'color debe ser hex #RRGGBB'
+        limpio['color'] = color
+    if 'icono' in payload:
+        limpio['icono'] = str(payload.get('icono') or '')[:10]
+    if 'activo' in payload:
+        limpio['activo'] = bool(payload['activo'])
+    return True, limpio, None
+
+
 class FeatureFlag(db.Model):
     __tablename__ = 'feature_flags'
     

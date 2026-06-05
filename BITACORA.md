@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-06-05 — Panel admin A34 · Gestión avanzada de planes
+
+**Sprint actual:** Panel de Administración. **Fase 4.** Avance **34/51**.
+
+### Completado
+- **A34 — Gestión de planes avanzada.** Hasta ahora el panel solo dejaba editar las *features* de un plan; faltaba editar sus **datos** (precio, nombre, etc.). Ahora sí.
+  - **Backend:** validador PURO `validar_plan_datos(payload)` en `feature_models.py` (parcial — solo valida/normaliza los campos enviados: nombre, descripción, precio_mensual/anual ≥0, color hex #RRGGBB, ícono, orden, activo). Endpoint `PUT /api/admin/planes/<id>` (`admin_required`, auditado con antes/después). Suscripciones (activar/extender/cancelar/pausar/trial) y pagos (listar/registrar) ya existían de v3.0.
+  - **Frontend:** botón "Editar" ✏️ en cada tarjeta de plan + modal con precio mensual/anual, color picker, ícono, orden y checkbox "activo". La tarjeta ahora muestra precio anual y marca "(inactivo)".
+- **Test:** `test_admin_planes_a34.py` → **19/19**.
+
+### Pendiente (Fase 4)
+- A35 soporte/impersonar (ver como el usuario, read-only, auditado) → cierra Fase 4.
+
+### Siguiente paso
+- **A35 — Soporte / impersonar**.
+
+---
+
 ## 2026-06-05 — Panel admin A33 · Anuncios / notificaciones masivas
 
 **Sprint actual:** Panel de Administración. **Fase 4.** Avance **33/49**.
