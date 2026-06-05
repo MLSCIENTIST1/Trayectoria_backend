@@ -18,6 +18,7 @@ ACCIONES_VALIDAS = {
     'toggle', 'otorgar', 'revocar', 'ajustar', 'asignar', 'aprobar',
     'rechazar', 'login', 'export', 'recalcular', 'enviar', 'simular',
     'excluir', 'readmitir',  # A24: moderación de ligas
+    'soporte',               # A35: acceso a modo soporte (solo lectura)
 }
 
 

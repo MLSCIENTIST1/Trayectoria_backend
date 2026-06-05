@@ -11,6 +11,25 @@
 
 ---
 
+## 2026-06-05 — Panel admin A35 · Modo soporte · 🎉 FASE 4 COMPLETA
+
+**Sprint actual:** Panel de Administración. **Fase 4 (Negocios) COMPLETA (A29-A35).** Avance **35/51**.
+
+### Completado
+- **A35 — Modo soporte / "ver como el usuario".** Se descartó la impersonación real de sesión (inseguro); en su lugar, snapshot **read-only** + diagnóstico.
+  - **Backend:** helper PURO `diagnosticar_negocio(snapshot)` en `api/utils/soporte_service.py` (detecta: en papelera, inactivo, sin logo, sin página, perfil oculto, sin productos, sin pedidos, suscripción vencida/pausada, trial; si nada → 'ok'). Endpoint `GET /api/admin/soporte/negocio/<id>` (`requiere_permiso('negocios')`, **solo lectura**, sin `login_user`, auditado con acción `soporte`). Devuelve negocio+dueño+suscripción+conteos+últimos 5 pedidos/productos+diagnóstico+link a la tienda pública. Acción `soporte` añadida a `ACCIONES_VALIDAS`.
+  - **Frontend:** botón "Modo soporte" 🛟 por fila de negocio + modal con diagnóstico (✓/ℹ/⚠), métricas, últimos pedidos/productos y botón "Ver su tienda pública".
+- **Test:** `test_admin_soporte_a35.py` → **20/20**.
+- **🎉 Cierre Fase 4:** Ficha 360 (A29), papelera (A30), moderación videos/perfiles (A31), feed comunidad (A32), anuncios masivos (A33), planes avanzados (A34), soporte (A35).
+
+### Pendiente
+- Fase 5 (A36-A40 · Analítica), Fase 6 (A41-A49 · Pagos/Legal), Fase 7 EXTRA (A50-A51 · Notificaciones).
+
+### Siguiente paso
+- **A36 — arranca Fase 5 (Analítica/Salud/Cierre)**.
+
+---
+
 ## 2026-06-05 — 🐞 FIX producción F9 · no se podían guardar fotos de producto
 
 **Tipo:** corrección urgente (usuario nuevo bloqueado al cargar fotos, ~17 errores).

@@ -1868,6 +1868,97 @@ def enviar_anuncio_masivo():
         return build_cors_response({'success': False, 'error': str(e)}, 500)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# MODO SOPORTE / "VER COMO EL USUARIO" (Admin Panel A35)
+# Snapshot de SOLO LECTURA + diagnóstico automático. NO suplanta la sesión del
+# usuario (eso sería inseguro). Acceso auditado.
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/soporte/negocio/<int:negocio_id>', methods=['GET'])
+@requiere_permiso('negocios')
+def soporte_negocio(negocio_id):
+    """GET /api/admin/soporte/negocio/<id> → snapshot read-only + diagnóstico + accesos rápidos."""
+    from src.models.database import db as _db
+    try:
+        conn = get_db_connection(); cur = conn.cursor()
+        cur.execute("""
+            SELECT id_negocio, nombre_negocio, slug, ciudad, logo_url, activo, verificado,
+                   perfil_publico, tiene_pagina, plan_key, COALESCE(eliminado, FALSE) AS eliminado,
+                   usuario_id
+            FROM negocios WHERE id_negocio = %s
+        """, (negocio_id,))
+        n = cur.fetchone()
+        if not n:
+            cur.close(); conn.close()
+            return build_cors_response({'success': False, 'error': 'Negocio no encontrado'}, 404)
+        n = dict(n)
+
+        dueno = None
+        if n.get('usuario_id'):
+            cur.execute("SELECT id_usuario, nombre, correo FROM usuarios WHERE id_usuario = %s", (n['usuario_id'],))
+            u = cur.fetchone()
+            if u:
+                dueno = {'usuario_id': u['id_usuario'], 'nombre': u['nombre'], 'correo': u['correo']}
+
+        # Últimos pedidos y productos (solo lectura)
+        cur.execute("""
+            SELECT id_pedido, estado, total, fecha_pedido FROM pedidos
+            WHERE negocio_id = %s ORDER BY fecha_pedido DESC NULLS LAST LIMIT 5
+        """, (negocio_id,))
+        ult_pedidos = [{'id': r['id_pedido'], 'estado': r['estado'],
+                        'total': float(r['total'] or 0),
+                        'fecha': r['fecha_pedido'].isoformat() if r['fecha_pedido'] else None}
+                       for r in cur.fetchall()]
+        cur.execute("""
+            SELECT nombre, precio, stock, activo FROM productos_catalogo
+            WHERE negocio_id = %s ORDER BY id_producto DESC LIMIT 5
+        """, (negocio_id,))
+        ult_productos = [{'nombre': r['nombre'], 'precio': float(r['precio'] or 0),
+                          'stock': r['stock'], 'activo': r['activo']} for r in cur.fetchall()]
+        cur.close(); conn.close()
+
+        # Suscripción (tolerante)
+        suscripcion = None
+        try:
+            from src.models.colombia_data.suscripcion_negocio import SuscripcionNegocio
+            sus = SuscripcionNegocio.query.filter_by(negocio_id=negocio_id).first()
+            if sus:
+                suscripcion = {'estado': sus.estado, 'es_trial': sus.es_trial}
+        except Exception:
+            pass
+
+        productos = int(_scalar_admin("SELECT COUNT(*) AS v FROM productos_catalogo WHERE negocio_id = %s", (negocio_id,)))
+        pedidos = int(_scalar_admin("SELECT COUNT(*) AS v FROM pedidos WHERE negocio_id = %s", (negocio_id,)))
+        videos = int(_scalar_admin("SELECT COUNT(*) AS v FROM negocio_videos WHERE negocio_id = %s", (negocio_id,)))
+
+        negocio = {
+            'id': n['id_negocio'], 'nombre': n['nombre_negocio'], 'slug': n.get('slug'),
+            'ciudad': n.get('ciudad'), 'logo_url': n.get('logo_url'), 'activo': n.get('activo'),
+            'verificado': n.get('verificado'), 'perfil_publico': n.get('perfil_publico'),
+            'tiene_pagina': n.get('tiene_pagina'), 'plan_key': n.get('plan_key') or 'basic',
+            'eliminado': n.get('eliminado'),
+        }
+        snapshot = {'negocio': negocio, 'suscripcion': suscripcion,
+                    'productos': productos, 'pedidos': pedidos, 'videos': videos}
+
+        from src.api.utils.soporte_service import diagnosticar_negocio
+        diagnostico = diagnosticar_negocio(snapshot)
+
+        # Acceso a soporte = ver datos del usuario → auditado.
+        registrar_auditoria('soporte', 'soporte_negocio', negocio_id,
+                            {'dueno': (dueno or {}).get('correo')})
+
+        tienda_url = f"https://tukomercio.co/tienda/{negocio['slug']}" if negocio.get('slug') else None
+        return build_cors_response({
+            'success': True, 'negocio': negocio, 'dueno': dueno, 'suscripcion': suscripcion,
+            'productos': productos, 'pedidos': pedidos, 'videos': videos,
+            'ultimos_pedidos': ult_pedidos, 'ultimos_productos': ult_productos,
+            'diagnostico': diagnostico, 'tienda_url': tienda_url,
+        })
+    except Exception as e:
+        logger.error(f"Error en soporte_negocio: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
 @admin_bp.route('/usuarios/<int:user_id>', methods=['DELETE'])
 @superadmin_required
 def delete_usuario(user_id):
