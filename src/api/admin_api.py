@@ -1800,6 +1800,74 @@ def update_feed_comunidad_config():
         return build_cors_response({'success': False, 'error': str(e)}, 500)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# ANUNCIOS / NOTIFICACIONES MASIVAS (Admin Panel A33)
+# Enviar avisos in-app a segmentos (ciudad / plan / nivel) con plantillas.
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/anuncios/plantillas', methods=['GET'])
+@requiere_permiso('usuarios')
+def get_anuncio_plantillas():
+    """GET /api/admin/anuncios/plantillas → plantillas rápidas predefinidas."""
+    try:
+        from src.api.utils.anuncios_service import PLANTILLAS_ANUNCIO
+        return build_cors_response({'success': True, 'plantillas': PLANTILLAS_ANUNCIO})
+    except Exception as e:
+        logger.error(f"Error en get_anuncio_plantillas: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'plantillas': []}, 200)
+
+
+@admin_bp.route('/anuncios/preview', methods=['POST'])
+@requiere_permiso('usuarios')
+def preview_anuncio():
+    """POST /api/admin/anuncios/preview  body: { ciudad?, plan?, nivel_min? } → nº de destinatarios."""
+    from src.models.database import db as _db
+    try:
+        from src.api.utils.anuncios_service import contar_destinatarios
+        filtros = request.get_json(silent=True) or {}
+        total = contar_destinatarios(_db.session, filtros)
+        return build_cors_response({'success': True, 'destinatarios': total})
+    except Exception as e:
+        logger.error(f"Error en preview_anuncio: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'destinatarios': 0}, 200)
+
+
+@admin_bp.route('/anuncios/enviar', methods=['POST'])
+@requiere_permiso('usuarios')
+def enviar_anuncio_masivo():
+    """
+    POST /api/admin/anuncios/enviar
+    body: { titulo, mensaje, prioridad?, ciudad?, plan?, nivel_min?, confirmar:true }
+    Crea una notificación in-app por cada usuario del segmento. Auditado.
+    """
+    from src.models.database import db as _db
+    try:
+        from src.api.utils.anuncios_service import enviar_anuncio, contar_destinatarios
+        data = request.get_json(silent=True) or {}
+        mensaje = (data.get('mensaje') or '').strip()
+        if not mensaje:
+            return build_cors_response({'success': False, 'error': 'El mensaje es obligatorio'}, 400)
+        if not data.get('confirmar'):
+            return build_cors_response({'success': False, 'error': 'Falta confirmar:true (revisa el preview primero)'}, 400)
+        filtros = {'ciudad': data.get('ciudad'), 'plan': data.get('plan'), 'nivel_min': data.get('nivel_min')}
+        titulo = (data.get('titulo') or '').strip()
+        prioridad = data.get('prioridad', 'media')
+        previstos = contar_destinatarios(_db.session, filtros)
+        enviados = enviar_anuncio(_db.session, filtros, titulo, mensaje, prioridad)
+        registrar_auditoria('enviar', 'anuncio_masivo', None, {
+            'filtros': filtros, 'titulo': titulo, 'prioridad': prioridad,
+            'destinatarios': enviados or previstos,
+        })
+        return build_cors_response({'success': True, 'enviados': enviados or previstos,
+                                    'message': f'Anuncio enviado a {enviados or previstos} usuario(s)'})
+    except Exception as e:
+        logger.error(f"Error en enviar_anuncio_masivo: {e}")
+        try:
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
 @admin_bp.route('/usuarios/<int:user_id>', methods=['DELETE'])
 @superadmin_required
 def delete_usuario(user_id):

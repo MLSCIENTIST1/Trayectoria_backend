@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-06-05 — Panel admin A33 · Anuncios / notificaciones masivas
+
+**Sprint actual:** Panel de Administración. **Fase 4.** Avance **33/49**.
+
+### Completado
+- **A33 — Anuncios masivos.** Enviar notificaciones in-app (campanita) a segmentos de usuarios.
+  - **Backend:** servicio `api/utils/anuncios_service.py`: helper PURO `construir_filtros_segmento(filtros)` (ciudad ILIKE, plan_key, nivel_min vía join `negocio_gamificacion`; siempre excluye papelera y exige usuario_id) + `PLANTILLAS_ANUNCIO` (5 plantillas) + `contar_destinatarios` (preview) + `enviar_anuncio` (**un solo `INSERT ... SELECT`** sobre `notification`, sin N inserts). Endpoints `GET /anuncios/plantillas`, `POST /anuncios/preview`, `POST /anuncios/enviar` (exige `confirmar`+mensaje, auditado con conteo). Todos `requiere_permiso('usuarios')`.
+  - **Frontend:** nueva sección/nav "Anuncios": filtros de segmento con **contador de destinatarios en vivo**, selector de plantilla, título/mensaje/prioridad y envío con confirmación.
+- **Test:** `test_admin_anuncios_a33.py` → **25/25**.
+
+### Pendiente (Fase 4)
+- A34 planes/suscripciones avanzada · A35 soporte/impersonar.
+
+### Siguiente paso
+- **A34 — Gestión de planes y suscripciones avanzada**.
+
+---
+
 ## 2026-06-05 — 🐞 FIX CRÍTICO F8 · migraciones de run.py no corrían en prod
 
 **Tipo:** corrección urgente de producción (panel no cargaba negocios).
