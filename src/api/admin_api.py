@@ -2329,6 +2329,54 @@ def recalcular_aplicar():
 # GAMIFICACIÓN — PARÁMETROS DE SUGERENCIAS/COMPARATIVAS (Admin Panel A12)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@admin_bp.route('/gamificacion/eventos', methods=['GET'])
+@requiere_permiso('gamificacion')
+def get_gamif_eventos():
+    """GET /api/admin/gamificacion/eventos → lista efectiva de eventos especiales + default."""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import get_eventos_especiales, _eventos_default
+        from src.models.colombia_data.ratings.negocio_gamificacion import evento_especial
+        activo = evento_especial()
+        return build_cors_response({
+            'success': True,
+            'eventos': get_eventos_especiales(),
+            'default': _eventos_default(),
+            'activo': activo,
+        })
+    except Exception as e:
+        logger.error(f"Error en get_gamif_eventos: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
+@admin_bp.route('/gamificacion/eventos', methods=['PUT'])
+@requiere_permiso('gamificacion')
+def update_gamif_eventos():
+    """PUT /api/admin/gamificacion/eventos  body: { eventos: [ {codigo,nombre,icono,mes,dia_ini,dia_fin,xp_mult} ] }"""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            validar_eventos, set_eventos_especiales, get_eventos_especiales
+        )
+        antes = get_eventos_especiales()
+        payload = request.get_json(silent=True) or {}
+        lista = payload.get('eventos', payload if isinstance(payload, list) else [])
+        ok, limpio, error = validar_eventos(lista)
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        set_eventos_especiales(limpio)
+        registrar_auditoria('editar', 'gamif_eventos', None,
+                            {'antes': antes, 'despues': limpio, 'total': len(limpio)})
+        return build_cors_response({'success': True, 'eventos': limpio,
+                                    'message': f'{len(limpio)} evento(s) guardado(s)'})
+    except Exception as e:
+        logger.error(f"Error en update_gamif_eventos: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
 @admin_bp.route('/gamificacion/sugerencias-config', methods=['GET'])
 @requiere_permiso('gamificacion')
 def get_gamif_sugerencias():

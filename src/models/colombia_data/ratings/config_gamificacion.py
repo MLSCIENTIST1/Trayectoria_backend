@@ -655,6 +655,87 @@ def simular_evento(evento, xp_inicial, xp_eventos, xp_mult, bono_mult, niveles, 
 
 
 # ═══════════════════════════════════════════════════════════════════
+# EVENTOS ESPECIALES (A22) — ventanas de fecha con multiplicador de XP, editables
+# El DEFAULT vive en negocio_gamificacion.EVENTOS_ESPECIALES; aquí el override BD.
+# ═══════════════════════════════════════════════════════════════════
+
+def evento_activo_en(lista, fecha):
+    """Devuelve el evento activo en 'fecha' dentro de 'lista', o None. Función PURA."""
+    for ev in (lista or []):
+        try:
+            if fecha.month == int(ev['mes']) and int(ev['dia_ini']) <= fecha.day <= int(ev['dia_fin']):
+                return ev
+        except (KeyError, TypeError, ValueError):
+            continue
+    return None
+
+
+def validar_eventos(payload):
+    """
+    Valida una lista de eventos especiales. Función PURA. (ok, limpio, error).
+    Cada evento: codigo, nombre, icono, mes (1-12), dia_ini/dia_fin (1-31), xp_mult (1-10).
+    """
+    import re as _re
+    if not isinstance(payload, list):
+        return False, [], 'Se espera una lista de eventos'
+    limpio = []
+    vistos = set()
+    for i, ev in enumerate(payload):
+        if not isinstance(ev, dict):
+            return False, [], f'Evento #{i+1} inválido'
+        codigo = _re.sub(r'[^a-z0-9_]', '', str(ev.get('codigo', '')).strip().lower().replace(' ', '_'))
+        nombre = str(ev.get('nombre', '')).strip()
+        if not codigo or not nombre:
+            return False, [], f'Evento #{i+1}: código y nombre obligatorios'
+        if codigo in vistos:
+            return False, [], f'Código duplicado: {codigo}'
+        vistos.add(codigo)
+        try:
+            mes = int(ev['mes']); di = int(ev['dia_ini']); df = int(ev['dia_fin']); mult = int(ev['xp_mult'])
+        except (KeyError, TypeError, ValueError):
+            return False, [], f'Evento «{nombre}»: mes/días/multiplicador deben ser números'
+        if not (1 <= mes <= 12):
+            return False, [], f'Evento «{nombre}»: mes fuera de rango (1-12)'
+        if not (1 <= di <= 31) or not (1 <= df <= 31) or di > df:
+            return False, [], f'Evento «{nombre}»: rango de días inválido'
+        if not (1 <= mult <= 10):
+            return False, [], f'Evento «{nombre}»: multiplicador fuera de rango (1-10)'
+        limpio.append({'codigo': codigo, 'nombre': nombre[:60],
+                       'icono': str(ev.get('icono', '🎉'))[:8] or '🎉',
+                       'mes': mes, 'dia_ini': di, 'dia_fin': df, 'xp_mult': mult})
+    return True, limpio, None
+
+
+def _eventos_default():
+    from src.models.colombia_data.ratings.negocio_gamificacion import EVENTOS_ESPECIALES
+    return EVENTOS_ESPECIALES
+
+
+def get_eventos_especiales():
+    """Lista efectiva de eventos (override de BD o DEFAULT). A prueba de fallos."""
+    try:
+        row = GamifConfig.query.get('eventos_especiales')
+        if row and isinstance(row.valor, list):
+            return row.valor
+    except Exception:
+        pass
+    return _eventos_default()
+
+
+def set_eventos_especiales(limpio, db_session=None):
+    """Guarda la lista de eventos en gamif_config."""
+    sess = db_session or db.session
+    row = GamifConfig.query.get('eventos_especiales')
+    if row:
+        row.valor = limpio
+        row.updated_at = datetime.utcnow()
+    else:
+        sess.add(GamifConfig(clave='eventos_especiales', valor=limpio))
+    sess.commit()
+    return limpio
+
+
+# ═══════════════════════════════════════════════════════════════════
 # REGLAS DE RACHAS (A11) — configurables desde el panel
 # ═══════════════════════════════════════════════════════════════════
 RACHAS_DEFAULT = {

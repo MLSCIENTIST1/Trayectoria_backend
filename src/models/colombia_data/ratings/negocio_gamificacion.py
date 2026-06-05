@@ -51,13 +51,21 @@ EVENTOS_ESPECIALES = [
 
 
 def evento_especial(fecha=None):
-    """Devuelve el evento especial activo en 'fecha', o None. Función PURA."""
+    """
+    Devuelve el evento especial activo en 'fecha', o None.
+    A22: usa la lista efectiva (DEFAULT + override editable en gamif_config),
+    con fallback a EVENTOS_ESPECIALES si la BD no está disponible.
+    """
     if fecha is None:
         fecha = datetime.utcnow()
-    for ev in EVENTOS_ESPECIALES:
-        if fecha.month == ev['mes'] and ev['dia_ini'] <= fecha.day <= ev['dia_fin']:
-            return ev
-    return None
+    try:
+        from .config_gamificacion import get_eventos_especiales, evento_activo_en
+        return evento_activo_en(get_eventos_especiales(), fecha)
+    except Exception:
+        for ev in EVENTOS_ESPECIALES:
+            if fecha.month == ev['mes'] and ev['dia_ini'] <= fecha.day <= ev['dia_fin']:
+                return ev
+        return None
 
 
 def multiplicador_xp(fecha=None):

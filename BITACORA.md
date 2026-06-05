@@ -11,6 +11,28 @@
 
 ---
 
+## 2026-06-05 — Panel admin A22 · 🛍️ ARRANCA FASE 3 (Eventos)
+
+**Sprint actual:** Panel de Administración. **Fase 3 (Eventos, Retos y Competencia) iniciada (A22-A28).** Avance **22/49**.
+
+### Completado
+- **A22 — Gestor de eventos especiales (XP×):** se llevó `EVENTOS_ESPECIALES` (Semana del Tendero ×3, Aniversario ×2, Diciembre Mágico ×2) de constante en código a **BD editable** con el patrón "constante→BD con fallback".
+  - **Backend:** helpers PUROS `evento_activo_en(lista, fecha)` y `validar_eventos(payload)` + `get/set_eventos_especiales()` en `config_gamificacion.py` (override en `gamif_config`, clave `eventos_especiales`). `evento_especial()` ahora lee la lista efectiva y **cae al DEFAULT del módulo si la BD no está** (operación a prueba de fallos; los tests sin app-context siguen verdes). Validación: mes 1-12, día 1-31, `dia_ini ≤ dia_fin`, `xp_mult` 1-10, código slug único.
+  - **Endpoints:** `GET/PUT /api/admin/gamificacion/eventos` con `@requiere_permiso('gamificacion')`, auditados (`registrar_auditoria('editar','gamif_eventos', …, {antes, despues, total})`). El GET además devuelve el evento **activo hoy**.
+  - **Frontend:** tarjeta "🎉 Eventos especiales (XP×)" en la sección Gamificación del panel: filas editables (ícono/nombre/mes/día ini/día fin/XP×), añadir/eliminar, guardar, e indicador del evento activo. Responsive (grid). `escapeHtml` en todo el render.
+- **Test:** `test_admin_eventos_a22.py` → **28/28**. Suite completa **809/0**.
+
+### Pendiente (Fase 3)
+- A23 editor de retos mensuales · A24 moderación de ligas · A25 recompensas de liga (cron) · A26 moderación de duelos · A27 gestión de referidos · A28 challenges 2.0.
+
+### Problemas
+- Ninguno. El acoplamiento `config_gamificacion ↔ negocio_gamificacion` se resolvió con import perezoso (`_eventos_default()`) para evitar import circular.
+
+### Siguiente paso
+- **A23 — Editor de retos mensuales** (CRUD de `RETOS_MENSUALES`: métrica objetivo, recompensa, copy; programar el del mes).
+
+---
+
 ## 2026-06-04 — Panel admin A21 · 🎉 FASE 2 COMPLETA
 
 **Sprint actual:** Panel de Administración. **Fase 2 (Insignias) COMPLETA (A15-A21).** Avance **21/49**.
