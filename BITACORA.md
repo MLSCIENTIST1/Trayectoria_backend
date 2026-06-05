@@ -11,6 +11,26 @@
 
 ---
 
+## 2026-06-05 — Panel admin A30 · Soft-delete + papelera
+
+**Sprint actual:** Panel de Administración. **Fase 4.** Avance **30/49**.
+
+### Completado
+- **A30 — Soft-delete + papelera (negocios y usuarios).** Reemplaza el borrado en cascada irreversible por baja lógica + restauración; el hard-delete queda como "purga" solo desde la papelera.
+  - **Esquema:** columnas `eliminado`/`eliminado_en`/`eliminado_por` en `negocios` y `usuarios` (migración `run.py`, `ADD COLUMN IF NOT EXISTS`).
+  - **Truco anti-scope:** soft-delete de negocio pone también `activo=false` → ya queda oculto en todas las vistas que filtran por `activo` (storefront, listados) sin tocar decenas de queries. Soft-delete de usuario pone `active=false` → el login ya rechaza `not active`. El flag `eliminado` distingue "papelera" de "desactivado/lista negra".
+  - **Endpoints:** `POST .../negocios/<id>/papelera` + `/restaurar` (`requiere_permiso('negocios')`); `POST .../usuarios/<id>/papelera` + `/restaurar` (`superadmin`, bloquea administradores); `GET /api/admin/papelera`. Listados (`list_usuarios`, `list_negocios_with_plans`) excluyen `eliminado`. Todo auditado (`eliminar`/`restaurar`).
+  - **Frontend:** botón "Enviar a papelera" 📦 por fila + botón/modal "Papelera" en la sección Negocios (restaurar y purgar definitivamente con confirmación).
+- **Test:** `test_admin_papelera_a30.py` → **24/24**.
+
+### Pendiente (Fase 4)
+- A31 moderación feed/videos + perfiles creador · A32 moderación feed comunidad · A33 anuncios/notificaciones masivas · A34 planes/suscripciones avanzada · A35 soporte/impersonar.
+
+### Siguiente paso
+- **A31 — Moderación de feed/videos y perfiles de creador**.
+
+---
+
 ## 2026-06-05 — Panel admin A29 · Ficha 360° del negocio · 🏪 ARRANCA FASE 4
 
 **Sprint actual:** Panel de Administración. **Fase 4 (Negocios) iniciada (A29-A35).** Avance **29/49**.

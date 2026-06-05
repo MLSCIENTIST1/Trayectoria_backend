@@ -1304,11 +1304,12 @@ def list_usuarios():
         conn = get_db_connection()
         cur  = conn.cursor()
 
-        where = ""
+        # A30: excluir usuarios en papelera del listado normal.
+        where = "WHERE COALESCE(u.eliminado, FALSE) = FALSE"
         params = []
         if search:
-            where = """
-                WHERE (
+            where += """
+                AND (
                     LOWER(u.nombre || ' ' || u.apellidos) LIKE LOWER(%s)
                     OR LOWER(u.correo) LIKE LOWER(%s)
                     OR CAST(u.cedula AS TEXT) LIKE %s
@@ -1424,6 +1425,151 @@ def get_usuario(user_id):
     except Exception as e:
         logger.error(f"Error obteniendo usuario {user_id}: {e}")
         return build_cors_response({'error': str(e)}, 500)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SOFT-DELETE + PAPELERA (Admin Panel A30)
+# Baja lógica con papelera y restauración para negocios y usuarios. El borrado
+# permanente (purga) sigue siendo el DELETE en cascada existente (superadmin).
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/negocios/<int:negocio_id>/papelera', methods=['POST'])
+@requiere_permiso('negocios')
+def negocio_a_papelera(negocio_id):
+    """POST /api/admin/negocios/<id>/papelera → baja lógica (eliminado=true, activo=false)."""
+    try:
+        conn = get_db_connection(); cur = conn.cursor()
+        cur.execute("SELECT nombre_negocio FROM negocios WHERE id_negocio = %s", (negocio_id,))
+        row = cur.fetchone()
+        if not row:
+            cur.close(); conn.close()
+            return build_cors_response({'success': False, 'error': 'Negocio no encontrado'}, 404)
+        cur.execute("""
+            UPDATE negocios
+            SET eliminado = TRUE, eliminado_en = NOW(), eliminado_por = %s, activo = FALSE
+            WHERE id_negocio = %s
+        """, (getattr(g, 'user_email', None) or 'admin', negocio_id))
+        conn.commit(); cur.close(); conn.close()
+        registrar_auditoria('eliminar', 'negocio', negocio_id,
+                            {'tipo': 'papelera', 'nombre': row['nombre_negocio']})
+        return build_cors_response({'success': True, 'message': f"Negocio '{row['nombre_negocio']}' enviado a la papelera"})
+    except Exception as e:
+        logger.error(f"Error en negocio_a_papelera: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+@admin_bp.route('/negocios/<int:negocio_id>/restaurar', methods=['POST'])
+@requiere_permiso('negocios')
+def restaurar_negocio(negocio_id):
+    """POST /api/admin/negocios/<id>/restaurar → revierte la baja lógica."""
+    try:
+        conn = get_db_connection(); cur = conn.cursor()
+        cur.execute("SELECT nombre_negocio FROM negocios WHERE id_negocio = %s", (negocio_id,))
+        row = cur.fetchone()
+        if not row:
+            cur.close(); conn.close()
+            return build_cors_response({'success': False, 'error': 'Negocio no encontrado'}, 404)
+        cur.execute("""
+            UPDATE negocios
+            SET eliminado = FALSE, eliminado_en = NULL, eliminado_por = NULL, activo = TRUE
+            WHERE id_negocio = %s
+        """, (negocio_id,))
+        conn.commit(); cur.close(); conn.close()
+        registrar_auditoria('restaurar', 'negocio', negocio_id, {'nombre': row['nombre_negocio']})
+        return build_cors_response({'success': True, 'message': f"Negocio '{row['nombre_negocio']}' restaurado"})
+    except Exception as e:
+        logger.error(f"Error en restaurar_negocio: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+@admin_bp.route('/usuarios/<int:user_id>/papelera', methods=['POST'])
+@superadmin_required
+def usuario_a_papelera(user_id):
+    """POST /api/admin/usuarios/<id>/papelera → baja lógica (eliminado=true, active=false). No admins."""
+    try:
+        conn = get_db_connection(); cur = conn.cursor()
+        cur.execute("""
+            SELECT u.correo, a.id AS es_admin
+            FROM usuarios u
+            LEFT JOIN administradores a ON LOWER(a.email) = LOWER(u.correo) AND a.activo = true
+            WHERE u.id_usuario = %s
+        """, (user_id,))
+        u = cur.fetchone()
+        if not u:
+            cur.close(); conn.close()
+            return build_cors_response({'success': False, 'error': 'Usuario no encontrado'}, 404)
+        if u['es_admin']:
+            cur.close(); conn.close()
+            return build_cors_response({'success': False, 'error': 'No se puede enviar a papelera a un administrador activo. Desactívalo primero.'}, 403)
+        cur.execute("""
+            UPDATE usuarios
+            SET eliminado = TRUE, eliminado_en = NOW(), eliminado_por = %s, active = FALSE
+            WHERE id_usuario = %s
+        """, (getattr(g, 'user_email', None) or 'admin', user_id))
+        conn.commit(); cur.close(); conn.close()
+        registrar_auditoria('eliminar', 'usuario', user_id, {'tipo': 'papelera', 'correo': u['correo']})
+        return build_cors_response({'success': True, 'message': f"Usuario '{u['correo']}' enviado a la papelera"})
+    except Exception as e:
+        logger.error(f"Error en usuario_a_papelera: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+@admin_bp.route('/usuarios/<int:user_id>/restaurar', methods=['POST'])
+@superadmin_required
+def restaurar_usuario(user_id):
+    """POST /api/admin/usuarios/<id>/restaurar → revierte la baja lógica."""
+    try:
+        conn = get_db_connection(); cur = conn.cursor()
+        cur.execute("SELECT correo FROM usuarios WHERE id_usuario = %s", (user_id,))
+        u = cur.fetchone()
+        if not u:
+            cur.close(); conn.close()
+            return build_cors_response({'success': False, 'error': 'Usuario no encontrado'}, 404)
+        cur.execute("""
+            UPDATE usuarios
+            SET eliminado = FALSE, eliminado_en = NULL, eliminado_por = NULL, active = TRUE
+            WHERE id_usuario = %s
+        """, (user_id,))
+        conn.commit(); cur.close(); conn.close()
+        registrar_auditoria('restaurar', 'usuario', user_id, {'correo': u['correo']})
+        return build_cors_response({'success': True, 'message': f"Usuario '{u['correo']}' restaurado"})
+    except Exception as e:
+        logger.error(f"Error en restaurar_usuario: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+@admin_bp.route('/papelera', methods=['GET'])
+@requiere_permiso('negocios')
+def listar_papelera():
+    """GET /api/admin/papelera → negocios y usuarios en papelera (baja lógica)."""
+    try:
+        conn = get_db_connection(); cur = conn.cursor()
+        cur.execute("""
+            SELECT id_negocio, nombre_negocio, slug, eliminado_en, eliminado_por
+            FROM negocios WHERE eliminado IS TRUE
+            ORDER BY eliminado_en DESC NULLS LAST LIMIT 200
+        """)
+        negocios = [{
+            'id': r['id_negocio'], 'nombre': r['nombre_negocio'], 'slug': r.get('slug'),
+            'eliminado_en': r['eliminado_en'].isoformat() if r['eliminado_en'] else None,
+            'eliminado_por': r.get('eliminado_por'),
+        } for r in cur.fetchall()]
+        cur.execute("""
+            SELECT id_usuario, nombre, apellidos, correo, eliminado_en, eliminado_por
+            FROM usuarios WHERE eliminado IS TRUE
+            ORDER BY eliminado_en DESC NULLS LAST LIMIT 200
+        """)
+        usuarios = [{
+            'id': r['id_usuario'], 'nombre': f"{r['nombre']} {r.get('apellidos') or ''}".strip(),
+            'correo': r['correo'],
+            'eliminado_en': r['eliminado_en'].isoformat() if r['eliminado_en'] else None,
+            'eliminado_por': r.get('eliminado_por'),
+        } for r in cur.fetchall()]
+        cur.close(); conn.close()
+        return build_cors_response({'success': True, 'negocios': negocios, 'usuarios': usuarios,
+                                    'total': len(negocios) + len(usuarios)})
+    except Exception as e:
+        logger.error(f"Error en listar_papelera: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'negocios': [], 'usuarios': []}, 200)
 
 
 @admin_bp.route('/usuarios/<int:user_id>', methods=['DELETE'])

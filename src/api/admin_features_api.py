@@ -293,7 +293,8 @@ def list_negocios_with_plans():
     limit = int(request.args.get('limit', 50))
     offset = (page - 1) * limit
 
-    conditions = []
+    # A30: nunca mostrar negocios en papelera en el listado normal.
+    conditions = ["COALESCE(n.eliminado, FALSE) = FALSE"]
     params = {}
 
     if plan_filter:

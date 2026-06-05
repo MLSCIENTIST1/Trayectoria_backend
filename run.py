@@ -485,6 +485,25 @@ try:
             logger.warning(f"⚠️  No se pudo verificar flags gamif de challenges: {pg_err15}")
         # ─────────────────────────────────────────────────────────────────────
 
+        # ── Soft-delete + papelera para negocios y usuarios (A30) ────────────
+        try:
+            from sqlalchemy import text as _sql_text16
+            from src.models.database import db as _db16
+            conn16 = _db16.engine.connect()
+            for _tabla in ('negocios', 'usuarios'):
+                conn16.execute(_sql_text16(
+                    f"ALTER TABLE {_tabla} ADD COLUMN IF NOT EXISTS eliminado BOOLEAN DEFAULT FALSE"))
+                conn16.execute(_sql_text16(
+                    f"ALTER TABLE {_tabla} ADD COLUMN IF NOT EXISTS eliminado_en TIMESTAMP"))
+                conn16.execute(_sql_text16(
+                    f"ALTER TABLE {_tabla} ADD COLUMN IF NOT EXISTS eliminado_por VARCHAR(120)"))
+            conn16.commit()
+            conn16.close()
+            logger.info("✅ soft-delete/papelera (negocios, usuarios) verificada")
+        except Exception as pg_err16:
+            logger.warning(f"⚠️  No se pudo verificar soft-delete/papelera: {pg_err16}")
+        # ─────────────────────────────────────────────────────────────────────
+
         # ==========================================
         # INSPECTOR DE RUTAS
         # ==========================================
