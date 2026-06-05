@@ -95,6 +95,28 @@ logger = logging.getLogger(__name__)
 logger.debug("Modelo NegocioVideo cargado correctamente.")
 
 
+# A31: acciones de moderación de video → cambios a aplicar. Función PURA.
+ACCIONES_MODERACION_VIDEO = {
+    'aprobar', 'rechazar', 'ocultar', 'mostrar', 'destacar', 'quitar_destacado',
+}
+
+
+def aplicar_accion_video(accion):
+    """
+    Devuelve el dict de campos a actualizar para una acción de moderación, o None.
+    Función PURA (sin BD). Usada por el endpoint admin de moderación de videos.
+    """
+    mapa = {
+        'aprobar':          {'estado_moderacion': 'aprobado',  'visible': True},
+        'rechazar':         {'estado_moderacion': 'rechazado', 'visible': False},
+        'ocultar':          {'visible': False},
+        'mostrar':          {'visible': True},
+        'destacar':         {'destacado': True},
+        'quitar_destacado': {'destacado': False},
+    }
+    return mapa.get(str(accion or '').strip().lower())
+
+
 class NegocioVideo(db.Model):
     __tablename__ = "negocio_videos"
 

@@ -11,6 +11,25 @@
 
 ---
 
+## 2026-06-05 — Panel admin A31 · Moderación de videos/feed y perfiles de creador
+
+**Sprint actual:** Panel de Administración. **Fase 4.** Avance **31/49**.
+
+### Completado
+- **A31 — Moderación de feed/videos + perfiles de creador.**
+  - **Backend:** helper PURO `aplicar_accion_video(accion)` + `ACCIONES_MODERACION_VIDEO` en `negocio_video.py` (aprobar/rechazar/ocultar/mostrar/destacar/quitar_destacado → dict de cambios). Endpoints `GET /api/admin/videos?estado=&limit=` (join `nombre_negocio`, resumen por estado_moderacion + ocultos), `POST .../videos/<id>/moderar` (valida acción, 404, guarda `motivo_rechazo`, `fecha_moderacion`, auditado), `GET .../perfiles-creador?buscar=` (excluye papelera), `POST .../negocios/<id>/perfil-publico` (toggle `perfil_publico`, auditado). Todos `requiere_permiso('negocios')`.
+  - **Decisión:** la moderación opera sobre `visible` (rechazar/ocultar → `visible=false`, sale del feed que ya filtra por `visible`). NO se cambió el filtro del feed público a exigir `estado_moderacion='aprobado'` para no ocultar el feed actual (la mayoría de videos están en 'pendiente' por defecto).
+  - **Frontend:** nueva sección + nav "Videos / Feed" (con badge de pendientes), tabla con thumbnail/estado/visible/acciones, filtro por estado, resumen coloreado; y tabla de "Perfiles públicos de creador" con búsqueda y toggle mostrar/ocultar.
+- **Test:** `test_admin_videos_a31.py` → **27/27**.
+
+### Pendiente (Fase 4)
+- A32 moderación feed comunidad · A33 anuncios/notificaciones masivas · A34 planes/suscripciones avanzada · A35 soporte/impersonar.
+
+### Siguiente paso
+- **A32 — Moderación del feed de comunidad** (logros destacados S32, ocultar abusos).
+
+---
+
 ## 2026-06-05 — Panel admin A30 · Soft-delete + papelera
 
 **Sprint actual:** Panel de Administración. **Fase 4.** Avance **30/49**.

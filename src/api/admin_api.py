@@ -1572,6 +1572,146 @@ def listar_papelera():
         return build_cors_response({'success': False, 'error': str(e), 'negocios': [], 'usuarios': []}, 200)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# MODERACIÓN DE VIDEOS / FEED + PERFILES DE CREADOR (Admin Panel A31)
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/videos', methods=['GET'])
+@requiere_permiso('negocios')
+def admin_videos():
+    """GET /api/admin/videos?estado=&limit= → videos con negocio + resumen de moderación."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        estado = (request.args.get('estado', '') or '').strip().lower()
+        limit  = min(int(request.args.get('limit', 60) or 60), 200)
+        sql = """
+            SELECT v.id, v.titulo, v.url_thumbnail, v.url_video, v.negocio_id,
+                   n.nombre_negocio, v.estado_moderacion, v.visible, v.destacado,
+                   v.vistas, v.likes, v.motivo_rechazo, v.fecha_creacion
+            FROM negocio_videos v
+            LEFT JOIN negocios n ON n.id_negocio = v.negocio_id
+        """
+        params = {'lim': limit}
+        cond = []
+        if estado == 'ocultos':
+            cond.append("v.visible = FALSE")
+        elif estado in ('pendiente', 'aprobado', 'rechazado'):
+            cond.append("LOWER(v.estado_moderacion) = :estado"); params['estado'] = estado
+        if cond:
+            sql += " WHERE " + " AND ".join(cond)
+        sql += " ORDER BY v.fecha_creacion DESC NULLS LAST LIMIT :lim"
+        rows = _db.session.execute(_t(sql), params).fetchall()
+        videos = [{
+            'id': r[0], 'titulo': r[1], 'thumbnail': r[2], 'url': r[3],
+            'negocio_id': r[4], 'negocio': r[5] or f'#{r[4]}',
+            'estado_moderacion': r[6], 'visible': r[7], 'destacado': r[8],
+            'vistas': r[9] or 0, 'likes': r[10] or 0, 'motivo_rechazo': r[11],
+            'fecha': r[12].isoformat() if r[12] else None,
+        } for r in rows]
+        res = _db.session.execute(_t("""
+            SELECT LOWER(estado_moderacion), COUNT(*) FROM negocio_videos GROUP BY LOWER(estado_moderacion)
+        """)).fetchall()
+        resumen = {row[0]: row[1] for row in res}
+        resumen['ocultos'] = int(_db.session.execute(_t(
+            "SELECT COUNT(*) FROM negocio_videos WHERE visible = FALSE")).scalar() or 0)
+        return build_cors_response({'success': True, 'videos': videos, 'resumen': resumen})
+    except Exception as e:
+        logger.error(f"Error en admin_videos: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'videos': []}, 200)
+
+
+@admin_bp.route('/videos/<int:video_id>/moderar', methods=['POST'])
+@requiere_permiso('negocios')
+def moderar_video(video_id):
+    """POST /api/admin/videos/<id>/moderar  body: { accion, motivo? }"""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        from src.models.colombia_data.negocio_video import aplicar_accion_video
+        payload = request.get_json(silent=True) or {}
+        accion = (payload.get('accion') or '').strip().lower()
+        cambios = aplicar_accion_video(accion)
+        if not cambios:
+            return build_cors_response({'success': False, 'error': 'Acción inválida'}, 400)
+        existe = _db.session.execute(_t("SELECT 1 FROM negocio_videos WHERE id = :id"), {'id': video_id}).fetchone()
+        if not existe:
+            return build_cors_response({'success': False, 'error': 'Video no encontrado'}, 404)
+        sets, params = [], {'id': video_id}
+        for col, val in cambios.items():
+            sets.append(f"{col} = :{col}"); params[col] = val
+        if accion in ('aprobar', 'rechazar'):
+            sets.append("fecha_moderacion = NOW()")
+        if accion == 'rechazar':
+            sets.append("motivo_rechazo = :motivo"); params['motivo'] = str(payload.get('motivo', ''))[:255]
+        _db.session.execute(_t(f"UPDATE negocio_videos SET {', '.join(sets)} WHERE id = :id"), params)
+        _db.session.commit()
+        registrar_auditoria('editar', 'video', video_id, {'accion': accion, 'cambios': cambios})
+        return build_cors_response({'success': True, 'message': f'Video: {accion}'})
+    except Exception as e:
+        logger.error(f"Error en moderar_video: {e}")
+        try:
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+@admin_bp.route('/perfiles-creador', methods=['GET'])
+@requiere_permiso('negocios')
+def admin_perfiles_creador():
+    """GET /api/admin/perfiles-creador?buscar= → negocios con su perfil público (creador)."""
+    try:
+        buscar = (request.args.get('buscar', '') or '').strip()
+        conn = get_db_connection(); cur = conn.cursor()
+        if buscar:
+            cur.execute("""
+                SELECT id_negocio, nombre_negocio, slug, ciudad, perfil_publico
+                FROM negocios
+                WHERE COALESCE(eliminado, FALSE) = FALSE
+                  AND (nombre_negocio ILIKE %s OR slug ILIKE %s)
+                ORDER BY nombre_negocio LIMIT 50
+            """, (f'%{buscar}%', f'%{buscar}%'))
+        else:
+            cur.execute("""
+                SELECT id_negocio, nombre_negocio, slug, ciudad, perfil_publico
+                FROM negocios
+                WHERE COALESCE(eliminado, FALSE) = FALSE AND perfil_publico IS TRUE
+                ORDER BY fecha_registro DESC LIMIT 50
+            """)
+        perfiles = [{
+            'id': r['id_negocio'], 'nombre': r['nombre_negocio'], 'slug': r.get('slug'),
+            'ciudad': r.get('ciudad'), 'perfil_publico': r['perfil_publico'],
+        } for r in cur.fetchall()]
+        cur.close(); conn.close()
+        return build_cors_response({'success': True, 'perfiles': perfiles})
+    except Exception as e:
+        logger.error(f"Error en admin_perfiles_creador: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'perfiles': []}, 200)
+
+
+@admin_bp.route('/negocios/<int:negocio_id>/perfil-publico', methods=['POST'])
+@requiere_permiso('negocios')
+def moderar_perfil_creador(negocio_id):
+    """POST /api/admin/negocios/<id>/perfil-publico  body: { visible: bool } → muestra/oculta el perfil de creador."""
+    try:
+        visible = bool((request.get_json(silent=True) or {}).get('visible'))
+        conn = get_db_connection(); cur = conn.cursor()
+        cur.execute("SELECT nombre_negocio FROM negocios WHERE id_negocio = %s", (negocio_id,))
+        row = cur.fetchone()
+        if not row:
+            cur.close(); conn.close()
+            return build_cors_response({'success': False, 'error': 'Negocio no encontrado'}, 404)
+        cur.execute("UPDATE negocios SET perfil_publico = %s WHERE id_negocio = %s", (visible, negocio_id))
+        conn.commit(); cur.close(); conn.close()
+        registrar_auditoria('editar', 'perfil_creador', negocio_id,
+                            {'perfil_publico': visible, 'nombre': row['nombre_negocio']})
+        return build_cors_response({'success': True, 'perfil_publico': visible,
+                                    'message': f"Perfil de '{row['nombre_negocio']}' {'visible' if visible else 'oculto'}"})
+    except Exception as e:
+        logger.error(f"Error en moderar_perfil_creador: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
 @admin_bp.route('/usuarios/<int:user_id>', methods=['DELETE'])
 @superadmin_required
 def delete_usuario(user_id):
