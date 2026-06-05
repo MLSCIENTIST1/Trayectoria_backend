@@ -2377,6 +2377,63 @@ def update_gamif_eventos():
         return build_cors_response({'success': False, 'error': str(e)}, 500)
 
 
+@admin_bp.route('/gamificacion/retos', methods=['GET'])
+@requiere_permiso('gamificacion')
+def get_gamif_retos():
+    """GET /api/admin/gamificacion/retos → pool efectivo, default, métricas, programación y reto actual."""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            get_retos_mensuales, get_programacion_retos, _retos_default, METRICAS_RETO
+        )
+        from src.api.gamificacion.gamificacion_api import _reto_del_mes
+        return build_cors_response({
+            'success': True,
+            'retos': get_retos_mensuales(),
+            'default': _retos_default(),
+            'metricas': METRICAS_RETO,
+            'programacion': get_programacion_retos(),
+            'actual': _reto_del_mes(),
+        })
+    except Exception as e:
+        logger.error(f"Error en get_gamif_retos: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
+@admin_bp.route('/gamificacion/retos', methods=['PUT'])
+@requiere_permiso('gamificacion')
+def update_gamif_retos():
+    """PUT /api/admin/gamificacion/retos  body: { retos: [...], programacion: {YYYY-MM: codigo} }"""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            validar_retos, validar_programacion_retos,
+            set_retos_mensuales, set_programacion_retos,
+            get_retos_mensuales, get_programacion_retos
+        )
+        antes = {'retos': get_retos_mensuales(), 'programacion': get_programacion_retos()}
+        payload = request.get_json(silent=True) or {}
+        ok, retos, error = validar_retos(payload.get('retos', []))
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        codigos = {r['codigo'] for r in retos}
+        ok2, prog, error2 = validar_programacion_retos(payload.get('programacion', {}), codigos)
+        if not ok2:
+            return build_cors_response({'success': False, 'error': error2}, 400)
+        set_retos_mensuales(retos)
+        set_programacion_retos(prog)
+        registrar_auditoria('editar', 'gamif_retos', None,
+                            {'antes': antes, 'despues': {'retos': retos, 'programacion': prog}})
+        return build_cors_response({'success': True, 'retos': retos, 'programacion': prog,
+                                    'message': f'{len(retos)} reto(s) guardado(s)'})
+    except Exception as e:
+        logger.error(f"Error en update_gamif_retos: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
 @admin_bp.route('/gamificacion/sugerencias-config', methods=['GET'])
 @requiere_permiso('gamificacion')
 def get_gamif_sugerencias():

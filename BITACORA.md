@@ -11,6 +11,28 @@
 
 ---
 
+## 2026-06-05 — Panel admin A23 · Editor de retos mensuales
+
+**Sprint actual:** Panel de Administración. **Fase 3 (Eventos/Retos/Competencia).** Avance **23/49**.
+
+### Completado
+- **A23 — Editor de retos mensuales:** el pool `RETOS_MENSUALES` (Rey de las Ventas, El Más Productivo, Rey del Catálogo) pasa de constante a **BD editable** + **programación por mes**.
+  - **Backend:** helpers PUROS `seleccionar_reto(pool, programacion, hoy)`, `validar_retos(payload)` y `validar_programacion_retos(payload, codigos)` + `get/set_retos_mensuales()` y `get/set_programacion_retos()` en `config_gamificacion.py`. La **métrica se valida** contra `METRICAS_RETO` = las soportadas por `_ranking_por_metrica` (`ventas_mes`, `productos_mes`, `productos_activos`) → un reto con métrica inventada se rechaza (no rompe el ranking). La **programación** (`{YYYY-MM: codigo}`) pisa la rotación automática solo si el código existe en el pool. `_reto_del_mes()` lee pool+programación y **cae a la rotación sobre el DEFAULT si la BD falla**.
+  - **Endpoints:** `GET/PUT /api/admin/gamificacion/retos` (`requiere_permiso('gamificacion')`, auditados). El GET devuelve pool, default, métricas, programación y el reto **actual**.
+  - **Frontend:** tarjeta "🏆 Retos mensuales" en la sección Gamificación: filas editables (ícono/nombre/métrica/descripción) + bloque "📅 Programación por mes" (input `month` + selector de reto). Responsive, `escapeHtml` en el render.
+- **Test:** `test_admin_retos_a23.py` → **28/28**.
+
+### Pendiente (Fase 3)
+- A24 moderación de ligas · A25 recompensas de liga (cron) · A26 moderación de duelos · A27 gestión de referidos · A28 challenges 2.0.
+
+### Problemas
+- Ninguno. Import perezoso (`_retos_default()`) para evitar circular entre `config_gamificacion` y `gamificacion_api`.
+
+### Siguiente paso
+- **A24 — Moderación de ligas** (ver ligas por ciudad/categoría, anomalías, segmentación, top-3).
+
+---
+
 ## 2026-06-05 — Panel admin A22 · 🛍️ ARRANCA FASE 3 (Eventos)
 
 **Sprint actual:** Panel de Administración. **Fase 3 (Eventos, Retos y Competencia) iniciada (A22-A28).** Avance **22/49**.

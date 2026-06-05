@@ -736,6 +736,144 @@ def set_eventos_especiales(limpio, db_session=None):
 
 
 # ═══════════════════════════════════════════════════════════════════
+# RETOS MENSUALES (A23) — pool editable + programación por mes
+# El DEFAULT vive en gamificacion_api.RETOS_MENSUALES; aquí el override BD.
+# La métrica DEBE estar soportada por _ranking_por_metrica (si no, el ranking sale vacío/erróneo).
+# ═══════════════════════════════════════════════════════════════════
+
+# Métricas válidas (las que sabe calcular _ranking_por_metrica) → etiqueta para el panel
+METRICAS_RETO = {
+    'ventas_mes':        'Más ventas entregadas en el mes',
+    'productos_mes':     'Más productos nuevos en el mes',
+    'productos_activos': 'Catálogo activo más grande (acumulado)',
+}
+
+
+def seleccionar_reto(pool, programacion, hoy):
+    """
+    Devuelve el reto activo para 'hoy'. Función PURA.
+    Si hay un reto programado para ese mes (YYYY-MM) y existe en el pool, gana;
+    si no, rotación determinista sobre el pool.
+    """
+    if not pool:
+        return None
+    try:
+        clave = f"{hoy.year:04d}-{hoy.month:02d}"
+        cod = (programacion or {}).get(clave)
+        if cod:
+            for r in pool:
+                if r.get('codigo') == cod:
+                    return r
+        idx = (hoy.year * 12 + (hoy.month - 1)) % len(pool)
+        return pool[idx]
+    except (AttributeError, TypeError):
+        return pool[0] if pool else None
+
+
+def validar_retos(payload):
+    """Valida el pool de retos mensuales. PURA. (ok, limpio, error)."""
+    import re as _re
+    if not isinstance(payload, list):
+        return False, [], 'Se espera una lista de retos'
+    if not payload:
+        return False, [], 'Debe haber al menos un reto'
+    limpio = []
+    vistos = set()
+    for i, r in enumerate(payload):
+        if not isinstance(r, dict):
+            return False, [], f'Reto #{i+1} inválido'
+        codigo = _re.sub(r'[^a-z0-9_]', '', str(r.get('codigo', '')).strip().lower().replace(' ', '_'))
+        nombre = str(r.get('nombre', '')).strip()
+        metrica = str(r.get('metrica', '')).strip()
+        if not codigo or not nombre:
+            return False, [], f'Reto #{i+1}: código y nombre obligatorios'
+        if codigo in vistos:
+            return False, [], f'Código duplicado: {codigo}'
+        vistos.add(codigo)
+        if metrica not in METRICAS_RETO:
+            return False, [], f'Reto «{nombre}»: métrica inválida ({metrica or "vacía"})'
+        limpio.append({
+            'codigo': codigo, 'nombre': nombre[:60],
+            'icono': str(r.get('icono', '🏆'))[:8] or '🏆',
+            'descripcion': str(r.get('descripcion', '')).strip()[:160],
+            'metrica': metrica,
+            'unidad': str(r.get('unidad', '')).strip()[:20] or 'puntos',
+        })
+    return True, limpio, None
+
+
+def validar_programacion_retos(payload, codigos_validos):
+    """
+    Valida el mapa de programación {YYYY-MM: codigo_reto}. PURA. (ok, limpio, error).
+    Solo admite meses con formato válido y códigos presentes en el pool.
+    """
+    import re as _re
+    if payload in (None, ''):
+        return True, {}, None
+    if not isinstance(payload, dict):
+        return False, {}, 'La programación debe ser un objeto {mes: reto}'
+    limpio = {}
+    for mes, cod in payload.items():
+        mes = str(mes).strip()
+        if not _re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])', mes):
+            return False, {}, f'Mes inválido: {mes} (usa AAAA-MM)'
+        cod = str(cod).strip()
+        if cod not in codigos_validos:
+            return False, {}, f'{mes}: el reto «{cod}» no existe en el pool'
+        limpio[mes] = cod
+    return True, limpio, None
+
+
+def _retos_default():
+    from src.api.gamificacion.gamificacion_api import RETOS_MENSUALES
+    return RETOS_MENSUALES
+
+
+def get_retos_mensuales():
+    """Pool efectivo de retos (override BD o DEFAULT). A prueba de fallos."""
+    try:
+        row = GamifConfig.query.get('retos_mensuales')
+        if row and isinstance(row.valor, list) and row.valor:
+            return row.valor
+    except Exception:
+        pass
+    return _retos_default()
+
+
+def set_retos_mensuales(limpio, db_session=None):
+    sess = db_session or db.session
+    row = GamifConfig.query.get('retos_mensuales')
+    if row:
+        row.valor = limpio; row.updated_at = datetime.utcnow()
+    else:
+        sess.add(GamifConfig(clave='retos_mensuales', valor=limpio))
+    sess.commit()
+    return limpio
+
+
+def get_programacion_retos():
+    """Mapa efectivo de programación {YYYY-MM: codigo}. A prueba de fallos."""
+    try:
+        row = GamifConfig.query.get('retos_programacion')
+        if row and isinstance(row.valor, dict):
+            return row.valor
+    except Exception:
+        pass
+    return {}
+
+
+def set_programacion_retos(limpio, db_session=None):
+    sess = db_session or db.session
+    row = GamifConfig.query.get('retos_programacion')
+    if row:
+        row.valor = limpio; row.updated_at = datetime.utcnow()
+    else:
+        sess.add(GamifConfig(clave='retos_programacion', valor=limpio))
+    sess.commit()
+    return limpio
+
+
+# ═══════════════════════════════════════════════════════════════════
 # REGLAS DE RACHAS (A11) — configurables desde el panel
 # ═══════════════════════════════════════════════════════════════════
 RACHAS_DEFAULT = {

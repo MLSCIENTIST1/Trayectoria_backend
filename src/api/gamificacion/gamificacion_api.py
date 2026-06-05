@@ -1379,9 +1379,22 @@ RETOS_MENSUALES = [
 
 
 def _reto_del_mes(hoy=None):
-    """Devuelve el reto activo del mes (rotación determinista). Pura."""
+    """
+    Devuelve el reto activo del mes.
+    A23: usa el pool efectivo (editable en gamif_config) + programación por mes,
+    con fallback a la rotación sobre RETOS_MENSUALES si la BD no está disponible.
+    """
     if hoy is None:
         hoy = datetime.utcnow()
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            get_retos_mensuales, get_programacion_retos, seleccionar_reto
+        )
+        reto = seleccionar_reto(get_retos_mensuales(), get_programacion_retos(), hoy)
+        if reto:
+            return reto
+    except Exception:
+        pass
     idx = (hoy.year * 12 + (hoy.month - 1)) % len(RETOS_MENSUALES)
     return RETOS_MENSUALES[idx]
 
