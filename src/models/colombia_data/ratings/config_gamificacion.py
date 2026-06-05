@@ -984,6 +984,103 @@ def set_negocios_excluidos_ligas(lista, db_session=None):
 
 
 # ═══════════════════════════════════════════════════════════════════
+# RECOMPENSAS DE LIGA (A25) — premio automático al top-N de cada liga
+# ═══════════════════════════════════════════════════════════════════
+
+RECOMPENSAS_LIGA_DEFAULT = [
+    {'pos': 1, 'xp': 500, 'tukoins': 200},
+    {'pos': 2, 'xp': 300, 'tukoins': 120},
+    {'pos': 3, 'xp': 150, 'tukoins': 60},
+]
+
+
+def validar_recompensas_liga(payload):
+    """Valida la tabla de recompensas por posición. PURA. (ok, limpio, error)."""
+    if not isinstance(payload, list):
+        return False, [], 'Se espera una lista de recompensas'
+    if not payload:
+        return False, [], 'Debe haber al menos una posición premiada'
+    limpio = []
+    vistas = set()
+    for i, r in enumerate(payload):
+        if not isinstance(r, dict):
+            return False, [], f'Recompensa #{i+1} inválida'
+        try:
+            pos = int(r['pos']); xp = int(r.get('xp', 0)); tk = int(r.get('tukoins', 0))
+        except (KeyError, TypeError, ValueError):
+            return False, [], f'Recompensa #{i+1}: pos/xp/tukoins deben ser números'
+        if not (1 <= pos <= 10):
+            return False, [], f'Posición fuera de rango (1-10): {pos}'
+        if pos in vistas:
+            return False, [], f'Posición duplicada: {pos}'
+        vistas.add(pos)
+        if not (0 <= xp <= 100000) or not (0 <= tk <= 100000):
+            return False, [], f'Posición {pos}: XP/TuKoins fuera de rango (0-100000)'
+        limpio.append({'pos': pos, 'xp': xp, 'tukoins': tk})
+    limpio.sort(key=lambda x: x['pos'])
+    return True, limpio, None
+
+
+def recompensa_por_posicion(config, pos):
+    """Devuelve {'xp','tukoins'} para la posición 'pos', o None. PURA."""
+    for r in (config or []):
+        try:
+            if int(r['pos']) == pos:
+                return {'xp': int(r.get('xp', 0)), 'tukoins': int(r.get('tukoins', 0))}
+        except (KeyError, TypeError, ValueError):
+            continue
+    return None
+
+
+def construir_plan_recompensas(filas, config, excluidos=None):
+    """
+    Construye el plan de premios. Función PURA.
+    'filas' = [(id, nombre, ...score)] YA ordenadas desc por score.
+    Los negocios vetados NO ocupan podio (se excluyen antes de asignar posición).
+    Devuelve [{negocio_id, nombre, posicion, xp, tukoins}] solo para posiciones con premio>0.
+    """
+    veto = set(excluidos or [])
+    plan = []
+    pos = 0
+    for f in (filas or []):
+        try:
+            nid = f[0]
+        except (IndexError, TypeError):
+            continue
+        if nid in veto:
+            continue
+        pos += 1
+        r = recompensa_por_posicion(config, pos)
+        if r and (r['xp'] > 0 or r['tukoins'] > 0):
+            nombre = f[1] if len(f) > 1 else ''
+            plan.append({'negocio_id': nid, 'nombre': nombre, 'posicion': pos,
+                         'xp': r['xp'], 'tukoins': r['tukoins']})
+    return plan
+
+
+def get_recompensas_liga():
+    """Tabla efectiva de recompensas (override BD o DEFAULT). A prueba de fallos."""
+    try:
+        row = GamifConfig.query.get('recompensas_liga')
+        if row and isinstance(row.valor, list) and row.valor:
+            return row.valor
+    except Exception:
+        pass
+    return [dict(r) for r in RECOMPENSAS_LIGA_DEFAULT]
+
+
+def set_recompensas_liga(limpio, db_session=None):
+    sess = db_session or db.session
+    row = GamifConfig.query.get('recompensas_liga')
+    if row:
+        row.valor = limpio; row.updated_at = datetime.utcnow()
+    else:
+        sess.add(GamifConfig(clave='recompensas_liga', valor=limpio))
+    sess.commit()
+    return limpio
+
+
+# ═══════════════════════════════════════════════════════════════════
 # REGLAS DE RACHAS (A11) — configurables desde el panel
 # ═══════════════════════════════════════════════════════════════════
 RACHAS_DEFAULT = {

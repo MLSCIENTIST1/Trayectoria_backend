@@ -420,6 +420,31 @@ try:
             logger.warning(f"⚠️  No se pudo verificar vigencia de badges: {pg_err12}")
         # ─────────────────────────────────────────────────────────────────────
 
+        # ── liga_recompensas: log idempotente de premios de liga (A25) ───────
+        try:
+            from sqlalchemy import text as _sql_text13
+            from src.models.database import db as _db13
+            conn13 = _db13.engine.connect()
+            conn13.execute(_sql_text13("""
+                CREATE TABLE IF NOT EXISTS liga_recompensas (
+                    id          SERIAL PRIMARY KEY,
+                    periodo     VARCHAR(7)  NOT NULL,   -- AAAA-MM del mes premiado
+                    liga        VARCHAR(80) NOT NULL,   -- 'Nacional' | ciudad | categoria
+                    negocio_id  INTEGER     NOT NULL,
+                    posicion    INTEGER     NOT NULL,
+                    xp          INTEGER     NOT NULL DEFAULT 0,
+                    tukoins     INTEGER     NOT NULL DEFAULT 0,
+                    otorgado_en TIMESTAMP   DEFAULT NOW(),
+                    CONSTRAINT uq_liga_recompensa UNIQUE (periodo, liga, negocio_id)
+                )
+            """))
+            conn13.commit()
+            conn13.close()
+            logger.info("✅ liga_recompensas verificada")
+        except Exception as pg_err13:
+            logger.warning(f"⚠️  No se pudo verificar liga_recompensas: {pg_err13}")
+        # ─────────────────────────────────────────────────────────────────────
+
         # ==========================================
         # INSPECTOR DE RUTAS
         # ==========================================

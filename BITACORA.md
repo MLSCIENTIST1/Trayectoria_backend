@@ -11,6 +11,29 @@
 
 ---
 
+## 2026-06-05 — Panel admin A25 · Recompensas automáticas de liga (cron + UI)
+
+**Sprint actual:** Panel de Administración. **Fase 3.** Avance **25/49**.
+
+### Completado
+- **A25 — Recompensas automáticas de liga.** Premio al **top-N del mes anterior** (XP + TuKoins por puesto, configurables), pensado para correr al cierre de cada mes (manual desde el panel o vía cron externo).
+  - **Idempotencia:** nueva tabla `liga_recompensas` con `UNIQUE (periodo, liga, negocio_id)` + `ON CONFLICT DO NOTHING` y chequeo previo → ejecutarlo varias veces el mismo mes NO duplica premios. Migración auto en `run.py`.
+  - **Backend:** `RECOMPENSAS_LIGA_DEFAULT` (top-3: 500/300/150 XP, 200/120/60 TK) + helpers PUROS `validar_recompensas_liga`, `recompensa_por_posicion`, `construir_plan_recompensas` (los **vetados de A24 NO ocupan podio**) + `get/set_recompensas_liga` en `config_gamificacion.py`. Servicio `api/utils/liga_recompensas_service.py`: `calcular_` (dry-run), `otorgar_` (aplica con `agregar_xp`/`agregar_tukoins` + log), `historial_`.
+  - **Endpoints:** `GET .../ligas/recompensas` (config+preview+historial), `PUT .../recompensas/config`, `POST .../recompensas/simular` (`requiere_permiso`), `POST .../recompensas/ejecutar` (**`@superadmin_required` + `confirmar:true`**, auditado con conteo; sirve también de endpoint de cron mensual con API key admin — patrón "cron manual" ya usado en `admin_features_api`).
+  - **Frontend:** dentro de la tarjeta de Ligas, bloque "🏅 Recompensas automáticas": editor de premios por puesto, **simular (dry-run)** → habilita "Ejecutar ahora" (gate), e historial. Responsive, `escapeHtml`.
+- **Test:** `test_admin_recompensas_liga_a25.py` → **34/34**.
+
+### Pendiente (Fase 3)
+- A26 moderación de duelos · A27 gestión de referidos · A28 challenges 2.0.
+
+### Problemas
+- Ninguno nuevo.
+
+### Siguiente paso
+- **A26 — Moderación de duelos**: ver duelos activos/históricos, cancelar abusivos, ver marcadores.
+
+---
+
 ## 2026-06-05 — Panel admin A24 · Moderación de ligas
 
 **Sprint actual:** Panel de Administración. **Fase 3.** Avance **24/49**.

@@ -2570,6 +2570,113 @@ def moderar_liga_negocio():
         return build_cors_response({'success': False, 'error': str(e)}, 500)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# RECOMPENSAS AUTOMÁTICAS DE LIGA (Admin Panel A25) — cron + UI
+# Premia al top-N del mes anterior. Idempotente (tabla liga_recompensas).
+# Condición de seguridad (como A14): preview disponible vía GET/simular; APLICAR
+# exige @superadmin_required y queda auditado con el conteo de premios otorgados.
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/gamificacion/ligas/recompensas', methods=['GET'])
+@requiere_permiso('gamificacion')
+def get_liga_recompensas():
+    """GET /api/admin/gamificacion/ligas/recompensas?ciudad=&categoria= → config + preview (dry-run) + historial."""
+    from src.models.database import db as _db
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import get_recompensas_liga, RECOMPENSAS_LIGA_DEFAULT
+        from src.api.utils.liga_recompensas_service import calcular_recompensas_liga, historial_recompensas_liga
+        ciudad    = (request.args.get('ciudad', '') or '').strip()
+        categoria = (request.args.get('categoria', '') or '').strip()
+        preview = calcular_recompensas_liga(_db.session, ciudad, categoria)
+        return build_cors_response({
+            'success': True,
+            'config': get_recompensas_liga(),
+            'default': RECOMPENSAS_LIGA_DEFAULT,
+            'preview': preview,
+            'historial': historial_recompensas_liga(_db.session, 50),
+        })
+    except Exception as e:
+        logger.error(f"Error en get_liga_recompensas: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
+@admin_bp.route('/gamificacion/ligas/recompensas/config', methods=['PUT'])
+@requiere_permiso('gamificacion')
+def update_liga_recompensas_config():
+    """PUT /api/admin/gamificacion/ligas/recompensas/config  body: { recompensas: [{pos,xp,tukoins}] }"""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            validar_recompensas_liga, set_recompensas_liga, get_recompensas_liga
+        )
+        antes = get_recompensas_liga()
+        payload = request.get_json(silent=True) or {}
+        ok, limpio, error = validar_recompensas_liga(payload.get('recompensas', payload if isinstance(payload, list) else []))
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        set_recompensas_liga(limpio)
+        registrar_auditoria('editar', 'gamif_liga_recompensas', None, {'antes': antes, 'despues': limpio})
+        return build_cors_response({'success': True, 'recompensas': limpio,
+                                    'message': f'{len(limpio)} posición(es) configurada(s)'})
+    except Exception as e:
+        logger.error(f"Error en update_liga_recompensas_config: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+@admin_bp.route('/gamificacion/ligas/recompensas/simular', methods=['POST'])
+@requiere_permiso('gamificacion')
+def simular_liga_recompensas():
+    """POST /api/admin/gamificacion/ligas/recompensas/simular → dry-run (NO escribe). Obligatorio antes de aplicar."""
+    from src.models.database import db as _db
+    try:
+        from src.api.utils.liga_recompensas_service import calcular_recompensas_liga
+        payload = request.get_json(silent=True) or {}
+        ciudad    = (payload.get('ciudad', '') or '').strip()
+        categoria = (payload.get('categoria', '') or '').strip()
+        preview = calcular_recompensas_liga(_db.session, ciudad, categoria)
+        return build_cors_response({'success': True, 'dry_run': True, **preview})
+    except Exception as e:
+        logger.error(f"Error en simular_liga_recompensas: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
+@admin_bp.route('/gamificacion/ligas/recompensas/ejecutar', methods=['POST'])
+@superadmin_required
+def ejecutar_liga_recompensas():
+    """
+    POST /api/admin/gamificacion/ligas/recompensas/ejecutar  body: { ciudad?, categoria?, confirmar:true }
+    APLICA los premios al top-N del mes anterior. Solo superadmin. Idempotente. Auditado.
+    También sirve como endpoint de cron mensual (scheduler externo con API key admin).
+    """
+    from src.models.database import db as _db
+    try:
+        from src.api.utils.liga_recompensas_service import otorgar_recompensas_liga
+        payload = request.get_json(silent=True) or {}
+        if not payload.get('confirmar'):
+            return build_cors_response({'success': False, 'error': 'Falta confirmar:true (revisa el dry-run primero)'}, 400)
+        ciudad    = (payload.get('ciudad', '') or '').strip()
+        categoria = (payload.get('categoria', '') or '').strip()
+        actor = getattr(g, 'user_email', None) or 'cron'
+        resultado = otorgar_recompensas_liga(_db.session, ciudad, categoria, actor=actor)
+        registrar_auditoria('otorgar', 'gamif_liga_recompensas', None, {
+            'periodo': resultado['periodo'], 'liga': resultado['liga'],
+            'otorgados': resultado['total_otorgados'], 'omitidos': resultado['total_omitidos'],
+            'total_xp': resultado['total_xp'], 'total_tukoins': resultado['total_tukoins'],
+        })
+        return build_cors_response({'success': True, **resultado,
+                                    'message': f"{resultado['total_otorgados']} premio(s) otorgado(s), {resultado['total_omitidos']} omitido(s)"})
+    except Exception as e:
+        logger.error(f"Error en ejecutar_liga_recompensas: {e}")
+        try:
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
 @admin_bp.route('/gamificacion/sugerencias-config', methods=['GET'])
 @requiere_permiso('gamificacion')
 def get_gamif_sugerencias():
