@@ -11,6 +11,25 @@
 
 ---
 
+## 2026-06-05 — 🐞 FIX producción F7 · plan no se activa (schema drift suscripciones)
+
+**Tipo:** corrección urgente de producción (no es sprint del roadmap).
+
+### Problema
+- Negocio con plan Deluxe asignado **atascado en plan básico** → solo permite 1 producto; al usuario le decía "tu plan no sirve para usar esa función"; y al activar el trial salía `UndefinedColumn: suscripciones_negocio.alertas_enviadas does not exist`.
+
+### Causa raíz (una sola)
+- **Schema drift:** el modelo `SuscripcionNegocio` declara `alertas_enviadas` (y `creado_por`/`modificado_por`/`notas`) que NO existen en la tabla de producción. Cualquier `SuscripcionNegocio.query...first()` revienta → `update_suscripcion_negocio` (admin_features_api) se cae ANTES del `UPDATE negocios SET plan_key=...` → el negocio nunca pasa a Deluxe → `check_negocio_feature` (lee `negocios.plan_key`) aplica límites de básico.
+
+### Solución
+- **`run.py`:** auto-migración `ALTER TABLE suscripciones_negocio ADD COLUMN IF NOT EXISTS` para `alertas_enviadas JSON`, `creado_por VARCHAR(50)`, `modificado_por VARCHAR(50)`, `notas TEXT`. Patrón estándar del proyecto. Suite verde (sin regresión).
+- **Post-deploy (manual):** reasignar Deluxe al negocio 37 desde el panel (el primer intento no quedó persistido).
+
+### Detalle en
+- `memory/fixes_tienda_checkout.md` → F7.
+
+---
+
 ## 2026-06-05 — Panel admin A27 · Gestión de referidos
 
 **Sprint actual:** Panel de Administración. **Fase 3.** Avance **27/49**.

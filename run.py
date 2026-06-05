@@ -445,6 +445,30 @@ try:
             logger.warning(f"⚠️  No se pudo verificar liga_recompensas: {pg_err13}")
         # ─────────────────────────────────────────────────────────────────────
 
+        # ── suscripciones_negocio: columnas tardías del modelo (fix schema drift) ──
+        #    La tabla se creó antes de añadir estas columnas al modelo; sin ellas,
+        #    CUALQUIER SELECT del ORM sobre suscripciones_negocio falla
+        #    (UndefinedColumn alertas_enviadas), rompiendo activación de plan/trial
+        #    y dejando al negocio atascado en plan básico (límite de productos).
+        try:
+            from sqlalchemy import text as _sql_text14
+            from src.models.database import db as _db14
+            conn14 = _db14.engine.connect()
+            for _col, _defn in [
+                ("alertas_enviadas", "JSON"),
+                ("creado_por",       "VARCHAR(50)"),
+                ("modificado_por",   "VARCHAR(50)"),
+                ("notas",            "TEXT"),
+            ]:
+                conn14.execute(_sql_text14(
+                    f"ALTER TABLE suscripciones_negocio ADD COLUMN IF NOT EXISTS {_col} {_defn}"))
+            conn14.commit()
+            conn14.close()
+            logger.info("✅ suscripciones_negocio (columnas tardías) verificadas")
+        except Exception as pg_err14:
+            logger.warning(f"⚠️  No se pudo verificar suscripciones_negocio: {pg_err14}")
+        # ─────────────────────────────────────────────────────────────────────
+
         # ==========================================
         # INSPECTOR DE RUTAS
         # ==========================================
