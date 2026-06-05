@@ -444,6 +444,47 @@ def create_app():
                     "ALTER TABLE negocios ADD COLUMN IF NOT EXISTS plan_key VARCHAR(50) DEFAULT 'basic'",
                     "ALTER TABLE negocios ADD COLUMN IF NOT EXISTS plan_actual_id INTEGER REFERENCES planes(id) ON DELETE SET NULL",
                     "CREATE INDEX IF NOT EXISTS ix_negocios_plan_key ON negocios(plan_key)",
+
+                    # ══════════════════════════════════════════════════════════════════
+                    # MIGRACIONES DEL PANEL ADMIN (A15–A32) + FIX F7
+                    # ⚠️ Antes vivían en run.py, que NO es el entrypoint en producción
+                    #    (db.create_all crea tablas con modelo, pero NO añade columnas
+                    #    a tablas existentes ni crea tablas sin modelo). Por eso deben
+                    #    estar AQUÍ, dentro de create_app(), que sí corre en prod.
+                    # ══════════════════════════════════════════════════════════════════
+                    # F7 — schema drift de suscripciones (activación de plan/trial)
+                    "ALTER TABLE suscripciones_negocio ADD COLUMN IF NOT EXISTS alertas_enviadas JSON",
+                    "ALTER TABLE suscripciones_negocio ADD COLUMN IF NOT EXISTS creado_por VARCHAR(50)",
+                    "ALTER TABLE suscripciones_negocio ADD COLUMN IF NOT EXISTS modificado_por VARCHAR(50)",
+                    "ALTER TABLE suscripciones_negocio ADD COLUMN IF NOT EXISTS notas TEXT",
+                    # A15 / A19 — insignias editables y de temporada
+                    "ALTER TABLE negocio_badges ADD COLUMN IF NOT EXISTS editado_admin BOOLEAN DEFAULT FALSE",
+                    "ALTER TABLE negocio_badges ADD COLUMN IF NOT EXISTS vigencia_inicio DATE",
+                    "ALTER TABLE negocio_badges ADD COLUMN IF NOT EXISTS vigencia_fin DATE",
+                    # A25 — recompensas de liga (tabla sin modelo)
+                    """CREATE TABLE IF NOT EXISTS liga_recompensas (
+                        id          SERIAL PRIMARY KEY,
+                        periodo     VARCHAR(7)  NOT NULL,
+                        liga        VARCHAR(80) NOT NULL,
+                        negocio_id  INTEGER     NOT NULL,
+                        posicion    INTEGER     NOT NULL,
+                        xp          INTEGER     NOT NULL DEFAULT 0,
+                        tukoins     INTEGER     NOT NULL DEFAULT 0,
+                        otorgado_en TIMESTAMP   DEFAULT NOW(),
+                        CONSTRAINT uq_liga_recompensa UNIQUE (periodo, liga, negocio_id)
+                    )""",
+                    # A28 — flags de idempotencia de challenges
+                    "ALTER TABLE challenge_participaciones ADD COLUMN IF NOT EXISTS gamif_otorgado BOOLEAN DEFAULT FALSE",
+                    "ALTER TABLE challenges ADD COLUMN IF NOT EXISTS gamif_premiado BOOLEAN DEFAULT FALSE",
+                    # A30 — soft-delete + papelera
+                    "ALTER TABLE negocios ADD COLUMN IF NOT EXISTS eliminado BOOLEAN DEFAULT FALSE",
+                    "ALTER TABLE negocios ADD COLUMN IF NOT EXISTS eliminado_en TIMESTAMP",
+                    "ALTER TABLE negocios ADD COLUMN IF NOT EXISTS eliminado_por VARCHAR(120)",
+                    "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS eliminado BOOLEAN DEFAULT FALSE",
+                    "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS eliminado_en TIMESTAMP",
+                    "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS eliminado_por VARCHAR(120)",
+                    # A32 — moderación del feed de comunidad
+                    "ALTER TABLE negocio_badges_obtenidos ADD COLUMN IF NOT EXISTS oculto_feed BOOLEAN DEFAULT FALSE",
                 ]
                 for sql in migraciones:
                     try:

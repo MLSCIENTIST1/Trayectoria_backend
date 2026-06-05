@@ -11,6 +11,25 @@
 
 ---
 
+## 2026-06-05 — 🐞 FIX CRÍTICO F8 · migraciones de run.py no corrían en prod
+
+**Tipo:** corrección urgente de producción (panel no cargaba negocios).
+
+### Problema
+- `/api/admin/negocios/planes` → 500 ("Error cargando negocios"). El filtro `n.eliminado` (A30) referenciaba una columna inexistente en prod.
+
+### Causa raíz (grande)
+- En producción el entrypoint NO es `run.py` (Procfile `gunicorn run:run` sin variable `run`; Render usa el app factory). El único bloque de migraciones que corre en prod está en `src/__init__.py::create_app()`. `db.create_all()` crea **tablas con modelo** (por eso `gamif_config`/`intentos_login` existían) pero **NO añade columnas a tablas existentes ni crea tablas sin modelo**. → Todas mis migraciones en `run.py` (A15/A19/A25/A28/A30/A32 + columnas de F7) **nunca se aplicaron en prod**. F7 tampoco había quedado.
+
+### Solución
+- Copiadas TODAS las sentencias `ALTER … ADD COLUMN IF NOT EXISTS` / `CREATE TABLE IF NOT EXISTS` a la lista `migraciones` de `create_app()` en `src/__init__.py` (idempotentes, commit individual). Se aplican al desplegar.
+- Documentado en `CLAUDE.md` (regla: migraciones SIEMPRE en `create_app()`), `memory/fixes_tienda_checkout.md` (F8) y `memory/feedback_repos_structure`.
+
+### Post-deploy
+- Reasignar Deluxe al negocio afectado (F7) ya debe funcionar; el listado de negocios vuelve a cargar.
+
+---
+
 ## 2026-06-05 — Panel admin A32 · Moderación del feed de comunidad
 
 **Sprint actual:** Panel de Administración. **Fase 4.** Avance **32/49**.
