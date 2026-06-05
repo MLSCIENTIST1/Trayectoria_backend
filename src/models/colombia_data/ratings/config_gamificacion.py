@@ -1081,6 +1081,94 @@ def set_recompensas_liga(limpio, db_session=None):
 
 
 # ═══════════════════════════════════════════════════════════════════
+# REFERIDOS (A27) — recompensas configurables + detección de fraude
+# DEFAULT histórico (S29): xp_referidor=50, tukoins_referidor=30.
+# ═══════════════════════════════════════════════════════════════════
+
+REFERIDOS_CONFIG_DEFAULT = {
+    'xp_referidor': 50,       # XP personal para quien refirió, al convertir
+    'tukoins_referidor': 30,  # TuKoins al negocio del referidor
+    'umbral_fraude': 10,      # nº de referidos que dispara revisión
+    'ratio_min': 0.2,         # tasa de conversión mínima esperada (<0.2 con muchos referidos = sospechoso)
+}
+
+
+def validar_referidos_config(payload):
+    """Valida la config de referidos. PURA. (ok, limpio, error)."""
+    if not isinstance(payload, dict):
+        return False, {}, 'Se espera un objeto de configuración'
+    limpio = dict(REFERIDOS_CONFIG_DEFAULT)
+    try:
+        if payload.get('xp_referidor') not in (None, ''):
+            v = int(payload['xp_referidor'])
+            if not (0 <= v <= 100000):
+                return False, {}, 'xp_referidor fuera de rango (0-100000)'
+            limpio['xp_referidor'] = v
+        if payload.get('tukoins_referidor') not in (None, ''):
+            v = int(payload['tukoins_referidor'])
+            if not (0 <= v <= 100000):
+                return False, {}, 'tukoins_referidor fuera de rango (0-100000)'
+            limpio['tukoins_referidor'] = v
+        if payload.get('umbral_fraude') not in (None, ''):
+            v = int(payload['umbral_fraude'])
+            if not (2 <= v <= 1000):
+                return False, {}, 'umbral_fraude fuera de rango (2-1000)'
+            limpio['umbral_fraude'] = v
+        if payload.get('ratio_min') not in (None, ''):
+            v = float(payload['ratio_min'])
+            if not (0.0 <= v <= 1.0):
+                return False, {}, 'ratio_min fuera de rango (0.0-1.0)'
+            limpio['ratio_min'] = round(v, 2)
+    except (TypeError, ValueError):
+        return False, {}, 'Valores numéricos inválidos'
+    return True, limpio, None
+
+
+def marcar_referidores_sospechosos(filas, umbral, ratio_min):
+    """
+    Detecta referidores con patrón de fraude. Función PURA.
+    'filas' = [{'usuario_id', 'total', 'convertidos'}].
+    Sospechoso si total >= umbral Y (convertidos/total) < ratio_min
+    (muchos referidos pero casi ninguno convierte → posibles cuentas falsas).
+    Devuelve {usuario_id: ratio_redondeado}.
+    """
+    sospechosos = {}
+    for f in (filas or []):
+        try:
+            uid = f['usuario_id']; total = int(f['total']); conv = int(f['convertidos'])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if total >= umbral:
+            ratio = (conv / total) if total else 0
+            if ratio < ratio_min:
+                sospechosos[uid] = round(ratio, 2)
+    return sospechosos
+
+
+def get_referidos_config():
+    """Config efectiva de referidos (override BD o DEFAULT). A prueba de fallos."""
+    try:
+        row = GamifConfig.query.get('referidos_config')
+        if row and isinstance(row.valor, dict):
+            cfg = dict(REFERIDOS_CONFIG_DEFAULT); cfg.update(row.valor)
+            return cfg
+    except Exception:
+        pass
+    return dict(REFERIDOS_CONFIG_DEFAULT)
+
+
+def set_referidos_config(limpio, db_session=None):
+    sess = db_session or db.session
+    row = GamifConfig.query.get('referidos_config')
+    if row:
+        row.valor = limpio; row.updated_at = datetime.utcnow()
+    else:
+        sess.add(GamifConfig(clave='referidos_config', valor=limpio))
+    sess.commit()
+    return limpio
+
+
+# ═══════════════════════════════════════════════════════════════════
 # REGLAS DE RACHAS (A11) — configurables desde el panel
 # ═══════════════════════════════════════════════════════════════════
 RACHAS_DEFAULT = {

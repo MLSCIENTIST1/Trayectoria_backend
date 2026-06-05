@@ -2678,6 +2678,110 @@ def ejecutar_liga_recompensas():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# GESTIÓN DE REFERIDOS (Admin Panel A27)
+# Árbol de referidos, conversiones, detección de fraude y recompensas editables.
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/gamificacion/referidos', methods=['GET'])
+@requiere_permiso('gamificacion')
+def admin_referidos():
+    """GET /api/admin/gamificacion/referidos?limit= → stats + top referidores (con fraude) + recientes + config."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            get_referidos_config, marcar_referidores_sospechosos
+        )
+        limit = min(int(request.args.get('limit', 50) or 50), 200)
+        cfg = get_referidos_config()
+
+        # Estadísticas globales.
+        g_row = _db.session.execute(_t("""
+            SELECT COUNT(*) AS total,
+                   COUNT(*) FILTER (WHERE convertido) AS convertidos,
+                   COUNT(*) FILTER (WHERE recompensado) AS recompensados
+            FROM referidos
+        """)).fetchone()
+        total = g_row[0] or 0; convertidos = g_row[1] or 0; recompensados = g_row[2] or 0
+        stats = {
+            'total': total, 'convertidos': convertidos, 'recompensados': recompensados,
+            'tasa_conversion': round(convertidos / total, 3) if total else 0,
+        }
+
+        # Top referidores (el "árbol": quién ha referido y cuántos convirtieron).
+        top_rows = _db.session.execute(_t("""
+            SELECT r.referidor_usuario_id, u.nombre, u.correo,
+                   COUNT(*) AS total,
+                   COUNT(*) FILTER (WHERE r.convertido) AS convertidos
+            FROM referidos r
+            LEFT JOIN usuarios u ON u.id_usuario = r.referidor_usuario_id
+            GROUP BY r.referidor_usuario_id, u.nombre, u.correo
+            ORDER BY total DESC
+            LIMIT :lim
+        """), {'lim': limit}).fetchall()
+        filas_fraude = [{'usuario_id': r[0], 'total': r[3], 'convertidos': r[4]} for r in top_rows]
+        sospechosos = marcar_referidores_sospechosos(
+            filas_fraude, cfg.get('umbral_fraude', 10), cfg.get('ratio_min', 0.2))
+        top = [{
+            'usuario_id': r[0], 'nombre': r[1] or f'#{r[0]}', 'correo': r[2] or '',
+            'total': r[3], 'convertidos': r[4],
+            'tasa': round((r[4] / r[3]), 2) if r[3] else 0,
+            'sospechoso': r[0] in sospechosos,
+        } for r in top_rows]
+
+        # Referidos recientes.
+        rec_rows = _db.session.execute(_t("""
+            SELECT r.id, r.referidor_usuario_id, ur.nombre,
+                   r.referido_usuario_id, ud.nombre,
+                   r.convertido, r.recompensado, r.fecha_registro, r.fecha_conversion
+            FROM referidos r
+            LEFT JOIN usuarios ur ON ur.id_usuario = r.referidor_usuario_id
+            LEFT JOIN usuarios ud ON ud.id_usuario = r.referido_usuario_id
+            ORDER BY r.fecha_registro DESC
+            LIMIT :lim
+        """), {'lim': limit}).fetchall()
+        recientes = [{
+            'id': r[0],
+            'referidor': {'usuario_id': r[1], 'nombre': r[2] or f'#{r[1]}'},
+            'referido':  {'usuario_id': r[3], 'nombre': r[4] or f'#{r[3]}'},
+            'convertido': r[5], 'recompensado': r[6],
+            'fecha_registro': r[7].isoformat() if r[7] else None,
+            'fecha_conversion': r[8].isoformat() if r[8] else None,
+        } for r in rec_rows]
+
+        return build_cors_response({'success': True, 'config': cfg, 'stats': stats,
+                                    'top': top, 'recientes': recientes,
+                                    'sospechosos': len(sospechosos)})
+    except Exception as e:
+        logger.error(f"Error en admin_referidos: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'top': [], 'recientes': []}, 200)
+
+
+@admin_bp.route('/gamificacion/referidos/config', methods=['PUT'])
+@requiere_permiso('gamificacion')
+def update_referidos_config():
+    """PUT /api/admin/gamificacion/referidos/config  body: { xp_referidor, tukoins_referidor, umbral_fraude, ratio_min }"""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            validar_referidos_config, set_referidos_config, get_referidos_config
+        )
+        antes = get_referidos_config()
+        ok, limpio, error = validar_referidos_config(request.get_json(silent=True) or {})
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        set_referidos_config(limpio)
+        registrar_auditoria('editar', 'gamif_referidos_config', None, {'antes': antes, 'despues': limpio})
+        return build_cors_response({'success': True, 'config': limpio, 'message': 'Config de referidos actualizada'})
+    except Exception as e:
+        logger.error(f"Error en update_referidos_config: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # MODERACIÓN DE DUELOS (Admin Panel A26)
 # Ver duelos activos/históricos con marcadores y cancelar los abusivos.
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -691,16 +691,25 @@ def procesar_conversion_referido(referido_usuario_id):
             ref.convertido = True
             ref.fecha_conversion = datetime.utcnow()
 
+        # A27: recompensas configurables desde el panel (fallback a las constantes S29).
+        try:
+            from src.models.colombia_data.ratings.config_gamificacion import get_referidos_config
+            _cfg_ref = get_referidos_config()
+            _xp_ref = int(_cfg_ref.get('xp_referidor', REFERIDO_XP_REFERIDOR))
+            _tk_ref = int(_cfg_ref.get('tukoins_referidor', REFERIDO_TUKOINS))
+        except Exception:
+            _xp_ref, _tk_ref = REFERIDO_XP_REFERIDOR, REFERIDO_TUKOINS
+
         # Recompensa al referidor (XP personal + TuKoins a su primer negocio)
         gu = UsuarioGamificacion.obtener_o_crear(ref.referidor_usuario_id, db.session)
-        gu.agregar_xp(REFERIDO_XP_REFERIDOR, "Referido convertido")
+        gu.agregar_xp(_xp_ref, "Referido convertido")
         try:
             from src.models.colombia_data.negocio import Negocio
             from src.models.colombia_data.ratings.negocio_gamificacion import NegocioGamificacion
             neg = Negocio.query.filter_by(usuario_id=ref.referidor_usuario_id).first()
             if neg:
                 gn = NegocioGamificacion.obtener_o_crear(neg.id_negocio, db.session)
-                gn.agregar_tukoins(REFERIDO_TUKOINS, "Referido convertido", db_session=db.session)
+                gn.agregar_tukoins(_tk_ref, "Referido convertido", db_session=db.session)
         except Exception:
             pass
 
@@ -708,7 +717,7 @@ def procesar_conversion_referido(referido_usuario_id):
         db.session.commit()
         logger.info(f"🎁 Referido convertido: referidor={ref.referidor_usuario_id} premiado")
         return {'referidor_usuario_id': ref.referidor_usuario_id,
-                'xp': REFERIDO_XP_REFERIDOR, 'tukoins': REFERIDO_TUKOINS}
+                'xp': _xp_ref, 'tukoins': _tk_ref}
     except Exception as e:
         logger.warning(f"[referidos] conversión no crítica: {e}")
         try:

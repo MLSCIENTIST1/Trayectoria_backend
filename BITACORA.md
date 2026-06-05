@@ -11,6 +11,28 @@
 
 ---
 
+## 2026-06-05 — Panel admin A27 · Gestión de referidos
+
+**Sprint actual:** Panel de Administración. **Fase 3.** Avance **27/49**.
+
+### Completado
+- **A27 — Gestión de referidos.** Administración del sistema de referidos (S29) desde el panel.
+  - **Backend:** `REFERIDOS_CONFIG_DEFAULT` (xp 50 / tukoins 30 / umbral_fraude 10 / ratio_min 0.2) + helpers PUROS `validar_referidos_config` y `marcar_referidores_sospechosos` (marca referidores con `total ≥ umbral` y `convertidos/total < ratio_min` → muchos referidos casi sin conversión = posibles cuentas falsas) + `get/set_referidos_config` en `config_gamificacion.py`. **`procesar_conversion_referido()` ahora lee la config efectiva** (recompensas editables sin tocar código; fallback a las constantes S29).
+  - **Endpoints:** `GET /api/admin/gamificacion/referidos` (stats globales de conversión + top referidores con nombre/correo y flag 🚩 + referidos recientes + config) y `PUT .../referidos/config` (auditado). Ambos `requiere_permiso('gamificacion')`.
+  - **Frontend:** tarjeta "🔗 Gestión de referidos": chips de stats (total/convertidos/tasa/recompensados/sospechosos), form de config (XP/TuKoins/umbral/ratio), tabla de top referidores (resalta sospechosos) y `<details>` con referidos recientes. Responsive (scroll-x), `escapeHtml`.
+- **Test:** `test_admin_referidos_a27.py` → **28/28**.
+
+### Pendiente (Fase 3)
+- A28 challenges 2.0 (integrar challenges con gamificación) → cierra la Fase 3.
+
+### Problemas
+- Ninguno.
+
+### Siguiente paso
+- **A28 — Challenges 2.0**: integrar el sistema de challenges con la gamificación. Cierra Fase 3.
+
+---
+
 ## 2026-06-05 — Panel admin A26 · Moderación de duelos
 
 **Sprint actual:** Panel de Administración. **Fase 3.** Avance **26/49**.
