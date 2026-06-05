@@ -5,7 +5,7 @@ TuKomercio — Duelos entre negocios v1.0 (Sprint 31)
 Un negocio reta a otro a competir durante 7 días por el mayor número de pedidos
 entregados. Al finalizar, gana quien más vendió. La tabla se crea sola.
 
-Estados: pendiente → activo → finalizado | rechazado | expirado
+Estados: pendiente → activo → finalizado | rechazado | expirado | cancelado(admin)
 
 © 2024-2026 Carlos Eduardo Huérfano Bermúdez. Todos los derechos reservados.
 """
@@ -15,6 +15,14 @@ from datetime import datetime, timedelta
 from src.models.database import db
 
 DURACION_DUELO_DIAS = 7
+
+# A26: un admin solo puede cancelar duelos que aún están en juego.
+ESTADOS_CANCELABLES = {'pendiente', 'activo'}
+
+
+def puede_cancelar_duelo(estado):
+    """True si un duelo en este estado puede cancelarse por moderación. Función PURA."""
+    return str(estado or '').strip().lower() in ESTADOS_CANCELABLES
 
 
 class Duelo(db.Model):

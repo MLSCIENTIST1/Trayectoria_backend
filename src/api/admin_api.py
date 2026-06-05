@@ -2677,6 +2677,88 @@ def ejecutar_liga_recompensas():
         return build_cors_response({'success': False, 'error': str(e)}, 500)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# MODERACIÓN DE DUELOS (Admin Panel A26)
+# Ver duelos activos/históricos con marcadores y cancelar los abusivos.
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/gamificacion/duelos', methods=['GET'])
+@requiere_permiso('gamificacion')
+def admin_duelos():
+    """GET /api/admin/gamificacion/duelos?estado=&limit= → lista de duelos + nombres + resumen."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        estado = (request.args.get('estado', '') or '').strip().lower()
+        limit  = min(int(request.args.get('limit', 50) or 50), 200)
+        sql = """
+            SELECT d.id, d.retador_negocio_id, nr.nombre_negocio,
+                   d.retado_negocio_id, nt.nombre_negocio,
+                   d.estado, d.fecha_inicio, d.fecha_fin, d.creado_en,
+                   d.ganador_negocio_id, d.ventas_retador, d.ventas_retado
+            FROM duelos d
+            LEFT JOIN negocios nr ON nr.id_negocio = d.retador_negocio_id
+            LEFT JOIN negocios nt ON nt.id_negocio = d.retado_negocio_id
+        """
+        params = {'lim': limit}
+        if estado:
+            sql += " WHERE LOWER(d.estado) = :estado"; params['estado'] = estado
+        sql += " ORDER BY d.creado_en DESC LIMIT :lim"
+        rows = _db.session.execute(_t(sql), params).fetchall()
+
+        from src.models.colombia_data.ratings.duelo import puede_cancelar_duelo
+        duelos = []
+        for r in rows:
+            duelos.append({
+                'id': r[0],
+                'retador': {'negocio_id': r[1], 'nombre': r[2] or f'#{r[1]}', 'ventas': r[10] or 0},
+                'retado':  {'negocio_id': r[3], 'nombre': r[4] or f'#{r[3]}', 'ventas': r[11] or 0},
+                'estado': r[5],
+                'fecha_inicio': r[6].isoformat() if r[6] else None,
+                'fecha_fin': r[7].isoformat() if r[7] else None,
+                'creado_en': r[8].isoformat() if r[8] else None,
+                'ganador_negocio_id': r[9],
+                'cancelable': puede_cancelar_duelo(r[5]),
+            })
+
+        # Resumen por estado (sobre toda la tabla, no solo la página).
+        res = _db.session.execute(_t("SELECT LOWER(estado), COUNT(*) FROM duelos GROUP BY LOWER(estado)")).fetchall()
+        resumen = {row[0]: row[1] for row in res}
+        return build_cors_response({'success': True, 'duelos': duelos, 'resumen': resumen,
+                                    'total': sum(resumen.values())})
+    except Exception as e:
+        logger.error(f"Error en admin_duelos: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'duelos': []}, 200)
+
+
+@admin_bp.route('/gamificacion/duelos/<int:duelo_id>/cancelar', methods=['POST'])
+@requiere_permiso('gamificacion')
+def cancelar_duelo(duelo_id):
+    """POST /api/admin/gamificacion/duelos/<id>/cancelar  body: { motivo? } → cancela un duelo abusivo."""
+    from src.models.database import db as _db
+    try:
+        from src.models.colombia_data.ratings.duelo import Duelo, puede_cancelar_duelo
+        d = Duelo.query.get(duelo_id)
+        if not d:
+            return build_cors_response({'success': False, 'error': 'Duelo no encontrado'}, 404)
+        if not puede_cancelar_duelo(d.estado):
+            return build_cors_response({'success': False, 'error': f'No se puede cancelar un duelo «{d.estado}»'}, 400)
+        antes = d.estado
+        motivo = (request.get_json(silent=True) or {}).get('motivo', '')
+        d.estado = 'cancelado'
+        _db.session.commit()
+        registrar_auditoria('rechazar', 'duelo', duelo_id,
+                            {'antes': antes, 'despues': 'cancelado', 'motivo': motivo,
+                             'retador': d.retador_negocio_id, 'retado': d.retado_negocio_id})
+        return build_cors_response({'success': True, 'duelo': d.serialize(), 'message': 'Duelo cancelado'})
+    except Exception as e:
+        logger.error(f"Error en cancelar_duelo: {e}")
+        try:
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
 @admin_bp.route('/gamificacion/sugerencias-config', methods=['GET'])
 @requiere_permiso('gamificacion')
 def get_gamif_sugerencias():

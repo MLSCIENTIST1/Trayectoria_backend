@@ -11,6 +11,27 @@
 
 ---
 
+## 2026-06-05 — Panel admin A26 · Moderación de duelos
+
+**Sprint actual:** Panel de Administración. **Fase 3.** Avance **26/49**.
+
+### Completado
+- **A26 — Moderación de duelos.** Visibilidad y control de los duelos 1v1 (S31).
+  - **Backend:** nuevo estado `cancelado` + helper PURO `puede_cancelar_duelo(estado)` (solo `pendiente`/`activo`) y `ESTADOS_CANCELABLES` en `duelo.py`. Endpoints `GET /api/admin/gamificacion/duelos?estado=&limit=` (join de nombres de retador/retado + marcador + resumen por estado en toda la tabla) y `POST .../duelos/<id>/cancelar` (valida cancelabilidad, auditado como acción `rechazar` sobre entidad `duelo` con motivo). Ambos `requiere_permiso('gamificacion')`.
+  - **Frontend:** tarjeta "⚔️ Moderación de duelos": filtro por estado, chips de resumen coloreados, tabla con marcador (retador-retado), 👑 ganador, badge de estado y botón Cancelar (solo si cancelable, con prompt de motivo). Responsive (scroll-x), `escapeHtml`.
+- **Test:** `test_admin_duelos_a26.py` → **20/20**.
+
+### Pendiente (Fase 3)
+- A27 gestión de referidos · A28 challenges 2.0.
+
+### Problemas
+- Ninguno.
+
+### Siguiente paso
+- **A27 — Gestión de referidos**: ver árbol de referidos, conversiones, detectar fraude, ajustar recompensas (cubre captura `?ref=` pendiente de S29).
+
+---
+
 ## 2026-06-05 — Panel admin A25 · Recompensas automáticas de liga (cron + UI)
 
 **Sprint actual:** Panel de Administración. **Fase 3.** Avance **25/49**.
