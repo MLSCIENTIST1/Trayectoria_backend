@@ -1712,6 +1712,94 @@ def moderar_perfil_creador(negocio_id):
         return build_cors_response({'success': False, 'error': str(e)}, 500)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# MODERACIÓN DEL FEED DE COMUNIDAD (Admin Panel A32)
+# Logros destacados (S32): nivel mínimo configurable + ocultar eventos abusivos.
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/feed-comunidad', methods=['GET'])
+@requiere_permiso('gamificacion')
+def admin_feed_comunidad():
+    """GET /api/admin/feed-comunidad?limit= → eventos del feed (incluye ocultos) + config."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import get_feed_comunidad_config
+        cfg = get_feed_comunidad_config()
+        limit = min(int(request.args.get('limit', 50) or 50), 200)
+        rows = _db.session.execute(_t("""
+            SELECT o.id, n.id_negocio, n.nombre_negocio, b.nombre, b.icono, b.nivel,
+                   o.fecha_obtencion, COALESCE(o.oculto_feed, FALSE) AS oculto,
+                   COALESCE(o.activo, TRUE) AS activo
+            FROM negocio_badges_obtenidos o
+            JOIN negocio_badges b ON b.id = o.badge_id
+            JOIN negocios n ON n.id_negocio = o.negocio_id
+            WHERE b.nivel >= :niv
+            ORDER BY o.fecha_obtencion DESC NULLS LAST
+            LIMIT :lim
+        """), {'niv': int(cfg.get('nivel_minimo', 3)), 'lim': limit}).fetchall()
+        eventos = [{
+            'id': r[0], 'negocio_id': r[1], 'negocio': r[2] or f'#{r[1]}',
+            'badge': r[3], 'icono': r[4] or 'bi-award-fill', 'nivel': r[5] or 3,
+            'fecha': r[6].isoformat() if r[6] else None,
+            'oculto': bool(r[7]), 'activo': bool(r[8]),
+        } for r in rows]
+        return build_cors_response({'success': True, 'eventos': eventos, 'config': cfg})
+    except Exception as e:
+        logger.error(f"Error en admin_feed_comunidad: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'eventos': []}, 200)
+
+
+@admin_bp.route('/feed-comunidad/<int:obtenido_id>/ocultar', methods=['POST'])
+@requiere_permiso('gamificacion')
+def ocultar_evento_comunidad(obtenido_id):
+    """POST /api/admin/feed-comunidad/<id>/ocultar  body: { oculto: bool } → oculta/muestra el logro en el feed (sin revocar el badge)."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        oculto = bool((request.get_json(silent=True) or {}).get('oculto'))
+        existe = _db.session.execute(_t("SELECT 1 FROM negocio_badges_obtenidos WHERE id = :id"), {'id': obtenido_id}).fetchone()
+        if not existe:
+            return build_cors_response({'success': False, 'error': 'Evento no encontrado'}, 404)
+        _db.session.execute(_t("UPDATE negocio_badges_obtenidos SET oculto_feed = :o WHERE id = :id"),
+                            {'o': oculto, 'id': obtenido_id})
+        _db.session.commit()
+        registrar_auditoria('editar', 'feed_comunidad', obtenido_id, {'oculto_feed': oculto})
+        return build_cors_response({'success': True, 'oculto': oculto,
+                                    'message': f"Logro {'oculto del' if oculto else 'visible en el'} feed"})
+    except Exception as e:
+        logger.error(f"Error en ocultar_evento_comunidad: {e}")
+        try:
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+@admin_bp.route('/feed-comunidad/config', methods=['PUT'])
+@requiere_permiso('gamificacion')
+def update_feed_comunidad_config():
+    """PUT /api/admin/feed-comunidad/config  body: { nivel_minimo, limite }"""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            validar_feed_comunidad_config, set_feed_comunidad_config, get_feed_comunidad_config
+        )
+        antes = get_feed_comunidad_config()
+        ok, limpio, error = validar_feed_comunidad_config(request.get_json(silent=True) or {})
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        set_feed_comunidad_config(limpio)
+        registrar_auditoria('editar', 'feed_comunidad_config', None, {'antes': antes, 'despues': limpio})
+        return build_cors_response({'success': True, 'config': limpio, 'message': 'Config del feed de comunidad actualizada'})
+    except Exception as e:
+        logger.error(f"Error en update_feed_comunidad_config: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
 @admin_bp.route('/usuarios/<int:user_id>', methods=['DELETE'])
 @superadmin_required
 def delete_usuario(user_id):

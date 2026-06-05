@@ -1541,6 +1541,14 @@ def eventos_comunidad():
     """
     from sqlalchemy import text as _t
     try:
+        # A32: nivel mínimo y límite configurables desde el panel (fallback al DEFAULT).
+        try:
+            from src.models.colombia_data.ratings.config_gamificacion import get_feed_comunidad_config
+            _fc = get_feed_comunidad_config()
+            _niv = int(_fc.get('nivel_minimo', NIVEL_EVENTO_DESTACADO))
+            _lim = int(_fc.get('limite', 15))
+        except Exception:
+            _niv, _lim = NIVEL_EVENTO_DESTACADO, 15
         rows = db.session.execute(_t("""
             SELECT n.nombre_negocio, n.slug, b.nombre, b.icono, b.color_primario,
                    b.nivel, o.fecha_obtencion
@@ -1549,11 +1557,12 @@ def eventos_comunidad():
             JOIN negocios n ON n.id_negocio = o.negocio_id
             WHERE b.nivel >= :niv
               AND (o.activo IS TRUE OR o.activo IS NULL)
+              AND (o.oculto_feed IS FALSE OR o.oculto_feed IS NULL)
               AND (b.es_secreto IS FALSE OR b.es_secreto IS NULL)
               AND n.activo = true AND n.perfil_publico = true
             ORDER BY o.fecha_obtencion DESC
-            LIMIT 15
-        """), {'niv': NIVEL_EVENTO_DESTACADO}).fetchall()
+            LIMIT :lim
+        """), {'niv': _niv, 'lim': _lim}).fetchall()
         eventos = []
         for r in rows:
             f = r[6]

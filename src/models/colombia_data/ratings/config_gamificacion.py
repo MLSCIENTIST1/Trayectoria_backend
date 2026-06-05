@@ -1224,6 +1224,60 @@ def set_challenge_rewards(limpio, db_session=None):
 
 
 # ═══════════════════════════════════════════════════════════════════
+# FEED DE COMUNIDAD (A32) — qué logros destacados aparecen (S32)
+# ═══════════════════════════════════════════════════════════════════
+
+FEED_COMUNIDAD_DEFAULT = {
+    'nivel_minimo': 3,   # nivel de badge para aparecer en el feed (3 = Oro)
+    'limite': 15,        # máximo de eventos a mostrar
+}
+
+
+def validar_feed_comunidad_config(payload):
+    """Valida la config del feed de comunidad. PURA. (ok, limpio, error)."""
+    if not isinstance(payload, dict):
+        return False, {}, 'Se espera un objeto de configuración'
+    limpio = dict(FEED_COMUNIDAD_DEFAULT)
+    try:
+        if payload.get('nivel_minimo') not in (None, ''):
+            v = int(payload['nivel_minimo'])
+            if not (1 <= v <= 5):
+                return False, {}, 'nivel_minimo fuera de rango (1-5)'
+            limpio['nivel_minimo'] = v
+        if payload.get('limite') not in (None, ''):
+            v = int(payload['limite'])
+            if not (1 <= v <= 100):
+                return False, {}, 'limite fuera de rango (1-100)'
+            limpio['limite'] = v
+    except (TypeError, ValueError):
+        return False, {}, 'Valores numéricos inválidos'
+    return True, limpio, None
+
+
+def get_feed_comunidad_config():
+    """Config efectiva del feed de comunidad (override BD o DEFAULT). A prueba de fallos."""
+    try:
+        row = GamifConfig.query.get('feed_comunidad_config')
+        if row and isinstance(row.valor, dict):
+            cfg = dict(FEED_COMUNIDAD_DEFAULT); cfg.update(row.valor)
+            return cfg
+    except Exception:
+        pass
+    return dict(FEED_COMUNIDAD_DEFAULT)
+
+
+def set_feed_comunidad_config(limpio, db_session=None):
+    sess = db_session or db.session
+    row = GamifConfig.query.get('feed_comunidad_config')
+    if row:
+        row.valor = limpio; row.updated_at = datetime.utcnow()
+    else:
+        sess.add(GamifConfig(clave='feed_comunidad_config', valor=limpio))
+    sess.commit()
+    return limpio
+
+
+# ═══════════════════════════════════════════════════════════════════
 # REGLAS DE RACHAS (A11) — configurables desde el panel
 # ═══════════════════════════════════════════════════════════════════
 RACHAS_DEFAULT = {

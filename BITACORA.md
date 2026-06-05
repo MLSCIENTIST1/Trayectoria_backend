@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-06-05 — Panel admin A32 · Moderación del feed de comunidad
+
+**Sprint actual:** Panel de Administración. **Fase 4.** Avance **32/49**.
+
+### Completado
+- **A32 — Moderación del feed de comunidad (S32).** Control de los logros destacados (insignias Oro+) que se muestran como prueba social.
+  - **Backend:** `FEED_COMUNIDAD_DEFAULT` (nivel_minimo 3, limite 15) + `validar/get/set_feed_comunidad_config` en `config_gamificacion.py`. Columna `negocio_badges_obtenidos.oculto_feed` (migración `run.py`). El feed público `eventos_comunidad()` ahora lee **nivel y límite configurables** y **excluye `oculto_feed`** (fallback al DEFAULT). Endpoints `GET /api/admin/feed-comunidad` (incluye ocultos + estado), `POST .../feed-comunidad/<id>/ocultar` (oculta/muestra **sin revocar** la insignia), `PUT .../feed-comunidad/config`. Todos `requiere_permiso('gamificacion')` y auditados.
+  - **Frontend:** tarjeta "🌟 Feed de comunidad" en la sección Videos/Feed: inputs de nivel mínimo + límite, y tabla de logros con botón ocultar/mostrar y badge de estado (visible/oculto/revocado).
+- **Test:** `test_admin_feed_comunidad_a32.py` → **21/21**.
+
+### Pendiente (Fase 4)
+- A33 anuncios/notificaciones masivas · A34 planes/suscripciones avanzada · A35 soporte/impersonar.
+
+### Siguiente paso
+- **A33 — Anuncios y notificaciones masivas** (avisos a segmentos por ciudad/plan/nivel; plantillas).
+
+---
+
 ## 2026-06-05 — Panel admin A31 · Moderación de videos/feed y perfiles de creador
 
 **Sprint actual:** Panel de Administración. **Fase 4.** Avance **31/49**.

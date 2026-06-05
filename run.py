@@ -504,6 +504,20 @@ try:
             logger.warning(f"⚠️  No se pudo verificar soft-delete/papelera: {pg_err16}")
         # ─────────────────────────────────────────────────────────────────────
 
+        # ── Moderación del feed de comunidad: ocultar logro del feed (A32) ───
+        try:
+            from sqlalchemy import text as _sql_text17
+            from src.models.database import db as _db17
+            conn17 = _db17.engine.connect()
+            conn17.execute(_sql_text17(
+                "ALTER TABLE negocio_badges_obtenidos ADD COLUMN IF NOT EXISTS oculto_feed BOOLEAN DEFAULT FALSE"))
+            conn17.commit()
+            conn17.close()
+            logger.info("✅ negocio_badges_obtenidos.oculto_feed (A32) verificada")
+        except Exception as pg_err17:
+            logger.warning(f"⚠️  No se pudo verificar oculto_feed: {pg_err17}")
+        # ─────────────────────────────────────────────────────────────────────
+
         # ==========================================
         # INSPECTOR DE RUTAS
         # ==========================================
