@@ -11,6 +11,25 @@
 
 ---
 
+## 2026-06-05 — Panel admin A36 · Centro de reportes exportables · 📊 ARRANCA FASE 5
+
+**Sprint actual:** Panel de Administración. **Fase 5 (Analítica/Salud/Cierre) iniciada (A36-A40).** Avance **36/51**.
+
+### Completado
+- **A36 — Centro de reportes exportables.** Nueva sección "Analítica" de plataforma + export CSV.
+  - **Backend:** helper PURO `a_csv(headers, filas)` + `_celda_csv` en `api/utils/reportes_service.py` (escape correcto de comas/comillas/saltos + BOM UTF-8 para Excel, CRLF). Endpoints `GET /api/admin/reportes/resumen` (totales, economía de TuKoins [emitidos/gastados/circulación/tx desde `tukoins_transacciones`], distribución por plan, crecimiento mensual de negocios/usuarios con `date_trunc`, top ciudades; excluye papelera) y `GET /api/admin/reportes/export?tipo=negocios|usuarios|tukoins|crecimiento` (auditado como `export`). Ambos `requiere_permiso('reportes')`.
+  - **Frontend:** sección/nav "Analítica" (grupo General): stat-cards de totales, tarjetas de economía TuKoins, distribución por plan (barras), tabla de crecimiento, top ciudades, y botones de descarga CSV (Blob client-side).
+- **Test:** `test_admin_reportes_a36.py` → **24/24**.
+- **Nota:** PDF se omitió a propósito; el CSV (Excel/Sheets) cubre el caso y es más robusto.
+
+### Pendiente (Fase 5)
+- A37 salud del sistema · A38 config global · A39 feature flags v2 · A40 pulido final + docs.
+
+### Siguiente paso
+- **A37 — Salud del sistema (health, errores, métricas de uso)**.
+
+---
+
 ## 2026-06-05 — Panel admin A35 · Modo soporte · 🎉 FASE 4 COMPLETA
 
 **Sprint actual:** Panel de Administración. **Fase 4 (Negocios) COMPLETA (A29-A35).** Avance **35/51**.

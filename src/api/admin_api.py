@@ -1959,6 +1959,159 @@ def soporte_negocio(negocio_id):
         return build_cors_response({'success': False, 'error': str(e)}, 200)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# CENTRO DE REPORTES EXPORTABLES (Admin Panel A36)
+# Resumen analítico de plataforma + exportación CSV. Arranca Fase 5.
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/reportes/resumen', methods=['GET'])
+@requiere_permiso('reportes')
+def reportes_resumen():
+    """GET /api/admin/reportes/resumen → métricas agregadas de plataforma."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        def _scalar(sql, params=None):
+            try:
+                return int(_db.session.execute(_t(sql), params or {}).scalar() or 0)
+            except Exception:
+                return 0
+
+        totales = {
+            'negocios':          _scalar("SELECT COUNT(*) FROM negocios WHERE COALESCE(eliminado,FALSE)=FALSE"),
+            'negocios_activos':  _scalar("SELECT COUNT(*) FROM negocios WHERE activo=TRUE AND COALESCE(eliminado,FALSE)=FALSE"),
+            'con_pagina':        _scalar("SELECT COUNT(*) FROM negocios WHERE tiene_pagina=TRUE AND COALESCE(eliminado,FALSE)=FALSE"),
+            'usuarios':          _scalar("SELECT COUNT(*) FROM usuarios WHERE COALESCE(eliminado,FALSE)=FALSE"),
+            'usuarios_activos':  _scalar("SELECT COUNT(*) FROM usuarios WHERE active=TRUE AND COALESCE(eliminado,FALSE)=FALSE"),
+            'productos':         _scalar("SELECT COUNT(*) FROM productos_catalogo"),
+            'pedidos':           _scalar("SELECT COUNT(*) FROM pedidos"),
+        }
+
+        # Distribución por plan
+        planes = []
+        try:
+            for r in _db.session.execute(_t(
+                "SELECT COALESCE(plan_key,'basic') AS plan, COUNT(*) AS n "
+                "FROM negocios WHERE COALESCE(eliminado,FALSE)=FALSE GROUP BY plan_key ORDER BY n DESC")).fetchall():
+                planes.append({'plan': r[0], 'cantidad': int(r[1])})
+        except Exception:
+            pass
+
+        # Economía de TuKoins
+        tukoins = {
+            'emitidos':       _scalar("SELECT COALESCE(SUM(cantidad),0) FROM tukoins_transacciones WHERE tipo='ganado'"),
+            'gastados':       _scalar("SELECT COALESCE(SUM(cantidad),0) FROM tukoins_transacciones WHERE tipo='gastado'"),
+            'en_circulacion': _scalar("SELECT COALESCE(SUM(tukoins),0) FROM negocio_gamificacion"),
+            'transacciones':  _scalar("SELECT COUNT(*) FROM tukoins_transacciones"),
+        }
+
+        # Crecimiento últimos 6 meses (negocios y usuarios nuevos por mes)
+        crecimiento = []
+        try:
+            rows = _db.session.execute(_t("""
+                SELECT to_char(date_trunc('month', fecha_registro), 'YYYY-MM') AS mes, COUNT(*) AS n
+                FROM negocios
+                WHERE fecha_registro >= (CURRENT_DATE - INTERVAL '6 months')
+                GROUP BY 1 ORDER BY 1
+            """)).fetchall()
+            neg_por_mes = {r[0]: int(r[1]) for r in rows}
+            rows_u = _db.session.execute(_t("""
+                SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS mes, COUNT(*) AS n
+                FROM usuarios
+                WHERE created_at >= (CURRENT_DATE - INTERVAL '6 months')
+                GROUP BY 1 ORDER BY 1
+            """)).fetchall()
+            usr_por_mes = {r[0]: int(r[1]) for r in rows_u}
+            meses = sorted(set(neg_por_mes) | set(usr_por_mes))
+            crecimiento = [{'mes': m, 'negocios_nuevos': neg_por_mes.get(m, 0),
+                            'usuarios_nuevos': usr_por_mes.get(m, 0)} for m in meses]
+        except Exception as _ce:
+            logger.warning(f"[reportes] crecimiento no disponible: {_ce}")
+
+        # Top ciudades
+        top_ciudades = []
+        try:
+            for r in _db.session.execute(_t(
+                "SELECT COALESCE(NULLIF(TRIM(ciudad),''),'(sin ciudad)') AS c, COUNT(*) AS n "
+                "FROM negocios WHERE COALESCE(eliminado,FALSE)=FALSE GROUP BY c ORDER BY n DESC LIMIT 10")).fetchall():
+                top_ciudades.append({'ciudad': r[0], 'negocios': int(r[1])})
+        except Exception:
+            pass
+
+        return build_cors_response({'success': True, 'totales': totales, 'planes': planes,
+                                    'tukoins': tukoins, 'crecimiento': crecimiento,
+                                    'top_ciudades': top_ciudades})
+    except Exception as e:
+        logger.error(f"Error en reportes_resumen: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
+@admin_bp.route('/reportes/export', methods=['GET'])
+@requiere_permiso('reportes')
+def reportes_export():
+    """GET /api/admin/reportes/export?tipo=negocios|usuarios|tukoins|crecimiento → {filename, csv}."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        from src.api.utils.reportes_service import a_csv
+        tipo = (request.args.get('tipo', 'negocios') or 'negocios').strip().lower()
+
+        if tipo == 'negocios':
+            headers = [('id', 'ID'), ('nombre', 'Negocio'), ('ciudad', 'Ciudad'), ('plan', 'Plan'),
+                       ('activo', 'Activo'), ('correo', 'Correo dueño'), ('registro', 'Registro')]
+            rows = []
+            for r in _db.session.execute(_t("""
+                SELECT n.id_negocio, n.nombre_negocio, n.ciudad, COALESCE(n.plan_key,'basic'),
+                       n.activo, u.correo, n.fecha_registro
+                FROM negocios n LEFT JOIN usuarios u ON u.id_usuario = n.usuario_id
+                WHERE COALESCE(n.eliminado,FALSE)=FALSE
+                ORDER BY n.fecha_registro DESC NULLS LAST LIMIT 5000
+            """)).fetchall():
+                rows.append({'id': r[0], 'nombre': r[1], 'ciudad': r[2], 'plan': r[3],
+                             'activo': 'Sí' if r[4] else 'No', 'correo': r[5] or '',
+                             'registro': r[6].strftime('%Y-%m-%d') if r[6] else ''})
+        elif tipo == 'usuarios':
+            headers = [('id', 'ID'), ('nombre', 'Nombre'), ('correo', 'Correo'),
+                       ('activo', 'Activo'), ('registro', 'Registro')]
+            rows = []
+            for r in _db.session.execute(_t("""
+                SELECT id_usuario, (nombre || ' ' || COALESCE(apellidos,'')), correo, active, created_at
+                FROM usuarios WHERE COALESCE(eliminado,FALSE)=FALSE
+                ORDER BY created_at DESC NULLS LAST LIMIT 5000
+            """)).fetchall():
+                rows.append({'id': r[0], 'nombre': (r[1] or '').strip(), 'correo': r[2],
+                             'activo': 'Sí' if r[3] else 'No',
+                             'registro': r[4].strftime('%Y-%m-%d') if r[4] else ''})
+        elif tipo == 'tukoins':
+            headers = [('fecha', 'Fecha'), ('negocio_id', 'Negocio'), ('tipo', 'Tipo'),
+                       ('cantidad', 'Cantidad'), ('concepto', 'Concepto'), ('balance', 'Balance')]
+            rows = []
+            for r in _db.session.execute(_t("""
+                SELECT fecha, negocio_id, tipo, cantidad, concepto, balance_tras
+                FROM tukoins_transacciones ORDER BY fecha DESC NULLS LAST LIMIT 5000
+            """)).fetchall():
+                rows.append({'fecha': r[0].strftime('%Y-%m-%d %H:%M') if r[0] else '',
+                             'negocio_id': r[1], 'tipo': r[2], 'cantidad': r[3],
+                             'concepto': r[4], 'balance': r[5]})
+        elif tipo == 'crecimiento':
+            headers = [('mes', 'Mes'), ('negocios_nuevos', 'Negocios nuevos'), ('usuarios_nuevos', 'Usuarios nuevos')]
+            neg = {r[0]: int(r[1]) for r in _db.session.execute(_t(
+                "SELECT to_char(date_trunc('month', fecha_registro),'YYYY-MM'), COUNT(*) FROM negocios GROUP BY 1")).fetchall()}
+            usr = {r[0]: int(r[1]) for r in _db.session.execute(_t(
+                "SELECT to_char(date_trunc('month', created_at),'YYYY-MM'), COUNT(*) FROM usuarios GROUP BY 1")).fetchall()}
+            rows = [{'mes': m, 'negocios_nuevos': neg.get(m, 0), 'usuarios_nuevos': usr.get(m, 0)}
+                    for m in sorted(set(neg) | set(usr))]
+        else:
+            return build_cors_response({'success': False, 'error': 'Tipo de reporte inválido'}, 400)
+
+        csv = a_csv(headers, rows)
+        registrar_auditoria('export', 'reporte', None, {'tipo': tipo, 'filas': len(rows)})
+        return build_cors_response({'success': True, 'tipo': tipo, 'filas': len(rows),
+                                    'filename': f'reporte_{tipo}.csv', 'csv': csv})
+    except Exception as e:
+        logger.error(f"Error en reportes_export: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
 @admin_bp.route('/usuarios/<int:user_id>', methods=['DELETE'])
 @superadmin_required
 def delete_usuario(user_id):
