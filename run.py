@@ -469,6 +469,22 @@ try:
             logger.warning(f"⚠️  No se pudo verificar suscripciones_negocio: {pg_err14}")
         # ─────────────────────────────────────────────────────────────────────
 
+        # ── Challenges 2.0: flags de idempotencia para premios de gamificación (A28) ──
+        try:
+            from sqlalchemy import text as _sql_text15
+            from src.models.database import db as _db15
+            conn15 = _db15.engine.connect()
+            conn15.execute(_sql_text15(
+                "ALTER TABLE challenge_participaciones ADD COLUMN IF NOT EXISTS gamif_otorgado BOOLEAN DEFAULT FALSE"))
+            conn15.execute(_sql_text15(
+                "ALTER TABLE challenges ADD COLUMN IF NOT EXISTS gamif_premiado BOOLEAN DEFAULT FALSE"))
+            conn15.commit()
+            conn15.close()
+            logger.info("✅ challenges/participaciones (flags gamif A28) verificadas")
+        except Exception as pg_err15:
+            logger.warning(f"⚠️  No se pudo verificar flags gamif de challenges: {pg_err15}")
+        # ─────────────────────────────────────────────────────────────────────
+
         # ==========================================
         # INSPECTOR DE RUTAS
         # ==========================================

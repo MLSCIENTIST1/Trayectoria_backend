@@ -930,15 +930,104 @@ def update_participacion_estado(participacion_id):
         conn.commit()
         cur.close()
         conn.close()
-        
+
+        # A28: si se aprobó, premiar en gamificación (idempotente y a prueba de fallos).
+        recompensa = None
+        if nuevo_estado == 'aprobado':
+            try:
+                from src.api.utils.challenge_gamif_service import premiar_participacion_aprobada
+                from src.models.database import db as _db
+                recompensa = premiar_participacion_aprobada(_db.session, participacion_id)
+            except Exception as _ge:
+                logger.warning(f"[A28] premio participación no crítico: {_ge}")
+
         return jsonify({
             'success': True,
-            'message': f'Participación actualizada a "{nuevo_estado}"'
+            'message': f'Participación actualizada a "{nuevo_estado}"',
+            'recompensa_gamif': recompensa,
         }), 200
-        
+
     except Exception as e:
         logger.error(f"Error actualizando participación: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CHALLENGES 2.0 — integración con gamificación (Admin Panel A28)
+# Finalizar challenge premiando al ganador + recompensas configurables.
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/challenges/<int:challenge_id>/finalizar', methods=['POST'])
+@requiere_permiso('challenges')
+def finalizar_challenge(challenge_id):
+    """
+    POST /api/admin/challenges/<id>/finalizar
+    Marca el challenge como finalizado y premia (idempotente) al ganador en gamificación.
+    """
+    from src.models.database import db as _db
+    try:
+        from src.api.utils.challenge_gamif_service import finalizar_y_premiar
+        resultado = finalizar_y_premiar(_db.session, challenge_id)
+        if not resultado.get('success'):
+            return build_cors_response({'success': False, 'error': resultado.get('error', 'Error')}, 404)
+        registrar_auditoria('editar', 'challenge', challenge_id, {
+            'accion': 'finalizar',
+            'ganador': resultado.get('ganador'),
+            'ya_premiado': resultado.get('ya_premiado'),
+        })
+        msg = 'Challenge finalizado'
+        if resultado.get('ganador'):
+            g_ = resultado['ganador']
+            msg += f" — ganador: {g_['nombre']} (+{g_['xp']} XP, +{g_['tukoins']} TuKoins)"
+        elif resultado.get('ya_premiado'):
+            msg += ' (ya estaba premiado)'
+        return build_cors_response({'success': True, 'message': msg, **resultado})
+    except Exception as e:
+        logger.error(f"Error en finalizar_challenge: {e}")
+        try:
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+@admin_bp.route('/challenges/recompensas-config', methods=['GET'])
+@requiere_permiso('challenges')
+def get_challenge_rewards_cfg():
+    """GET /api/admin/challenges/recompensas-config → recompensas efectivas + default."""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            get_challenge_rewards, CHALLENGE_REWARDS_DEFAULT
+        )
+        return build_cors_response({'success': True, 'config': get_challenge_rewards(),
+                                    'default': CHALLENGE_REWARDS_DEFAULT})
+    except Exception as e:
+        logger.error(f"Error en get_challenge_rewards_cfg: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
+@admin_bp.route('/challenges/recompensas-config', methods=['PUT'])
+@requiere_permiso('challenges')
+def update_challenge_rewards_cfg():
+    """PUT /api/admin/challenges/recompensas-config  body: { xp_participar, tukoins_participar, xp_ganador, tukoins_ganador }"""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            validar_challenge_rewards, set_challenge_rewards, get_challenge_rewards
+        )
+        antes = get_challenge_rewards()
+        ok, limpio, error = validar_challenge_rewards(request.get_json(silent=True) or {})
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        set_challenge_rewards(limpio)
+        registrar_auditoria('editar', 'challenge_rewards', None, {'antes': antes, 'despues': limpio})
+        return build_cors_response({'success': True, 'config': limpio, 'message': 'Recompensas de challenge actualizadas'})
+    except Exception as e:
+        logger.error(f"Error en update_challenge_rewards_cfg: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

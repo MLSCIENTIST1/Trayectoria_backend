@@ -11,6 +11,27 @@
 
 ---
 
+## 2026-06-05 — Panel admin A28 · Challenges 2.0 · 🎉 FASE 3 COMPLETA
+
+**Sprint actual:** Panel de Administración. **Fase 3 (Eventos/Retos/Competencia) COMPLETA (A22-A28).** Avance **28/49**.
+
+### Completado
+- **A28 — Challenges 2.0 (integración con gamificación).** El concurso por video ahora da XP+TuKoins.
+  - **Backend:** `CHALLENGE_REWARDS_DEFAULT` (participar 30 XP/15 TK, ganador 300 XP/150 TK) + helpers PUROS `validar_challenge_rewards` + `get/set_challenge_rewards` en `config_gamificacion.py`. Servicio `api/utils/challenge_gamif_service.py`: `premiar_participacion_aprobada` (al aprobar) y `finalizar_y_premiar` (al cerrar, ganador = más votos entre aprobadas). **Idempotente** vía flags `challenge_participaciones.gamif_otorgado` y `challenges.gamif_premiado` (migración en `run.py`). `update_participacion_estado` dispara el premio al aprobar **sin romper la moderación** (try/except).
+  - **Endpoints:** `POST /api/admin/challenges/<id>/finalizar` y `GET/PUT .../challenges/recompensas-config` (`requiere_permiso('challenges')`, auditados).
+  - **Frontend:** en la sección Challenges, tarjeta "🎮 Recompensas de gamificación" (4 campos) + botón "Finalizar y premiar" 🏆 por challenge (oculto si ya finalizado).
+- **Test:** `test_admin_challenges_a28.py` → **25/25**.
+- **🎉 Cierre de Fase 3:** eventos (A22), retos (A23), ligas + moderación (A24), recompensas de liga (A25), duelos (A26), referidos (A27) y challenges (A28) — toda la competencia/gamificación social administrable sin código.
+- **Hallazgo (no bloqueante):** el listado de participaciones (`list_participaciones`) hace `JOIN negocios n ON n.id = cp.negocio_id` con `n.nombre`/`n.logo_url`, pero la tabla usa `id_negocio`/`nombre_negocio` → el nombre del negocio probablemente sale null ahí. No tocado en A28 (fuera de alcance); candidato a fix aparte.
+
+### Pendiente
+- Fase 4 (A29-A35), Fase 5 (A36-A40), Fase 6 (A41-A49).
+
+### Siguiente paso
+- **A29 — arranca Fase 4 (Negocios)**.
+
+---
+
 ## 2026-06-05 — 🐞 FIX producción F7 · plan no se activa (schema drift suscripciones)
 
 **Tipo:** corrección urgente de producción (no es sprint del roadmap).

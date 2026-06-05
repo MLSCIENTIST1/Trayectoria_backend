@@ -1169,6 +1169,61 @@ def set_referidos_config(limpio, db_session=None):
 
 
 # ═══════════════════════════════════════════════════════════════════
+# CHALLENGES 2.0 (A28) — recompensas de gamificación por challenge
+# Integra el sistema de challenges (video) con XP/TuKoins: premio al participar
+# (cuando la participación se aprueba) y al ganar (al finalizar el challenge).
+# ═══════════════════════════════════════════════════════════════════
+
+CHALLENGE_REWARDS_DEFAULT = {
+    'xp_participar':      30,
+    'tukoins_participar': 15,
+    'xp_ganador':         300,
+    'tukoins_ganador':    150,
+}
+
+
+def validar_challenge_rewards(payload):
+    """Valida las recompensas de challenge. PURA. (ok, limpio, error)."""
+    if not isinstance(payload, dict):
+        return False, {}, 'Se espera un objeto de configuración'
+    limpio = dict(CHALLENGE_REWARDS_DEFAULT)
+    for clave in ('xp_participar', 'tukoins_participar', 'xp_ganador', 'tukoins_ganador'):
+        if payload.get(clave) in (None, ''):
+            continue
+        try:
+            v = int(payload[clave])
+        except (TypeError, ValueError):
+            return False, {}, f'{clave} debe ser un número'
+        if not (0 <= v <= 100000):
+            return False, {}, f'{clave} fuera de rango (0-100000)'
+        limpio[clave] = v
+    return True, limpio, None
+
+
+def get_challenge_rewards():
+    """Recompensas efectivas de challenge (override BD o DEFAULT). A prueba de fallos."""
+    try:
+        row = GamifConfig.query.get('challenge_rewards')
+        if row and isinstance(row.valor, dict):
+            cfg = dict(CHALLENGE_REWARDS_DEFAULT); cfg.update(row.valor)
+            return cfg
+    except Exception:
+        pass
+    return dict(CHALLENGE_REWARDS_DEFAULT)
+
+
+def set_challenge_rewards(limpio, db_session=None):
+    sess = db_session or db.session
+    row = GamifConfig.query.get('challenge_rewards')
+    if row:
+        row.valor = limpio; row.updated_at = datetime.utcnow()
+    else:
+        sess.add(GamifConfig(clave='challenge_rewards', valor=limpio))
+    sess.commit()
+    return limpio
+
+
+# ═══════════════════════════════════════════════════════════════════
 # REGLAS DE RACHAS (A11) — configurables desde el panel
 # ═══════════════════════════════════════════════════════════════════
 RACHAS_DEFAULT = {
