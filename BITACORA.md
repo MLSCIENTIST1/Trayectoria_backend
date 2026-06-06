@@ -11,6 +11,26 @@
 
 ---
 
+## 2026-06-05 — Panel admin A40 · Pulido final + docs · 🎉 FASE 5 COMPLETA
+
+**Sprint actual:** Panel de Administración. **Fase 5 (Analítica/Salud/Cierre) COMPLETA (A36-A40).** Avance **40/51**.
+
+### Completado
+- **A40 — Pulido final + documentación.** Solo frontend + docs (sin cambios backend).
+  - **Responsividad (bug real corregido):** el sidebar se ocultaba en móvil (<768px) **sin botón para abrirlo** → panel inservible en celular. Añadido **botón hamburguesa ☰ flotante** + **backdrop**, cierre del menú al elegir sección, `flex-wrap` en headers, tablas con scroll-x y fuente reducida.
+  - **Ayuda contextual:** mapa `SECTION_HELP` (16 secciones) + línea de ayuda azul que se actualiza al cambiar de sección (y al cargar el dashboard).
+  - **Docs:** nuevo `MANUAL_ADMIN.md` (guía paso a paso para el administrador) en el repo backend; `TuKomercio_Funcionalidades.md` **§25 reescrita** reflejando A1–A39, versión → **v2.20.0**.
+- **Suite:** 1220/0 (sin tocar backend).
+- **🎉 Cierre Fase 5:** reportes/CSV (A36), salud (A37), config global (A38), feature flags v2 (A39), pulido+docs (A40).
+
+### Estado global
+- Fases 0-5 ✅ (A1-A40, **40/51**). Pendiente: **Fase 6** (Pagos/Legal/IA, A41-A49) y **Fase 7 EXTRA** (notificaciones, A50-A51).
+
+### Siguiente paso
+- **A41 — arranca Fase 6** (Pagos Wompi avanzado / legal / Dora IA / emails / verticales).
+
+---
+
 ## 2026-06-05 — Panel admin A39 · Feature flags v2 (rollout % + overrides)
 
 **Sprint actual:** Panel de Administración. **Fase 5.** Avance **39/51**.
