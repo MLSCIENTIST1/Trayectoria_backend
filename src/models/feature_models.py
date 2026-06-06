@@ -67,6 +67,7 @@ class FeatureFlag(db.Model):
     visible         = db.Column(db.Boolean, default=True)
     icono           = db.Column(db.String(50))
     orden           = db.Column(db.Integer, default=0)
+    rollout_pct     = db.Column(db.Integer, default=100)  # A39: % de negocios con la feature (0-100)
     created_at      = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at      = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -82,12 +83,44 @@ class FeatureFlag(db.Model):
             'activo_global': self.activo_global,
             'visible': self.visible,
             'icono': self.icono,
-            'orden': self.orden
+            'orden': self.orden,
+            'rollout_pct': self.rollout_pct if self.rollout_pct is not None else 100,
         }
-    
+
     def __repr__(self):
         estado = "✅" if self.activo_global else "❌"
         return f'<Feature {estado} {self.key}>'
+
+
+class FeatureOverride(db.Model):
+    """A39: forzar una feature ON/OFF para un negocio específico (sobre plan/rollout)."""
+    __tablename__ = 'feature_overrides'
+    id          = db.Column(db.Integer, primary_key=True)
+    negocio_id  = db.Column(db.Integer, nullable=False, index=True)
+    feature_key = db.Column(db.String(100), nullable=False, index=True)
+    habilitado  = db.Column(db.Boolean, default=True, nullable=False)
+    created_by  = db.Column(db.String(120))
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    __table_args__ = (db.UniqueConstraint('negocio_id', 'feature_key', name='uq_feature_override'),)
+
+
+def en_rollout(negocio_id, feature_key, pct):
+    """
+    ¿El negocio entra en el rollout parcial de la feature? Función PURA y DETERMINISTA.
+    pct >= 100 (o None) → siempre dentro; pct <= 0 → siempre fuera; en medio, bucket por hash.
+    """
+    try:
+        p = 100 if pct is None else int(pct)
+    except (TypeError, ValueError):
+        p = 100
+    if p >= 100:
+        return True
+    if p <= 0:
+        return False
+    import hashlib
+    h = hashlib.md5(f"{feature_key}:{negocio_id}".encode('utf-8')).hexdigest()
+    bucket = int(h[:8], 16) % 100   # 0..99 estable por (feature, negocio)
+    return bucket < p
 
 
 class Plan(db.Model):
@@ -212,29 +245,53 @@ def check_negocio_feature(negocio_id, feature_key):
     feature = FeatureFlag.query.filter_by(key=feature_key).first()
     if not feature:
         return {'allowed': False, 'limite': None, 'reason': 'feature_not_found'}
-    
+
     if not feature.activo_global:
         return {'allowed': False, 'limite': None, 'reason': 'feature_disabled_global'}
-    
+
     from sqlalchemy import text
+
+    # A39: override por negocio (gana sobre plan y rollout). A prueba de fallos.
+    override = None
+    try:
+        override = FeatureOverride.query.filter_by(
+            negocio_id=int(negocio_id), feature_key=feature_key).first()
+    except Exception:
+        override = None
+    if override is not None and override.habilitado is False:
+        return {'allowed': False, 'limite': None, 'reason': 'override_off'}
+
     result = db.session.execute(
         text("SELECT plan_key FROM negocios WHERE id_negocio = :nid"),
         {'nid': negocio_id}
     ).fetchone()
-    
+
     if not result:
         return {'allowed': False, 'limite': None, 'reason': 'negocio_not_found'}
-    
+
     plan_key = result[0] or 'basic'
-    
+
     plan_feature = PlanFeature.query.join(Plan).join(FeatureFlag).filter(
         Plan.key == plan_key,
         FeatureFlag.key == feature_key
     ).first()
-    
+
+    # Override ON: habilita aunque el plan no la incluya (sin límite salvo el del plan).
+    if override is not None and override.habilitado is True:
+        return {'allowed': True, 'limite': plan_feature.limite if plan_feature else None,
+                'config': plan_feature.config_json if plan_feature else {},
+                'current_plan': plan_key, 'reason': 'override_on'}
+
     if not plan_feature:
         return {'allowed': False, 'limite': None, 'reason': 'plan_upgrade_required', 'current_plan': plan_key}
-    
+
+    # A39: rollout parcial — el plan la incluye, pero aún no le toca a este negocio.
+    try:
+        if not en_rollout(negocio_id, feature_key, feature.rollout_pct):
+            return {'allowed': False, 'limite': None, 'reason': 'rollout_pending', 'current_plan': plan_key}
+    except Exception:
+        pass  # ante cualquier fallo del rollout, no bloquear
+
     return {
         'allowed': True,
         'limite': plan_feature.limite,

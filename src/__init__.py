@@ -491,6 +491,17 @@ def create_app():
                         valor      JSONB DEFAULT '{}'::jsonb,
                         updated_at TIMESTAMP DEFAULT NOW()
                     )""",
+                    # A39 — feature flags v2: rollout por % + overrides por negocio
+                    "ALTER TABLE feature_flags ADD COLUMN IF NOT EXISTS rollout_pct INTEGER DEFAULT 100",
+                    """CREATE TABLE IF NOT EXISTS feature_overrides (
+                        id          SERIAL PRIMARY KEY,
+                        negocio_id  INTEGER NOT NULL,
+                        feature_key VARCHAR(100) NOT NULL,
+                        habilitado  BOOLEAN NOT NULL DEFAULT TRUE,
+                        created_by  VARCHAR(120),
+                        created_at  TIMESTAMP DEFAULT NOW(),
+                        CONSTRAINT uq_feature_override UNIQUE (negocio_id, feature_key)
+                    )""",
                 ]
                 for sql in migraciones:
                     try:

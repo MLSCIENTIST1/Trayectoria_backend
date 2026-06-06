@@ -161,6 +161,133 @@ def update_feature(feature_id):
     return jsonify({'success': True, 'feature': feature.to_dict()})
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# FEATURE FLAGS v2 (A39): rollout por % + overrides por negocio
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_features_bp.route('/api/admin/features/<int:feature_id>/rollout', methods=['PUT', 'OPTIONS'])
+@admin_required
+def set_feature_rollout(feature_id):
+    """PUT /api/admin/features/<id>/rollout  body: { rollout_pct: 0-100 }"""
+    if request.method == 'OPTIONS':
+        return jsonify({'success': True}), 200
+    feature = FeatureFlag.query.get(feature_id)
+    if not feature:
+        return jsonify({'error': 'Feature no encontrada'}), 404
+    try:
+        pct = int((request.get_json(silent=True) or {}).get('rollout_pct'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'rollout_pct debe ser un número'}), 400
+    if not (0 <= pct <= 100):
+        return jsonify({'error': 'rollout_pct fuera de rango (0-100)'}), 400
+    antes = feature.rollout_pct
+    feature.rollout_pct = pct
+    db.session.commit()
+    try:
+        from src.api.admin_api import registrar_auditoria
+        registrar_auditoria('editar', 'feature_flag', feature_id,
+                            {'key': feature.key, 'rollout_pct': {'antes': antes, 'despues': pct}})
+    except Exception:
+        pass
+    logger.info(f"🎚️ Rollout de '{feature.key}' → {pct}% por {g.user_email}")
+    return jsonify({'success': True, 'feature': feature.to_dict(),
+                    'message': f"Rollout de '{feature.nombre}' al {pct}%"})
+
+
+@admin_features_bp.route('/api/admin/features/<feature_key>/overrides', methods=['GET', 'OPTIONS'])
+@admin_required
+def list_feature_overrides(feature_key):
+    """GET /api/admin/features/<key>/overrides → overrides por negocio de esa feature."""
+    if request.method == 'OPTIONS':
+        return jsonify({'success': True}), 200
+    try:
+        from src.models.feature_models import FeatureOverride
+        from sqlalchemy import text as _t
+        ovs = FeatureOverride.query.filter_by(feature_key=feature_key).order_by(FeatureOverride.created_at.desc()).all()
+        # nombres de negocio
+        ids = [o.negocio_id for o in ovs]
+        nombres = {}
+        if ids:
+            for r in db.session.execute(_t(
+                "SELECT id_negocio, nombre_negocio FROM negocios WHERE id_negocio = ANY(:ids)"),
+                {'ids': ids}).fetchall():
+                nombres[r[0]] = r[1]
+        return jsonify({'success': True, 'overrides': [{
+            'negocio_id': o.negocio_id, 'nombre': nombres.get(o.negocio_id, f'#{o.negocio_id}'),
+            'habilitado': o.habilitado, 'created_by': o.created_by,
+        } for o in ovs]})
+    except Exception as e:
+        logger.error(f"Error listando overrides {feature_key}: {e}")
+        return jsonify({'success': False, 'error': str(e), 'overrides': []}), 200
+
+
+@admin_features_bp.route('/api/admin/features/override', methods=['POST', 'OPTIONS'])
+@admin_required
+def upsert_feature_override():
+    """POST /api/admin/features/override  body: { negocio_id, feature_key, habilitado }"""
+    if request.method == 'OPTIONS':
+        return jsonify({'success': True}), 200
+    try:
+        from src.models.feature_models import FeatureOverride, FeatureFlag as _FF
+        data = request.get_json(silent=True) or {}
+        try:
+            nid = int(data.get('negocio_id'))
+        except (TypeError, ValueError):
+            return jsonify({'error': 'negocio_id inválido'}), 400
+        fkey = (data.get('feature_key') or '').strip()
+        if not fkey or not _FF.query.filter_by(key=fkey).first():
+            return jsonify({'error': 'feature_key inválida'}), 400
+        if not db.session.execute(text("SELECT 1 FROM negocios WHERE id_negocio=:n"), {'n': nid}).fetchone():
+            return jsonify({'error': 'Negocio no encontrado'}), 404
+        habilitado = bool(data.get('habilitado'))
+        ov = FeatureOverride.query.filter_by(negocio_id=nid, feature_key=fkey).first()
+        if ov:
+            ov.habilitado = habilitado
+        else:
+            ov = FeatureOverride(negocio_id=nid, feature_key=fkey, habilitado=habilitado,
+                                 created_by=g.user_email)
+            db.session.add(ov)
+        db.session.commit()
+        try:
+            from src.api.admin_api import registrar_auditoria
+            registrar_auditoria('editar', 'feature_override', nid,
+                                {'feature_key': fkey, 'habilitado': habilitado})
+        except Exception:
+            pass
+        return jsonify({'success': True, 'message': f"Override de '{fkey}' para negocio {nid}: {'ON' if habilitado else 'OFF'}"})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error en upsert_feature_override: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@admin_features_bp.route('/api/admin/features/override', methods=['DELETE'])
+@admin_required
+def delete_feature_override():
+    """DELETE /api/admin/features/override  body: { negocio_id, feature_key } → quita el override (vuelve a plan/rollout)."""
+    try:
+        from src.models.feature_models import FeatureOverride
+        data = request.get_json(silent=True) or {}
+        nid = int(data.get('negocio_id'))
+        fkey = (data.get('feature_key') or '').strip()
+        ov = FeatureOverride.query.filter_by(negocio_id=nid, feature_key=fkey).first()
+        if not ov:
+            return jsonify({'error': 'Override no encontrado'}), 404
+        db.session.delete(ov)
+        db.session.commit()
+        try:
+            from src.api.admin_api import registrar_auditoria
+            registrar_auditoria('eliminar', 'feature_override', nid, {'feature_key': fkey})
+        except Exception:
+            pass
+        return jsonify({'success': True, 'message': 'Override eliminado'})
+    except (TypeError, ValueError):
+        return jsonify({'error': 'datos inválidos'}), 400
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error en delete_feature_override: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @admin_features_bp.route('/api/admin/features', methods=['POST', 'OPTIONS'])
 @admin_required
 def create_feature():

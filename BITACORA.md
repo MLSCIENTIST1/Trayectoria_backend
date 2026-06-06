@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-06-05 — Panel admin A39 · Feature flags v2 (rollout % + overrides)
+
+**Sprint actual:** Panel de Administración. **Fase 5.** Avance **39/51**.
+
+### Completado
+- **A39 — Feature flags v2.** El sistema pasó de on/off global + plan a: **rollout gradual por %** y **overrides por negocio**.
+  - **Backend:** columna `feature_flags.rollout_pct` (default 100, retrocompatible) + modelo `FeatureOverride` (tabla `feature_overrides`, UNIQUE negocio+feature) + helper PURO `en_rollout(negocio_id, feature_key, pct)` (bucket md5 determinista y monótono) en `feature_models.py`. **`check_negocio_feature` integrado:** override OFF→`override_off`; override ON→`override_on` (habilita aunque el plan no la tenga); si plan la incluye pero el negocio no entra en el rollout→`rollout_pending`. Todo a prueba de fallos (default 100 = sin cambio para lo existente). Migración en `create_app` (ALTER + CREATE, lección F8). Endpoints `PUT /api/admin/features/<id>/rollout`, `GET .../features/<key>/overrides`, `POST/DELETE .../features/override` (auditados).
+  - **Frontend:** en cada fila de feature, input de **rollout %** + botón ✓; botón 👥 abre **modal de overrides por negocio** (agregar ON/OFF por ID, listar, quitar).
+- **Test:** `test_admin_featureflags_a39.py` → **26/26**.
+
+### Pendiente (Fase 5)
+- A40 pulido final + documentación del panel → cierra Fase 5.
+
+### Siguiente paso
+- **A40 — Pulido final + docs** (responsividad del panel, ayuda contextual, manual admin, actualizar `TuKomercio_Funcionalidades.md` §25).
+
+---
+
 ## 2026-06-05 — Panel admin A38 · Configuración global de la plataforma
 
 **Sprint actual:** Panel de Administración. **Fase 5.** Avance **38/51**.
