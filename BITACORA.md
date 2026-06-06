@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-06-05 — Panel admin A43 · Moderación global de reseñas
+
+**Sprint actual:** Panel de Administración. **Fase 6.** Avance **43/51**.
+
+### Completado
+- **A43 — Moderación de reseñas a nivel plataforma** (complementa la moderación por-negocio existente).
+  - **Backend:** helpers PUROS `normalizar_email` y `evaluar_resena_sospechosa` (heurística: no verificada, comentario mínimo, extremo 1/5★ sin texto, rating inválido) en `api/utils/resenas_service.py`. Tabla `resena_baneos` (email PK, migración en `create_app`). Endpoints `GET /api/admin/resenas` (filtros estado/rating/búsqueda, join negocio/producto, flags sospechosa + baneado), `POST .../resenas/<id>/moderar` (aprobar/ocultar), `GET/POST/DELETE .../resenas/baneos|banear` (banear oculta todas sus reseñas + bloquea futuras). Todos `requiere_permiso('negocios')`, auditados. **Cableo en `crear_resena`**: si el email está baneado, la reseña entra como NO aprobada (a prueba de fallos).
+  - **Frontend:** sección "Reseñas" (Gestión): filtros, tabla con ★, 🚩 sospechosa, ✅ verificada, botones ocultar/aprobar + banear, y vista de baneados.
+- **Test:** `test_admin_resenas_a43.py` → **25/25**.
+
+### Pendiente (Fase 6)
+- A44 admin Dora IA · A45 Habeas Data · A46 emails Resend · A47 verticales · A48 integraciones · A49 gestor de textos.
+
+### Siguiente paso
+- **A44 — Administración de Dora IA** (límites por plan, consumo/costo, prompts, abuso).
+
+---
+
 ## 2026-06-05 — Panel admin A42 · Facturación / cobro de suscripciones
 
 **Sprint actual:** Panel de Administración. **Fase 6.** Avance **42/51**.

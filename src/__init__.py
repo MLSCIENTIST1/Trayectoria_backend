@@ -502,6 +502,13 @@ def create_app():
                         created_at  TIMESTAMP DEFAULT NOW(),
                         CONSTRAINT uq_feature_override UNIQUE (negocio_id, feature_key)
                     )""",
+                    # A43 — baneo de reseñadores (por email) a nivel plataforma
+                    """CREATE TABLE IF NOT EXISTS resena_baneos (
+                        email      VARCHAR(150) PRIMARY KEY,
+                        motivo     VARCHAR(255),
+                        created_by VARCHAR(120),
+                        created_at TIMESTAMP DEFAULT NOW()
+                    )""",
                 ]
                 for sql in migraciones:
                     try:

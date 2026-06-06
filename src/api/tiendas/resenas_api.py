@@ -77,6 +77,17 @@ def crear_resena(negocio_id, producto_id):
         titulo = (data.get('titulo') or '').strip()[:150]
         comentario = (data.get('comentario') or '').strip()
 
+        # A43: si el email está baneado a nivel plataforma, no se publica (a prueba de fallos).
+        _baneado = False
+        if email:
+            try:
+                from sqlalchemy import text as _t
+                _baneado = db.session.execute(
+                    _t("SELECT 1 FROM resena_baneos WHERE email = :e"),
+                    {'e': email.lower()}).fetchone() is not None
+            except Exception:
+                _baneado = False
+
         # Verificar que el producto pertenece al negocio
         producto = ProductoCatalogo.query.filter_by(
             id_producto=producto_id, negocio_id=negocio_id
@@ -112,13 +123,14 @@ def crear_resena(negocio_id, producto_id):
             comentario=comentario,
             verificado=verificado,
             # Las reseñas de compradores verificados se aprueban automáticamente
-            aprobado=verificado,
+            # (A43: salvo que el reseñador esté baneado → queda oculta).
+            aprobado=(verificado and not _baneado),
             fecha=datetime.now(timezone.utc),
             created_at=datetime.now(timezone.utc),
         )
         db.session.add(resena)
 
-        if verificado:
+        if verificado and not _baneado:
             _recalcular_rating(producto_id, negocio_id)
 
         db.session.commit()

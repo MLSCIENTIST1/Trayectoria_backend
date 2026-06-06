@@ -2410,6 +2410,166 @@ def facturacion_resumen():
         return build_cors_response({'success': False, 'error': str(e), 'requieren_accion': []}, 200)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# MODERACIÓN GLOBAL DE RESEÑAS (Admin Panel A43)
+# Vista de todas las reseñas + ocultar/aprobar + banear reseñadores por email.
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/resenas', methods=['GET'])
+@requiere_permiso('negocios')
+def admin_resenas():
+    """GET /api/admin/resenas?estado=&rating=&buscar=&limit= → reseñas de toda la plataforma."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        from src.api.utils.resenas_service import evaluar_resena_sospechosa, normalizar_email
+        estado = (request.args.get('estado', '') or '').strip().lower()
+        buscar = (request.args.get('buscar', '') or '').strip()
+        rating = request.args.get('rating')
+        limit = min(int(request.args.get('limit', 50) or 50), 200)
+
+        cond = []
+        params = {'lim': limit}
+        if estado == 'aprobadas':
+            cond.append("r.aprobado IS TRUE")
+        elif estado == 'pendientes':
+            cond.append("(r.aprobado IS FALSE OR r.aprobado IS NULL)")
+        if rating and rating.isdigit():
+            cond.append("r.rating = :rating"); params['rating'] = int(rating)
+        if buscar:
+            cond.append("(r.comentario ILIKE :q OR r.cliente_nombre ILIKE :q OR r.cliente_email ILIKE :q)")
+            params['q'] = f"%{buscar}%"
+        where = ("WHERE " + " AND ".join(cond)) if cond else ""
+
+        rows = _db.session.execute(_t(f"""
+            SELECT r.id, r.negocio_id, n.nombre_negocio, r.producto_id, pc.nombre,
+                   r.cliente_nombre, r.cliente_email, r.rating, r.titulo, r.comentario,
+                   r.verificado, r.aprobado, r.fecha
+            FROM producto_reviews r
+            LEFT JOIN negocios n ON n.id_negocio = r.negocio_id
+            LEFT JOIN productos_catalogo pc ON pc.id_producto = r.producto_id
+            {where}
+            ORDER BY r.fecha DESC NULLS LAST LIMIT :lim
+        """), params).fetchall()
+
+        # baneos actuales
+        baneados = set()
+        try:
+            for b in _db.session.execute(_t("SELECT email FROM resena_baneos")).fetchall():
+                baneados.add(normalizar_email(b[0]))
+        except Exception:
+            pass
+
+        resenas = []
+        for r in rows:
+            ev = evaluar_resena_sospechosa({'rating': r[7], 'comentario': r[9], 'titulo': r[8], 'verificado': r[10]})
+            resenas.append({
+                'id': r[0], 'negocio_id': r[1], 'negocio': r[2] or f'#{r[1]}',
+                'producto': r[4] or f'#{r[3]}', 'cliente': r[5] or '', 'email': r[6] or '',
+                'rating': r[7], 'titulo': r[8], 'comentario': r[9],
+                'verificado': r[10], 'aprobado': r[11],
+                'fecha': r[12].isoformat() if r[12] else None,
+                'sospechosa': ev['sospechosa'], 'motivos': ev['motivos'],
+                'baneado': normalizar_email(r[6]) in baneados,
+            })
+        return build_cors_response({'success': True, 'resenas': resenas})
+    except Exception as e:
+        logger.error(f"Error en admin_resenas: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'resenas': []}, 200)
+
+
+@admin_bp.route('/resenas/<int:resena_id>/moderar', methods=['POST'])
+@requiere_permiso('negocios')
+def moderar_resena_admin(resena_id):
+    """POST /api/admin/resenas/<id>/moderar  body: { accion: 'aprobar'|'ocultar' }"""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        accion = ((request.get_json(silent=True) or {}).get('accion') or '').strip().lower()
+        if accion not in ('aprobar', 'ocultar'):
+            return build_cors_response({'success': False, 'error': "accion debe ser 'aprobar' u 'ocultar'"}, 400)
+        existe = _db.session.execute(_t("SELECT 1 FROM producto_reviews WHERE id = :id"), {'id': resena_id}).fetchone()
+        if not existe:
+            return build_cors_response({'success': False, 'error': 'Reseña no encontrada'}, 404)
+        _db.session.execute(_t("UPDATE producto_reviews SET aprobado = :ap WHERE id = :id"),
+                            {'ap': accion == 'aprobar', 'id': resena_id})
+        _db.session.commit()
+        registrar_auditoria('editar', 'resena', resena_id, {'accion': accion})
+        return build_cors_response({'success': True, 'message': f'Reseña {accion}da'})
+    except Exception as e:
+        logger.error(f"Error en moderar_resena_admin: {e}")
+        try:
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+@admin_bp.route('/resenas/baneos', methods=['GET'])
+@requiere_permiso('negocios')
+def listar_baneos_resenas():
+    """GET /api/admin/resenas/baneos → emails baneados."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        rows = _db.session.execute(_t(
+            "SELECT email, motivo, created_by, created_at FROM resena_baneos ORDER BY created_at DESC LIMIT 200")).fetchall()
+        return build_cors_response({'success': True, 'baneos': [{
+            'email': r[0], 'motivo': r[1], 'created_by': r[2],
+            'created_at': r[3].isoformat() if r[3] else None} for r in rows]})
+    except Exception as e:
+        logger.error(f"Error en listar_baneos_resenas: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'baneos': []}, 200)
+
+
+@admin_bp.route('/resenas/banear', methods=['POST'])
+@requiere_permiso('negocios')
+def banear_resenador():
+    """POST /api/admin/resenas/banear  body: { email, motivo? } → veta a un reseñador + oculta sus reseñas."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        from src.api.utils.resenas_service import normalizar_email
+        data = request.get_json(silent=True) or {}
+        email = normalizar_email(data.get('email'))
+        if not email or '@' not in email:
+            return build_cors_response({'success': False, 'error': 'Email inválido'}, 400)
+        _db.session.execute(_t("""
+            INSERT INTO resena_baneos (email, motivo, created_by)
+            VALUES (:e, :m, :by) ON CONFLICT (email) DO UPDATE SET motivo = EXCLUDED.motivo
+        """), {'e': email, 'm': (data.get('motivo') or '')[:255], 'by': getattr(g, 'user_email', None) or 'admin'})
+        # Ocultar todas sus reseñas existentes
+        ocultadas = _db.session.execute(_t(
+            "UPDATE producto_reviews SET aprobado = FALSE WHERE LOWER(cliente_email) = :e"), {'e': email}).rowcount
+        _db.session.commit()
+        registrar_auditoria('excluir', 'resena_baneo', None, {'email': email, 'resenas_ocultadas': ocultadas})
+        return build_cors_response({'success': True, 'message': f'{email} baneado; {ocultadas or 0} reseña(s) ocultada(s)'})
+    except Exception as e:
+        logger.error(f"Error en banear_resenador: {e}")
+        try:
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+@admin_bp.route('/resenas/banear', methods=['DELETE'])
+@requiere_permiso('negocios')
+def desbanear_resenador():
+    """DELETE /api/admin/resenas/banear  body: { email } → quita el baneo."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        from src.api.utils.resenas_service import normalizar_email
+        email = normalizar_email((request.get_json(silent=True) or {}).get('email'))
+        _db.session.execute(_t("DELETE FROM resena_baneos WHERE email = :e"), {'e': email})
+        _db.session.commit()
+        registrar_auditoria('readmitir', 'resena_baneo', None, {'email': email})
+        return build_cors_response({'success': True, 'message': f'{email} desbaneado'})
+    except Exception as e:
+        logger.error(f"Error en desbanear_resenador: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
 @admin_bp.route('/usuarios/<int:user_id>', methods=['DELETE'])
 @superadmin_required
 def delete_usuario(user_id):
