@@ -509,6 +509,14 @@ def create_app():
                         created_by VARCHAR(120),
                         created_at TIMESTAMP DEFAULT NOW()
                     )""",
+                    # A44 — uso diario de IA (Dora) por negocio
+                    """CREATE TABLE IF NOT EXISTS ia_uso (
+                        negocio_id INTEGER NOT NULL,
+                        fecha      DATE NOT NULL,
+                        usos       INTEGER NOT NULL DEFAULT 0,
+                        CONSTRAINT uq_ia_uso UNIQUE (negocio_id, fecha)
+                    )""",
+                    "CREATE INDEX IF NOT EXISTS ix_ia_uso_fecha ON ia_uso(fecha)",
                 ]
                 for sql in migraciones:
                     try:

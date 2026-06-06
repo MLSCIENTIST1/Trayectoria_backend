@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-06-05 — Panel admin A44 · Administración de Dora IA
+
+**Sprint actual:** Panel de Administración. **Fase 6.** Avance **44/51**.
+
+### Completado
+- **A44 — Admin de Dora IA (costos y abuso).** Antes Dora no tenía control admin (modelo hardcodeado, sin límites ni tracking → costo impredecible).
+  - **Backend:** config IA en `config_global` (clave `ia`) + helpers PUROS `validar_ia_config`, `limite_ia_por_plan`, `puede_usar_ia` en `config_plataforma.py`. Tabla `ia_uso` (negocio_id, fecha, usos; migración en `create_app`). **Integración en `call_groq`** (choke point único de Dora): aplica **toggle global** + **límite diario por plan** antes de llamar a Groq, usa **modelo/max_tokens** de config, y registra el uso solo tras éxito. Todo a prueba de fallos: ante cualquier error de gobierno, deja pasar para no romper Dora. Endpoints `GET /api/admin/ia` (config + consumo hoy/30d + top consumidores) y `PUT .../ia/config` (**superadmin**, auditado).
+  - **Frontend:** sección "IA (Dora)" (Plataforma): stat-cards de consumo + estado, toggle de Dora, modelo/tokens, límites/día por plan, tabla de top consumidores.
+- **Test:** `test_admin_ia_a44.py` → **27/27**.
+
+### Pendiente (Fase 6)
+- A45 Habeas Data · A46 emails Resend · A47 verticales · A48 integraciones · A49 gestor de textos.
+
+### Siguiente paso
+- **A45 — Habeas Data / privacidad** (exportar datos de usuario, derecho al olvido, consentimientos — Ley 1581).
+
+---
+
 ## 2026-06-05 — Panel admin A43 · Moderación global de reseñas
 
 **Sprint actual:** Panel de Administración. **Fase 6.** Avance **43/51**.

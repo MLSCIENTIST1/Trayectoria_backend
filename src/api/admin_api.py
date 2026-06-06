@@ -2570,6 +2570,75 @@ def desbanear_resenador():
         return build_cors_response({'success': False, 'error': str(e)}, 500)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# ADMINISTRACIÓN DE DORA IA (Admin Panel A44)
+# Toggle global, modelo/tokens, límites por plan y monitoreo de consumo.
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/ia', methods=['GET'])
+@requiere_permiso('configuracion')
+def admin_ia():
+    """GET /api/admin/ia → config de IA + consumo (hoy/30d) + top consumidores."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        from src.models.colombia_data.config_plataforma import get_ia_config, IA_CONFIG_DEFAULT
+        cfg = get_ia_config()
+
+        def _scalar(sql):
+            try:
+                return int(_db.session.execute(_t(sql)).scalar() or 0)
+            except Exception:
+                return 0
+        consumo = {
+            'usos_hoy':  _scalar("SELECT COALESCE(SUM(usos),0) FROM ia_uso WHERE fecha = CURRENT_DATE"),
+            'usos_30d':  _scalar("SELECT COALESCE(SUM(usos),0) FROM ia_uso WHERE fecha >= (CURRENT_DATE - 30)"),
+            'negocios_hoy': _scalar("SELECT COUNT(DISTINCT negocio_id) FROM ia_uso WHERE fecha = CURRENT_DATE"),
+        }
+        top = []
+        try:
+            for r in _db.session.execute(_t("""
+                SELECT u.negocio_id, n.nombre_negocio, SUM(u.usos) AS total
+                FROM ia_uso u LEFT JOIN negocios n ON n.id_negocio = u.negocio_id
+                WHERE u.fecha >= (CURRENT_DATE - 30)
+                GROUP BY u.negocio_id, n.nombre_negocio
+                ORDER BY total DESC LIMIT 10
+            """)).fetchall():
+                top.append({'negocio_id': r[0], 'nombre': r[1] or f'#{r[0]}', 'usos_30d': int(r[2] or 0)})
+        except Exception:
+            pass
+
+        return build_cors_response({'success': True, 'config': cfg, 'default': IA_CONFIG_DEFAULT,
+                                    'consumo': consumo, 'top_consumidores': top})
+    except Exception as e:
+        logger.error(f"Error en admin_ia: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
+@admin_bp.route('/ia/config', methods=['PUT'])
+@superadmin_required
+def update_ia_config():
+    """PUT /api/admin/ia/config → toggle, modelo, max_tokens, límites por plan. Solo superadmin (afecta costos)."""
+    try:
+        from src.models.colombia_data.config_plataforma import (
+            validar_ia_config, set_ia_config, get_ia_config
+        )
+        antes = get_ia_config()
+        ok, limpio, error = validar_ia_config(request.get_json(silent=True) or {})
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        nueva = set_ia_config(limpio)
+        registrar_auditoria('editar', 'ia_config', None, {'antes': antes, 'despues': limpio})
+        return build_cors_response({'success': True, 'config': nueva, 'message': 'Configuración de IA actualizada'})
+    except Exception as e:
+        logger.error(f"Error en update_ia_config: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
 @admin_bp.route('/usuarios/<int:user_id>', methods=['DELETE'])
 @superadmin_required
 def delete_usuario(user_id):

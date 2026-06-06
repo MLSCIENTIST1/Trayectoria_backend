@@ -405,15 +405,107 @@ MIS HERRAMIENTAS (botones en mi barra inferior):
 • 🧾 Clasificar gasto → dice en qué categoría contable va un gasto"""
 
 
+# ── A44: helpers de gobierno de IA (toggle, límites por plan, tracking de uso) ──
+def _ia_config_y_negocio():
+    """Devuelve (cfg, negocio_id|None). A prueba de fallos."""
+    try:
+        from src.models.colombia_data.config_plataforma import get_ia_config
+        cfg = get_ia_config()
+    except Exception:
+        cfg = {}
+    nid = None
+    try:
+        nid = _resolve_negocio_id(None)
+    except Exception:
+        nid = None
+    return cfg, nid
+
+
+def _ia_usos_hoy(negocio_id):
+    try:
+        from sqlalchemy import text as _t
+        from src.models.database import db as _db
+        return int(_db.session.execute(_t(
+            "SELECT usos FROM ia_uso WHERE negocio_id=:n AND fecha=CURRENT_DATE"),
+            {'n': negocio_id}).scalar() or 0)
+    except Exception:
+        return 0
+
+
+def _ia_registrar_uso(negocio_id):
+    """Incrementa el contador diario de IA (upsert). No crítico."""
+    if not negocio_id:
+        return
+    try:
+        from sqlalchemy import text as _t
+        from src.models.database import db as _db
+        _db.session.execute(_t("""
+            INSERT INTO ia_uso (negocio_id, fecha, usos) VALUES (:n, CURRENT_DATE, 1)
+            ON CONFLICT (negocio_id, fecha) DO UPDATE SET usos = ia_uso.usos + 1
+        """), {'n': negocio_id})
+        _db.session.commit()
+    except Exception:
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+
+
+def _ia_gate():
+    """
+    Verifica toggle global y límite diario por plan ANTES de llamar a Groq.
+    Devuelve (negocio_id, error|None). A prueba de fallos (ante error, deja pasar).
+    """
+    try:
+        from src.models.colombia_data.config_plataforma import get_ia_config, puede_usar_ia
+        cfg = get_ia_config()
+        if not cfg.get('ia_activa', True):
+            return None, "La asistente Dora está temporalmente desactivada."
+        nid = None
+        try:
+            nid = _resolve_negocio_id(None)
+        except Exception:
+            nid = None
+        if not nid:
+            return None, None  # sin negocio identificable → no aplicamos límite
+        plan = 'basic'
+        try:
+            from sqlalchemy import text as _t
+            from src.models.database import db as _db
+            plan = (_db.session.execute(_t("SELECT COALESCE(plan_key,'basic') FROM negocios WHERE id_negocio=:n"),
+                                        {'n': nid}).scalar() or 'basic')
+        except Exception:
+            plan = 'basic'
+        permitido, limite, _rest = puede_usar_ia(_ia_usos_hoy(nid), plan, cfg)
+        if not permitido:
+            return nid, f"Alcanzaste el límite diario de IA de tu plan ({limite}). Intenta mañana o mejora tu plan."
+        return nid, None
+    except Exception:
+        return None, None
+
+
 def call_groq(messages, system_prompt):
     key = get_groq_key()
     if not key:
         return None, "GROQ_API_KEY no configurada en el servidor"
 
+    # A44: toggle + límite diario por plan (centralizado, a prueba de fallos).
+    _nid, _gate_err = _ia_gate()
+    if _gate_err:
+        return None, _gate_err
+
+    _cfg = {}
+    try:
+        from src.models.colombia_data.config_plataforma import get_ia_config
+        _cfg = get_ia_config()
+    except Exception:
+        _cfg = {}
+
     payload = {
-        "model": GROQ_MODEL,
+        "model": _cfg.get('modelo') or GROQ_MODEL,
         "messages": [{"role": "system", "content": system_prompt}] + messages,
-        "max_tokens": 512,
+        "max_tokens": int(_cfg.get('max_tokens') or 512),
         "temperature": 0.7,
     }
     try:
@@ -425,6 +517,7 @@ def call_groq(messages, system_prompt):
         )
         resp.raise_for_status()
         data = resp.json()
+        _ia_registrar_uso(_nid)  # A44: contar el uso solo si la llamada fue exitosa
         return data["choices"][0]["message"]["content"], None
     except requests.exceptions.Timeout:
         return None, "La IA tardó demasiado. Intenta de nuevo."
