@@ -123,6 +123,20 @@ def config_publica():
                         'registro_abierto': True}), 200
 
 
+# ── A49: textos/copys públicos (para que el frontend aplique overrides) ──
+@register_user_bp.route('/textos-publicos', methods=['GET', 'OPTIONS'])
+def textos_publicos():
+    """GET /api/textos-publicos → mapa {clave: valor} de textos efectivos (i18n base)."""
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+    try:
+        from src.models.colombia_data.config_plataforma import get_textos
+        mapa = {k: v.get('valor', '') for k, v in get_textos().items()}
+        return jsonify({'success': True, 'textos': mapa}), 200
+    except Exception:
+        return jsonify({'success': True, 'textos': {}}), 200
+
+
 def normalizar_texto(texto):
     """
     Normaliza texto removiendo acentos y convirtiendo a minúsculas.

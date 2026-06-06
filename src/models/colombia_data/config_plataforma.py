@@ -272,6 +272,98 @@ def get_email_plantilla(clave):
     return get_email_plantillas().get(clave)
 
 
+# ═══════════════════════════════════════════════════════════════════
+# GESTOR CENTRAL DE TEXTOS / COPYS (A49) — reusa config_global (clave 'textos')
+# Edita textos visibles al usuario sin tocar código. Base i18n (por ahora 'es').
+# ═══════════════════════════════════════════════════════════════════
+_CLAVE_TEXTOS = 'textos'
+
+# Catálogo curado de copys editables: clave → {categoria, descripcion, valor}.
+TEXTOS_DEFAULT = {
+    'onboarding.bienvenida':   {'categoria': 'Onboarding', 'descripcion': 'Saludo inicial al crear cuenta',
+                                'valor': '¡Bienvenido a TuKomercio! Crea tu tienda en minutos.'},
+    'onboarding.cta_crear':    {'categoria': 'Onboarding', 'descripcion': 'Botón para crear la primera tienda',
+                                'valor': 'Crear mi tienda'},
+    'tienda.vacia':            {'categoria': 'Tienda', 'descripcion': 'Mensaje cuando la tienda no tiene productos',
+                                'valor': 'Aún no hay productos. ¡Vuelve pronto!'},
+    'tienda.cta_comprar':      {'categoria': 'Tienda', 'descripcion': 'Botón de agregar al carrito',
+                                'valor': 'Agregar'},
+    'checkout.gracias':        {'categoria': 'Checkout', 'descripcion': 'Mensaje tras finalizar el pedido',
+                                'valor': '¡Gracias por tu compra! Te contactaremos pronto.'},
+    'pedido.por_confirmar_envio': {'categoria': 'Pedido', 'descripcion': 'Etiqueta de envío a convenir',
+                                'valor': 'Por confirmar con el vendedor'},
+    'notif.generica':          {'categoria': 'Notificaciones', 'descripcion': 'Título por defecto de notificación',
+                                'valor': 'Tienes una novedad en TuKomercio'},
+    'gamif.subiste_nivel':     {'categoria': 'Gamificación', 'descripcion': 'Mensaje al subir de nivel',
+                                'valor': '¡Subiste de nivel! Sigue así 🚀'},
+    'footer.legal':            {'categoria': 'Legal', 'descripcion': 'Aviso legal del pie de página',
+                                'valor': '© TuKomercio. Todos los derechos reservados.'},
+}
+
+
+def validar_textos(payload):
+    """Valida un parche de textos {clave: valor}. PURA. (ok, limpio, error)."""
+    if not isinstance(payload, dict):
+        return False, {}, 'Se espera un objeto {clave: texto}'
+    limpio = {}
+    for clave, valor in payload.items():
+        c = str(clave).strip()
+        if not c or len(c) > 80:
+            return False, {}, f'Clave inválida: {clave}'
+        if valor is None:
+            valor = ''
+        if not isinstance(valor, str):
+            return False, {}, f'El texto de «{c}» debe ser una cadena'
+        if len(valor) > 5000:
+            return False, {}, f'El texto de «{c}» es demasiado largo'
+        limpio[c] = valor
+    return True, limpio, None
+
+
+def get_textos():
+    """Textos efectivos: catálogo DEFAULT con sus overrides de BD aplicados. A prueba de fallos."""
+    textos = {k: dict(v) for k, v in TEXTOS_DEFAULT.items()}
+    overrides = {}
+    try:
+        row = ConfigGlobal.query.get(_CLAVE_TEXTOS)
+        if row and isinstance(row.valor, dict):
+            overrides = row.valor
+    except Exception:
+        overrides = {}
+    for clave, valor in (overrides or {}).items():
+        if clave in textos:
+            textos[clave] = {**textos[clave], 'valor': valor, 'editado': True}
+        else:
+            textos[clave] = {'categoria': 'Personalizado', 'descripcion': '', 'valor': valor, 'editado': True}
+    return textos
+
+
+def get_texto(clave, fallback=''):
+    """Devuelve el valor efectivo de un texto (override BD o DEFAULT o fallback). A prueba de fallos."""
+    try:
+        row = ConfigGlobal.query.get(_CLAVE_TEXTOS)
+        if row and isinstance(row.valor, dict) and clave in row.valor:
+            return row.valor[clave]
+    except Exception:
+        pass
+    base = TEXTOS_DEFAULT.get(clave)
+    return base['valor'] if base else fallback
+
+
+def set_textos(limpio, db_session=None):
+    """Aplica un parche {clave: valor} sobre los overrides de textos."""
+    sess = db_session or db.session
+    row = ConfigGlobal.query.get(_CLAVE_TEXTOS)
+    actual = dict(row.valor) if (row and isinstance(row.valor, dict)) else {}
+    actual.update(limpio or {})
+    if row:
+        row.valor = actual; row.updated_at = datetime.utcnow()
+    else:
+        sess.add(ConfigGlobal(clave=_CLAVE_TEXTOS, valor=actual))
+    sess.commit()
+    return actual
+
+
 def get_integraciones_config():
     """Config de integraciones/automatizaciones (override BD sobre DEFAULT). A prueba de fallos."""
     from src.api.utils.integraciones_service import INTEGRACIONES_CONFIG_DEFAULT

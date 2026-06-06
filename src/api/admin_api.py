@@ -3006,6 +3006,46 @@ def update_integraciones_config():
         return build_cors_response({'success': False, 'error': str(e)}, 500)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# GESTOR CENTRAL DE TEXTOS / COPYS (Admin Panel A49) ⭐ — cierra Fase 6
+# Editar TODO el texto visible al usuario sin tocar código. Base i18n.
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/textos', methods=['GET'])
+@requiere_permiso('configuracion')
+def admin_textos():
+    """GET /api/admin/textos → catálogo de textos efectivos (con overrides marcados)."""
+    try:
+        from src.models.colombia_data.config_plataforma import get_textos
+        return build_cors_response({'success': True, 'textos': get_textos()})
+    except Exception as e:
+        logger.error(f"Error en admin_textos: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'textos': {}}, 200)
+
+
+@admin_bp.route('/textos', methods=['PUT'])
+@requiere_permiso('configuracion')
+def update_textos():
+    """PUT /api/admin/textos  body: { textos: { clave: valor, ... } } → guarda overrides."""
+    try:
+        from src.models.colombia_data.config_plataforma import validar_textos, set_textos
+        payload = request.get_json(silent=True) or {}
+        textos = payload.get('textos', payload if isinstance(payload, dict) and 'textos' not in payload else {})
+        ok, limpio, error = validar_textos(textos)
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        set_textos(limpio)
+        registrar_auditoria('editar', 'textos', None, {'claves': list(limpio.keys())})
+        return build_cors_response({'success': True, 'message': f'{len(limpio)} texto(s) guardado(s)'})
+    except Exception as e:
+        logger.error(f"Error en update_textos: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
 @admin_bp.route('/usuarios/<int:user_id>', methods=['DELETE'])
 @superadmin_required
 def delete_usuario(user_id):

@@ -11,6 +11,25 @@
 
 ---
 
+## 2026-06-05 — Panel admin A49 · Gestor central de textos ⭐ · 🎉 FASE 6 COMPLETA
+
+**Sprint actual:** Panel de Administración. **Fase 6 COMPLETA (A41-A49).** Avance **49/51** (Fases 0-6 completas).
+
+### Completado
+- **A49 — Gestor central de textos/copys ⭐.** El mayor habilitador del objetivo "sin programador": editar textos visibles sin tocar código.
+  - **Backend:** `TEXTOS_DEFAULT` (catálogo curado por categoría) + helpers PUROS `validar_textos`, `get_textos`, `get_texto(clave, fallback)`, `set_textos` en `config_plataforma.py` (override en `config_global`, clave `textos`). Endpoints `GET/PUT /api/admin/textos` (`requiere_permiso('configuracion')`, auditado) + **público** `GET /api/textos-publicos` (mapa clave→valor, base i18n, para que el frontend aplique overrides).
+  - **Frontend:** sección "Textos / Copys" (Configuración): edición agrupada por categoría, buscador, marca ✎ editado, guardado por diff.
+- **Test:** `test_admin_textos_a49.py` → **18/18**.
+- **🎉 Cierre Fase 6:** pagos Wompi (A41), facturación (A42), reseñas (A43), Dora IA (A44), Habeas Data (A45), emails (A46), verticales (A47), integraciones (A48), textos (A49).
+
+### Estado global
+- **Fases 0-6 ✅ COMPLETAS (A1-A49) → 49/51.** Solo queda la **Fase 7 EXTRA** (notificaciones: A50 campanita automática, A51 web push), que Carlos pidió dejar al final.
+
+### Siguiente paso
+- **A50 — Campanita automática en eventos del sistema** (notificación in-app al cambiar plan, ganar badge, etc.).
+
+---
+
 ## 2026-06-05 — Panel admin A48 · Integraciones y automatizaciones
 
 **Sprint actual:** Panel de Administración. **Fase 6.** Avance **48/51**.
