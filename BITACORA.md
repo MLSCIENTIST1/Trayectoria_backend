@@ -11,6 +11,19 @@
 
 ---
 
+## 2026-06-06 — 🐞 FIX producción F10 · estados de pedido (salto directo)
+
+**Tipo:** corrección de UX (frontend) en Gestión de Pedidos online.
+
+### Problema
+- El stepper de estados (Confirmado→Preparando→Enviado→En Oficina→Entregado) solo dejaba avanzar **un paso a la vez**. Si el pedido ya llegó pero no se marcaron los intermedios, tocaba ir uno por uno (re-buscando guía/nombre) hasta Entregado.
+
+### Solución (FRONT, `contabilidad/modulos/pedidos.html`)
+- Cualquier estado **futuro** del flujo es clickeable. Avance al siguiente = rápido; **salto** a uno más adelante = con **confirmación** que lista los intermedios que se dan por hechos; retroceso conserva confirmación. `cambiarEstadoConConfirm(id, estado, modo)` con modos avance/salto/retroceso (compat con `true`). `getEstadosBotones` del modal unificado a `FLUJO_ESTADOS` (incluye en_oficina) y con saltos. Nuevo estilo `.estep-jump`. El backend ya aceptaba cualquier estado (sin secuencia), así que es fix solo de front. `node --check` OK.
+- Detalle en `memory/fixes_tienda_checkout.md` (F10). Backlog v2 de ideas guardado en `memory/roadmap_v2.md`.
+
+---
+
 ## 2026-06-05 — Panel admin A51 · Web Push real · 🎉 ROADMAP COMPLETO (51/51)
 
 **Sprint final.** Fase 7 EXTRA COMPLETA. **Avance 51/51 — todas las fases ✅.**
