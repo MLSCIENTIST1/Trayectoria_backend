@@ -11,6 +11,21 @@
 
 ---
 
+## 2026-06-06 — 🐞 FIX producción F13 · columnas de la tabla notification (campanita)
+
+**Tipo:** corrección de esquema (backend, clase F8).
+
+### Problema
+- Campanita vacía: las notificaciones automáticas (A50/A51: badge ganado, plan cambiado, recompensa de liga) podían fallar en silencio si la tabla `notification` de prod (vieja) no tenía las columnas nuevas (`titulo`, `negocio_id`, `prioridad`, etc.). `notificar_negocio` es a prueba de fallos → el INSERT inválido se perdía sin error.
+
+### Solución
+- Migración idempotente en `create_app()`: `ALTER TABLE notification ADD COLUMN IF NOT EXISTS` para negocio_id, sender_id, titulo, message(TEXT), type, prioridad, is_read, is_accepted, referencia_tipo/_id, action_url, extra_data, timestamp, fecha_lectura + índices `ix_notif_negocio` / `ix_notif_user_read`.
+- Test `test_fix_notification_columns_f13.py` → **26/0**.
+- Nota: no hay backfill de badges ganados antes del deploy de A50 (eso fue timing, no bug). De aquí en adelante las notificaciones llegan.
+- Pendientes relacionados (en `memory/fixes_tienda_checkout.md`): F14 (miembro desde), F15 (franja en otras plantillas), badges clicable.
+
+---
+
 ## 2026-06-06 — 🐞 FIX producción F12 · pantalla de carga de la tienda
 
 **Tipo:** corrección de UX + branding (frontend) en la tienda pública y el Designer.

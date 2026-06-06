@@ -539,6 +539,25 @@ def create_app():
                         created_at TIMESTAMP DEFAULT NOW()
                     )""",
                     "CREATE INDEX IF NOT EXISTS ix_push_user ON push_subscriptions(user_id)",
+                    # F13 — asegurar columnas de la tabla `notification` (campanita) en tablas viejas.
+                    # Sin estas columnas, las notificaciones automáticas (A50/A51: badge, plan, liga…)
+                    # fallaban en silencio (INSERT inválido) y la campanita quedaba vacía.
+                    "ALTER TABLE notification ADD COLUMN IF NOT EXISTS negocio_id INTEGER",
+                    "ALTER TABLE notification ADD COLUMN IF NOT EXISTS sender_id INTEGER",
+                    "ALTER TABLE notification ADD COLUMN IF NOT EXISTS titulo VARCHAR(255)",
+                    "ALTER TABLE notification ADD COLUMN IF NOT EXISTS message TEXT",
+                    "ALTER TABLE notification ADD COLUMN IF NOT EXISTS type VARCHAR(50) DEFAULT 'default_type'",
+                    "ALTER TABLE notification ADD COLUMN IF NOT EXISTS prioridad VARCHAR(20) DEFAULT 'media'",
+                    "ALTER TABLE notification ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE",
+                    "ALTER TABLE notification ADD COLUMN IF NOT EXISTS is_accepted BOOLEAN DEFAULT FALSE",
+                    "ALTER TABLE notification ADD COLUMN IF NOT EXISTS referencia_tipo VARCHAR(50)",
+                    "ALTER TABLE notification ADD COLUMN IF NOT EXISTS referencia_id INTEGER",
+                    "ALTER TABLE notification ADD COLUMN IF NOT EXISTS action_url VARCHAR(500)",
+                    "ALTER TABLE notification ADD COLUMN IF NOT EXISTS extra_data JSONB",
+                    "ALTER TABLE notification ADD COLUMN IF NOT EXISTS timestamp TIMESTAMP DEFAULT NOW()",
+                    "ALTER TABLE notification ADD COLUMN IF NOT EXISTS fecha_lectura TIMESTAMP",
+                    "CREATE INDEX IF NOT EXISTS ix_notif_negocio ON notification(negocio_id)",
+                    "CREATE INDEX IF NOT EXISTS ix_notif_user_read ON notification(user_id, is_read)",
                 ]
                 for sql in migraciones:
                     try:
