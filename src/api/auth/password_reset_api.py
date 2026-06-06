@@ -376,13 +376,23 @@ def forgot_password():
         reset_url = f"{frontend_url}/reset_password.html?token={token.token}"
         logger.info(f"📍 Reset URL: {reset_url}")
 
+        _nombre = usuario.nombre or correo.split('@')[0]
+        _subject = "🔐 Restablecer contraseña - TuKomercio"
+        html_content = render_template_string(EMAIL_TEMPLATE, nombre=_nombre, reset_url=reset_url)
+
+        # A46: si hay una plantilla editada desde el panel, úsala (fallback seguro al template fijo).
+        try:
+            from src.models.colombia_data.config_plataforma import get_email_plantilla, render_email
+            _pl = get_email_plantilla('recuperar_password')
+            if _pl and _pl.get('editada'):
+                _vars = {'nombre': _nombre, 'reset_url': reset_url}
+                html_content = render_email(_pl['html'], _vars)
+                _subject = render_email(_pl.get('subject') or _subject, _vars)
+        except Exception:
+            pass
+
         # Construir y enviar email (síncrono — Resend <500ms en Render)
-        html_content = render_template_string(
-            EMAIL_TEMPLATE,
-            nombre=usuario.nombre or correo.split('@')[0],
-            reset_url=reset_url
-        )
-        success, msg = send_email_async(correo, "🔐 Restablecer contraseña - TuKomercio", html_content)
+        success, msg = send_email_async(correo, _subject, html_content)
         if not success:
             logger.error(f"❌ Fallo Resend para {correo}: {msg}")
 

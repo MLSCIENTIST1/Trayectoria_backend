@@ -2821,6 +2821,83 @@ def privacidad_procesar_solicitud(solicitud_id):
         return build_cors_response({'success': False, 'error': str(e)}, 500)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# GESTOR DE PLANTILLAS DE EMAIL / RESEND (Admin Panel A46)
+# Editar correos transaccionales + estado de deliverability + envío de prueba.
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/emails', methods=['GET'])
+@requiere_permiso('configuracion')
+def admin_emails():
+    """GET /api/admin/emails → plantillas efectivas + estado de Resend."""
+    import os as _os
+    try:
+        from src.models.colombia_data.config_plataforma import get_email_plantillas
+        plantillas = get_email_plantillas()
+        resend_ok = bool(_os.environ.get('RESEND_API_KEY', '').strip())
+        from_email = _os.environ.get('RESEND_FROM', '') or _os.environ.get('EMAIL_FROM', '')
+        return build_cors_response({'success': True, 'plantillas': plantillas,
+                                    'deliverability': {'resend_configurado': resend_ok, 'from': from_email}})
+    except Exception as e:
+        logger.error(f"Error en admin_emails: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'plantillas': {}}, 200)
+
+
+@admin_bp.route('/emails/<clave>', methods=['PUT'])
+@requiere_permiso('configuracion')
+def update_email_plantilla(clave):
+    """PUT /api/admin/emails/<clave>  body: { subject, html } → edita una plantilla."""
+    try:
+        from src.models.colombia_data.config_plataforma import (
+            validar_plantilla_email, set_email_plantilla, EMAIL_PLANTILLAS_DEFAULT, get_email_plantillas
+        )
+        if clave not in EMAIL_PLANTILLAS_DEFAULT and clave not in get_email_plantillas():
+            return build_cors_response({'success': False, 'error': 'Plantilla desconocida'}, 404)
+        ok, limpio, error = validar_plantilla_email(request.get_json(silent=True) or {})
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        set_email_plantilla(clave, limpio['subject'], limpio['html'])
+        registrar_auditoria('editar', 'email_plantilla', None, {'clave': clave, 'subject': limpio['subject']})
+        return build_cors_response({'success': True, 'message': f"Plantilla '{clave}' actualizada"})
+    except Exception as e:
+        logger.error(f"Error en update_email_plantilla: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+@admin_bp.route('/emails/<clave>/test', methods=['POST'])
+@requiere_permiso('configuracion')
+def test_email_plantilla(clave):
+    """POST /api/admin/emails/<clave>/test  body: { email } → envía un correo de prueba renderizado."""
+    try:
+        from src.models.colombia_data.config_plataforma import get_email_plantilla, render_email
+        destino = ((request.get_json(silent=True) or {}).get('email') or '').strip()
+        if not destino or '@' not in destino:
+            return build_cors_response({'success': False, 'error': 'Email de destino inválido'}, 400)
+        pl = get_email_plantilla(clave)
+        if not pl:
+            return build_cors_response({'success': False, 'error': 'Plantilla no encontrada'}, 404)
+        # Variables de muestra para la previsualización
+        muestra = {v: f'[{v}]' for v in (pl.get('variables') or [])}
+        muestra.update({'nombre': 'Carlos (prueba)', 'reset_url': 'https://tukomercio.co/reset_password.html?token=PRUEBA',
+                        'negocio': 'Tienda Demo', 'codigo_pedido': 'DEMO-0001', 'total': '$10.000'})
+        subject = '[PRUEBA] ' + render_email(pl.get('subject', ''), muestra)
+        html = render_email(pl.get('html', ''), muestra)
+        # Reusar el emisor existente (Resend)
+        from src.api.auth.password_reset_api import send_email_resend
+        ok, msg = send_email_resend(destino, subject, html)
+        registrar_auditoria('enviar', 'email_prueba', None, {'clave': clave, 'destino': destino, 'ok': ok})
+        if not ok:
+            return build_cors_response({'success': False, 'error': msg or 'No se pudo enviar'}, 200)
+        return build_cors_response({'success': True, 'message': f'Correo de prueba enviado a {destino}'})
+    except Exception as e:
+        logger.error(f"Error en test_email_plantilla: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
 @admin_bp.route('/usuarios/<int:user_id>', methods=['DELETE'])
 @superadmin_required
 def delete_usuario(user_id):

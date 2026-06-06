@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-06-05 — Panel admin A46 · Gestor de plantillas de email (Resend)
+
+**Sprint actual:** Panel de Administración. **Fase 6.** Avance **46/51**.
+
+### Completado
+- **A46 — Gestor de emails.** Antes los textos de los correos estaban en código; ahora editables desde el panel.
+  - **Backend:** `EMAIL_PLANTILLAS_DEFAULT` (recuperar_password, bienvenida, confirmacion_pedido) + helpers PUROS `render_email` (sustituye `{{var}}`/`{{ var }}`, sin ejecutar código → seguro), `validar_plantilla_email`, `get/set_email_plantilla` en `config_plataforma.py` (override en `config_global`). **Cableo seguro en `forgot_password`**: usa la plantilla editada si existe, si no, fallback al `EMAIL_TEMPLATE` fijo. Endpoints `GET /api/admin/emails` (plantillas + deliverability de Resend), `PUT .../emails/<clave>` (validado+auditado), `POST .../emails/<clave>/test` (renderiza con variables de muestra y envía por Resend). `requiere_permiso('configuracion')`.
+  - **Frontend:** sección "Emails" (Configuración): estado de Resend, selector de plantilla, editor de asunto/HTML con hint de variables, guardar y enviar prueba.
+- **Test:** `test_admin_emails_a46.py` → **24/24**.
+
+### Pendiente (Fase 6)
+- A47 verticales + overview tienda · A48 integraciones · A49 gestor de textos.
+
+### Siguiente paso
+- **A47 — Admin de verticales + overview de tienda avanzada** (Taller/Restaurante/MecaLink + cupones/carritos/analytics).
+
+---
+
 ## 2026-06-05 — Panel admin A45 · Habeas Data / privacidad (Ley 1581)
 
 **Sprint actual:** Panel de Administración. **Fase 6.** Avance **45/51**.

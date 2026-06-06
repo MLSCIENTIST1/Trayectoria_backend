@@ -187,3 +187,99 @@ def puede_usar_ia(usos_hoy, plan, cfg):
         usos = 0
     restantes = max(0, limite - usos)
     return (usos < limite, limite, restantes)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# PLANTILLAS DE EMAIL / RESEND (A46) — reusa config_global (clave 'email_plantillas')
+# ═══════════════════════════════════════════════════════════════════
+_CLAVE_EMAILS = 'email_plantillas'
+
+EMAIL_PLANTILLAS_DEFAULT = {
+    'recuperar_password': {
+        'nombre': 'Recuperación de contraseña',
+        'subject': '🔐 Restablecer contraseña - TuKomercio',
+        'variables': ['nombre', 'reset_url'],
+        'html': '<p>Hola {{nombre}},</p><p>Solicitaste restablecer tu contraseña. Haz clic en el botón:</p>'
+                '<p><a href="{{reset_url}}">Restablecer contraseña</a></p>'
+                '<p>Si no fuiste tú, ignora este correo.</p><p>— Equipo TuKomercio</p>',
+    },
+    'bienvenida': {
+        'nombre': 'Bienvenida (nuevo registro)',
+        'subject': '🎉 ¡Bienvenido a TuKomercio!',
+        'variables': ['nombre'],
+        'html': '<p>¡Hola {{nombre}}!</p><p>Tu cuenta en TuKomercio fue creada con éxito. '
+                'Crea tu tienda y empieza a vender hoy mismo.</p><p>— Equipo TuKomercio</p>',
+    },
+    'confirmacion_pedido': {
+        'nombre': 'Confirmación de pedido (comprador)',
+        'subject': '✅ Tu pedido en {{negocio}} fue confirmado',
+        'variables': ['nombre', 'negocio', 'codigo_pedido', 'total'],
+        'html': '<p>Hola {{nombre}},</p><p>Tu pedido <strong>{{codigo_pedido}}</strong> en '
+                '{{negocio}} por {{total}} fue confirmado. ¡Gracias por tu compra!</p>',
+    },
+}
+
+
+def render_email(texto, variables):
+    """Sustituye {{var}} / {{ var }} en una plantilla. Función PURA (sin ejecutar código)."""
+    out = str(texto or '')
+    for k, v in (variables or {}).items():
+        val = '' if v is None else str(v)
+        out = out.replace('{{' + str(k) + '}}', val).replace('{{ ' + str(k) + ' }}', val)
+    return out
+
+
+def validar_plantilla_email(payload):
+    """Valida una plantilla (subject + html). PURA. (ok, limpio, error)."""
+    if not isinstance(payload, dict):
+        return False, {}, 'Se espera un objeto'
+    subject = str(payload.get('subject', '')).strip()
+    html = payload.get('html')
+    if not subject:
+        return False, {}, 'El asunto es obligatorio'
+    if not isinstance(html, str) or not html.strip():
+        return False, {}, 'El cuerpo (html) es obligatorio'
+    if len(subject) > 200:
+        return False, {}, 'Asunto demasiado largo (máx 200)'
+    if len(html) > 100000:
+        return False, {}, 'Cuerpo demasiado grande'
+    return True, {'subject': subject[:200], 'html': html}, None
+
+
+def get_email_plantillas():
+    """Plantillas efectivas (override BD fusionado con DEFAULT). A prueba de fallos."""
+    plantillas = {k: dict(v) for k, v in EMAIL_PLANTILLAS_DEFAULT.items()}
+    try:
+        row = ConfigGlobal.query.get(_CLAVE_EMAILS)
+        if row and isinstance(row.valor, dict):
+            for clave, ov in row.valor.items():
+                base = plantillas.get(clave, {'nombre': clave, 'variables': []})
+                base = dict(base)
+                if isinstance(ov, dict):
+                    if ov.get('subject'):
+                        base['subject'] = ov['subject']
+                    if ov.get('html'):
+                        base['html'] = ov['html']
+                    base['editada'] = True
+                plantillas[clave] = base
+    except Exception:
+        pass
+    return plantillas
+
+
+def get_email_plantilla(clave):
+    """Devuelve la plantilla efectiva de una clave (o None). A prueba de fallos."""
+    return get_email_plantillas().get(clave)
+
+
+def set_email_plantilla(clave, subject, html, db_session=None):
+    sess = db_session or db.session
+    row = ConfigGlobal.query.get(_CLAVE_EMAILS)
+    actual = dict(row.valor) if (row and isinstance(row.valor, dict)) else {}
+    actual[clave] = {'subject': subject, 'html': html}
+    if row:
+        row.valor = actual; row.updated_at = datetime.utcnow()
+    else:
+        sess.add(ConfigGlobal(clave=_CLAVE_EMAILS, valor=actual))
+    sess.commit()
+    return actual[clave]
