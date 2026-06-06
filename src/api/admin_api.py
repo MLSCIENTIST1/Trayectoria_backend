@@ -2898,6 +2898,58 @@ def test_email_plantilla(clave):
         return build_cors_response({'success': False, 'error': str(e)}, 500)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# VERTICALES + OVERVIEW DE TIENDA AVANZADA (Admin Panel A47)
+# Distribución por vertical (tipo_pagina) + cupones, carritos abandonados, etc.
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/verticales/overview', methods=['GET'])
+@requiere_permiso('negocios')
+def verticales_overview():
+    """GET /api/admin/verticales/overview → distribución por vertical + métricas de tienda avanzada."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        from src.api.utils.verticales_service import etiqueta_vertical
+
+        verticales = []
+        try:
+            for r in _db.session.execute(_t("""
+                SELECT COALESCE(NULLIF(tipo_pagina,''),'landing') AS t, COUNT(*) AS n
+                FROM negocios WHERE COALESCE(eliminado,FALSE)=FALSE
+                GROUP BY t ORDER BY n DESC
+            """)).fetchall():
+                meta = etiqueta_vertical(r[0])
+                verticales.append({**meta, 'cantidad': int(r[1])})
+        except Exception:
+            pass
+
+        def _scalar(sql):
+            try:
+                return _db.session.execute(_t(sql)).scalar() or 0
+            except Exception:
+                return 0
+        cupones = {
+            'total':   int(_scalar("SELECT COUNT(*) FROM cupones")),
+            'activos': int(_scalar("SELECT COUNT(*) FROM cupones WHERE activo IS TRUE")),
+            'usos':    int(_scalar("SELECT COALESCE(SUM(usos_actuales),0) FROM cupones")),
+        }
+        carritos = {
+            'abandonados': int(_scalar("SELECT COUNT(*) FROM carritos_abandonados WHERE estado='abandonado'")),
+            'recuperados': int(_scalar("SELECT COUNT(*) FROM carritos_abandonados WHERE estado <> 'abandonado'")),
+            'valor_recuperable': float(_scalar("SELECT COALESCE(SUM(total_estimado),0) FROM carritos_abandonados WHERE estado='abandonado'")),
+        }
+        resenas = {
+            'total':     int(_scalar("SELECT COUNT(*) FROM producto_reviews")),
+            'aprobadas': int(_scalar("SELECT COUNT(*) FROM producto_reviews WHERE aprobado IS TRUE")),
+        }
+
+        return build_cors_response({'success': True, 'verticales': verticales,
+                                    'cupones': cupones, 'carritos': carritos, 'resenas': resenas})
+    except Exception as e:
+        logger.error(f"Error en verticales_overview: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'verticales': []}, 200)
+
+
 @admin_bp.route('/usuarios/<int:user_id>', methods=['DELETE'])
 @superadmin_required
 def delete_usuario(user_id):

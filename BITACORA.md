@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-06-05 — Panel admin A47 · Verticales + overview de tienda avanzada
+
+**Sprint actual:** Panel de Administración. **Fase 6.** Avance **47/51**.
+
+### Completado
+- **A47 — Verticales + tienda avanzada.** Visibilidad de plataforma que faltaba (Taller/Restaurante/MecaLink + cupones/carritos/reseñas).
+  - **Backend:** helper PURO `etiqueta_vertical` + `VERTICALES_META` en `api/utils/verticales_service.py`. Endpoint `GET /api/admin/verticales/overview` (`requiere_permiso('negocios')`): distribución de negocios por `tipo_pagina` (excluye papelera) + cupones (total/activos/usos), carritos abandonados (abandonados/recuperados/valor_recuperable) y reseñas (total/aprobadas).
+  - **Frontend:** sección "Verticales & tienda avanzada" (Plataforma): grid de verticales (con ícono/label) + tarjetas de cupones, carritos y reseñas.
+- **Test:** `test_admin_verticales_a47.py` → **16/16**.
+
+### Pendiente (Fase 6)
+- A48 integraciones/automatizaciones · A49 gestor central de textos.
+
+### Siguiente paso
+- **A48 — Integraciones y automatizaciones** (WhatsApp post-venta, import CSV marketplace, dominios/SEO/worker).
+
+---
+
 ## 2026-06-05 — Panel admin A46 · Gestor de plantillas de email (Resend)
 
 **Sprint actual:** Panel de Administración. **Fase 6.** Avance **46/51**.
