@@ -11,6 +11,25 @@
 
 ---
 
+## 2026-06-05 — Panel admin A41 · Centro de pagos (Wompi) · 💳 ARRANCA FASE 6
+
+**Sprint actual:** Panel de Administración. **Fase 6 (Pagos/Legal/IA) iniciada (A41-A49).** Avance **41/51**.
+
+### Completado
+- **A41 — Centro de pagos (Wompi).** Antes el cobro real (pasarela) no tenía NINGUNA vista admin. Ahora sí.
+  - **Backend:** helpers PUROS `evaluar_config_wompi(cfg)` (estado ok/incompleto/sin_configurar, ambiente, `webhook_ok` = tiene `events_key`, faltantes) y `mascara_clave` en `api/utils/pagos_service.py`. Endpoints `GET /api/admin/pagos/wompi` (resumen: total/activos/en_prod/**webhook_roto**/incompletos + lista por negocio + métricas de pago aprobados/pendientes/rechazados/monto) y `GET .../pagos/wompi/<negocio_id>` (config **enmascarada** + últimas 15 transacciones). `requiere_permiso('pagos')`. **Seguridad:** nunca devuelve integrity/events_key; solo presencia (`tiene_*`) y máscara del public_key.
+  - **Punto clave:** detecta **webhook roto** = negocio activo sin `events_key` → el webhook (que exige firma desde A-SEC-2) rechaza todos los cobros. Alerta visible.
+  - **Frontend:** nuevo grupo nav "Finanzas" → sección "Pagos (Wompi)": stat-cards, tabla con estado/ambiente/webhook/activo + alerta 🚩, modal de detalle con transacciones; badge de alertas en el nav.
+- **Test:** `test_admin_pagos_a41.py` → **26/26**.
+
+### Pendiente (Fase 6)
+- A42 cobro de suscripciones (dunning) · A43 moderación reseñas · A44 admin Dora IA · A45 Habeas Data · A46 emails Resend · A47 verticales · A48 integraciones · A49 gestor de textos.
+
+### Siguiente paso
+- **A42 — Facturación y cobro de suscripciones TuKomercio** (estado de pago por negocio, vencimientos, dunning).
+
+---
+
 ## 2026-06-05 — Panel admin A40 · Pulido final + docs · 🎉 FASE 5 COMPLETA
 
 **Sprint actual:** Panel de Administración. **Fase 5 (Analítica/Salud/Cierre) COMPLETA (A36-A40).** Avance **40/51**.

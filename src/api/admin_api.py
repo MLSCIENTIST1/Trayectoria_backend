@@ -2232,6 +2232,108 @@ def update_config_global_admin():
         return build_cors_response({'success': False, 'error': str(e)}, 500)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# CENTRO DE PAGOS — WOMPI (Admin Panel A41) · arranca Fase 6
+# Estado de la integración Wompi por negocio + salud del webhook + métricas de cobro.
+# NUNCA expone las claves secretas (solo presencia / máscara del public_key).
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/pagos/wompi', methods=['GET'])
+@requiere_permiso('pagos')
+def admin_pagos_wompi():
+    """GET /api/admin/pagos/wompi → resumen + negocios con Wompi configurado + métricas de pago."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        from src.api.utils.pagos_service import evaluar_config_wompi
+        rows = _db.session.execute(_t("""
+            SELECT w.negocio_id, n.nombre_negocio, w.public_key, w.integrity_key, w.events_key,
+                   w.ambiente, w.activo
+            FROM wompi_configs w
+            LEFT JOIN negocios n ON n.id_negocio = w.negocio_id
+            ORDER BY w.updated_at DESC NULLS LAST
+        """)).fetchall()
+        negocios = []
+        resumen = {'total': 0, 'activos': 0, 'en_prod': 0, 'webhook_roto': 0, 'incompletos': 0}
+        for r in rows:
+            ev = evaluar_config_wompi({'public_key': r[2], 'integrity_key': r[3], 'events_key': r[4],
+                                       'ambiente': r[5], 'activo': r[6]})
+            resumen['total'] += 1
+            if ev['activo']:
+                resumen['activos'] += 1
+            if ev['prod']:
+                resumen['en_prod'] += 1
+            if ev['activo'] and not ev['webhook_ok']:
+                resumen['webhook_roto'] += 1     # activo pero el webhook rechazará cobros
+            if ev['estado'] == 'incompleto':
+                resumen['incompletos'] += 1
+            negocios.append({
+                'negocio_id': r[0], 'nombre': r[1] or f'#{r[0]}',
+                'estado': ev['estado'], 'activo': ev['activo'], 'ambiente': ev['ambiente'],
+                'webhook_ok': ev['webhook_ok'], 'faltantes': ev['faltantes'],
+            })
+
+        # Métricas de cobro Wompi (pedidos pagados por la pasarela)
+        def _scalar(sql):
+            try:
+                return int(_db.session.execute(_t(sql)).scalar() or 0)
+            except Exception:
+                return 0
+        pagos = {
+            'aprobados':  _scalar("SELECT COUNT(*) FROM pedidos WHERE estado_pago='aprobado'"),
+            'pendientes': _scalar("SELECT COUNT(*) FROM pedidos WHERE estado_pago='pendiente'"),
+            'rechazados': _scalar("SELECT COUNT(*) FROM pedidos WHERE estado_pago IN ('rechazado','declined','error')"),
+        }
+        try:
+            pagos['monto_aprobado'] = float(_db.session.execute(_t(
+                "SELECT COALESCE(SUM(total),0) FROM pedidos WHERE estado_pago='aprobado'")).scalar() or 0)
+        except Exception:
+            pagos['monto_aprobado'] = 0
+
+        return build_cors_response({'success': True, 'resumen': resumen, 'negocios': negocios, 'pagos': pagos})
+    except Exception as e:
+        logger.error(f"Error en admin_pagos_wompi: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'negocios': []}, 200)
+
+
+@admin_bp.route('/pagos/wompi/<int:negocio_id>', methods=['GET'])
+@requiere_permiso('pagos')
+def admin_pagos_wompi_detalle(negocio_id):
+    """GET /api/admin/pagos/wompi/<id> → detalle de config (enmascarada) + últimas transacciones."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        from src.api.utils.pagos_service import evaluar_config_wompi, mascara_clave
+        r = _db.session.execute(_t("""
+            SELECT public_key, integrity_key, events_key, ambiente, activo, updated_at
+            FROM wompi_configs WHERE negocio_id = :nid
+        """), {'nid': negocio_id}).fetchone()
+        if not r:
+            return build_cors_response({'success': False, 'error': 'Este negocio no tiene Wompi configurado'}, 404)
+        ev = evaluar_config_wompi({'public_key': r[0], 'integrity_key': r[1], 'events_key': r[2],
+                                   'ambiente': r[3], 'activo': r[4]})
+        config = {
+            **ev,
+            'public_key_mask': mascara_clave(r[0]),
+            'tiene_integrity_key': bool(r[1]),
+            'tiene_events_key': bool(r[2]),
+            'updated_at': r[5].isoformat() if r[5] else None,
+        }
+        tx = []
+        for p in _db.session.execute(_t("""
+            SELECT codigo_pedido, total, estado_pago, metodo_pago, referencia_pago, fecha_pedido
+            FROM pedidos WHERE negocio_id = :nid AND (metodo_pago ILIKE '%wompi%' OR referencia_pago IS NOT NULL)
+            ORDER BY fecha_pedido DESC NULLS LAST LIMIT 15
+        """), {'nid': negocio_id}).fetchall():
+            tx.append({'codigo': p[0], 'total': float(p[1] or 0), 'estado_pago': p[2],
+                       'metodo': p[3], 'referencia': p[4],
+                       'fecha': p[5].isoformat() if p[5] else None})
+        return build_cors_response({'success': True, 'negocio_id': negocio_id,
+                                    'config': config, 'transacciones': tx})
+    except Exception as e:
+        logger.error(f"Error en admin_pagos_wompi_detalle: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
 @admin_bp.route('/usuarios/<int:user_id>', methods=['DELETE'])
 @superadmin_required
 def delete_usuario(user_id):
