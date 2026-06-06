@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-06-05 — Panel admin A42 · Facturación / cobro de suscripciones
+
+**Sprint actual:** Panel de Administración. **Fase 6.** Avance **42/51**.
+
+### Completado
+- **A42 — Facturación de suscripciones.** A34 asignaba planes pero no gestionaba el COBRO; ahora hay tablero de facturación + dunning.
+  - **Backend:** helper PURO `clasificar_cobro(estado, dias, dias_alerta=7)` en `pagos_service.py` (buckets al_dia/por_vencer/en_gracia/vencida/cancelada/pausada + acción sugerida + `requiere_accion`). Endpoint `GET /api/admin/facturacion/resumen` (`requiere_permiso('pagos')`): conteo por estado usando `estado_actual` del modelo, **MRR estimado** (suma `precio_mensual` del plan de las activas), cobros (total + 30d desde `pagos_suscripcion`), y lista **dunning** ordenada (vencidas→gracia→por vencer) con nombre/plan/días/acción.
+  - **Frontend:** sección "Facturación" (grupo Finanzas): stat-cards (MRR, activas, trial, gracia, vencidas, cobrado 30d), tabla de dunning con botón **Gestionar suscripción** (reusa el modal de A34) y botón **Enviar avisos** (reusa el cron de alertas existente). Badge de pendientes en el nav.
+- **Test:** `test_admin_facturacion_a42.py` → **20/20**.
+
+### Pendiente (Fase 6)
+- A43 moderación reseñas · A44 admin Dora IA · A45 Habeas Data · A46 emails Resend · A47 verticales · A48 integraciones · A49 gestor de textos.
+
+### Siguiente paso
+- **A43 — Moderación de reseñas de productos** (vista global, detectar/ocultar reseñas abusivas/falsas).
+
+---
+
 ## 2026-06-05 — Panel admin A41 · Centro de pagos (Wompi) · 💳 ARRANCA FASE 6
 
 **Sprint actual:** Panel de Administración. **Fase 6 (Pagos/Legal/IA) iniciada (A41-A49).** Avance **41/51**.

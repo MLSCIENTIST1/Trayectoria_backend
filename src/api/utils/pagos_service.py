@@ -47,6 +47,32 @@ def evaluar_config_wompi(cfg):
     }
 
 
+def clasificar_cobro(estado_actual, dias_restantes, dias_alerta=7):
+    """
+    Clasifica una suscripción para gestión de cobro (dunning). Función PURA.
+    Devuelve {bucket, accion, color, requiere_accion}.
+      bucket: 'al_dia' | 'por_vencer' | 'en_gracia' | 'vencida' | 'cancelada' | 'pausada'
+    """
+    estado = (estado_actual or '').lower()
+    dias = dias_restantes if isinstance(dias_restantes, int) else None
+
+    if estado == 'cancelada':
+        b, accion, color = 'cancelada', 'Cancelada — reactivar o archivar', '#94a3b8'
+    elif estado == 'pausada':
+        b, accion, color = 'pausada', 'Pausada — revisar', '#94a3b8'
+    elif estado == 'vencida':
+        b, accion, color = 'vencida', 'Vencida — cobrar o cortar acceso', '#dc2626'
+    elif estado == 'gracia':
+        b, accion, color = 'en_gracia', 'En gracia — cobrar urgente', '#f59e0b'
+    elif estado in ('trial', 'activa') and dias is not None and dias <= dias_alerta:
+        b, accion, color = 'por_vencer', f'Vence en {dias} día(s) — recordar pago', '#f59e0b'
+    else:
+        b, accion, color = 'al_dia', 'Al día', '#16a34a'
+
+    return {'bucket': b, 'accion': accion, 'color': color,
+            'requiere_accion': b not in ('al_dia', 'cancelada', 'pausada')}
+
+
 def mascara_clave(valor):
     """Enmascara una clave para mostrarla sin exponerla. PURA. 'pk_test_abcd...wxyz' o ''."""
     if not valor or not isinstance(valor, str):

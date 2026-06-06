@@ -2334,6 +2334,82 @@ def admin_pagos_wompi_detalle(negocio_id):
         return build_cors_response({'success': False, 'error': str(e)}, 200)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# FACTURACIÓN Y COBRO DE SUSCRIPCIONES (Admin Panel A42)
+# Cómo pagan los tenderos su plan a TuKomercio: estado, vencimientos, dunning, MRR.
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/facturacion/resumen', methods=['GET'])
+@requiere_permiso('pagos')
+def facturacion_resumen():
+    """GET /api/admin/facturacion/resumen → conteos por estado, MRR estimado, cobros y dunning."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        from src.models.colombia_data.suscripcion_negocio import SuscripcionNegocio
+        from src.api.utils.pagos_service import clasificar_cobro
+
+        # Precios de plan por id (para MRR)
+        precios = {}
+        try:
+            for r in _db.session.execute(_t("SELECT id, nombre, COALESCE(precio_mensual,0) FROM planes")).fetchall():
+                precios[r[0]] = {'nombre': r[1], 'precio': float(r[2] or 0)}
+        except Exception:
+            pass
+
+        subs = SuscripcionNegocio.query.all()
+        conteo = {'trial': 0, 'activa': 0, 'gracia': 0, 'vencida': 0, 'cancelada': 0, 'pausada': 0}
+        mrr = 0.0
+        requieren = []
+        for s in subs:
+            est = s.estado_actual
+            conteo[est] = conteo.get(est, 0) + 1
+            if est == 'activa':
+                mrr += (precios.get(s.plan_id, {}).get('precio', 0) or 0)
+            cl = clasificar_cobro(est, s.dias_restantes)
+            if cl['requiere_accion']:
+                requieren.append({
+                    'negocio_id': s.negocio_id, 'estado': est,
+                    'dias_restantes': s.dias_restantes,
+                    'plan': precios.get(s.plan_id, {}).get('nombre', '—'),
+                    'fecha_vencimiento': s.fecha_vencimiento.isoformat() if s.fecha_vencimiento else None,
+                    'bucket': cl['bucket'], 'accion': cl['accion'], 'color': cl['color'],
+                })
+
+        # Nombres de los negocios que requieren acción
+        if requieren:
+            ids = [r['negocio_id'] for r in requieren]
+            nombres = {}
+            for r in _db.session.execute(_t(
+                "SELECT id_negocio, nombre_negocio FROM negocios WHERE id_negocio = ANY(:ids)"),
+                {'ids': ids}).fetchall():
+                nombres[r[0]] = r[1]
+            for r in requieren:
+                r['nombre'] = nombres.get(r['negocio_id'], f"#{r['negocio_id']}")
+        # Vencidas primero, luego en gracia, luego por vencer
+        orden = {'vencida': 0, 'en_gracia': 1, 'por_vencer': 2}
+        requieren.sort(key=lambda x: (orden.get(x['bucket'], 9), x['dias_restantes'] if x['dias_restantes'] is not None else 999))
+
+        def _scalar(sql):
+            try:
+                return _db.session.execute(_t(sql)).scalar() or 0
+            except Exception:
+                return 0
+        cobros = {
+            'total_pagos': int(_scalar("SELECT COUNT(*) FROM pagos_suscripcion WHERE estado='completado'")),
+            'monto_total': float(_scalar("SELECT COALESCE(SUM(monto),0) FROM pagos_suscripcion WHERE estado='completado'")),
+            'monto_30d':   float(_scalar("SELECT COALESCE(SUM(monto),0) FROM pagos_suscripcion WHERE estado='completado' AND created_at >= (NOW() - INTERVAL '30 days')")),
+        }
+
+        return build_cors_response({
+            'success': True, 'conteo': conteo, 'mrr_estimado': round(mrr, 2),
+            'cobros': cobros, 'requieren_accion': requieren[:100],
+            'total_requieren': len(requieren),
+        })
+    except Exception as e:
+        logger.error(f"Error en facturacion_resumen: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'requieren_accion': []}, 200)
+
+
 @admin_bp.route('/usuarios/<int:user_id>', methods=['DELETE'])
 @superadmin_required
 def delete_usuario(user_id):
