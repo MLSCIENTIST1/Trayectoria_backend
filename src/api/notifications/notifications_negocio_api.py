@@ -122,6 +122,81 @@ def get_user_id():
     return request.headers.get('X-User-ID', type=int)
 
 
+def _user_id_sesion():
+    """user_id SOLO desde la sesión (sin header forjable). Para acciones sensibles (push)."""
+    try:
+        from flask_login import current_user
+        if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
+            return current_user.id_usuario
+    except Exception:
+        pass
+    return None
+
+
+# ==========================================
+# WEB PUSH (A51) — suscripción + clave pública VAPID
+# ==========================================
+@notifications_negocio_bp.route('/push/vapid', methods=['GET', 'OPTIONS'])
+def push_vapid_key():
+    """GET /api/notifications/push/vapid → clave pública VAPID (para suscribir en el navegador)."""
+    if request.method == 'OPTIONS':
+        return jsonify({'success': True}), 200
+    try:
+        from src.api.utils.push_service import vapid_config, vapid_disponible
+        cfg = vapid_config()
+        return jsonify({'success': True, 'public_key': cfg['public'], 'disponible': vapid_disponible(cfg)}), 200
+    except Exception:
+        return jsonify({'success': True, 'public_key': '', 'disponible': False}), 200
+
+
+@notifications_negocio_bp.route('/push/subscribe', methods=['POST', 'OPTIONS'])
+def push_subscribe():
+    """POST /api/notifications/push/subscribe  body: { endpoint, keys:{p256dh, auth} } (sesión)."""
+    if request.method == 'OPTIONS':
+        return jsonify({'success': True}), 200
+    uid = _user_id_sesion()
+    if not uid:
+        return jsonify({'success': False, 'error': 'No autorizado'}), 401
+    try:
+        from sqlalchemy import text as _t
+        data = request.get_json(silent=True) or {}
+        endpoint = (data.get('endpoint') or '').strip()
+        keys = data.get('keys') or {}
+        p256dh = (keys.get('p256dh') or '').strip()
+        auth = (keys.get('auth') or '').strip()
+        if not endpoint or not p256dh or not auth:
+            return jsonify({'success': False, 'error': 'Suscripción incompleta'}), 400
+        db.session.execute(_t("""
+            INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth)
+            VALUES (:u, :e, :p, :a)
+            ON CONFLICT (endpoint) DO UPDATE SET user_id = EXCLUDED.user_id,
+                p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth
+        """), {'u': uid, 'e': endpoint, 'p': p256dh, 'a': auth})
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Suscripción registrada'}), 200
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error en push_subscribe: {e}")
+        return jsonify({'success': False, 'error': 'Error registrando suscripción'}), 500
+
+
+@notifications_negocio_bp.route('/push/unsubscribe', methods=['POST', 'OPTIONS'])
+def push_unsubscribe():
+    """POST /api/notifications/push/unsubscribe  body: { endpoint }."""
+    if request.method == 'OPTIONS':
+        return jsonify({'success': True}), 200
+    try:
+        from sqlalchemy import text as _t
+        endpoint = ((request.get_json(silent=True) or {}).get('endpoint') or '').strip()
+        if endpoint:
+            db.session.execute(_t("DELETE FROM push_subscriptions WHERE endpoint = :e"), {'e': endpoint})
+            db.session.commit()
+        return jsonify({'success': True}), 200
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': True}), 200
+
+
 # ==========================================
 # CONTADOR PARA CAMPANITA
 # ==========================================

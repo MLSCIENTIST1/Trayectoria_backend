@@ -11,6 +11,27 @@
 
 ---
 
+## 2026-06-05 — Panel admin A51 · Web Push real · 🎉 ROADMAP COMPLETO (51/51)
+
+**Sprint final.** Fase 7 EXTRA COMPLETA. **Avance 51/51 — todas las fases ✅.**
+
+### Completado
+- **A51 — Web Push real (notificaciones con la app cerrada).** Cierra el último pendiente del proyecto (lo que faltaba para que llegaran con la app cerrada).
+  - **Backend:** servicio `api/utils/push_service.py` con helpers PUROS `construir_payload_push`, `_es_suscripcion_muerta` (404/410), `vapid_disponible` + `enviar_push_a_usuario` (envía con `pywebpush` si VAPID está configurado; elimina suscripciones muertas; a prueba de fallos → 0 envíos si falta infra). Tabla `push_subscriptions` (migración `create_app`). Endpoints `GET /api/notifications/push/vapid`, `POST .../push/subscribe` (**sesión**, no header forjable; upsert por endpoint), `POST .../push/unsubscribe`. Cableado en `notificar_negocio` → la campanita (A50) ahora también dispara push. `pywebpush==2.0.0` en `requirements.txt`.
+  - **Frontend:** `notifications.js` se suscribe (SW ready + pushManager.subscribe con la clave VAPID + POST al backend) al conceder permiso. El service worker ya tenía `push`/`notificationclick`.
+  - **Test:** `test_admin_webpush_a51.py` → **24/24**.
+- **Activación en prod:** definir env vars `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` en Render (generar con `vapid` o web-push). Sin ellas, degrada limpio a solo-campanita.
+
+### 🏁 Cierre del roadmap del Panel de Administración
+- **51/51 sprints.** Fases 0-7 completas (A1-A51). Objetivo cumplido: administrar toda la plataforma sin tocar código.
+- F-fixes de producción atendidos en el camino: F6 (responsive vista producto), F7 (plan/trial schema drift), F8 (migraciones en prod), F9 (compresión de fotos).
+- Backlog opcional pendiente: F3 (test e2e recibo), F5 (ícono PWA), edición de prompts de Dora, envío automático real del WhatsApp post-venta, adopción incremental del gestor de textos.
+
+### Siguiente paso
+- A definir por Carlos (verificación en producción, backlog opcional, o nuevas funcionalidades).
+
+---
+
 ## 2026-06-05 — Panel admin A50 · Campanita automática (Fase 7 EXTRA)
 
 **Sprint actual:** Fase 7 EXTRA (notificaciones). Avance **50/51**.

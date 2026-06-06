@@ -79,6 +79,13 @@ def notificar_negocio(negocio_id, evento=None, ctx=None, titulo=None, mensaje=No
         """), {'u': row[0], 'n': negocio_id, 't': tipo,
                'ti': (titulo or 'TuKomercio')[:255], 'm': mensaje, 'p': prioridad})
         sess.commit()
+
+        # A51: además de la campanita, intentar Web Push (app cerrada). Best-effort.
+        try:
+            from src.api.utils.push_service import enviar_push_a_usuario
+            enviar_push_a_usuario(row[0], titulo or 'TuKomercio', mensaje)
+        except Exception:
+            pass
         return True
     except Exception as e:
         logger.warning(f"[notif-auto] no crítico: {e}")

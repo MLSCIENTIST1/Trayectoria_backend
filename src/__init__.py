@@ -529,6 +529,16 @@ def create_app():
                         fecha_atencion  TIMESTAMP
                     )""",
                     "CREATE INDEX IF NOT EXISTS ix_solic_priv_estado ON solicitudes_privacidad(estado)",
+                    # A51 — suscripciones de Web Push (notificaciones con app cerrada)
+                    """CREATE TABLE IF NOT EXISTS push_subscriptions (
+                        id         SERIAL PRIMARY KEY,
+                        user_id    INTEGER NOT NULL,
+                        endpoint   TEXT NOT NULL UNIQUE,
+                        p256dh     TEXT NOT NULL,
+                        auth       TEXT NOT NULL,
+                        created_at TIMESTAMP DEFAULT NOW()
+                    )""",
+                    "CREATE INDEX IF NOT EXISTS ix_push_user ON push_subscriptions(user_id)",
                 ]
                 for sql in migraciones:
                     try:
