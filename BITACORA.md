@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-06-05 — Panel admin A45 · Habeas Data / privacidad (Ley 1581)
+
+**Sprint actual:** Panel de Administración. **Fase 6.** Avance **45/51**.
+
+### Completado
+- **A45 — Habeas Data / privacidad.** Obligación legal en Colombia que no existía.
+  - **Backend:** helpers PUROS `validar_tipo_solicitud` y `construir_export_usuario` (filtra `CAMPOS_SENSIBLES` → nunca exporta contraseñas/hashes/tokens) en `api/utils/privacidad_service.py`. Tabla `solicitudes_privacidad` (migración en `create_app`). Endpoints: `GET /api/admin/privacidad/usuario/<id>/export` (portabilidad JSON: usuario + consentimiento + negocios + reseñas, auditado), `GET/POST /privacidad/solicitudes` (registrar), `POST .../solicitudes/<id>/procesar` (**superadmin**: completar/rechazar; para eliminación = **derecho al olvido** vía baja lógica/papelera, NO purga; bloquea borrar admins activos; trazable con atendida_por/fecha). Registro de consentimiento desde `usuarios.acepto_terminos`.
+  - **Frontend:** sección "Privacidad (Habeas Data)" (Configuración): exportar datos (descarga JSON), registrar solicitud y tabla de solicitudes con completar/rechazar. Badge de pendientes en el nav.
+- **Test:** `test_admin_privacidad_a45.py` → **27/27**.
+
+### Pendiente (Fase 6)
+- A46 emails Resend · A47 verticales · A48 integraciones · A49 gestor de textos.
+
+### Siguiente paso
+- **A46 — Gestor de plantillas de email (Resend) + deliverability**.
+
+---
+
 ## 2026-06-05 — Panel admin A44 · Administración de Dora IA
 
 **Sprint actual:** Panel de Administración. **Fase 6.** Avance **44/51**.

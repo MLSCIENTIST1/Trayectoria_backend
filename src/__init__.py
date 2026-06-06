@@ -517,6 +517,18 @@ def create_app():
                         CONSTRAINT uq_ia_uso UNIQUE (negocio_id, fecha)
                     )""",
                     "CREATE INDEX IF NOT EXISTS ix_ia_uso_fecha ON ia_uso(fecha)",
+                    # A45 — solicitudes de privacidad / Habeas Data (Ley 1581)
+                    """CREATE TABLE IF NOT EXISTS solicitudes_privacidad (
+                        id             SERIAL PRIMARY KEY,
+                        usuario_id     INTEGER NOT NULL,
+                        tipo           VARCHAR(20) NOT NULL,   -- export | eliminacion
+                        estado         VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+                        nota           VARCHAR(500),
+                        atendida_por   VARCHAR(120),
+                        fecha_solicitud TIMESTAMP DEFAULT NOW(),
+                        fecha_atencion  TIMESTAMP
+                    )""",
+                    "CREATE INDEX IF NOT EXISTS ix_solic_priv_estado ON solicitudes_privacidad(estado)",
                 ]
                 for sql in migraciones:
                     try:

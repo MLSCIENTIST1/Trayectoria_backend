@@ -2639,6 +2639,188 @@ def update_ia_config():
         return build_cors_response({'success': False, 'error': str(e)}, 500)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# HABEAS DATA / PRIVACIDAD (Admin Panel A45) — Ley 1581 (Colombia)
+# Portabilidad (export), derecho al olvido (eliminación trazable), consentimientos.
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/privacidad/usuario/<int:user_id>/export', methods=['GET'])
+@requiere_permiso('usuarios')
+def privacidad_export(user_id):
+    """GET /api/admin/privacidad/usuario/<id>/export → paquete de portabilidad (JSON, sin secretos)."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        from src.api.utils.privacidad_service import construir_export_usuario
+        conn = get_db_connection(); cur = conn.cursor()
+        cur.execute("""
+            SELECT id_usuario, nombre, apellidos, correo, profesion, cedula, celular,
+                   foto_url, active, created_at, last_login, acepto_terminos, fecha_aceptacion_terminos
+            FROM usuarios WHERE id_usuario = %s
+        """, (user_id,))
+        u = cur.fetchone()
+        if not u:
+            cur.close(); conn.close()
+            return build_cors_response({'success': False, 'error': 'Usuario no encontrado'}, 404)
+        usuario = dict(u)
+        # serializar fechas
+        for k in ('created_at', 'last_login', 'fecha_aceptacion_terminos'):
+            if usuario.get(k):
+                usuario[k] = usuario[k].isoformat()
+        correo = usuario.get('correo')
+
+        cur.execute("""
+            SELECT id_negocio, nombre_negocio, slug, ciudad, categoria, plan_key, fecha_registro
+            FROM negocios WHERE usuario_id = %s
+        """, (user_id,))
+        negocios = []
+        for n in cur.fetchall():
+            nd = dict(n)
+            if nd.get('fecha_registro'):
+                nd['fecha_registro'] = nd['fecha_registro'].isoformat()
+            negocios.append(nd)
+
+        resenas = []
+        if correo:
+            cur.execute("""
+                SELECT producto_id, negocio_id, rating, titulo, comentario, fecha
+                FROM producto_reviews WHERE LOWER(cliente_email) = LOWER(%s) LIMIT 500
+            """, (correo,))
+            for r in cur.fetchall():
+                rd = dict(r)
+                if rd.get('fecha'):
+                    rd['fecha'] = rd['fecha'].isoformat()
+                resenas.append(rd)
+        cur.close(); conn.close()
+
+        export = construir_export_usuario(usuario, negocios=negocios, resenas=resenas,
+                                          generado_en=datetime.utcnow().isoformat())
+        registrar_auditoria('export', 'privacidad', user_id, {'correo': correo, 'tipo': 'habeas_data'})
+        return build_cors_response({'success': True, 'filename': f'datos_usuario_{user_id}.json', 'export': export})
+    except Exception as e:
+        logger.error(f"Error en privacidad_export: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 200)
+
+
+@admin_bp.route('/privacidad/solicitudes', methods=['GET'])
+@requiere_permiso('usuarios')
+def privacidad_solicitudes():
+    """GET /api/admin/privacidad/solicitudes?estado= → lista de solicitudes de privacidad."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        estado = (request.args.get('estado', '') or '').strip().lower()
+        sql = """
+            SELECT s.id, s.usuario_id, u.nombre, u.correo, s.tipo, s.estado, s.nota,
+                   s.atendida_por, s.fecha_solicitud, s.fecha_atencion
+            FROM solicitudes_privacidad s
+            LEFT JOIN usuarios u ON u.id_usuario = s.usuario_id
+        """
+        params = {}
+        if estado in ('pendiente', 'completada', 'rechazada'):
+            sql += " WHERE s.estado = :e"; params['e'] = estado
+        sql += " ORDER BY s.fecha_solicitud DESC NULLS LAST LIMIT 200"
+        rows = _db.session.execute(_t(sql), params).fetchall()
+        return build_cors_response({'success': True, 'solicitudes': [{
+            'id': r[0], 'usuario_id': r[1], 'nombre': r[2] or f'#{r[1]}', 'correo': r[3] or '',
+            'tipo': r[4], 'estado': r[5], 'nota': r[6], 'atendida_por': r[7],
+            'fecha_solicitud': r[8].isoformat() if r[8] else None,
+            'fecha_atencion': r[9].isoformat() if r[9] else None,
+        } for r in rows]})
+    except Exception as e:
+        logger.error(f"Error en privacidad_solicitudes: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'solicitudes': []}, 200)
+
+
+@admin_bp.route('/privacidad/solicitudes', methods=['POST'])
+@requiere_permiso('usuarios')
+def privacidad_crear_solicitud():
+    """POST /api/admin/privacidad/solicitudes  body: { usuario_id, tipo, nota? } → registra una solicitud."""
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        from src.api.utils.privacidad_service import validar_tipo_solicitud
+        data = request.get_json(silent=True) or {}
+        try:
+            uid = int(data.get('usuario_id'))
+        except (TypeError, ValueError):
+            return build_cors_response({'success': False, 'error': 'usuario_id inválido'}, 400)
+        tipo = (data.get('tipo') or '').strip().lower()
+        if not validar_tipo_solicitud(tipo):
+            return build_cors_response({'success': False, 'error': "tipo debe ser 'export' o 'eliminacion'"}, 400)
+        if not _db.session.execute(_t("SELECT 1 FROM usuarios WHERE id_usuario=:u"), {'u': uid}).fetchone():
+            return build_cors_response({'success': False, 'error': 'Usuario no encontrado'}, 404)
+        _db.session.execute(_t("""
+            INSERT INTO solicitudes_privacidad (usuario_id, tipo, nota) VALUES (:u, :t, :n)
+        """), {'u': uid, 't': tipo, 'n': (data.get('nota') or '')[:500]})
+        _db.session.commit()
+        registrar_auditoria('crear', 'solicitud_privacidad', uid, {'tipo': tipo})
+        return build_cors_response({'success': True, 'message': 'Solicitud registrada'})
+    except Exception as e:
+        logger.error(f"Error en privacidad_crear_solicitud: {e}")
+        try:
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+@admin_bp.route('/privacidad/solicitudes/<int:solicitud_id>/procesar', methods=['POST'])
+@superadmin_required
+def privacidad_procesar_solicitud(solicitud_id):
+    """
+    POST /api/admin/privacidad/solicitudes/<id>/procesar  body: { accion: 'completar'|'rechazar', nota? }
+    Para 'eliminacion' + 'completar' → baja lógica del usuario (papelera). Solo superadmin. Trazable.
+    """
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        data = request.get_json(silent=True) or {}
+        accion = (data.get('accion') or '').strip().lower()
+        if accion not in ('completar', 'rechazar'):
+            return build_cors_response({'success': False, 'error': "accion debe ser 'completar' o 'rechazar'"}, 400)
+        row = _db.session.execute(_t(
+            "SELECT usuario_id, tipo, estado FROM solicitudes_privacidad WHERE id=:id"), {'id': solicitud_id}).fetchone()
+        if not row:
+            return build_cors_response({'success': False, 'error': 'Solicitud no encontrada'}, 404)
+        uid, tipo, estado = row[0], row[1], row[2]
+        if estado != 'pendiente':
+            return build_cors_response({'success': False, 'error': f'La solicitud ya está «{estado}»'}, 400)
+
+        eliminado = False
+        if accion == 'completar' and tipo == 'eliminacion':
+            # Derecho al olvido → baja lógica (papelera), no se purga aquí.
+            no_admin = _db.session.execute(_t("""
+                SELECT a.id FROM administradores a JOIN usuarios u ON LOWER(a.email)=LOWER(u.correo)
+                WHERE u.id_usuario=:u AND a.activo=true"""), {'u': uid}).fetchone()
+            if no_admin:
+                return build_cors_response({'success': False, 'error': 'El usuario es administrador activo; desactívalo primero.'}, 403)
+            _db.session.execute(_t("""
+                UPDATE usuarios SET eliminado=TRUE, eliminado_en=NOW(),
+                       eliminado_por=:by, active=FALSE WHERE id_usuario=:u
+            """), {'by': getattr(g, 'user_email', None) or 'admin', 'u': uid})
+            eliminado = True
+
+        nuevo_estado = 'completada' if accion == 'completar' else 'rechazada'
+        _db.session.execute(_t("""
+            UPDATE solicitudes_privacidad
+            SET estado=:e, atendida_por=:by, fecha_atencion=NOW(),
+                nota = COALESCE(:n, nota) WHERE id=:id
+        """), {'e': nuevo_estado, 'by': getattr(g, 'user_email', None) or 'admin',
+               'n': (data.get('nota') or None), 'id': solicitud_id})
+        _db.session.commit()
+        registrar_auditoria('editar', 'solicitud_privacidad', solicitud_id,
+                            {'accion': accion, 'tipo': tipo, 'usuario_id': uid, 'eliminado': eliminado})
+        return build_cors_response({'success': True, 'eliminado': eliminado,
+                                    'message': f'Solicitud {nuevo_estado}' + (' — usuario enviado a papelera' if eliminado else '')})
+    except Exception as e:
+        logger.error(f"Error en privacidad_procesar_solicitud: {e}")
+        try:
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
 @admin_bp.route('/usuarios/<int:user_id>', methods=['DELETE'])
 @superadmin_required
 def delete_usuario(user_id):
