@@ -446,6 +446,12 @@ def assign_plan_to_negocio(negocio_id):
 
     db.session.commit()
     logger.info(f"📊 Negocio {negocio_id} → Plan '{plan.nombre}' por {g.user_email}")
+    # A50: campanita automática al dueño por el cambio de plan (no crítico).
+    try:
+        from src.api.utils.notificaciones_service import notificar_negocio
+        notificar_negocio(negocio_id, evento='plan_cambiado', ctx={'plan': plan.nombre})
+    except Exception:
+        pass
     return jsonify({'success': True, 'negocio_id': negocio_id, 'negocio_nombre': negocio[1], 'plan': plan.to_dict(), 'message': f"Plan '{plan.nombre}' asignado a '{negocio[1]}'"})
 
 

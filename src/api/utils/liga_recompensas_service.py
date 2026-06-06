@@ -105,6 +105,14 @@ def otorgar_recompensas_liga(db_session, ciudad='', categoria='', actor='cron'):
         otorgados.append(item)
 
     db_session.commit()
+
+    # A50: campanita automática a cada ganador premiado (no crítico).
+    try:
+        from src.api.utils.notificaciones_service import notificar_negocio
+        for item in otorgados:
+            notificar_negocio(item['negocio_id'], evento='recompensa_liga', db_session=db_session)
+    except Exception:
+        pass
     return {
         'periodo': periodo, 'etiqueta': calc['etiqueta'], 'liga': liga,
         'otorgados': otorgados, 'omitidos': omitidos,

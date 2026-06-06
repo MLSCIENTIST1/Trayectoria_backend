@@ -11,6 +11,21 @@
 
 ---
 
+## 2026-06-05 — Panel admin A50 · Campanita automática (Fase 7 EXTRA)
+
+**Sprint actual:** Fase 7 EXTRA (notificaciones). Avance **50/51**.
+
+### Completado
+- **A50 — Campanita automática en eventos del sistema.** Respuesta a la pregunta de Carlos (antes ni el cambio de plan ni ganar badge notificaban).
+  - **Backend:** servicio `api/utils/notificaciones_service.py`: helper PURO `construir_notificacion(evento, ctx)` (plantillas plan_cambiado/badge_ganado/suscripcion_por_vencer/recompensa_liga) + `notificar_negocio(...)` que inserta en `notification`, resuelve el dueño y es **a prueba de fallos** (nunca rompe la operación). Cableado en: `_asignar_badge` (insignia ganada), `assign_plan_to_negocio` (cambio de plan), `otorgar_recompensas_liga` (premio de liga).
+  - **Sin UI nueva:** la campanita 🔔 + SSE ya existentes muestran estas notificaciones; el toast del navegador salta si el usuario tiene la app abierta y con permiso.
+- **Test:** `test_admin_notif_auto_a50.py` → **17/17**.
+
+### Pendiente
+- **A51 — Web Push real** (notificaciones con la app cerrada: VAPID + pywebpush + suscripción) → cierra el roadmap.
+
+---
+
 ## 2026-06-05 — Panel admin A49 · Gestor central de textos ⭐ · 🎉 FASE 6 COMPLETA
 
 **Sprint actual:** Panel de Administración. **Fase 6 COMPLETA (A41-A49).** Avance **49/51** (Fases 0-6 completas).

@@ -889,8 +889,17 @@ class BadgeVerificationService:
             """), {'bid': badge_id})
             
             db.session.commit()
+
+            # A50: campanita automática al ganar la insignia (no crítico).
+            try:
+                nombre_badge = db.session.execute(text(
+                    "SELECT nombre FROM negocio_badges WHERE id = :bid"), {'bid': badge_id}).scalar()
+                from src.api.utils.notificaciones_service import notificar_negocio
+                notificar_negocio(negocio_id, evento='badge_ganado', ctx={'badge': nombre_badge or codigo})
+            except Exception:
+                pass
             return True
-            
+
         except Exception as e:
             logger.error(f"Error asignando badge {badge_id} a negocio {negocio_id}: {e}")
             db.session.rollback()
