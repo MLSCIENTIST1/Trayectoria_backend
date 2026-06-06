@@ -272,6 +272,35 @@ def get_email_plantilla(clave):
     return get_email_plantillas().get(clave)
 
 
+def get_integraciones_config():
+    """Config de integraciones/automatizaciones (override BD sobre DEFAULT). A prueba de fallos."""
+    from src.api.utils.integraciones_service import INTEGRACIONES_CONFIG_DEFAULT
+    cfg = dict(INTEGRACIONES_CONFIG_DEFAULT)
+    try:
+        row = ConfigGlobal.query.get('integraciones')
+        if row and isinstance(row.valor, dict):
+            cfg.update(row.valor)
+    except Exception:
+        pass
+    return cfg
+
+
+def set_integraciones_config(limpio, db_session=None):
+    from src.api.utils.integraciones_service import INTEGRACIONES_CONFIG_DEFAULT
+    sess = db_session or db.session
+    actual = dict(INTEGRACIONES_CONFIG_DEFAULT)
+    row = ConfigGlobal.query.get('integraciones')
+    if row and isinstance(row.valor, dict):
+        actual.update(row.valor)
+    actual.update(limpio or {})
+    if row:
+        row.valor = actual; row.updated_at = datetime.utcnow()
+    else:
+        sess.add(ConfigGlobal(clave='integraciones', valor=actual))
+    sess.commit()
+    return actual
+
+
 def set_email_plantilla(clave, subject, html, db_session=None):
     sess = db_session or db.session
     row = ConfigGlobal.query.get(_CLAVE_EMAILS)

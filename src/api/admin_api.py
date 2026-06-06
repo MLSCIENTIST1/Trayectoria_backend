@@ -2950,6 +2950,62 @@ def verticales_overview():
         return build_cors_response({'success': False, 'error': str(e), 'verticales': []}, 200)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# INTEGRACIONES Y AUTOMATIZACIONES (Admin Panel A48)
+# Estado de integraciones externas + WhatsApp post-venta + import CSV.
+# ═══════════════════════════════════════════════════════════════════════════════
+@admin_bp.route('/integraciones', methods=['GET'])
+@requiere_permiso('configuracion')
+def admin_integraciones():
+    """GET /api/admin/integraciones → estado de integraciones + config de automatizaciones."""
+    import os as _os
+    from sqlalchemy import text as _t
+    from src.models.database import db as _db
+    try:
+        from src.api.utils.integraciones_service import estado_integraciones, TRIGGERS_POSTVENTA
+        from src.models.colombia_data.config_plataforma import get_integraciones_config
+        try:
+            wompi_activos = int(_db.session.execute(_t("SELECT COUNT(*) FROM wompi_configs WHERE activo IS TRUE")).scalar() or 0)
+        except Exception:
+            wompi_activos = 0
+        env = {'RESEND_API_KEY': _os.environ.get('RESEND_API_KEY', ''),
+               'GROQ_API_KEY': _os.environ.get('GROQ_API_KEY', '')}
+        return build_cors_response({
+            'success': True,
+            'integraciones': estado_integraciones(env, wompi_activos),
+            'config': get_integraciones_config(),
+            'triggers': sorted(TRIGGERS_POSTVENTA),
+            'import_csv_endpoint': '/api/contabilidad/carga-masiva',  # ya existe (referencia)
+        })
+    except Exception as e:
+        logger.error(f"Error en admin_integraciones: {e}")
+        return build_cors_response({'success': False, 'error': str(e), 'integraciones': []}, 200)
+
+
+@admin_bp.route('/integraciones/config', methods=['PUT'])
+@requiere_permiso('configuracion')
+def update_integraciones_config():
+    """PUT /api/admin/integraciones/config → automatizaciones (WhatsApp post-venta)."""
+    try:
+        from src.api.utils.integraciones_service import validar_integraciones_config
+        from src.models.colombia_data.config_plataforma import set_integraciones_config, get_integraciones_config
+        antes = get_integraciones_config()
+        ok, limpio, error = validar_integraciones_config(request.get_json(silent=True) or {})
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        nueva = set_integraciones_config(limpio)
+        registrar_auditoria('editar', 'integraciones', None, {'antes': antes, 'despues': limpio})
+        return build_cors_response({'success': True, 'config': nueva, 'message': 'Integraciones actualizadas'})
+    except Exception as e:
+        logger.error(f"Error en update_integraciones_config: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
 @admin_bp.route('/usuarios/<int:user_id>', methods=['DELETE'])
 @superadmin_required
 def delete_usuario(user_id):

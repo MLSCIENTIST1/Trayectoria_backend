@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-06-05 — Panel admin A48 · Integraciones y automatizaciones
+
+**Sprint actual:** Panel de Administración. **Fase 6.** Avance **48/51**.
+
+### Completado
+- **A48 — Integraciones y automatizaciones.** Centro de estado de integraciones + automatización de WhatsApp post-venta.
+  - **Backend:** helpers PUROS `estado_integraciones` (Resend/Groq por env, Cloudinary embebido siempre OK, Wompi según negocios activos) + `validar_integraciones_config` + `INTEGRACIONES_CONFIG_DEFAULT` en `api/utils/integraciones_service.py`. `get/set_integraciones_config` en config_global. Endpoints `GET /api/admin/integraciones` (estado + config + triggers + referencia import CSV) y `PUT .../integraciones/config` (`requiere_permiso('configuracion')`, auditado).
+  - **Frontend:** sección "Integraciones" (Configuración): semáforo de cada integración, editor de WhatsApp post-venta (toggle/disparador/plantilla con variables) y nota del import CSV (módulo de Contabilidad).
+- **Test:** `test_admin_integraciones_a48.py` → **20/20**.
+
+### Pendiente (Fase 6)
+- A49 gestor central de textos/copys → cierra Fase 6.
+
+### Siguiente paso
+- **A49 — Gestor central de textos/copys (sin programador) ⭐** — cierra Fase 6 y el grueso del roadmap.
+
+---
+
 ## 2026-06-05 — Panel admin A47 · Verticales + overview de tienda avanzada
 
 **Sprint actual:** Panel de Administración. **Fase 6.** Avance **47/51**.
