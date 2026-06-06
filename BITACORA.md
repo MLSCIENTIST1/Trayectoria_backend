@@ -11,6 +11,41 @@
 
 ---
 
+## 2026-06-06 — 🐞 FIX producción F12 · pantalla de carga de la tienda
+
+**Tipo:** corrección de UX + branding (frontend) en la tienda pública y el Designer.
+
+### Problema
+- Al abrir una tienda se veían **3 pantallas de carga** (negra → splash "Mi Tienda/Bienvenido" → "Cargando tienda…"), con el spinner del splash **descuadrado a la izquierda** y un salto brusco.
+
+### Causas
+- `tienda/r.html` con fondo negro (flash). `#splashScreen` visible por defecto (splash genérico aunque `enabled=false`), apilado con `#loadingScreen`. `.splash-spinner` sin `margin:0 auto`. Splash con cierre fijo de 3s.
+
+### Solución (FRONT, completo)
+- **r.html:** fondo claro + logo de la tienda (pulso) en el loader; reenvía `__TUKO_LOGO/NAME/COLOR`.
+- **index.html:** splash oculto por defecto; loader con logo desde el primer frame (script inline).
+- **tienda.css:** spinner centrado + `.loading-logo`.
+- **tienda.js:** splash usa el logo como respaldo y cierra **por disponibilidad** (mín ~800ms + tienda lista) en vez de 3s.
+- **Designer:** aviso único + botón "Usar mi logo como bienvenida". Logo como default no destructivo.
+- `node --check` OK en todos. Detalle en `memory/fixes_tienda_checkout.md` (F12).
+
+---
+
+## 2026-06-06 — 🐞 FIX producción F11 · detalle de pedido sin productos
+
+**Tipo:** corrección (frontend) en Gestión de Pedidos online.
+
+### Problema
+- Al abrir un pedido (clic en la tarjeta), el modal mostraba "PRODUCTOS (0)" aunque la tarjeta decía "1 producto(s)". Los productos solo se veían al entrar a **Editar**.
+
+### Causa
+- `verDetalle` (`contabilidad/modulos/pedidos.html`) usaba el item de la **lista** (`pedidos.find`), y el endpoint de lista no trae el array `productos` (solo `num_productos`). Editar sí hacía `fetch(/pedidos/<id>)`, por eso funcionaba.
+
+### Solución (FRONT)
+- `verDetalle` ahora también hace `fetch(/pedidos/<id>)` y fusiona el detalle (`{...listItem, ...data.pedido}`) antes de renderizar → el modal muestra nombre/cantidad/precio. Mismo endpoint que ya usaba Editar. `node --check` OK. Detalle en `memory/fixes_tienda_checkout.md` (F11).
+
+---
+
 ## 2026-06-06 — 🐞 FIX producción F10 · estados de pedido (salto directo)
 
 **Tipo:** corrección de UX (frontend) en Gestión de Pedidos online.
