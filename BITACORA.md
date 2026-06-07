@@ -11,6 +11,23 @@
 
 ---
 
+## 2026-06-06 — 🔴 F19 (CRÍTICO) · NINGÚN correo se enviaba (reset bloqueado)
+
+**Tipo:** bug crítico (backend / envío de email). Carlos quedó bloqueado fuera (no llegó el correo de recuperación).
+
+### Diagnóstico en vivo
+- `GET /api/auth/test-smtp` → RESEND_API_KEY ✅ pero `MAIL_FROM=onboarding@resend.dev` (sandbox).
+- `GET /api/auth/test-send/<email>` → **HTTP 403 error 1010** = **Cloudflare** bloqueando (no Resend).
+
+### Causa raíz
+- Las peticiones a `api.resend.com` vía `urllib` no enviaban `User-Agent` → urllib manda `Python-urllib/x.y` y Cloudflare lo bloquea (403/1010) antes de llegar a Resend. Afectaba TODOS los emails.
+
+### Solución (backend)
+- Añadir `User-Agent` + `Accept` en `api/auth/password_reset_api.py::send_email_resend` y `services/suscripcion_email_service.py`.
+- ⏳ Pendiente operativo: `MAIL_FROM=onboarding@resend.dev` solo envía al dueño de la cuenta Resend → verificar dominio en Resend + `MAIL_FROM=noreply@dominio` para enviar a todos los clientes. Detalle en `memory/fixes_tienda_checkout.md` (F19).
+
+---
+
 ## 2026-06-06 — 🔴 F18.6 (CAUSA RAÍZ REAL) · updatePreview borraba seo antes de poblar el form
 
 **Tipo:** bug crítico (frontend / designer). Corrige una conclusión prematura (F18.5).
