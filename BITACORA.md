@@ -29,7 +29,9 @@
 - **Pendiente Fase 2 (próximos lotes):** "regar texto" de TODAS las vistas (designer, super_designer, grilla financiera, 19 módulos de contabilidad, plantillas, panel, etc.), endpoints por blueprint, tablas de BD, flujos, catálogo de errores, terceros, respaldo, pruebas, entrega, legal.
 - **Fase 3 ✅ (con cambio de decisión):** Carlos pidió que el visor NO esté en el panel sino en una **vista pública dedicada** enlazada desde la **landing** (para no-clientes/interesados), con **login propio**. → `public/documentacion/index.html`: login (`/api/auth/login`) → visor en **árbol** por secciones + lector + buscador + **step-up SuperAdmin** (🟢/🟡/🔴). Ruta `/documentacion` (worker v1.29). Botón "📘 Documentación" en footer de la landing. Revertida la integración previa en el panel.
 - **Entrada (botón):** landing → footer → "📘 Documentación" → pide usuario+contraseña → visor.
-- **Siguiente:** seguir Fase 2 (regar texto de TODAS las vistas/endpoints/tablas, lote a lote).
+- **Fase 2 lote 2 ✅ (+20 → 34 entradas):** recorrido del frontend (landing, login, app, designer, super_designer, grilla financiera, módulos de contabilidad, inventario, pedidos, tienda pública, plantillas, checkout, seguimiento, centro de ayuda), panel admin + permisos, base de datos (overview/multi-tenant/JSONB) y mapa de UI.
+- **Visor más presentable:** pantalla de bienvenida (hero + leyenda 🟢🟡🔴 + contador de temas) para interesados.
+- **Siguiente:** seguir Fase 2 — endpoints por blueprint, flujos, catálogo de errores ampliado, terceros, respaldo, pruebas, entrega, legal, gamificación, e-commerce, integraciones.
 
 ---
 
