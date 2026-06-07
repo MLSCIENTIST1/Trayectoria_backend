@@ -36,6 +36,8 @@ class PlataformaKB(db.Model):
     datos      = db.Column(JSONB, default=dict)
     orden      = db.Column(db.Integer, default=0)
     publicado  = db.Column(db.Boolean, default=False, index=True)
+    # Documentación técnica: publico | admin | superadmin (ver roadmap_documentacion_tecnica)
+    nivel_acceso = db.Column(db.String(20), default='publico', index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -44,6 +46,7 @@ class PlataformaKB(db.Model):
             'id': self.id, 'tipo': self.tipo, 'area': self.area, 'clave': self.clave,
             'titulo': self.titulo, 'resumen': self.resumen, 'contenido': self.contenido,
             'datos': self.datos or {}, 'orden': self.orden, 'publicado': self.publicado,
+            'nivel_acceso': self.nivel_acceso or 'publico',
         }
 
 

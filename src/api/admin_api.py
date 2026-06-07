@@ -280,6 +280,7 @@ MODULOS_PERMISOS = [
     {'key': 'admins',          'label': 'Administradores',     'grupo': 'Configuración'},
     {'key': 'configuracion',   'label': 'Configuración',       'grupo': 'Configuración'},
     {'key': 'centro_ayuda',    'label': 'Centro de Ayuda',     'grupo': 'Plataforma'},
+    {'key': 'documentacion',   'label': 'Documentación Técnica', 'grupo': 'Configuración'},
 ]
 PERMISOS_VALIDOS = {m['key'] for m in MODULOS_PERMISOS}
 

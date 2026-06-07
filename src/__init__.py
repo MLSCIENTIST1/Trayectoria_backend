@@ -575,6 +575,9 @@ def create_app():
                     )""",
                     "CREATE INDEX IF NOT EXISTS ix_kb_tipo ON plataforma_kb(tipo)",
                     "CREATE INDEX IF NOT EXISTS ix_kb_area ON plataforma_kb(area)",
+                    # Documentación técnica: nivel de acceso (publico|admin|superadmin)
+                    "ALTER TABLE plataforma_kb ADD COLUMN IF NOT EXISTS nivel_acceso VARCHAR(20) DEFAULT 'publico'",
+                    "CREATE INDEX IF NOT EXISTS ix_kb_nivel ON plataforma_kb(nivel_acceso)",
                 ]
                 for sql in migraciones:
                     try:
