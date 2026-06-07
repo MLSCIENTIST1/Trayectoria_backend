@@ -27,7 +27,12 @@
 ### Fase 1 — Unificación visual (en curso)
 - **M1.1-M1.4 ✅** Tipografía unificada (Sora títulos + Plus Jakarta texto, wordmark Orbitron) en: login (Inter→Jakarta), landing (Outfit/DM Sans→Sora/Jakarta), resumen de pedido/heyden (Bebas Neue→Sora), app studio (BF.css `--font-sans`→Jakarta + display Sora + `.bf-logo__text` Orbitron). Solo cambios tipográficos, reversibles; colores/layout intactos. **Pendiente: QA visual en deploy.**
 - **M1.5/M1.6/M1.8 ✅** Panel admin (`--font-body`→Jakarta, `--font-display`→Sora) · Designer (chrome→Jakarta, sin tocar la fuente del tendero) · **Limpieza "BizFlow" visible → TuKomercio** (títulos de pestaña, wordmark de reset_password, POS, studio, facturación, política, etc.; sin tocar clases `.bf-*` ni el copyright). 0 visibles restantes.
-- **FASE 1 prácticamente completa.** Pendiente **M1.7 = QA visual** en deploy (no automatizable). Siguiente: Fase 3/4 (estructura del Centro de Ayuda) + Fase 2 (contenido).
+- **FASE 1 prácticamente completa.** Pendiente **M1.7 = QA visual** en deploy (no automatizable).
+
+### Fase 3 — Backend del Centro de Ayuda (en curso)
+- **M3.1/M3.2 ✅** API pública `centro_ayuda_bp` (`/api/ayuda`): `/home`, `/categorias`, `/categoria/<c>`, `/articulo/<c>`, `/buscar?q=`, `/novedades`. Lee de `plataforma_kb`, SOLO `publicado=TRUE`. SQL portable (PG/SQLite). test_centro_ayuda_api.py 14/0.
+- **Nota:** el seed está `publicado=false` → en prod la API devuelve vacío hasta que se publique contenido (parte de M3.3/Fase 2).
+- **Siguiente:** M3.3 CRUD en panel admin (+ publicar) · M3.4 ruteo worker (/ayuda, /novedades) · Fase 4 frontend · Fase 2 contenido.
 
 ---
 
