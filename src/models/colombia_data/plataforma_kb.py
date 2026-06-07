@@ -65,14 +65,14 @@ SEED_KB = [
      }},
 
     # ── CATEGORÍAS del Centro de Ayuda ──────────────────────────────────
-    {'tipo': 'categoria', 'area': 'ayuda', 'clave': 'cat-primeros-pasos', 'titulo': 'Primeros pasos', 'resumen': 'Crea tu tienda y empieza a vender.', 'datos': {'icono': '🚀'}, 'orden': 1},
-    {'tipo': 'categoria', 'area': 'ayuda', 'clave': 'cat-diseno', 'titulo': 'Diseña tu tienda', 'resumen': 'Logo, colores, portada y el Diseñador.', 'datos': {'icono': '🎨'}, 'orden': 2},
-    {'tipo': 'categoria', 'area': 'ayuda', 'clave': 'cat-productos', 'titulo': 'Productos e inventario', 'resumen': 'Sube productos, controla stock y precios.', 'datos': {'icono': '📦'}, 'orden': 3},
-    {'tipo': 'categoria', 'area': 'ayuda', 'clave': 'cat-pedidos', 'titulo': 'Pedidos y envíos', 'resumen': 'Recibe pedidos, estados y fletes.', 'datos': {'icono': '🛒'}, 'orden': 4},
-    {'tipo': 'categoria', 'area': 'ayuda', 'clave': 'cat-pagos', 'titulo': 'Pagos y cobros', 'resumen': 'Wompi, Nequi, contra entrega y más.', 'datos': {'icono': '💳'}, 'orden': 5},
-    {'tipo': 'categoria', 'area': 'ayuda', 'clave': 'cat-vender-mas', 'titulo': 'Vende más', 'resumen': 'WhatsApp, promociones y Dora IA.', 'datos': {'icono': '📣'}, 'orden': 6},
-    {'tipo': 'categoria', 'area': 'ayuda', 'clave': 'cat-premios', 'titulo': 'Premios y logros', 'resumen': 'Sube de nivel, gana insignias y TuKoins.', 'datos': {'icono': '🏆'}, 'orden': 7},
-    {'tipo': 'categoria', 'area': 'ayuda', 'clave': 'cat-cuenta', 'titulo': 'Mi cuenta y plan', 'resumen': 'Contraseña, datos, plan y facturación.', 'datos': {'icono': '⚙️'}, 'orden': 8},
+    {'tipo': 'categoria', 'area': 'ayuda', 'clave': 'cat-primeros-pasos', 'titulo': 'Primeros pasos', 'resumen': 'Crea tu tienda y empieza a vender.', 'datos': {'icono': 'bi-rocket-takeoff-fill'}, 'orden': 1},
+    {'tipo': 'categoria', 'area': 'ayuda', 'clave': 'cat-diseno', 'titulo': 'Diseña tu tienda', 'resumen': 'Logo, colores, portada y el Diseñador.', 'datos': {'icono': 'bi-palette-fill'}, 'orden': 2},
+    {'tipo': 'categoria', 'area': 'ayuda', 'clave': 'cat-productos', 'titulo': 'Productos e inventario', 'resumen': 'Sube productos, controla stock y precios.', 'datos': {'icono': 'bi-box-seam-fill'}, 'orden': 3},
+    {'tipo': 'categoria', 'area': 'ayuda', 'clave': 'cat-pedidos', 'titulo': 'Pedidos y envíos', 'resumen': 'Recibe pedidos, estados y fletes.', 'datos': {'icono': 'bi-bag-check-fill'}, 'orden': 4},
+    {'tipo': 'categoria', 'area': 'ayuda', 'clave': 'cat-pagos', 'titulo': 'Pagos y cobros', 'resumen': 'Wompi, Nequi, contra entrega y más.', 'datos': {'icono': 'bi-credit-card-2-front-fill'}, 'orden': 5},
+    {'tipo': 'categoria', 'area': 'ayuda', 'clave': 'cat-vender-mas', 'titulo': 'Vende más', 'resumen': 'WhatsApp, promociones y Dora IA.', 'datos': {'icono': 'bi-megaphone-fill'}, 'orden': 6},
+    {'tipo': 'categoria', 'area': 'ayuda', 'clave': 'cat-premios', 'titulo': 'Premios y logros', 'resumen': 'Sube de nivel, gana insignias y TuKoins.', 'datos': {'icono': 'bi-trophy-fill'}, 'orden': 7},
+    {'tipo': 'categoria', 'area': 'ayuda', 'clave': 'cat-cuenta', 'titulo': 'Mi cuenta y plan', 'resumen': 'Contraseña, datos, plan y facturación.', 'datos': {'icono': 'bi-gear-fill'}, 'orden': 8},
 
     # ── CATÁLOGO DE FUNCIONALIDADES (resumen; se ampliará) ──────────────
     {'tipo': 'feature', 'area': 'tienda', 'clave': 'f-crear-tienda', 'titulo': 'Crear tu tienda online', 'resumen': 'Wizard guiado: nombre, categoría, logo y URL pública lista para compartir.', 'datos': {'icono': '🏬'}, 'orden': 10},
@@ -321,6 +321,25 @@ def seed_plataforma_kb():
         except Exception as _pe:
             db.session.rollback()
             logger.warning(f"[plataforma_kb] publicación inicial omitida: {_pe}")
+
+        # Migración única de íconos de categoría a Bootstrap Icons (filas ya seedeadas).
+        try:
+            ya2 = db.session.execute(text("SELECT 1 FROM config_global WHERE clave = 'kb_iconos_bi_v1'")).fetchone()
+            if not ya2:
+                iconos = {e['clave']: e['datos']['icono'] for e in SEED_KB
+                          if e.get('tipo') == 'categoria' and (e.get('datos') or {}).get('icono')}
+                for ck, ic in iconos.items():
+                    db.session.execute(text(
+                        "UPDATE plataforma_kb SET datos = jsonb_set(COALESCE(datos,'{}'::jsonb), '{icono}', to_jsonb(CAST(:ic AS text))) "
+                        "WHERE clave = :c"), {'ic': ic, 'c': ck})
+                db.session.execute(text(
+                    "INSERT INTO config_global (clave, valor, updated_at) "
+                    "VALUES ('kb_iconos_bi_v1', CAST('true' AS JSONB), NOW()) ON CONFLICT (clave) DO NOTHING"))
+                db.session.commit()
+                logger.info("✅ plataforma_kb: íconos de categoría migrados a Bootstrap Icons")
+        except Exception as _ie:
+            db.session.rollback()
+            logger.warning(f"[plataforma_kb] migración de íconos omitida: {_ie}")
         return n
     except Exception as ex:
         db.session.rollback()
