@@ -42,7 +42,8 @@
 - **FASE 4 casi completa** (falta M4.5 estado opcional + QA visual fino). **Centro de Ayuda navegable end-to-end.**
 ### Fase 2 — Contenido (en curso)
 - **M2.1–M2.8 ✅ (base)** **22 guías** reales publicadas con `datos.categoria`, cubriendo **las 8 categorías** (primeros-pasos 3 · diseño 2 · productos 4 · pedidos 3 · pagos 3 · vender-más 3 · premios 2 · cuenta 2). **Publicación inicial única** (flag `config_global.kb_publicacion_inicial`); luego manda el panel. → `/ayuda` y `/novedades` muestran contenido real en todas las categorías. test_plataforma_kb 25/0.
-- **Estado proyecto marca:** Fases 0,1,3,4 ✅ · Fase 2 con base sólida (22 guías). Centro de Ayuda **funcional end-to-end**. Pendiente: más guías a gusto + QA visual fino + (opcional) M4.5 página Estado.
+- **Pulido UX (tras revisar Carlos en prod, se ve muy bien):** las listas públicas (populares, relacionados, categoría, buscar) ahora muestran **solo guías reales** (`tipo='articulo'`), no entradas del catálogo de funciones sin contenido → el usuario nunca cae en "disponible muy pronto". Relacionados por misma categoría. test 14/0.
+- **Estado proyecto marca:** Fases 0,1,3,4 ✅ · Fase 2 con base sólida (22 guías) · Centro de Ayuda **en producción y verificado por Carlos** ("se ve muy chévere"). Pendiente: más guías a gusto + (opcional) M4.5 página Estado.
 
 ---
 
