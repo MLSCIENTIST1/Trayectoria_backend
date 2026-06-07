@@ -102,6 +102,7 @@ from .video import Video
 from src.models.colombia_data.colombia_data import Colombia
 from src.models.colombia_data.colombia_feedbacks import Feedback
 from src.models.colombia_data.config_plataforma import ConfigGlobal  # A38: config global
+from src.models.colombia_data.plataforma_kb import PlataformaKB  # base de conocimiento (Centro de Ayuda)
 
 # ==========================================
 # MODELOS DE NEGOCIO

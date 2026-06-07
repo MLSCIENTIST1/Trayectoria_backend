@@ -558,6 +558,23 @@ def create_app():
                     "ALTER TABLE notification ADD COLUMN IF NOT EXISTS fecha_lectura TIMESTAMP",
                     "CREATE INDEX IF NOT EXISTS ix_notif_negocio ON notification(negocio_id)",
                     "CREATE INDEX IF NOT EXISTS ix_notif_user_read ON notification(user_id, is_read)",
+                    # Base de conocimiento de la plataforma (tabla "oculta" — Centro de Ayuda / Novedades)
+                    """CREATE TABLE IF NOT EXISTS plataforma_kb (
+                        id         SERIAL PRIMARY KEY,
+                        tipo       VARCHAR(30) NOT NULL DEFAULT 'feature',
+                        area       VARCHAR(60),
+                        clave      VARCHAR(120) UNIQUE NOT NULL,
+                        titulo     VARCHAR(200) NOT NULL,
+                        resumen    TEXT,
+                        contenido  TEXT,
+                        datos      JSONB DEFAULT '{}',
+                        orden      INTEGER DEFAULT 0,
+                        publicado  BOOLEAN DEFAULT FALSE,
+                        created_at TIMESTAMP DEFAULT NOW(),
+                        updated_at TIMESTAMP DEFAULT NOW()
+                    )""",
+                    "CREATE INDEX IF NOT EXISTS ix_kb_tipo ON plataforma_kb(tipo)",
+                    "CREATE INDEX IF NOT EXISTS ix_kb_area ON plataforma_kb(area)",
                 ]
                 for sql in migraciones:
                     try:
@@ -606,6 +623,17 @@ def create_app():
             except Exception as seed_err:
                 db.session.rollback()
                 logger.warning(f"⚠️  Error en seed de feature flags: {seed_err}")
+
+            # ──────────────────────────────────────────────────────────────────
+            # SEED: base de conocimiento de la plataforma (tabla "oculta")
+            # Alimenta el futuro Centro de Ayuda / Novedades. Idempotente.
+            # ──────────────────────────────────────────────────────────────────
+            try:
+                from src.models.colombia_data.plataforma_kb import seed_plataforma_kb
+                _nkb = seed_plataforma_kb()
+                logger.info(f"✅ Seed plataforma_kb: {_nkb} entradas aseguradas")
+            except Exception as kb_err:
+                logger.warning(f"⚠️  Seed plataforma_kb no crítico: {kb_err}")
 
             # ==========================================
             # INICIALIZAR BADGES DE TRAYECTORIA (AUTOMÁTICO)
