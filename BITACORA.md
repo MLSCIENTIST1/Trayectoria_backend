@@ -38,8 +38,9 @@
 ### Fase 4 — Frontend del Centro de Ayuda (en curso)
 - **M4.1 ✅** Home `ayuda/index.html` (design-tokens + `/api/ayuda/home` + buscador en vivo + WhatsApp, responsive).
 - **M4.3 ✅** Artículo `ayuda/articulo.html` (slug de URL → `/api/ayuda/articulo/<slug>` + relacionados).
-- **Siguiente:** M4.2 página de categoría · M4.4 Novedades · M4.7 enlazar landing↔ayuda · Fase 2 (contenido + publicar desde el panel).
-- **Nota:** el contenido está `publicado=false` → publicar desde el panel (Centro de Ayuda) para que las páginas muestren datos.
+- **M4.2/M4.4/M4.6/M4.7 ✅** Página de categoría (articulo.html detecta tipo=categoria) · Novedades (`ayuda/novedades.html` + ruta `/novedades` worker v1.27) · buscador en vivo (home) · enlaces landing↔ayuda (nav+footer). **FIX** logo "huevito" (object-fit:contain).
+- **FASE 4 casi completa** (falta M4.5 estado opcional + QA visual fino). **Centro de Ayuda navegable end-to-end.**
+- **Siguiente:** Fase 2 (escribir/publicar contenido desde el panel) + QA. **Nota:** contenido `publicado=false` → publicar desde panel → Centro de Ayuda para que se vea en `/ayuda`.
 
 ---
 
