@@ -32,7 +32,8 @@
 ### Fase 3 — Backend del Centro de Ayuda (en curso)
 - **M3.1/M3.2 ✅** API pública `centro_ayuda_bp` (`/api/ayuda`): `/home`, `/categorias`, `/categoria/<c>`, `/articulo/<c>`, `/buscar?q=`, `/novedades`. Lee de `plataforma_kb`, SOLO `publicado=TRUE`. SQL portable (PG/SQLite). test_centro_ayuda_api.py 14/0.
 - **Nota:** el seed está `publicado=false` → en prod la API devuelve vacío hasta que se publique contenido (parte de M3.3/Fase 2).
-- **Siguiente:** M3.3 CRUD en panel admin (+ publicar) · M3.4 ruteo worker (/ayuda, /novedades) · Fase 4 frontend · Fase 2 contenido.
+- **M3.3 ✅** CRUD admin: `centro_ayuda_admin_bp` (`/api/admin/ayuda`: listar/obtener/crear/editar/eliminar/publicar, `@requiere_permiso('centro_ayuda')` + auditado, validador puro, 409 dup) + permiso `centro_ayuda` + sección UI "Centro de Ayuda" en admin.html (nav+CRUD+publicar). test_centro_ayuda_admin.py 20/0.
+- **Siguiente:** M3.4 ruteo worker (/ayuda, /novedades) · Fase 4 (frontend del centro) · Fase 2 (contenido + publicar).
 
 ---
 
