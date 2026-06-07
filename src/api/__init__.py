@@ -215,6 +215,12 @@ def register_api(app):
         success_count += 1
     else:
         fail_count += 1
+
+    # Centro de Ayuda — CRUD admin (panel)
+    if safe_register('src.api.ayuda.centro_ayuda_admin_api', 'centro_ayuda_admin_bp', 'Centro de Ayuda Admin', prefix=None):
+        success_count += 1
+    else:
+        fail_count += 1
         logger.warning("⚠️  Módulo de recuperación de contraseña no cargado")
     
     # ==========================================
