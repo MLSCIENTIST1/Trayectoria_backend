@@ -42,6 +42,20 @@ except ImportError as e:
     Pedido = None; _PEDIDO_OK = False
 
 try:
+    from src.models.usuarios import Usuario
+    _USUARIO_OK = True
+except ImportError as e:
+    Usuario = None; _USUARIO_OK = False
+
+
+def _fecha_miembro_desde(fechas):
+    """PURA (F14): de una lista de fechas (con posibles None), devuelve 'Mon YYYY'
+    de la MÁS ANTIGUA, o None si no hay ninguna. Así "Miembro desde" refleja la
+    antigüedad real aunque fecha_registro haya quedado mal por una migración."""
+    validas = [f for f in fechas if f]
+    return min(validas).strftime('%b %Y') if validas else None
+
+try:
     from src.models.colombia_data.contabilidad.operaciones_y_catalogo import ProductoReview
     _REVIEW_OK = True
 except ImportError as e:
@@ -196,8 +210,32 @@ def get_trust_data(negocio_id):
             neg = Negocio.query.filter_by(id_negocio=negocio_id).first()
             if neg:
                 trust['verificado'] = bool(neg.verificado)
+                # F14: "Miembro desde" = la fecha MÁS ANTIGUA disponible. Antes usaba
+                # solo neg.fecha_registro, que en tiendas viejas quedó con la fecha de
+                # la migración (incorrecta). Tomamos el mínimo entre negocio, dueño y
+                # primer pedido para mostrar la antigüedad real, sin mutar datos.
+                fechas = []
                 if neg.fecha_registro:
-                    trust['miembro_desde'] = neg.fecha_registro.strftime('%b %Y')
+                    fechas.append(neg.fecha_registro)
+                try:
+                    if _USUARIO_OK and getattr(neg, 'usuario_id', None):
+                        u = Usuario.query.get(neg.usuario_id)
+                        if u:
+                            for c in (getattr(u, 'fecha_aceptacion_terminos', None), getattr(u, 'created_at', None)):
+                                if c:
+                                    fechas.append(c)
+                except Exception:
+                    pass
+                try:
+                    if _PEDIDO_OK:
+                        pf = db.session.query(func.min(Pedido.fecha_pedido)).filter_by(negocio_id=negocio_id).scalar()
+                        if pf:
+                            fechas.append(pf)
+                except Exception:
+                    pass
+                _md = _fecha_miembro_desde(fechas)
+                if _md:
+                    trust['miembro_desde'] = _md
         except Exception as e:
             logger.error(f'Error negocio trust {negocio_id}: {e}')
 
