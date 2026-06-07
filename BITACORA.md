@@ -23,7 +23,9 @@
 - **Proyecto grande nuevo (~50-60 sprints):** documentar cómo está construida TODA la plataforma (back/BD/front/UI/seguridad/integraciones/despliegue) para enseñar a técnicos / entregar a un comprador. Roadmap: `memory/roadmap_documentacion_tecnica.md`.
 - **Decisiones de Carlos:** todo detrás de login (nada público) · 3 niveles (`publico`/`admin`/`superadmin`) con **step-up de contraseña** para lo crítico · almacenado en `plataforma_kb` (`tipo='tecnico'`), editable desde el panel.
 - **Fase 0 ✅:** migración `plataforma_kb.nivel_acceso` (+índice) · modelo actualizado · permiso `documentacion` en el panel. tests 25/0 y 20/0.
-- **Siguiente:** Fase 1 (API lectura con filtro de acceso + CRUD admin + step-up SuperAdmin).
+- **Recorrido REAL del código (4 exploradores en paralelo):** mapa fiel de backend (~547 endpoints, blueprints, patrones), BD (todas las tablas, relaciones, JSONB, multi-tenant), frontend (rutas del worker, vistas, plantillas, design-tokens, PWA/SW, JS), seguridad/despliegue (auth bcrypt `check_password`, admin/superadmin, CORS, auditoría, env vars, Render/Cloudflare/Neon). Insumo para la Fase 2.
+- **Fase 1 ✅:** `docs_tecnicas_bp` (`/api/admin/docs`): árbol/entrada/buscar filtrados por nivel · CRUD auditado · **step-up SuperAdmin** (`/unlock` valida rol superadmin + `Usuario.check_password` bcrypt → sesión 30 min; nivel `superadmin` solo con unlock) · taxonomía 14 secciones. test_docs_tecnicas 30/0.
+- **Siguiente:** Fase 2 (escribir el contenido real por sección, usando el mapa) + Fase 3 (visor en árbol dentro del panel).
 
 ---
 
