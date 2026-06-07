@@ -24,8 +24,9 @@
 - **M0.3 ✅** Tabla "oculta" `plataforma_kb` (BD): modelo + migración idempotente en create_app + seeder (38 entradas: 1 marca/visual, 8 categorías, 23 funciones, 6 novedades). `publicado=false`. test_plataforma_kb.py 25/0.
 - **M0.4 ✅** `design-tokens.css` (FRONT, `assets/css/`): 56 variables `--tk-*` (paleta, fuentes, radios, sombras, escala, movimiento) + utilidades opt-in + prefers-reduced-motion. Cimiento de la unificación.
 
-### Siguiente
-- **Fase 1** (unificación visual de las vistas con los tokens): M1.1 login → M1.2 landing → … Ver roadmap.
+### Fase 1 — Unificación visual (en curso)
+- **M1.1-M1.4 ✅** Tipografía unificada (Sora títulos + Plus Jakarta texto, wordmark Orbitron) en: login (Inter→Jakarta), landing (Outfit/DM Sans→Sora/Jakarta), resumen de pedido/heyden (Bebas Neue→Sora), app studio (BF.css `--font-sans`→Jakarta + display Sora + `.bf-logo__text` Orbitron). Solo cambios tipográficos, reversibles; colores/layout intactos. **Pendiente: QA visual en deploy.**
+- **Siguiente:** M1.5 panel admin · M1.6 tienda/designer chrome (sin tocar la fuente del tendero) · M1.7 QA responsive global · M1.8 limpiar "BizFlow".
 
 ---
 
