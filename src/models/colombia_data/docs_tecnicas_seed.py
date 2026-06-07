@@ -332,6 +332,167 @@ SEED_DOCS = [
         'Algunas configuraciones (horarios, redes sociales, diseño de la tienda, tarifas de envío, permisos, los '
         'datos de un pedido) se guardan en un formato flexible llamado JSONB. Permite agregar o cambiar campos sin '
         'reconstruir la estructura de la base de datos.')},
+
+    # ── LOTE 3: completar todas las secciones ────────────────────────────
+    # AUTH
+    {'area': 'auth', 'clave': 'doc-auth-sesiones', 'nivel': 'admin', 'orden': 1,
+     'titulo': 'Sesiones y cookies',
+     'resumen': 'Cómo recuerda la plataforma que ya iniciaste sesión.',
+     'contenido': (
+        'Al iniciar sesión, el servidor crea una "sesión" y le entrega al navegador una cookie segura '
+        '(protegida, solo por HTTPS y sin acceso desde scripts). En cada petición, esa cookie identifica al '
+        'usuario. La identidad SIEMPRE se decide en el servidor, nunca con datos que mande el navegador. No se '
+        'usan "tokens JWT" como método principal, sino sesiones.')},
+    # GAMIFICACIÓN
+    {'area': 'gamificacion', 'clave': 'doc-gami-overview', 'nivel': 'publico', 'orden': 1,
+     'titulo': '¿Qué es la gamificación?',
+     'resumen': 'Convertir el uso de la plataforma en un juego que motiva.',
+     'contenido': (
+        'La gamificación premia al tendero por usar la plataforma y vender: gana experiencia (XP), sube de nivel, '
+        'acumula una moneda virtual (TuKoins), completa misiones, gana insignias, compite en ligas y duelos, y '
+        'puede invitar a otros (referidos). El objetivo es que sea divertido crecer el negocio.')},
+    {'area': 'gamificacion', 'clave': 'doc-gami-tecnico', 'nivel': 'admin', 'orden': 2,
+     'titulo': 'Cómo funciona la gamificación por dentro',
+     'resumen': 'Puntos automáticos, configurables y "a prueba de fallos".',
+     'contenido': (
+        'Cada acción importante (una venta, subir un producto, entrar a diario) dispara un "hook" que suma XP y '
+        'TuKoins. Esos hooks están aislados: si la gamificación fallara, la venta o acción principal NO se ve '
+        'afectada. Los valores (cuánto XP da cada cosa, misiones, eventos) son configurables desde el panel sin '
+        'tocar código, con un valor por defecto de respaldo.')},
+    # E-COMMERCE
+    {'area': 'ecommerce', 'clave': 'doc-ecom-overview', 'nivel': 'admin', 'orden': 1,
+     'titulo': 'El flujo de e-commerce',
+     'resumen': 'Del catálogo a la venta.',
+     'contenido': (
+        'El dueño crea su catálogo (productos con foto, precio, stock). El cliente entra a la tienda, agrega al '
+        'carrito, hace checkout (datos + envío + pago) y se genera un pedido. El dueño lo gestiona desde su panel y '
+        'el stock se ajusta automáticamente al confirmar.')},
+    {'area': 'ecommerce', 'clave': 'doc-ecom-estados', 'nivel': 'admin', 'orden': 2,
+     'titulo': 'Estados de un pedido',
+     'resumen': 'El ciclo de vida de una venta online.',
+     'contenido': (
+        'Un pedido avanza por estados: confirmado → preparando → enviado → en oficina → entregado (o cancelado). '
+        'El dueño puede avanzar paso a paso o saltar directo a un estado con confirmación. Cada cambio queda en el '
+        'historial del pedido, y al "enviar" se arma el aviso de WhatsApp para el cliente.')},
+    # INTEGRACIONES
+    {'area': 'integraciones', 'clave': 'doc-int-overview', 'nivel': 'admin', 'orden': 1,
+     'titulo': 'Servicios externos que usamos',
+     'resumen': 'Las herramientas de terceros conectadas.',
+     'contenido': (
+        '• Cloudinary: guarda y optimiza las fotos (las hace livianas).\n'
+        '• Resend: envía los correos (recuperar contraseña, avisos).\n'
+        '• Wompi: procesa pagos con tarjeta y PSE.\n'
+        '• Groq: el motor de inteligencia artificial detrás de la asistente "Dora".\n'
+        '• Cloudflare y Render: publican el frontend y el backend. Neon: la base de datos.')},
+    # FLUJOS
+    {'area': 'flujos', 'clave': 'doc-flujo-pedido', 'nivel': 'publico', 'orden': 1,
+     'titulo': 'El viaje de un pedido',
+     'resumen': 'Qué pasa, paso a paso, cuando alguien compra.',
+     'contenido': (
+        '1. El cliente arma su carrito en la tienda pública.\n'
+        '2. Llena sus datos y elige cómo pagar y recibir.\n'
+        '3. El backend crea el pedido y descuenta stock; guarda una "foto" de los datos (cliente, envío, productos).\n'
+        '4. Al dueño le llega una notificación.\n'
+        '5. El dueño confirma y avanza estados; al enviar, avisa por WhatsApp.\n'
+        '6. El cliente sigue su pedido con un enlace de resumen.')},
+    {'area': 'flujos', 'clave': 'doc-flujo-login', 'nivel': 'admin', 'orden': 2,
+     'titulo': 'El viaje de un inicio de sesión',
+     'resumen': 'Cómo se valida quién entra.',
+     'contenido': (
+        '1. El usuario escribe correo y contraseña.\n'
+        '2. El backend compara la contraseña de forma segura (cifrada con bcrypt) y revisa intentos fallidos.\n'
+        '3. Si todo está bien, crea la sesión y entrega la cookie segura.\n'
+        '4. A partir de ahí, cada pantalla sabe quién es sin volver a pedir clave.')},
+    {'area': 'flujos', 'clave': 'doc-flujo-imagen', 'nivel': 'admin', 'orden': 3,
+     'titulo': 'El viaje de una imagen',
+     'resumen': 'Qué pasa cuando subes una foto.',
+     'contenido': (
+        'Cuando subes la foto de un producto o tu logo, se envía a Cloudinary, que la guarda y genera versiones '
+        'optimizadas (livianas) para que la tienda cargue rápido y los enlaces compartidos por WhatsApp se vean '
+        'bien. En la base de datos solo se guarda la dirección (URL) de la imagen, no la imagen en sí.')},
+    # TERCEROS
+    {'area': 'terceros', 'clave': 'doc-terceros-fallos', 'nivel': 'admin', 'orden': 1,
+     'titulo': 'Servicios de terceros y qué pasa si fallan',
+     'resumen': 'De qué dependemos y cómo se mitiga.',
+     'contenido': (
+        '• Neon (base de datos): si falla, la plataforma no opera; por eso usa conexiones con reintento.\n'
+        '• Render (backend) y Cloudflare (frontend): si uno cae, la otra parte puede seguir mostrándose.\n'
+        '• Cloudinary: si falla, las fotos nuevas no suben, pero la tienda sigue.\n'
+        '• Resend: si falla, los correos no salen (la recuperación de clave se afecta).\n'
+        '• Wompi: si falla, no se cobra en línea, pero quedan los otros métodos (contra entrega, Nequi…).\n'
+        '• Groq: si falla, "Dora" no responde, pero el resto funciona.')},
+    # DESPLIEGUE
+    {'area': 'despliegue', 'clave': 'doc-deploy-overview', 'nivel': 'admin', 'orden': 1,
+     'titulo': 'Cómo se publica la plataforma',
+     'resumen': 'Dónde vive y cómo sale a producción.',
+     'contenido': (
+        'El backend vive en Render y el frontend en Cloudflare Pages; la base de datos en Neon. Cuando se suben '
+        'cambios al repositorio, Render y Cloudflare los publican automáticamente. El dominio principal es '
+        'tukomercio.co.')},
+    {'area': 'despliegue', 'clave': 'doc-deploy-migraciones', 'nivel': 'superadmin', 'orden': 2,
+     'titulo': 'Cómo se actualizan las tablas (migraciones)',
+     'resumen': 'Regla interna importante para no romper producción.',
+     'contenido': (
+        'Las reparaciones/ajustes de la base de datos se ejecutan automáticamente al ARRANCAR el backend, dentro '
+        'de create_app(), de forma idempotente (no rompen ni duplican). Es una regla del proyecto (lección '
+        'aprendida): poner las migraciones en el arranque y NO en run.py, porque en producción el inicio pasa por '
+        'create_app(). Así los cambios de estructura aplican solos en cada despliegue.')},
+    # OPERACIÓN
+    {'area': 'operacion', 'clave': 'doc-op-subadmins', 'nivel': 'admin', 'orden': 1,
+     'titulo': 'Dar de alta sub-administradores',
+     'resumen': 'Cómo el SuperAdmin reparte accesos.',
+     'contenido': (
+        'Desde el Panel, el SuperAdmin agrega administradores y les asigna SOLO los módulos que necesitan '
+        '(por ejemplo, alguien que solo modere reseñas). El SuperAdmin tiene control total. Todo queda auditado.')},
+    {'area': 'operacion', 'clave': 'doc-op-feature-flags', 'nivel': 'admin', 'orden': 2,
+     'titulo': 'Funciones y planes (feature flags)',
+     'resumen': 'Encender/apagar funciones sin programar.',
+     'contenido': (
+        'Las funciones se pueden activar o desactivar desde el panel (feature flags), e incluso liberar poco a poco '
+        '(a un % de negocios). Los planes (Básico, Pro, Premium, Deluxe) definen qué funciones incluye cada uno. '
+        'Todo se administra sin tocar código.')},
+    # RESPALDO
+    {'area': 'respaldo', 'clave': 'doc-respaldo', 'nivel': 'superadmin', 'orden': 1,
+     'titulo': 'Respaldo y recuperación de datos',
+     'resumen': 'Cómo se protege la información.',
+     'contenido': (
+        'La base de datos (Neon) ofrece copias y recuperación a un punto en el tiempo. Recomendación: verificar '
+        'periódicamente los respaldos y mantener export de datos clave. Es uno de los puntos críticos a cuidar al '
+        'operar o entregar la plataforma.')},
+    # PRUEBAS
+    {'area': 'pruebas', 'clave': 'doc-pruebas', 'nivel': 'admin', 'orden': 1,
+     'titulo': 'Cómo se prueba que todo funciona',
+     'resumen': 'La plataforma tiene cientos de pruebas automáticas.',
+     'contenido': (
+        'El proyecto incluye una batería grande de pruebas automáticas (500+). Cada una valida una parte (por '
+        'ejemplo, que la gamificación dé el XP correcto, que el acceso a la documentación respete los niveles, '
+        'etc.) e imprime cuántas pasaron. Se corren antes de publicar cambios para no romper nada.')},
+    # HANDOVER
+    {'area': 'handover', 'clave': 'doc-handover', 'nivel': 'superadmin', 'orden': 1,
+     'titulo': 'Entrega de la plataforma',
+     'resumen': 'Qué se necesita para traspasarla a un comprador o técnico.',
+     'contenido': (
+        'Para entregar la plataforma se traspasan: los dos repositorios de código, las cuentas de los servicios '
+        '(Render, Cloudflare, Neon, Cloudinary, Resend, Wompi, Groq), las variables de entorno (secretos) y los '
+        'dominios. Más esta documentación. Un técnico nuevo puede entender el sistema leyendo estas secciones de '
+        'arriba hacia abajo.')},
+    # LEGAL
+    {'area': 'legal', 'clave': 'doc-legal', 'nivel': 'publico', 'orden': 1,
+     'titulo': 'Propiedad y confidencialidad',
+     'resumen': 'A quién pertenece y cómo se maneja.',
+     'contenido': (
+        'TuKomercio es propiedad de Carlos Eduardo Huérfano Bermúdez. El código y esta documentación son '
+        'CONFIDENCIALES y constituyen un secreto comercial. La idea está en construcción y aún no patentada: no '
+        'debe divulgarse ni compartirse sin autorización. Por eso esta documentación vive detrás de inicio de '
+        'sesión y con niveles de acceso.')},
+    # NEGOCIO
+    {'area': 'negocio', 'clave': 'doc-negocio-planes', 'nivel': 'publico', 'orden': 1,
+     'titulo': 'Modelo de negocio y planes',
+     'resumen': 'Cómo genera ingresos la plataforma.',
+     'contenido': (
+        'TuKomercio funciona por suscripción: el tendero usa la plataforma gratis el primer mes y luego elige un '
+        'plan (Básico, Pro, Premium, Deluxe) que desbloquea más funciones. No cobra comisión por venta. El objetivo '
+        'es masificar la digitalización de las tiendas de barrio en Colombia.')},
 ]
 
 
