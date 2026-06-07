@@ -210,6 +210,26 @@ def entrada(clave):
     return jsonify({'success': True, 'entrada': _row(r, con_contenido=True)})
 
 
+@docs_tecnicas_bp.route('/export', methods=['GET'])
+@requiere_permiso('documentacion')
+def export():
+    """Devuelve TODO el contenido accesible (respeta nivel) agrupado por sección,
+    para generar un dossier imprimible / PDF. No incluye lo 'superadmin' sin unlock."""
+    niveles = _niveles()
+    filas = (PlataformaKB.query
+             .filter(PlataformaKB.tipo == 'tecnico', PlataformaKB.nivel_acceso.in_(niveles))
+             .order_by(PlataformaKB.orden, PlataformaKB.titulo).all())
+    por_area = {}
+    for r in filas:
+        por_area.setdefault(r.area or 'otros', []).append(_row(r, con_contenido=True))
+    secciones = []
+    for s in sorted(SECCIONES_DOC, key=lambda x: x['orden']):
+        if por_area.get(s['area']):
+            secciones.append({'area': s['area'], 'titulo': s['titulo'], 'entradas': por_area[s['area']]})
+    return jsonify({'success': True, 'secciones': secciones,
+                    'desbloqueado': _unlock_vigente(), 'total': len(filas)})
+
+
 @docs_tecnicas_bp.route('/buscar', methods=['GET'])
 @requiere_permiso('documentacion')
 def buscar():
