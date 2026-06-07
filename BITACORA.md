@@ -11,6 +11,19 @@
 
 ---
 
+## 2026-06-06 — 🔴 F18.6 (CAUSA RAÍZ REAL) · updatePreview borraba seo antes de poblar el form
+
+**Tipo:** bug crítico (frontend / designer). Corrige una conclusión prematura (F18.5).
+
+### Causa (confirmada por grep)
+- En `initNuevosBloques()`, `renderTestimonios` (x4), `renderStats` (x3), `applyFonts` (x1) e `initRedesSocialesListeners` (x1) llaman `updatePreview()` ANTES de poblar los inputs SEO. `updatePreview` hace `storeConfig.seo = {titulo:g('seoTitulo'),...,ogImage:g('seoOgImage')}` leyendo el DOM **vacío** → borraba el seo cargado del backend. Por eso, aunque `window.__ogDebug` mostraba la data cargada, los campos salían vacíos y el preview mostraba la portada.
+
+### Solución (`designer.js`)
+- Poblar SEO + toggles (testimonios/stats/galeria) + redes en `applyConfigToInputs()` (corre tras mergeConfig y ANTES de cualquier updatePreview). El DOM ya tiene los valores cuando updatePreview los lee.
+- cache-busting og6; `designer.regression.test.js` 14/14. Detalle en `memory/fixes_tienda_checkout.md` (F18.6).
+
+---
+
 ## 2026-06-06 — 🔴 F18.4 (CRÍTICO) · Service Worker cacheaba el JS → los fixes no llegaban
 
 **Tipo:** bug de infraestructura (Service Worker, frontend).
