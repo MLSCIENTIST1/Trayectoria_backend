@@ -11,6 +11,20 @@
 
 ---
 
+## 2026-06-06 — 🔴 F18.3 (CRÍTICO) · auditoría profunda designer → 2 causas más de pérdida de datos
+
+**Tipo:** auditoría (3 agentes en paralelo) + fix (frontend / designer).
+
+### Hallazgos
+- **A) localStorage pisaba al backend:** `loadStoreData()` mergeaba `localStorage.tienda_personalizacion_<id>` DESPUÉS del backend; un guardado viejo con SEO vacío sobreescribía la config buena en cada recarga (por eso `seo.ogImage`, presente en backend, salía como "se usa portada"). **Fix:** backend = fuente de verdad; localStorage solo como respaldo si el fetch falló.
+- **B) Campos leídos al guardar pero no poblados al cargar:** `testimoniosEnabled/titulo`, `statsEnabled`, `galeriaEnabled/titulo/columnas` → se persistían vacíos en cada save. **Fix:** poblarlos en `initNuevosBloques()`.
+- **Backend OK:** `PUT /negocio/<id>` reemplaza config_tienda completo; el designer manda config completo → seguro ahora que storeConfig está completo. (Existe `PATCH /config-tienda` con deep_merge como mejora futura.)
+
+### Notas
+- cache-busting `designer.js?v=20260606-og3`. Riesgo residual: mergeConfig shallow (mitigado). Detalle en `memory/fixes_tienda_checkout.md` (F18.3).
+
+---
+
 ## 2026-06-06 — 🔴 F18.2 (CRÍTICO) · condición de carrera en el designer → pérdida de datos
 
 **Tipo:** bug crítico (frontend / designer).
