@@ -31,7 +31,8 @@
 - **Entrada (botón):** landing → footer → "📘 Documentación" → pide usuario+contraseña → visor.
 - **Fase 2 lote 2 ✅ (+20 → 34 entradas):** recorrido del frontend (landing, login, app, designer, super_designer, grilla financiera, módulos de contabilidad, inventario, pedidos, tienda pública, plantillas, checkout, seguimiento, centro de ayuda), panel admin + permisos, base de datos (overview/multi-tenant/JSONB) y mapa de UI.
 - **Visor más presentable:** pantalla de bienvenida (hero + leyenda 🟢🟡🔴 + contador de temas) para interesados.
-- **Siguiente:** seguir Fase 2 — endpoints por blueprint, flujos, catálogo de errores ampliado, terceros, respaldo, pruebas, entrega, legal, gamificación, e-commerce, integraciones.
+- **Fase 2 lote 3 ✅ (+19 → 53 entradas):** completadas **las 22 secciones** (auth, gamificación, e-commerce/estados, integraciones, flujos pedido/login/imagen, terceros y fallos, despliegue+migraciones, operación subadmins/feature-flags, respaldo, pruebas, entrega/handover, legal/confidencialidad, negocio/planes). Cobertura 22/22.
+- **Siguiente (profundización opcional):** detalle por endpoint y por pantalla, diagramas, y Fase 4 (tests de acceso) + Fase 5 (export PDF/QA).
 
 ---
 
