@@ -11,6 +11,13 @@
 
 ---
 
+## 2026-06-07 — 🐞 FIX F14 · "Miembro desde" con fecha real
+
+- El trust strip mostraba fecha reciente (incorrecta) porque `negocio.fecha_registro` se rellenó con la fecha de la migración. **Fix (back, `analytics_api`):** `miembro_desde` = fecha más antigua entre negocio, dueño (created_at/aceptación de términos) y primer pedido. Helper puro `_fecha_miembro_desde`. test 9/0. Sin mutar datos.
+- Pendientes backlog que siguen: F15 (franja de stats en otras plantillas — requiere editar ~10 plantillas), logo base64 976KB (migrar a Cloudinary), verificar dominio en Resend (operativo, lo hace Carlos).
+
+---
+
 ## 2026-06-07 — 🎨 Proyecto Marca + Centro de Ayuda — KICKOFF (Fase 0)
 
 **Tipo:** proyecto grande de marca/contenido (~45-60 sprints). Roadmap en `memory/roadmap_marca_centro_ayuda.md`.
