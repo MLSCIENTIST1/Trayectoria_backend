@@ -163,6 +163,124 @@ SEED_KB = [
                    '3. Avanza el estado: Preparando → Enviado → Entregado. Puedes saltar directo a un estado con confirmación.\n'
                    '4. Al marcar "Enviado", TuKomercio te arma un mensaje de WhatsApp listo para avisarle al cliente con la guía.\n\n'
                    'El cliente puede seguir su pedido con el enlace de resumen que le compartes.')},
+
+    # ── Diseño (más) ────────────────────────────────────────────────────
+    {'tipo': 'articulo', 'area': 'tienda', 'clave': 'guia-imagen-compartir', 'publicado': True, 'orden': 2,
+     'titulo': 'Elige la imagen que sale al compartir', 'resumen': 'La foto que aparece en WhatsApp al compartir tu tienda o un pedido.',
+     'datos': {'categoria': 'cat-diseno', 'icono': '🖼️'},
+     'contenido': ('En el Diseñador → sección "SEO & Posicionamiento" → "Imagen para enlaces compartidos":\n\n'
+                   '1. Sube una imagen (ideal 1200×630 px).\n2. Guarda.\n\n'
+                   'Esa imagen aparecerá cuando compartas tu tienda o el resumen de un pedido por WhatsApp/Facebook. '
+                   'Si no eliges una, se usa tu portada o tu logo. Ojo: WhatsApp recuerda los enlaces, así que prueba con uno nuevo para ver el cambio.')},
+
+    # ── Productos (más) ─────────────────────────────────────────────────
+    {'tipo': 'articulo', 'area': 'catalogo', 'clave': 'guia-fotos-variantes', 'publicado': True, 'orden': 2,
+     'titulo': 'Fotos y variantes de producto', 'resumen': 'Buenas fotos y opciones como talla o color.',
+     'datos': {'categoria': 'cat-productos', 'icono': '📸'},
+     'contenido': ('Fotos: sube hasta 5 por producto; la primera es la principal. Usa fondo limpio y buena luz. '
+                   'No te preocupes por el peso: TuKomercio las optimiza.\n\n'
+                   'Variantes: si tu producto viene en tallas, colores o materiales, agrégalas. El comprador elige su combinación antes de añadir al carrito.')},
+    {'tipo': 'articulo', 'area': 'catalogo', 'clave': 'guia-stock-precios', 'publicado': True, 'orden': 3,
+     'titulo': 'Controla stock y precios', 'resumen': 'Mantén tu inventario al día y evita vender lo agotado.',
+     'datos': {'categoria': 'cat-productos', 'icono': '📊'},
+     'contenido': ('En "Inventario" ves el stock de todo en tiempo real, con alertas de stock bajo (amarillo) y agotado (rojo). '
+                   'Puedes ajustar el stock a mano o dejar que se descuente solo con cada venta/pedido. '
+                   'Define precio de venta y precio de costo para ver tu margen real en los reportes.')},
+    {'tipo': 'articulo', 'area': 'catalogo', 'clave': 'guia-carga-masiva', 'publicado': True, 'orden': 4,
+     'titulo': 'Sube muchos productos de una vez (CSV)', 'resumen': 'Importa tu catálogo completo desde Excel/CSV.',
+     'datos': {'categoria': 'cat-productos', 'icono': '📄'},
+     'contenido': ('Si tienes muchos productos, usa la carga masiva:\n\n'
+                   '1. Entra a "Carga masiva" en el módulo de inventario.\n'
+                   '2. Sube tu archivo CSV o Excel con columnas: nombre, precio, stock, SKU, costo y categoría.\n'
+                   '3. Revisa el reporte: te dice cuántos se crearon y si alguno tuvo error.\n\n'
+                   'Ideal para arrancar rápido sin cargar producto por producto.')},
+
+    # ── Pedidos (más) ───────────────────────────────────────────────────
+    {'tipo': 'articulo', 'area': 'pedidos', 'clave': 'guia-envios-fletes', 'publicado': True, 'orden': 2,
+     'titulo': 'Configura envíos y fletes', 'resumen': 'Define transportadoras, tarifas y envío gratis.',
+     'datos': {'categoria': 'cat-pedidos', 'icono': '🚚'},
+     'contenido': ('En la configuración de envíos de tu negocio puedes:\n\n'
+                   '• Definir desde qué monto el envío es GRATIS.\n'
+                   '• Poner tarifas por ciudad y transportadora (Servientrega, Coordinadora, Interrapidísimo, etc.).\n'
+                   '• Ofrecer "Recoger en tienda".\n\n'
+                   'Si una ciudad no tiene tarifa, el checkout muestra "A confirmar con el vendedor" para no frenar la venta. '
+                   'Cuando ajustas un flete a mano, TuKomercio te ofrece guardarlo para la próxima.')},
+    {'tipo': 'articulo', 'area': 'pedidos', 'clave': 'guia-devoluciones', 'publicado': True, 'orden': 3,
+     'titulo': 'Devoluciones', 'resumen': 'Cómo registrar una devolución y reponer stock.',
+     'datos': {'categoria': 'cat-pedidos', 'icono': '↩️'},
+     'contenido': ('Si un cliente devuelve un producto, regístralo desde el pedido (o como devolución libre si no hay pedido). '
+                   'El stock vuelve a tu inventario automáticamente y queda el motivo en el historial para tu control.')},
+
+    # ── Pagos ───────────────────────────────────────────────────────────
+    {'tipo': 'articulo', 'area': 'pagos', 'clave': 'guia-wompi', 'publicado': True, 'orden': 1,
+     'titulo': 'Cobra en línea con Wompi', 'resumen': 'Recibe pagos con tarjeta y PSE en tu tienda.',
+     'datos': {'categoria': 'cat-pagos', 'icono': '💳'},
+     'contenido': ('Para cobrar en línea conecta tu cuenta de Wompi:\n\n'
+                   '1. Crea tu cuenta en Wompi y obtén tus llaves (pública y privada).\n'
+                   '2. En tu panel, sección de pagos, pega tus llaves.\n'
+                   '3. ¡Listo! En el checkout el cliente podrá pagar con tarjeta o PSE, y el pedido se confirma solo cuando el pago llega.')},
+    {'tipo': 'articulo', 'area': 'pagos', 'clave': 'guia-cupones', 'publicado': True, 'orden': 2,
+     'titulo': 'Crea cupones de descuento', 'resumen': 'Premia a tus clientes con códigos de descuento.',
+     'datos': {'categoria': 'cat-pagos', 'icono': '🎟️'},
+     'contenido': ('Crea cupones desde tu panel (monto o porcentaje de descuento). El cliente escribe el código en el carrito '
+                   'y el checkout aplica el descuento automáticamente. Útil para promociones y para recuperar clientes.')},
+    {'tipo': 'articulo', 'area': 'pagos', 'clave': 'guia-metodos-pago', 'publicado': True, 'orden': 3,
+     'titulo': 'Métodos de pago disponibles', 'resumen': 'Efectivo, Nequi, transferencia, tarjeta y más.',
+     'datos': {'categoria': 'cat-pagos', 'icono': '💵'},
+     'contenido': ('Tu tienda soporta varios métodos: efectivo contra entrega, Nequi, Daviplata, transferencia bancaria, '
+                   'tarjeta débito/crédito y PSE (estos últimos con Wompi). El cliente elige al hacer el checkout.')},
+
+    # ── Vender más ──────────────────────────────────────────────────────
+    {'tipo': 'articulo', 'area': 'marketing', 'clave': 'guia-whatsapp', 'publicado': True, 'orden': 1,
+     'titulo': 'Vende por WhatsApp', 'resumen': 'El canal favorito de tus clientes, integrado.',
+     'datos': {'categoria': 'cat-vender-mas', 'icono': '💬'},
+     'contenido': ('TuKomercio vive conectado a WhatsApp:\n\n'
+                   '• Botón de WhatsApp en tu tienda para que te escriban.\n'
+                   '• Al enviar un pedido, mensaje listo para avisarle al cliente con la guía.\n'
+                   '• Comparte tu tienda, productos y pedidos por WhatsApp (¡salen con foto!).')},
+    {'tipo': 'articulo', 'area': 'ia', 'clave': 'guia-dora-ia', 'publicado': True, 'orden': 2,
+     'titulo': 'Usa a Dora IA', 'resumen': 'Tu asistente: describe productos, crea promos y analiza ventas.',
+     'datos': {'categoria': 'cat-vender-mas', 'icono': '✨'},
+     'contenido': ('Dora es tu asistente con inteligencia artificial. Puede:\n\n'
+                   '• Escribir la descripción de un producto por ti.\n'
+                   '• Generar textos de promoción para WhatsApp/Instagram.\n'
+                   '• Analizar tus ventas y darte ideas.\n'
+                   '• Sugerir un precio de venta.\n\n'
+                   'La encuentras dentro de tu panel. (Disponible según tu plan.)')},
+    {'tipo': 'articulo', 'area': 'marketing', 'clave': 'guia-qr', 'publicado': True, 'orden': 3,
+     'titulo': 'Tu código QR', 'resumen': 'Lleva clientes a tu tienda desde el mundo físico.',
+     'datos': {'categoria': 'cat-vender-mas', 'icono': '🔳'},
+     'contenido': ('TuKomercio genera un código QR de tu tienda. Descárgalo e imprímelo en tu local, tarjetas, volantes o empaques. '
+                   'Quien lo escanee llega directo a tu tienda online.')},
+
+    # ── Premios y logros ────────────────────────────────────────────────
+    {'tipo': 'articulo', 'area': 'gamificacion', 'clave': 'guia-niveles-xp', 'publicado': True, 'orden': 1,
+     'titulo': 'Niveles, XP y misiones', 'resumen': 'Gana experiencia usando la plataforma y sube de nivel.',
+     'datos': {'categoria': 'cat-premios', 'icono': '⭐'},
+     'contenido': ('Cada acción en tu negocio (vender, subir productos, entrar a diario) te da XP y te sube de nivel '
+                   '(de Semilla a Leyenda). Completa misiones diarias, semanales y mensuales para ganar más XP y TuKoins. '
+                   'Todo aparece en tu Dashboard de gamificación.')},
+    {'tipo': 'articulo', 'area': 'gamificacion', 'clave': 'guia-insignias-tukoins', 'publicado': True, 'orden': 2,
+     'titulo': 'Insignias y TuKoins', 'resumen': 'Logros para tu perfil y una moneda para canjear premios.',
+     'datos': {'categoria': 'cat-premios', 'icono': '🥇'},
+     'contenido': ('Insignias: las ganas automáticamente al lograr metas (ventas, antigüedad, calificaciones…) y se muestran '
+                   'en tu perfil público como sello de confianza.\n\n'
+                   'TuKoins: la moneda que ganas con misiones y ventas. Cánjeala en la tienda de premios por plantillas, '
+                   'destacados y más.')},
+
+    # ── Cuenta y plan ───────────────────────────────────────────────────
+    {'tipo': 'articulo', 'area': 'cuenta', 'clave': 'guia-contrasena', 'publicado': True, 'orden': 1,
+     'titulo': 'Cambiar o recuperar tu contraseña', 'resumen': 'Recupera el acceso a tu cuenta.',
+     'datos': {'categoria': 'cat-cuenta', 'icono': '🔒'},
+     'contenido': ('¿Olvidaste tu contraseña? En la pantalla de inicio de sesión toca "¿Olvidaste tu contraseña?", '
+                   'escribe tu correo y te llega un enlace para crear una nueva (revisa también spam). '
+                   'Desde tu perfil también puedes actualizar tus datos.')},
+    {'tipo': 'articulo', 'area': 'planes', 'clave': 'guia-plan', 'publicado': True, 'orden': 2,
+     'titulo': 'Tu plan y qué incluye', 'resumen': 'Básico, Pro, Premium y Deluxe.',
+     'datos': {'categoria': 'cat-cuenta', 'icono': '💎'},
+     'contenido': ('TuKomercio tiene varios planes que desbloquean más funciones: Básico, Pro, Premium y Deluxe '
+                   '(más productos, dropshipping, IA, personalización avanzada, etc.). '
+                   'Puedes ver y cambiar tu plan desde tu panel.')},
 ]
 
 
