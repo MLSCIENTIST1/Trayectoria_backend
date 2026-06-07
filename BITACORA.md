@@ -11,6 +11,23 @@
 
 ---
 
+## 2026-06-06 — 🔴 F18.4 (CRÍTICO) · Service Worker cacheaba el JS → los fixes no llegaban
+
+**Tipo:** bug de infraestructura (Service Worker, frontend).
+
+### Causa raíz
+- El SW activo `/sw.js` (scope `/`) usaba **cache-first para todo `.js`/`.css`** → servía `designer.js` viejo desde caché, ignorando red y Ctrl+F5. Con el JS viejo persistía el bug de localStorage (F18.3), por eso las correcciones "no aparecían". El API es network-first (datos frescos) → el backend SÍ tenía el `ogImage`, pero el designer mostraba la portada por correr código viejo.
+
+### Solución (`sw.js` v2.1.0)
+- `.js`/`.css` → **stale-while-revalidate** (revalida en 2º plano; siguiente load fresco).
+- Bump `SW_VERSION 2.0.0→2.1.0` → `activate` purga todos los cachés `tukomercio-*` viejos (desatasca el navegador).
+- Test de regresión `designer.regression.test.js` (node, 12 checks).
+
+### Desatascar manual (si hiciera falta)
+- DevTools → Application → Service Workers → Unregister (o "Clear site data") y recargar. Detalle en `memory/fixes_tienda_checkout.md` (F18.4).
+
+---
+
 ## 2026-06-06 — 🔴 F18.3 (CRÍTICO) · auditoría profunda designer → 2 causas más de pérdida de datos
 
 **Tipo:** auditoría (3 agentes en paralelo) + fix (frontend / designer).
