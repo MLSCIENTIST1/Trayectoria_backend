@@ -37,6 +37,7 @@
 - 🎉 **DOCUMENTACIÓN MAESTRA: COMPLETA (base).** Fases 0–5 ✅. Entrada landing → /documentacion (login propio) → árbol 22 secciones / 53 temas, niveles 🟢🟡🔴, step-up, búsqueda, export PDF. Ampliable a más profundidad.
 - **Botón de entrada:** landing → nav "📘 Documentación" (y footer) → /documentacion.
 - **Ampliaciones "los 3" ✅:** #1 referencia de endpoints (12 fichas) · #2 diagramas ASCII (arquitectura/pedido/login/niveles) · #3 **CRUD desde el panel** (sección "Documentación Técnica" en admin.html: crear/editar/eliminar/clasificar nivel, con step-up). Ahora **24 secciones, 69 temas**.
+- **Doble capa "Ver detalle técnico" ✅:** cada entrada puede tener `datos.tecnico` (especificación profesional). Visor: enlace AZUL "Ver detalle técnico" que despliega la spec (monospace) bajo la explicación sencilla; incluido en el PDF; editable en el panel (textarea). Seeder rellena `tecnico` sin pisar ediciones (idempotente). 12 fichas técnicas reales hechas (init/run/blueprints/password-reset/db/seguridad/auth/worker/migraciones). Faltan las demás (se completan por lotes o desde el panel).
 
 ---
 
