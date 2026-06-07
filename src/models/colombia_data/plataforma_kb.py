@@ -281,6 +281,86 @@ SEED_KB = [
      'contenido': ('TuKomercio tiene varios planes que desbloquean más funciones: Básico, Pro, Premium y Deluxe '
                    '(más productos, dropshipping, IA, personalización avanzada, etc.). '
                    'Puedes ver y cambiar tu plan desde tu panel.')},
+
+    # ── Fase 2 (2ª tanda) — completar categorías ────────────────────────
+    {'tipo': 'articulo', 'area': 'tienda', 'clave': 'guia-instalar-app', 'publicado': True, 'orden': 4,
+     'titulo': 'Instala TuKomercio como app', 'resumen': 'Ten tu tienda a un toque en el celular.',
+     'datos': {'categoria': 'cat-primeros-pasos'},
+     'contenido': ('TuKomercio funciona como app (PWA). En el celular, abre tu panel en el navegador y toca '
+                   '"Agregar a pantalla de inicio" (Android) o el botón Compartir → "Agregar a inicio" (iPhone). '
+                   'Así entras de un toque, como cualquier app.')},
+    {'tipo': 'articulo', 'area': 'tienda', 'clave': 'guia-colores-marca', 'publicado': True, 'orden': 3,
+     'titulo': 'Colores y tipografía de tu tienda', 'resumen': 'Dale la cara de tu marca.',
+     'datos': {'categoria': 'cat-diseno'},
+     'contenido': ('En el Diseñador eliges el color principal de tu tienda y la tipografía. Usa colores que '
+                   'representen tu marca y que contrasten bien para que se lea fácil. La vista previa te muestra '
+                   'cómo va quedando antes de guardar.')},
+    {'tipo': 'articulo', 'area': 'tienda', 'clave': 'guia-portada-banner', 'publicado': True, 'orden': 4,
+     'titulo': 'Portada y banner de bienvenida', 'resumen': 'Lo primero que ve tu cliente.',
+     'datos': {'categoria': 'cat-diseno'},
+     'contenido': ('Sube una portada/banner atractivo con tu mejor producto o una frase corta. Es lo primero '
+                   'que ve quien entra a tu tienda, así que que cuente quién eres y qué vendes.')},
+    {'tipo': 'articulo', 'area': 'tienda', 'clave': 'guia-plantillas', 'publicado': True, 'orden': 5,
+     'titulo': 'Elige tu plantilla', 'resumen': 'Distintos estilos según tu negocio.',
+     'datos': {'categoria': 'cat-diseno'},
+     'contenido': ('TuKomercio tiene varias plantillas (catálogo, estilos para distintos rubros, etc.). '
+                   'Elige la que mejor le quede a tu negocio desde "Mi Página Web" / el Diseñador. '
+                   'Puedes cambiarla cuando quieras sin perder tus productos.')},
+    {'tipo': 'articulo', 'area': 'catalogo', 'clave': 'guia-categorias', 'publicado': True, 'orden': 5,
+     'titulo': 'Organiza con categorías', 'resumen': 'Que tu cliente encuentre rápido.',
+     'datos': {'categoria': 'cat-productos'},
+     'contenido': ('Crea categorías (ej. "Ropa", "Accesorios", "Ofertas") y asigna tus productos. '
+                   'Las categorías aparecen como filtros en tu tienda y ayudan a que el cliente encuentre lo que busca.')},
+    {'tipo': 'articulo', 'area': 'catalogo', 'clave': 'guia-dropshipping', 'publicado': True, 'orden': 6,
+     'titulo': 'Dropshipping: importa catálogos', 'resumen': 'Vende sin tener el inventario en casa.',
+     'datos': {'categoria': 'cat-productos'},
+     'contenido': ('Si trabajas con proveedores (Mastershop, Dropi o CSV), puedes importar sus catálogos y aplicar '
+                   'un margen automático. Luego sincronizas precios y stock. (Disponible según tu plan.)')},
+    {'tipo': 'articulo', 'area': 'pedidos', 'clave': 'guia-corregir-pedido', 'publicado': True, 'orden': 4,
+     'titulo': 'Corrige un pedido', 'resumen': 'Cuando el cliente pide cambiar algo.',
+     'datos': {'categoria': 'cat-pedidos'},
+     'contenido': ('¿El cliente llamó a cambiar algo? Desde el pedido puedes editar productos, total, datos de '
+                   'envío, agregar la guía/transportadora y notas internas. Todo queda registrado.')},
+    {'tipo': 'articulo', 'area': 'pedidos', 'clave': 'guia-aprobar-campanita', 'publicado': True, 'orden': 5,
+     'titulo': 'Aprueba pedidos desde la campanita', 'resumen': 'Confirma sin salir del panel.',
+     'datos': {'categoria': 'cat-pedidos'},
+     'contenido': ('Cuando llega un pedido, desde la campanita puedes aprobarlo (crea la venta y descuenta stock) '
+                   'o rechazarlo con un motivo. Rápido, sin entrar al módulo de pedidos.')},
+    {'tipo': 'articulo', 'area': 'pedidos', 'clave': 'guia-clientes-magic', 'publicado': True, 'orden': 6,
+     'titulo': 'Tus clientes (CRM y Magic Link)', 'resumen': 'Conoce y fideliza a quien te compra.',
+     'datos': {'categoria': 'cat-pedidos'},
+     'contenido': ('En el CRM ves tus clientes y su historial de compras. Con los "Magic Links" tu cliente puede '
+                   'ver sus pedidos sin crear cuenta ni contraseña. Ideal para dar buen servicio y que vuelvan.')},
+    {'tipo': 'articulo', 'area': 'marketing', 'clave': 'guia-resenas', 'publicado': True, 'orden': 4,
+     'titulo': 'Reseñas de productos', 'resumen': 'La opinión de tus clientes vende por ti.',
+     'datos': {'categoria': 'cat-vender-mas'},
+     'contenido': ('Tus compradores pueden dejar reseñas con estrellas en tus productos. Tú las moderas '
+                   '(aprobar/ocultar). Las buenas reseñas dan confianza y ayudan a vender más.')},
+    {'tipo': 'articulo', 'area': 'marketing', 'clave': 'guia-feed-videos', 'publicado': True, 'orden': 5,
+     'titulo': 'Muéstrate en el Feed de videos', 'resumen': 'Tipo Reels, para que te descubran.',
+     'datos': {'categoria': 'cat-vender-mas'},
+     'contenido': ('Sube videos cortos de tus productos o tu negocio. Aparecen en el feed público de TuKomercio '
+                   '(estilo Reels) y en tu perfil, para que más gente te descubra.')},
+    {'tipo': 'articulo', 'area': 'gamificacion', 'clave': 'guia-ligas-retos', 'publicado': True, 'orden': 3,
+     'titulo': 'Ligas, retos y duelos', 'resumen': 'Compite y motívate vendiendo.',
+     'datos': {'categoria': 'cat-premios'},
+     'contenido': ('Compite en ligas con negocios parecidos al tuyo, participa en el reto del mes y rétate en '
+                   'duelos 1v1. Es una forma divertida de motivarte a vender más, con recompensas.')},
+    {'tipo': 'articulo', 'area': 'gamificacion', 'clave': 'guia-referidos', 'publicado': True, 'orden': 4,
+     'titulo': 'Invita y gana (referidos)', 'resumen': 'Trae otros tenderos y gana recompensas.',
+     'datos': {'categoria': 'cat-premios'},
+     'contenido': ('Tienes un código/enlace de referido. Cuando alguien que invitaste hace su primera venta, '
+                   'ganas XP y TuKoins automáticamente. Comparte tu enlace con otros tenderos.')},
+    {'tipo': 'articulo', 'area': 'cuenta', 'clave': 'guia-perfil', 'publicado': True, 'orden': 3,
+     'titulo': 'Tu perfil y datos', 'resumen': 'Mantén tu información al día.',
+     'datos': {'categoria': 'cat-cuenta'},
+     'contenido': ('Desde tu perfil actualizas tu nombre, ciudad, foto y datos de contacto. Mantenerlos al día '
+                   'ayuda a que tus clientes confíen y a que el soporte te atienda mejor.')},
+    {'tipo': 'articulo', 'area': 'negocio', 'clave': 'guia-sucursales', 'publicado': True, 'orden': 4,
+     'titulo': 'Maneja varias sucursales', 'resumen': '¿Más de un local? Contrólalos por separado.',
+     'datos': {'categoria': 'cat-cuenta'},
+     'contenido': ('Si tienes varios locales, crea sucursales: cada una con su dirección, teléfono e inventario. '
+                   'Así llevas las ventas y el stock de cada punto por separado. (Según tu plan.)')},
 ]
 
 
