@@ -11,6 +11,13 @@
 
 ---
 
+## 2026-06-07 — 📚 Fase 2 · Centro de Ayuda a 37 guías
+
+- Continuación de los sprints del roadmap (contenido). +15 guías nuevas → **37 guías** publicadas, cubriendo las 8 categorías de forma sólida (primeros-pasos 4 · diseño 5 · productos 6 · pedidos 6 · pagos 3 · vender-más 5 · premios 4 · cuenta 4), cerca de las ~45 planeadas. Contenido fiel a las funciones reales. test 25/0.
+- Roadmap marca: **todas las fases (0–5) ✅**; Fase 2 con contenido robusto. Ampliable a gusto.
+
+---
+
 ## 2026-06-07 — 🔧 F15 · franja de confianza en plantillas (reutilizable)
 
 - Creado `assets/tienda/trust-strip.js` (autocontenido, a prueba de fallos): slug→id_negocio→`/trust`, inserta la barra (verificado/rating/pedidos/insignias/miembro desde) al inicio del `<main>`. Se agrega a cualquier plantilla con 1 línea. **Aplicado a `catalogo`** (proof). Pendiente: validar visual + replicar a las demás plantillas.
