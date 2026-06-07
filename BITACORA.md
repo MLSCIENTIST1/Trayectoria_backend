@@ -11,10 +11,10 @@
 
 ---
 
-## 2026-06-07 — 📚 Fase 2 · Centro de Ayuda a 37 guías
+## 2026-06-07 — 📚 Fase 2 COMPLETA · Centro de Ayuda a 45 guías
 
-- Continuación de los sprints del roadmap (contenido). +15 guías nuevas → **37 guías** publicadas, cubriendo las 8 categorías de forma sólida (primeros-pasos 4 · diseño 5 · productos 6 · pedidos 6 · pagos 3 · vender-más 5 · premios 4 · cuenta 4), cerca de las ~45 planeadas. Contenido fiel a las funciones reales. test 25/0.
-- Roadmap marca: **todas las fases (0–5) ✅**; Fase 2 con contenido robusto. Ampliable a gusto.
+- Continuación de los sprints del roadmap (contenido). 22 → 37 → **45 guías** publicadas, cubriendo las 8 categorías (primeros-pasos 6 · diseño 5 · productos 6 · pedidos 7 · pagos 4 · vender-más 7 · premios 5 · cuenta 5). **Meta ~45 alcanzada.** Contenido fiel a las funciones reales. test 25/0.
+- 🎉 **ROADMAP MARCA + CENTRO DE AYUDA 100% COMPLETO** (Fases 0–5, incl. Fase 2 contenido). Ampliable a gusto.
 
 ---
 
