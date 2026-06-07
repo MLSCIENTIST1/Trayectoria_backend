@@ -167,12 +167,17 @@ def send_email_resend(to_email, subject, html_content):
         }).encode('utf-8')
         
         # Crear request
+        # ★ FIX (F19): incluir User-Agent y Accept. Sin User-Agent, urllib manda
+        #   'Python-urllib/x.y' y Cloudflare (frente a api.resend.com) bloquea la
+        #   petición con HTTP 403 / error 1010 → NINGÚN correo se enviaba.
         req = urllib.request.Request(
             "https://api.resend.com/emails",
             data=data,
             headers={
                 "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "User-Agent": "TuKomercio/1.0 (+https://tukomercio.co)"
             },
             method="POST"
         )

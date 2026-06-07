@@ -66,6 +66,9 @@ def _send_email(to_email: str, subject: str, html: str) -> tuple[bool, str]:
         headers={
             'Authorization': f'Bearer {api_key}',
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            # ★ FIX (F19): sin User-Agent, Cloudflare bloquea con 403/1010.
+            'User-Agent': 'TuKomercio/1.0 (+https://tukomercio.co)',
         },
         method='POST',
     )
