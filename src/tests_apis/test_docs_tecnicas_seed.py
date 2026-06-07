@@ -27,7 +27,7 @@ def main():
     check("todas con título y contenido", all(d.get('titulo') and d.get('contenido') for d in SEED_DOCS))
     check("niveles válidos", all(d['nivel'] in NIVELES_VALIDOS for d in SEED_DOCS))
     check("áreas dentro de la taxonomía", all(d['area'] in areas_tax for d in SEED_DOCS))
-    check("claves con prefijo conocido", all(d['clave'].startswith(('doc-', 'ep-', 'diag-')) for d in SEED_DOCS))
+    check("claves con prefijo conocido", all(d['clave'].startswith(('doc-', 'ep-', 'diag-', 'db-')) for d in SEED_DOCS))
 
     print("\n[2] Cobertura mínima del lote 1")
     claves_set = set(claves)
