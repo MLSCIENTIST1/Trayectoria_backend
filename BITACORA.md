@@ -11,6 +11,12 @@
 
 ---
 
+## 2026-06-07 — 🔧 F15 · franja de confianza en plantillas (reutilizable)
+
+- Creado `assets/tienda/trust-strip.js` (autocontenido, a prueba de fallos): slug→id_negocio→`/trust`, inserta la barra (verificado/rating/pedidos/insignias/miembro desde) al inicio del `<main>`. Se agrega a cualquier plantilla con 1 línea. **Aplicado a `catalogo`** (proof). Pendiente: validar visual + replicar a las demás plantillas.
+
+---
+
 ## 2026-06-07 — 🎨 Íconos · Bootstrap Icons 1.13.1 integrado
 
 - Plataforma "pobre de íconos" (Carlos). **Fix:** `@import` de **Bootstrap Icons 1.13.1** (1.800+ íconos, MIT) en `assets/css/design-tokens.css` → disponibles como `<i class="bi bi-..."></i>` en toda vista con tokens. Las 8 categorías del Centro de Ayuda pasaron de emoji → íconos Bootstrap (en color de marca); render `iconHtml()` soporta `bi-` o emoji; migración única para filas ya seedeadas (flag `kb_iconos_bi_v1`). test 25/0.
