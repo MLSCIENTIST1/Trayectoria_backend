@@ -42,6 +42,7 @@ _UNLOCK_KEY = 'docs_superadmin_unlocked_at'
 
 # Taxonomía oficial de secciones (orden + ícono Bootstrap para el visor en árbol)
 SECCIONES_DOC = [
+    {'area': 'glosario',     'titulo': 'Glosario (para no técnicos)', 'icono': 'bi-book-half', 'orden': 0},
     {'area': 'arquitectura', 'titulo': 'Arquitectura general', 'icono': 'bi-diagram-3-fill', 'orden': 1},
     {'area': 'backend',      'titulo': 'Backend (Flask)',       'icono': 'bi-hdd-stack-fill', 'orden': 2},
     {'area': 'base-datos',   'titulo': 'Base de datos',         'icono': 'bi-database-fill',  'orden': 3},
@@ -56,6 +57,13 @@ SECCIONES_DOC = [
     {'area': 'operacion',    'titulo': 'Operación',             'icono': 'bi-gear-wide-connected', 'orden': 12},
     {'area': 'ui-map',       'titulo': 'Mapa de UI / botones',  'icono': 'bi-grid-3x3-gap-fill', 'orden': 13},
     {'area': 'negocio',      'titulo': 'Negocio y planes',      'icono': 'bi-cash-coin', 'orden': 14},
+    {'area': 'flujos',       'titulo': 'Flujos de datos',       'icono': 'bi-arrow-left-right', 'orden': 15},
+    {'area': 'errores',      'titulo': 'Errores y respuestas',  'icono': 'bi-exclamation-triangle-fill', 'orden': 16},
+    {'area': 'terceros',     'titulo': 'Servicios de terceros', 'icono': 'bi-box-arrow-up-right', 'orden': 17},
+    {'area': 'respaldo',     'titulo': 'Respaldo y recuperación', 'icono': 'bi-cloud-download-fill', 'orden': 18},
+    {'area': 'pruebas',      'titulo': 'Pruebas (tests)',       'icono': 'bi-check2-square', 'orden': 19},
+    {'area': 'handover',     'titulo': 'Entrega / onboarding',  'icono': 'bi-people-fill', 'orden': 20},
+    {'area': 'legal',        'titulo': 'Propiedad y confidencialidad', 'icono': 'bi-c-circle-fill', 'orden': 21},
 ]
 _AREA_ORDEN = {s['area']: s['orden'] for s in SECCIONES_DOC}
 

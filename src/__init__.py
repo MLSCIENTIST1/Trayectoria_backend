@@ -638,6 +638,14 @@ def create_app():
             except Exception as kb_err:
                 logger.warning(f"⚠️  Seed plataforma_kb no crítico: {kb_err}")
 
+            # Documentación Maestra (técnica, confidencial) — contenido por secciones
+            try:
+                from src.models.colombia_data.docs_tecnicas_seed import seed_docs_tecnicas
+                _ndoc = seed_docs_tecnicas()
+                logger.info(f"✅ Seed docs técnicas: {_ndoc} entradas aseguradas")
+            except Exception as doc_err:
+                logger.warning(f"⚠️  Seed docs técnicas no crítico: {doc_err}")
+
             # ==========================================
             # INICIALIZAR BADGES DE TRAYECTORIA (AUTOMÁTICO)
             # ==========================================

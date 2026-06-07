@@ -37,7 +37,8 @@ def main():
     areas = [s['area'] for s in d.SECCIONES_DOC]
     for must in ['arquitectura', 'backend', 'base-datos', 'frontend', 'seguridad', 'despliegue']:
         check(f"sección '{must}' presente", must in areas)
-    check("14 secciones", len(d.SECCIONES_DOC) == 14)
+    check("taxonomía ampliada (>=14 secciones)", len(d.SECCIONES_DOC) >= 14)
+    check("incluye glosario y secciones extra", {'glosario', 'errores', 'terceros', 'handover'} <= set(areas))
 
     print("\n[4] Endpoints y seguridad")
     for fn in ['unlock', 'lock', 'estado', 'arbol', 'entrada', 'buscar', 'crear', 'editar', 'eliminar']:
