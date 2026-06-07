@@ -25,7 +25,9 @@
 - **Fase 0 ✅:** migración `plataforma_kb.nivel_acceso` (+índice) · modelo actualizado · permiso `documentacion` en el panel. tests 25/0 y 20/0.
 - **Recorrido REAL del código (4 exploradores en paralelo):** mapa fiel de backend (~547 endpoints, blueprints, patrones), BD (todas las tablas, relaciones, JSONB, multi-tenant), frontend (rutas del worker, vistas, plantillas, design-tokens, PWA/SW, JS), seguridad/despliegue (auth bcrypt `check_password`, admin/superadmin, CORS, auditoría, env vars, Render/Cloudflare/Neon). Insumo para la Fase 2.
 - **Fase 1 ✅:** `docs_tecnicas_bp` (`/api/admin/docs`): árbol/entrada/buscar filtrados por nivel · CRUD auditado · **step-up SuperAdmin** (`/unlock` valida rol superadmin + `Usuario.check_password` bcrypt → sesión 30 min; nivel `superadmin` solo con unlock) · taxonomía 14 secciones. test_docs_tecnicas 30/0.
-- **Siguiente:** Fase 2 (escribir el contenido real por sección, usando el mapa) + Fase 3 (visor en árbol dentro del panel).
+- **Fase 2 lote 1 ✅:** 8 secciones nuevas (glosario, flujos, errores, terceros, respaldo, pruebas, handover, legal → 22 total) + **14 entradas de contenido** en lenguaje no-técnico clasificadas por nivel (glosario, arquitectura visión/repos/stack, backend __init__/run/blueprints/password-reset, errores, seguridad 🔴 bcrypt/secretos/CORS, frontend visión/worker). `docs_tecnicas_seed.py` idempotente. tests 31/0 y 15/0.
+- **Pendiente Fase 2 (próximos lotes):** "regar texto" de TODAS las vistas (designer, super_designer, grilla financiera, 19 módulos de contabilidad, plantillas, panel, etc.), endpoints por blueprint, tablas de BD, flujos, catálogo de errores, terceros, respaldo, pruebas, entrega, legal.
+- **Siguiente:** seguir Fase 2 (más lotes) + Fase 3 (visor en árbol en el panel).
 
 ---
 
