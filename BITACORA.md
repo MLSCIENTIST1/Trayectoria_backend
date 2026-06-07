@@ -33,7 +33,13 @@
 - **M3.1/M3.2 ✅** API pública `centro_ayuda_bp` (`/api/ayuda`): `/home`, `/categorias`, `/categoria/<c>`, `/articulo/<c>`, `/buscar?q=`, `/novedades`. Lee de `plataforma_kb`, SOLO `publicado=TRUE`. SQL portable (PG/SQLite). test_centro_ayuda_api.py 14/0.
 - **Nota:** el seed está `publicado=false` → en prod la API devuelve vacío hasta que se publique contenido (parte de M3.3/Fase 2).
 - **M3.3 ✅** CRUD admin: `centro_ayuda_admin_bp` (`/api/admin/ayuda`: listar/obtener/crear/editar/eliminar/publicar, `@requiere_permiso('centro_ayuda')` + auditado, validador puro, 409 dup) + permiso `centro_ayuda` + sección UI "Centro de Ayuda" en admin.html (nav+CRUD+publicar). test_centro_ayuda_admin.py 20/0.
-- **Siguiente:** M3.4 ruteo worker (/ayuda, /novedades) · Fase 4 (frontend del centro) · Fase 2 (contenido + publicar).
+- **M3.4 ✅** Ruteo `_worker.js` v1.26: `/ayuda`→home, `/ayuda/<slug>`→artículo + OG bots. **FASE 3 COMPLETA.**
+
+### Fase 4 — Frontend del Centro de Ayuda (en curso)
+- **M4.1 ✅** Home `ayuda/index.html` (design-tokens + `/api/ayuda/home` + buscador en vivo + WhatsApp, responsive).
+- **M4.3 ✅** Artículo `ayuda/articulo.html` (slug de URL → `/api/ayuda/articulo/<slug>` + relacionados).
+- **Siguiente:** M4.2 página de categoría · M4.4 Novedades · M4.7 enlazar landing↔ayuda · Fase 2 (contenido + publicar desde el panel).
+- **Nota:** el contenido está `publicado=false` → publicar desde el panel (Centro de Ayuda) para que las páginas muestren datos.
 
 ---
 
