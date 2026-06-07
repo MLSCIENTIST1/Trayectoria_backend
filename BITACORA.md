@@ -40,6 +40,11 @@
 - **Doble capa "Ver detalle técnico" ✅:** cada entrada tiene `datos.tecnico` (especificación profesional). Visor: enlace AZUL "Ver detalle técnico" que despliega la spec (monospace) bajo la explicación sencilla; incluido en el PDF; editable en el panel (textarea). Seeder rellena `tecnico` sin pisar ediciones (idempotente).
 - **✅ COBERTURA TOTAL 69/69:** el detalle técnico se extrajo **LEYENDO los archivos reales** (3 exploradores), no de documentos. Verificaciones que corrigieron al agente: `grilla_financiera.html` SÍ existe ("Centro de Control Financiero", 2059 líneas) y `FLUJO_ESTADOS` real = confirmado/preparando/enviado/en_oficina/entregado. Specs con rutas de archivo, funciones, columnas JSONB, decoradores, url_prefix y env vars (por nombre).
 
+### 🔬 AUDITORÍA PROFUNDA archivo-por-archivo (Carlos, ~20-30 sprints) — EN CURSO
+- Plan por lotes en `roadmap_documentacion_tecnica.md` (DA1–DA16). 74 tablas reales detectadas; backend y frontend archivo por archivo.
+- **DA1 ✅ Base de datos núcleo:** 10 tablas con **columnas EXACTAS leídas de los modelos .py** (usuarios, negocios, sucursales, productos_catalogo, categorias_producto, movimientos_stock, transacciones_operativas, compradores, pedidos, pedido_historial). Fichas `db-tabla-*` con explicación + detalle técnico (nombres reales, tipos, PK/FK/UK/idx, JSONB). 79 temas en total.
+- **Siguiente:** DA2 (BD gamificación) → DA3/DA4/DA5 (resto de tablas) → backend y frontend por archivo.
+
 ---
 
 ## 2026-06-07 — 🔧 F15 COMPLETO · franja de confianza en TODAS las plantillas
