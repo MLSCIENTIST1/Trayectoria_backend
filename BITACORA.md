@@ -41,8 +41,8 @@
 - **M4.2/M4.4/M4.6/M4.7 ✅** Página de categoría (articulo.html detecta tipo=categoria) · Novedades (`ayuda/novedades.html` + ruta `/novedades` worker v1.27) · buscador en vivo (home) · enlaces landing↔ayuda (nav+footer). **FIX** logo "huevito" (object-fit:contain).
 - **FASE 4 casi completa** (falta M4.5 estado opcional + QA visual fino). **Centro de Ayuda navegable end-to-end.**
 ### Fase 2 — Contenido (en curso)
-- **M2.1/M2.2 ✅ (parcial)** 6 guías reales publicadas (crear tienda, configurar negocio, publicar/compartir, usar designer, subir productos, recibir pedidos) con `datos.categoria`. **Publicación inicial única** (flag `config_global.kb_publicacion_inicial`): publica el contenido curado una vez; luego manda el panel. → al deployar, `/ayuda` y `/novedades` ya muestran contenido real.
-- **Siguiente:** redactar las ~39 guías restantes (por categoría) + QA visual. El proyecto de marca + Centro de Ayuda queda funcional end-to-end; falta volumen de contenido.
+- **M2.1–M2.8 ✅ (base)** **22 guías** reales publicadas con `datos.categoria`, cubriendo **las 8 categorías** (primeros-pasos 3 · diseño 2 · productos 4 · pedidos 3 · pagos 3 · vender-más 3 · premios 2 · cuenta 2). **Publicación inicial única** (flag `config_global.kb_publicacion_inicial`); luego manda el panel. → `/ayuda` y `/novedades` muestran contenido real en todas las categorías. test_plataforma_kb 25/0.
+- **Estado proyecto marca:** Fases 0,1,3,4 ✅ · Fase 2 con base sólida (22 guías). Centro de Ayuda **funcional end-to-end**. Pendiente: más guías a gusto + QA visual fino + (opcional) M4.5 página Estado.
 
 ---
 
