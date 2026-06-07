@@ -106,6 +106,63 @@ SEED_KB = [
     {'tipo': 'changelog', 'area': 'novedades', 'clave': 'cl-2026-06-carga-tienda', 'titulo': 'Tu tienda carga con tu logo', 'resumen': 'Pantalla de carga más rápida y con la identidad de tu negocio.', 'datos': {'tipo': 'mejora', 'fecha': '2026-06', 'version': '2.21'}, 'orden': 4},
     {'tipo': 'changelog', 'area': 'novedades', 'clave': 'cl-2026-06-img-compartir', 'titulo': 'Elige tu imagen para compartir', 'resumen': 'Desde el Diseñador eliges la imagen que aparece al compartir tus enlaces.', 'datos': {'tipo': 'nuevo', 'fecha': '2026-06', 'version': '2.21'}, 'orden': 5},
     {'tipo': 'changelog', 'area': 'novedades', 'clave': 'cl-2026-06-panel', 'titulo': 'Panel de administración completo', 'resumen': 'Administra toda la plataforma sin tocar código.', 'datos': {'tipo': 'nuevo', 'fecha': '2026-06', 'version': '2.20'}, 'orden': 6},
+
+    # ── GUÍAS (artículos) — Fase 2, contenido inicial ───────────────────
+    {'tipo': 'articulo', 'area': 'tienda', 'clave': 'guia-crear-tienda', 'publicado': True, 'orden': 1,
+     'titulo': '¿Cómo creo mi tienda online?', 'resumen': 'En pocos minutos tienes tu tienda lista para vender.',
+     'datos': {'categoria': 'cat-primeros-pasos', 'icono': '🚀'},
+     'contenido': ('Crear tu tienda en TuKomercio es muy rápido:\n\n'
+                   '1. Inicia sesión y entra a "Mis Negocios".\n'
+                   '2. Toca "Crear emprendimiento" y escribe el nombre de tu negocio, la categoría y tu ciudad.\n'
+                   '3. Sube tu logo (opcional, pero se ve más profesional).\n'
+                   '4. Guarda. ¡Listo! TuKomercio te genera automáticamente la dirección de tu tienda y un código QR.\n\n'
+                   'Después puedes personalizar colores, portada y más desde el Diseñador. '
+                   'Tu tienda queda en una dirección tipo tukomercio.co/tienda/tu-negocio para compartir por WhatsApp.')},
+    {'tipo': 'articulo', 'area': 'negocio', 'clave': 'guia-configurar-negocio', 'publicado': True, 'orden': 2,
+     'titulo': 'Configura los datos de tu negocio', 'resumen': 'Nombre, WhatsApp, logo y envíos: lo básico para vender bien.',
+     'datos': {'categoria': 'cat-primeros-pasos', 'icono': '⚙️'},
+     'contenido': ('Para que tu tienda inspire confianza y los pedidos lleguen bien, completa:\n\n'
+                   '• Nombre y descripción del negocio.\n'
+                   '• Número de WhatsApp (por ahí te escriben y confirmas pedidos).\n'
+                   '• Logo de tu marca.\n'
+                   '• Configuración de envíos: define desde qué monto el envío es gratis y las tarifas por ciudad.\n\n'
+                   'Todo esto se edita desde el panel de tu negocio y se refleja al instante en tu tienda pública.')},
+    {'tipo': 'articulo', 'area': 'marketing', 'clave': 'guia-publicar-compartir', 'publicado': True, 'orden': 3,
+     'titulo': 'Publica y comparte tu tienda', 'resumen': 'Lleva tu tienda a tus clientes por WhatsApp y redes.',
+     'datos': {'categoria': 'cat-primeros-pasos', 'icono': '📣'},
+     'contenido': ('Cuando tu tienda esté lista:\n\n'
+                   '1. Copia el enlace de tu tienda (lo ves en "Mi Página Web") o usa el código QR.\n'
+                   '2. Compártelo por WhatsApp, Instagram o Facebook. Al pegarlo, aparece con tu logo y nombre.\n'
+                   '3. Imprime el QR y pégalo en tu local o en tus empaques.\n\n'
+                   'Cada producto y cada pedido también tienen su propio enlace para compartir, ¡y salen con foto!')},
+    {'tipo': 'articulo', 'area': 'tienda', 'clave': 'guia-usar-designer', 'publicado': True, 'orden': 1,
+     'titulo': 'Personaliza tu tienda con el Diseñador', 'resumen': 'Colores, logo, portada y tipografía a tu gusto.',
+     'datos': {'categoria': 'cat-diseno', 'icono': '🎨'},
+     'contenido': ('El Diseñador te deja dejar tu tienda con la cara de tu marca:\n\n'
+                   '• Logo: súbelo y elige su forma y tamaño.\n'
+                   '• Colores: define el color principal de tu tienda.\n'
+                   '• Portada (banner) y secciones visibles.\n'
+                   '• Imagen para enlaces compartidos: la que sale en WhatsApp al compartir.\n\n'
+                   'Los cambios se ven en la vista previa. Recuerda Guardar y recargar tu tienda para verlos publicados.')},
+    {'tipo': 'articulo', 'area': 'catalogo', 'clave': 'guia-subir-productos', 'publicado': True, 'orden': 1,
+     'titulo': '¿Cómo subo mis productos?', 'resumen': 'Agrega productos con foto, precio y stock.',
+     'datos': {'categoria': 'cat-productos', 'icono': '📦'},
+     'contenido': ('Para llenar tu catálogo:\n\n'
+                   '1. Entra a "Inventario" o "Mi Catálogo".\n'
+                   '2. Toca "Agregar producto" y escribe nombre, precio, costo y stock.\n'
+                   '3. Sube hasta 5 fotos (la primera es la principal). Las fotos pesadas se optimizan solas.\n'
+                   '4. Elige o crea una categoría para organizarlo.\n'
+                   '5. Guarda. Tu producto aparece de inmediato en tu tienda.\n\n'
+                   '¿Tienes muchos productos? Usa la carga masiva por CSV/Excel para subirlos todos de una vez.')},
+    {'tipo': 'articulo', 'area': 'pedidos', 'clave': 'guia-recibir-pedidos', 'publicado': True, 'orden': 1,
+     'titulo': 'Recibe y gestiona tus pedidos', 'resumen': 'Del pedido nuevo hasta "entregado", paso a paso.',
+     'datos': {'categoria': 'cat-pedidos', 'icono': '🛒'},
+     'contenido': ('Cuando un cliente compra, te llega una notificación en la campanita. Luego:\n\n'
+                   '1. Abre "Pedidos", toca el pedido para ver qué pidió y los datos de envío.\n'
+                   '2. Confírmalo (descuenta stock automáticamente).\n'
+                   '3. Avanza el estado: Preparando → Enviado → Entregado. Puedes saltar directo a un estado con confirmación.\n'
+                   '4. Al marcar "Enviado", TuKomercio te arma un mensaje de WhatsApp listo para avisarle al cliente con la guía.\n\n'
+                   'El cliente puede seguir su pedido con el enlace de resumen que le compartes.')},
 ]
 
 
@@ -130,6 +187,22 @@ def seed_plataforma_kb():
             })
             n += 1
         db.session.commit()
+
+        # Publicación inicial ÚNICA del contenido curado. Guardada por un flag en
+        # config_global → solo corre una vez; después el panel manda (no re-publica).
+        try:
+            ya = db.session.execute(text("SELECT 1 FROM config_global WHERE clave = 'kb_publicacion_inicial'")).fetchone()
+            if not ya:
+                db.session.execute(text(
+                    "UPDATE plataforma_kb SET publicado = TRUE WHERE tipo IN ('categoria','feature','articulo','changelog')"))
+                db.session.execute(text(
+                    "INSERT INTO config_global (clave, valor, updated_at) "
+                    "VALUES ('kb_publicacion_inicial', CAST('true' AS JSONB), NOW()) ON CONFLICT (clave) DO NOTHING"))
+                db.session.commit()
+                logger.info("✅ plataforma_kb: publicación inicial del contenido curado")
+        except Exception as _pe:
+            db.session.rollback()
+            logger.warning(f"[plataforma_kb] publicación inicial omitida: {_pe}")
         return n
     except Exception as ex:
         db.session.rollback()
