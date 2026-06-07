@@ -86,7 +86,9 @@ SEED_DOCS = [
         '5. Registra todos los "grupos de puertas" (blueprints).\n'
         '6. Activa la seguridad (login, cabeceras de protección).\n\n'
         'Regla de oro del proyecto: TODA reparación de la base de datos se pone AQUÍ, porque este es el archivo que '
-        'realmente corre en producción.')},
+        'realmente corre en producción.'),
+     'tecnico': "Archivo: src/__init__.py, funcion create_app(). Config: SECRET_KEY (env), SQLALCHEMY_DATABASE_URI (normaliza postgres:// a postgresql://), pool SQLAlchemy (pool_pre_ping, pool_recycle ~280s, pool_size 10, max_overflow 20, statement_timeout 30s). CORS con whitelist + supports_credentials=True. Guard CSRF en before_request (valida Origin en metodos mutantes). db.create_all() + lista 'migraciones' (ALTER/CREATE ... IF NOT EXISTS, cada una en try/except con commit aislado). Seeders idempotentes (feature flags ON CONFLICT DO NOTHING, badges, plataforma_kb, docs). Flask-Login session_protection='strong'. after_request anade X-Content-Type-Options, X-Frame-Options, X-XSS-Protection."},
+
     {'area': 'backend', 'clave': 'doc-back-run', 'nivel': 'admin', 'orden': 2,
      'titulo': 'run.py: el punto de entrada',
      'resumen': 'El archivo con el que el servidor pone a correr la aplicación.',
@@ -95,7 +97,9 @@ SEED_DOCS = [
         'y la deja "corriendo" para atender peticiones. En producción, el servidor (gunicorn en Render) arranca '
         'con la instrucción "gunicorn run:run".\n\n'
         'Importante: las reparaciones de base de datos NO van aquí (van en __init__.py), porque en producción el '
-        'arranque pasa por create_app(), no necesariamente por todo run.py.')},
+        'arranque pasa por create_app(), no necesariamente por todo run.py.'),
+     'tecnico': "Procfile: web: gunicorn run:run. run.py importa create_app() y expone la instancia 'run'. En produccion el arranque instancia la app via el app factory; por eso las migraciones van en create_app() (regla F8), no en run.py."},
+
     {'area': 'backend', 'clave': 'doc-back-blueprints', 'nivel': 'admin', 'orden': 3,
      'titulo': 'Blueprints: cómo se organizan las "puertas"',
      'resumen': 'Los endpoints se agrupan por tema para mantener orden.',
@@ -105,7 +109,9 @@ SEED_DOCS = [
         'catálogo, checkout, pedidos, pagos/Wompi, cupones, reseñas, CRM, notificaciones, gamificación, admin, '
         'IA/Dora, taller, restaurante, mecánicos, centro de ayuda, etc.).\n\n'
         'Todos se registran de forma central y "tolerante a fallos": si un grupo tuviera un problema, se anota en '
-        'el registro pero la plataforma sigue funcionando. En total hay varios cientos de endpoints.')},
+        'el registro pero la plataforma sigue funcionando. En total hay varios cientos de endpoints.'),
+     'tecnico': "Registro central en src/api/__init__.py::register_api(app) con safe_register(module_path, bp_name, display_name, prefix). Cada dominio define su Blueprint con url_prefix (la mayoria /api; admin /api/admin; verticales /api/<vertical>). +40 blueprints: auth, negocio_completo, catalogo, pagina, qr_generator, checkout, pedidos, resenas, cupones, wompi, analytics, equipo, crm, carritos, gamificacion, notifications/chat, dora(ia), admin, admin_features, leads, taller, restaurante, mecalink, ayuda (centro_ayuda + docs_tecnicas). safe_register es tolerante: si un modulo no importa, registra el error y la app sigue."},
+
     {'area': 'backend', 'clave': 'doc-back-password-reset', 'nivel': 'admin', 'orden': 4,
      'titulo': 'Recuperación de contraseña',
      'resumen': 'Cómo un usuario recupera el acceso si olvidó su clave.',
@@ -114,7 +120,9 @@ SEED_DOCS = [
         'seguro con un token que caduca; 3) ese enlace se envía por correo usando Resend; 4) el usuario abre el '
         'enlace y crea una contraseña nueva.\n\n'
         'El token es de un solo uso y con vencimiento, por seguridad. Si el correo no llega, suele ser por la '
-        'configuración del dominio de envío (ver sección de Servicios de terceros / Despliegue).')},
+        'configuración del dominio de envío (ver sección de Servicios de terceros / Despliegue).'),
+     'tecnico': "Blueprint password_reset_api.py. Tabla password_reset_tokens (usuario_id FK, token unico, expires_at, is_used). Flujo: POST /forgot-password genera token con vencimiento -> email via Resend (API HTTPS). GET /verify-reset-token/<token> valida. POST /reset-password aplica Usuario.set_password (bcrypt) y marca el token usado. Nota: peticiones a api.resend.com desde Cloudflare requieren cabecera User-Agent (si falta -> 403/1010). MAIL_FROM por variable de entorno."},
+
 
     # ── ERRORES 🟡 ───────────────────────────────────────────────────────
     {'area': 'errores', 'clave': 'doc-errores-comunes', 'nivel': 'admin', 'orden': 1,
@@ -141,7 +149,9 @@ SEED_DOCS = [
         'con 12 rondas), de modo que ni nosotros podemos leerlas. Al iniciar sesión, se compara de forma segura.\n\n'
         'Además hay protección contra fuerza bruta: tras varios intentos fallidos en pocos minutos, se bloquea '
         'temporalmente. La identidad del usuario SIEMPRE se toma de la sesión del servidor, nunca de datos que '
-        'mande el navegador.')},
+        'mande el navegador.'),
+     'tecnico': "Hash bcrypt rounds=12 (Usuario.set_password / Usuario.check_password en src/models/usuarios.py, campo contrasenia). Anti fuerza-bruta: registro de intentos por (ip|email), bloqueo tras ~5 fallos en 15 min (src/api/utils/seguridad.py). El step-up de la documentacion critica reutiliza Usuario.check_password contra una cuenta SuperAdmin."},
+
     {'area': 'seguridad', 'clave': 'doc-seg-secretos', 'nivel': 'superadmin', 'orden': 2,
      'titulo': 'Secretos y variables de entorno',
      'resumen': 'Las llaves sensibles viven fuera del código.',
@@ -150,7 +160,9 @@ SEED_DOCS = [
         'imágenes e IA) NO están escritas en el código: se configuran como "variables de entorno" en el servidor '
         '(Render). Así, el código se puede compartir sin exponer secretos.\n\n'
         'Nombres (sin valores): DATABASE_URL, SECRET_KEY, MAIL_* / RESEND_API_KEY, CLOUDINARY_*, GROQ_API_KEY, '
-        'VAPID_* (notificaciones push). Los pagos de cada negocio (Wompi) se guardan por negocio en la base de datos.')},
+        'VAPID_* (notificaciones push). Los pagos de cada negocio (Wompi) se guardan por negocio en la base de datos.'),
+     'tecnico': "Variables de entorno en Render (no versionadas): DATABASE_URL, SECRET_KEY, JWT_SECRET_KEY, MAIL_SERVER/PORT/USERNAME/PASSWORD/MAIL_FROM, RESEND_API_KEY, CLOUDINARY_*, GROQ_API_KEY, VAPID_PUBLIC_KEY/PRIVATE_KEY/SUBJECT, FRONTEND_URL. Se leen con os.environ y solo tienen defaults para desarrollo. Wompi: llaves por negocio en tabla wompi_configs (no en env). Nunca commitear valores reales."},
+
     {'area': 'seguridad', 'clave': 'doc-seg-cors-csrf', 'nivel': 'superadmin', 'orden': 3,
      'titulo': 'Quién puede hablarle al backend (CORS y CSRF)',
      'resumen': 'Solo orígenes confiables pueden usar la API.',
@@ -159,7 +171,9 @@ SEED_DOCS = [
         'Cloudflare y entornos de desarrollo). Cualquier otro origen es rechazado.\n\n'
         'Para acciones que cambian datos (crear/editar/borrar) se valida el "origen" de la petición (protección '
         'CSRF), de modo que otra página no pueda actuar en tu nombre. Las cookies de sesión son seguras '
-        '(HttpOnly, Secure, SameSite).')},
+        '(HttpOnly, Secure, SameSite).'),
+     'tecnico': "CORS (flask-cors) whitelist: tukomercio.co, www, tuko.pages.dev, *.web.app (legacy), localhost; supports_credentials=True; metodos GET/POST/PUT/DELETE/PATCH/OPTIONS. CSRF: middleware before_request valida Origin (o lo deriva de Referer) en metodos mutantes y responde 403 si no esta en whitelist; exime webhooks (p. ej. /api/wompi/webhook) y /health. Cookie bizflow_session: SameSite=None, Secure, HttpOnly."},
+
 
     # ── FRONTEND ─────────────────────────────────────────────────────────
     {'area': 'frontend', 'clave': 'doc-front-vision', 'nivel': 'admin', 'orden': 1,
@@ -179,7 +193,9 @@ SEED_DOCS = [
         'escribe: la landing en "/", la app en "/app", una tienda en "/tienda/<nombre>", el resumen de un pedido, '
         'el Centro de Ayuda en "/ayuda", etc.\n\n'
         'También prepara las "tarjetas de vista previa" cuando compartes un enlace por WhatsApp (con foto, título '
-        'y descripción), para que se vea atractivo. Si algo falla, muestra un error limpio sin exponer detalles.')},
+        'y descripción), para que se vea atractivo. Si algo falla, muestra un error limpio sin exponer detalles.'),
+     'tecnico': "public/_worker.js (Cloudflare Pages Advanced Mode). _redirects se ignora. ASSETS.fetch('/foo') -> 200 (clean URL); '/foo.html' -> 307. Rutas: /, /app, /tienda/:slug (sirve tienda/r.html), /pedido/:t/:codigo, /ayuda, /ayuda/:slug, /novedades, /estado, /documentacion. Para bots (BOT_RE: WhatsApp/Telegram/Facebook...) genera HTML con OG tags (buildOgHtml + optimizarOgImage para Cloudinary). Errores 5xx -> 404 limpio. WORKER_VERSION en /_debug/version."},
+
 
     # ── LOTE 2: recorrido del frontend (vistas) + base de datos ──────────
     {'area': 'ui-map', 'clave': 'doc-ui-overview', 'nivel': 'publico', 'orden': 1,
@@ -317,14 +333,18 @@ SEED_DOCS = [
         'La información vive en tablas de PostgreSQL. Las principales: usuarios, negocios, sucursales, productos '
         '(catálogo), compradores, pedidos, transacciones (contabilidad), gamificación (XP/TuKoins/insignias), '
         'planes y suscripciones, notificaciones, administradores y auditoría, y la base de conocimiento '
-        '(ayuda + esta documentación). Cada negocio solo ve sus propios datos.')},
+        '(ayuda + esta documentación). Cada negocio solo ve sus propios datos.'),
+     'tecnico': "PostgreSQL (Neon) con SQLAlchemy 2.0. Tablas (PK): usuarios(id_usuario), negocios(id_negocio), sucursales(id_sucursal), productos_catalogo(id_producto), compradores(id_comprador), pedidos(id_pedido, codigo_pedido UK), transacciones_operativas, negocio_gamificacion(negocio_id UK), negocio_badges/_obtenidos, planes/negocio_plan/suscripciones_negocio, feature_flags/overrides, wompi_configs(negocio_id UK), notification, administradores(permisos JSONB), admin_audit_log, plataforma_kb(clave UK, tipo, nivel_acceso). FKs con CASCADE en dependientes del negocio. Indices en FKs y campos de busqueda (correo, slug, codigo_pedido)."},
+
     {'area': 'base-datos', 'clave': 'doc-db-multitenant', 'nivel': 'admin', 'orden': 2,
      'titulo': 'Un sistema, muchos negocios (multi-tenant)',
      'resumen': 'Cómo conviven todos sin mezclarse.',
      'contenido': (
         'Todos los negocios usan la misma plataforma y la misma base de datos, pero cada registro lleva el '
         'identificador de su negocio. Así, cada dueño solo ve y maneja lo suyo. Además, un mismo usuario puede '
-        'tener varios negocios.')},
+        'tener varios negocios.'),
+     'tecnico': "Aislamiento LOGICO (no fisico): casi toda tabla operativa lleva negocio_id (FK -> negocios.id_negocio). Relacion Usuario(1)->Negocios(N) por usuarios.id -> negocios.usuario_id. Las consultas filtran por negocio_id y se valida pertenencia (guard tenant/IDOR): la identidad viene de current_user (sesion), nunca de headers X-User-ID/X-Business-ID."},
+
     {'area': 'base-datos', 'clave': 'doc-db-jsonb', 'nivel': 'admin', 'orden': 3,
      'titulo': 'Datos flexibles (JSONB)',
      'resumen': 'Casillas que se adaptan sin rehacer el archivador.',
@@ -342,7 +362,9 @@ SEED_DOCS = [
         'Al iniciar sesión, el servidor crea una "sesión" y le entrega al navegador una cookie segura '
         '(protegida, solo por HTTPS y sin acceso desde scripts). En cada petición, esa cookie identifica al '
         'usuario. La identidad SIEMPRE se decide en el servidor, nunca con datos que mande el navegador. No se '
-        'usan "tokens JWT" como método principal, sino sesiones.')},
+        'usan "tokens JWT" como método principal, sino sesiones.'),
+     'tecnico': "Flask-Login (UserMixin) + Flask-Session sobre SQLAlchemy. Cookie bizflow_session (SameSite=None, Secure, HttpOnly), PERMANENT_SESSION_LIFETIME ~7 dias, session_protection='strong'. user_loader carga Usuario y valida active. En login se regenera un session_token (secrets.token_urlsafe). Existe auth_jwt.py pero NO es el metodo principal."},
+
     # GAMIFICACIÓN
     {'area': 'gamificacion', 'clave': 'doc-gami-overview', 'nivel': 'publico', 'orden': 1,
      'titulo': '¿Qué es la gamificación?',
@@ -436,7 +458,9 @@ SEED_DOCS = [
         'Las reparaciones/ajustes de la base de datos se ejecutan automáticamente al ARRANCAR el backend, dentro '
         'de create_app(), de forma idempotente (no rompen ni duplican). Es una regla del proyecto (lección '
         'aprendida): poner las migraciones en el arranque y NO en run.py, porque en producción el inicio pasa por '
-        'create_app(). Así los cambios de estructura aplican solos en cada despliegue.')},
+        'create_app(). Así los cambios de estructura aplican solos en cada despliegue.'),
+     'tecnico': "Migraciones como lista de SQL en src/__init__.py::create_app() (ALTER TABLE ADD COLUMN IF NOT EXISTS, CREATE TABLE/INDEX IF NOT EXISTS), cada una en try/except con commit/rollback aislado. Idempotentes. Flask-Migrate/Alembic existe pero el flujo de prod es este. Regla F8: NO ponerlas solo en run.py o no corren en produccion. Publicaciones puntuales con flags en config_global (kb_publicacion_inicial, kb_iconos_bi_v1)."},
+
     # OPERACIÓN
     {'area': 'operacion', 'clave': 'doc-op-subadmins', 'nivel': 'admin', 'orden': 1,
      'titulo': 'Dar de alta sub-administradores',
@@ -690,16 +714,28 @@ def seed_docs_tecnicas():
         "INSERT INTO plataforma_kb (tipo, area, clave, titulo, resumen, contenido, datos, orden, publicado, nivel_acceso) "
         "VALUES ('tecnico', :area, :clave, :titulo, :resumen, :contenido, CAST(:datos AS JSONB), :orden, TRUE, :nivel) "
         "ON CONFLICT (clave) DO NOTHING")
+    # Rellena el detalle técnico (datos.tecnico) SOLO si aún no existe → no pisa
+    # lo que se edite desde el panel; completa también las filas ya creadas.
+    fill_tec = text(
+        "UPDATE plataforma_kb SET datos = jsonb_set(COALESCE(datos,'{}'::jsonb), '{tecnico}', to_jsonb(CAST(:t AS text))) "
+        "WHERE clave = :c AND (datos->>'tecnico') IS NULL")
     n = 0
     try:
         for d in SEED_DOCS:
+            datos = dict(d.get('datos') or {})
+            if d.get('tecnico'):
+                datos.setdefault('tecnico', d['tecnico'])
             db.session.execute(insert, {
                 'area': d['area'], 'clave': d['clave'], 'titulo': d['titulo'],
                 'resumen': d.get('resumen'), 'contenido': d.get('contenido'),
-                'datos': json.dumps(d.get('datos') or {}), 'orden': d.get('orden', 0),
+                'datos': json.dumps(datos), 'orden': d.get('orden', 0),
                 'nivel': d.get('nivel', 'admin'),
             })
             n += 1
+        db.session.commit()
+        for d in SEED_DOCS:
+            if d.get('tecnico'):
+                db.session.execute(fill_tec, {'t': d['tecnico'], 'c': d['clave']})
         db.session.commit()
         logger.info(f"✅ Seed docs técnicas: {n} entradas aseguradas")
         return n
