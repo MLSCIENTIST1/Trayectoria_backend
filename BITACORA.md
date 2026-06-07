@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-06-07 — 🎨 Proyecto Marca + Centro de Ayuda — KICKOFF (Fase 0)
+
+**Tipo:** proyecto grande de marca/contenido (~45-60 sprints). Roadmap en `memory/roadmap_marca_centro_ayuda.md`.
+
+### Contexto
+- Carlos pidió unificar la identidad visual (hoy 5 vistas con 4 fuentes de título distintas) y crear un Centro de Ayuda/Novedades/Info técnica. Lema: "la impresión es lo que más cuenta".
+- **Sistema de diseño oficial decidido:** logo `tuko-logo.gif` + wordmark **Orbitron** (solo logo) · títulos **Sora** · texto **Plus Jakarta Sans** · paleta índigo #4F46E5 + gradiente.
+
+### Avance Fase 0
+- **M0.1-M0.2 ✅** Decisión del sistema + 3 mockups (Desktop): sistema de diseño, centro de ayuda, laboratorio de tipografía.
+- **M0.3 ✅** Tabla "oculta" `plataforma_kb` (BD): modelo + migración idempotente en create_app + seeder (38 entradas: 1 marca/visual, 8 categorías, 23 funciones, 6 novedades). `publicado=false`. test_plataforma_kb.py 25/0.
+- **M0.4 ✅** `design-tokens.css` (FRONT, `assets/css/`): 56 variables `--tk-*` (paleta, fuentes, radios, sombras, escala, movimiento) + utilidades opt-in + prefers-reduced-motion. Cimiento de la unificación.
+
+### Siguiente
+- **Fase 1** (unificación visual de las vistas con los tokens): M1.1 login → M1.2 landing → … Ver roadmap.
+
+---
+
 ## 2026-06-06 — 🔴 F19 (CRÍTICO) · NINGÚN correo se enviaba (reset bloqueado)
 
 **Tipo:** bug crítico (backend / envío de email). Carlos quedó bloqueado fuera (no llegó el correo de recuperación).
