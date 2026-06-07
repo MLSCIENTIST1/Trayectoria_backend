@@ -36,6 +36,7 @@
 - **Fase 5 ✅** endpoint `/api/admin/docs/export` + botón "PDF" en el visor → dossier imprimible (portada + confidencialidad + secciones), respeta nivel. Búsqueda + árbol + bienvenida ya estaban.
 - 🎉 **DOCUMENTACIÓN MAESTRA: COMPLETA (base).** Fases 0–5 ✅. Entrada landing → /documentacion (login propio) → árbol 22 secciones / 53 temas, niveles 🟢🟡🔴, step-up, búsqueda, export PDF. Ampliable a más profundidad.
 - **Botón de entrada:** landing → nav "📘 Documentación" (y footer) → /documentacion.
+- **Ampliaciones "los 3" ✅:** #1 referencia de endpoints (12 fichas) · #2 diagramas ASCII (arquitectura/pedido/login/niveles) · #3 **CRUD desde el panel** (sección "Documentación Técnica" en admin.html: crear/editar/eliminar/clasificar nivel, con step-up). Ahora **24 secciones, 69 temas**.
 
 ---
 
