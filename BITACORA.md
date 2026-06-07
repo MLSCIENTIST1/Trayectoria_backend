@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-06-06 — 🔴 F18.2 (CRÍTICO) · condición de carrera en el designer → pérdida de datos
+
+**Tipo:** bug crítico (frontend / designer).
+
+### Síntoma
+- En el designer los campos SEO salían vacíos aunque estaban guardados; al Guardar se sobreescribían con vacío (rodar perdió seo.titulo/desc/keywords).
+
+### Causa
+- `initNuevosBloques()` (puebla SEO/redes/fuentes) corría con `setTimeout(400)` fijo, sin esperar a `loadStoreData()` (async). Con Render frío o `/negocio` pesado (logo base64 de 976KB), la carga tardaba >400ms → campos con default vacío → guardado destructivo.
+
+### Solución (`designer.js`, `designer.html?v=…og2`)
+- `initNuevosBloques()` ahora tras `await loadStoreData()`+`loadNegocioPlan()`; el setTimeout pasa a fallback guardado (2s, flag `__nuevosBloquesInit`).
+- Red de seguridad `window._configCargada`: `saveAllSettings()` aborta si la config no cargó (no sobreescribe con vacío).
+- Cache-busting `?v=20260606-og2`.
+- Pendiente relacionado: migrar `negocios.logo_url` base64 (976KB) a URL Cloudinary. Detalle en `memory/fixes_tienda_checkout.md` (F18.2).
+
+---
+
 ## 2026-06-06 — ✨ F18 · elegir la imagen del preview compartido (OG) + arreglo base64
 
 **Tipo:** feature/UX (frontend: designer + Cloudflare Worker).
