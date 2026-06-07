@@ -18,9 +18,9 @@
 
 ---
 
-## 2026-06-07 — 🔧 F15 · franja de confianza en plantillas (reutilizable)
+## 2026-06-07 — 🔧 F15 COMPLETO · franja de confianza en TODAS las plantillas
 
-- Creado `assets/tienda/trust-strip.js` (autocontenido, a prueba de fallos): slug→id_negocio→`/trust`, inserta la barra (verificado/rating/pedidos/insignias/miembro desde) al inicio del `<main>`. Se agrega a cualquier plantilla con 1 línea. **Aplicado a `catalogo`** (proof). Pendiente: validar visual + replicar a las demás plantillas.
+- Creado `assets/tienda/trust-strip.js` (autocontenido, a prueba de fallos): slug→id_negocio→`/trust`, inserta la barra (verificado/rating/pedidos/insignias/miembro desde) al inicio del `<main>`. Se agrega con 1 línea. **Aplicado a las 10 plantillas** (catalogo, Herbal, Pleeness, groove, verde, sb_Landing_page, prueba, restaurante, taller, start_level). Degrada solo si no hay datos. Validación visual fina al deployar.
 
 ---
 
