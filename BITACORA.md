@@ -11,6 +11,23 @@
 
 ---
 
+## 2026-06-06 — ✨ F18 · elegir la imagen del preview compartido (OG) + arreglo base64
+
+**Tipo:** feature/UX (frontend: designer + Cloudflare Worker).
+
+### Pedido
+- Poder seleccionar la imagen que sale al compartir el enlace (sobre todo el del resumen de pedido). En "rodar" tomaba el banner y no había dónde cambiarlo. Decisión: una sola imagen para todo (estándar OG).
+
+### Solución (FRONT)
+- Ya existía `config_tienda.seo.ogImage` (solo campo URL, y el Worker no lo usaba).
+- **Designer**: "Imagen para enlaces compartidos (WhatsApp/Facebook)" ahora con **subida de imagen** (case `seoOgImage`) + preview, en sección SEO. Aclara que controla el preview de tienda/pedido.
+- **Worker v1.24**: `pickOgImage()` descarta `data:` URIs (el logo de rodar está en base64 → inválido para OG). Prioridad del pedido: `seo.ogImage` → hero → splash → logo → fallback. Aplicado también a tienda y producto.
+
+### Notas
+- WhatsApp cachea previews. Detalle en `memory/fixes_tienda_checkout.md` (F18).
+
+---
+
 ## 2026-06-06 — ✨ F17 · preview del resumen de pedido al compartir (OG / WhatsApp)
 
 **Tipo:** feature (frontend / Cloudflare Worker).
