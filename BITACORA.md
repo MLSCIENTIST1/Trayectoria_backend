@@ -11,6 +11,21 @@
 
 ---
 
+## 2026-06-06 — ✨ F17 · preview del resumen de pedido al compartir (OG / WhatsApp)
+
+**Tipo:** feature (frontend / Cloudflare Worker).
+
+### Objetivo
+- Que el enlace `/pedido/<slug>/<codigo>` que el tendero envía al comprador muestre una tarjeta profesional con la marca de la tienda (antes: texto plano).
+
+### Solución (`_worker.js` v1.23)
+- La rama `/pedido/:tienda/:codigo` servía heyden.html a todos (sin OG). Ahora, si es bot, devuelve OG con `fetchNegocio(slug)`: título `Pedido <codigo> · <Tienda>`, descripción cálida + imagen de portada/hero (o logo) con fallback. Humanos siguen recibiendo heyden.html.
+
+### Notas
+- WhatsApp cachea previews → probar con pedido/enlace nuevo o debugger OG de Facebook. Detalle en `memory/fixes_tienda_checkout.md` (F17).
+
+---
+
 ## 2026-06-06 — ✨ F16 · vista previa de producto al compartir (OpenGraph / WhatsApp)
 
 **Tipo:** feature (backend + worker + frontend).
