@@ -180,6 +180,158 @@ SEED_DOCS = [
         'el Centro de Ayuda en "/ayuda", etc.\n\n'
         'También prepara las "tarjetas de vista previa" cuando compartes un enlace por WhatsApp (con foto, título '
         'y descripción), para que se vea atractivo. Si algo falla, muestra un error limpio sin exponer detalles.')},
+
+    # ── LOTE 2: recorrido del frontend (vistas) + base de datos ──────────
+    {'area': 'ui-map', 'clave': 'doc-ui-overview', 'nivel': 'publico', 'orden': 1,
+     'titulo': 'Mapa rápido de la plataforma',
+     'resumen': 'Las grandes zonas y cómo se conectan.',
+     'contenido': (
+        'En grande, TuKomercio tiene 7 zonas:\n\n'
+        '1. La página de inicio pública (landing) que invita a registrarse.\n'
+        '2. El acceso/registro (login).\n'
+        '3. La app del negocio, con sus módulos de gestión y el Diseñador.\n'
+        '4. La tienda pública que ven los compradores (con carrito y pago).\n'
+        '5. El seguimiento del pedido (enlace que se comparte).\n'
+        '6. El Centro de Ayuda (guías para los tenderos).\n'
+        '7. El Panel de Administración (solo para el equipo de TuKomercio).')},
+    {'area': 'frontend', 'clave': 'doc-front-landing', 'nivel': 'publico', 'orden': 3,
+     'titulo': 'La página de inicio (landing)',
+     'resumen': 'Donde llegan los visitantes a conocer la plataforma.',
+     'contenido': (
+        'Es la página pública (crea-tu-tienda) que presenta TuKomercio: explica qué es, muestra las funciones, los '
+        'precios y un botón para crear la tienda gratis. Su meta es convencer al visitante de registrarse. Desde su '
+        'menú y pie de página se llega al login, al Centro de Ayuda, a Novedades y a esta Documentación.')},
+    {'area': 'frontend', 'clave': 'doc-front-login', 'nivel': 'admin', 'orden': 4,
+     'titulo': 'Acceso: login y registro',
+     'resumen': 'Las pantallas para entrar o crear cuenta.',
+     'contenido': (
+        'login permite iniciar sesión; register crear una cuenta nueva; y hay pantallas para recuperar y '
+        'restablecer la contraseña. Todas conversan con el backend de autenticación y, al entrar, llevan a la app '
+        'del negocio.')},
+    {'area': 'frontend', 'clave': 'doc-front-app', 'nivel': 'admin', 'orden': 5,
+     'titulo': 'La app del negocio (/app)',
+     'resumen': 'El tablero principal del dueño.',
+     'contenido': (
+        'Tras iniciar sesión, el dueño entra a la app (TuKomercio.html): un "contenedor" que carga por dentro los '
+        'módulos (inventario, ventas, pedidos, reportes, Diseñador, etc.). Se puede instalar como app en el '
+        'celular (PWA) para entrar de un toque.')},
+    {'area': 'frontend', 'clave': 'doc-front-designer', 'nivel': 'admin', 'orden': 6,
+     'titulo': 'El Diseñador de tienda',
+     'resumen': 'El editor visual para personalizar la tienda.',
+     'contenido': (
+        'El Diseñador (designer) es donde el dueño define logo, colores, portada, secciones, tipografía y la imagen '
+        'que se ve al compartir. Tiene vista previa en vivo y guarda toda la configuración visual de la tienda en '
+        'el negocio. Al guardar y recargar, los cambios quedan publicados.')},
+    {'area': 'frontend', 'clave': 'doc-front-super-designer', 'nivel': 'admin', 'orden': 7,
+     'titulo': 'Super Designer (editor avanzado)',
+     'resumen': 'Edición visual potente, por módulos.',
+     'contenido': (
+        'El Super Designer es un editor más avanzado, dividido en cerca de 22 módulos especializados: colores, '
+        'tipografía, biblioteca de componentes, arrastrar-y-soltar, animaciones, SEO, redes sociales, asistencia '
+        'con IA, deshacer/rehacer, versiones, vista responsive y más. Permite construir páginas con mucho detalle.')},
+    {'area': 'frontend', 'clave': 'doc-front-grilla', 'nivel': 'admin', 'orden': 8,
+     'titulo': 'La grilla financiera',
+     'resumen': 'Las finanzas del negocio en una cuadrícula clara.',
+     'contenido': (
+        'La grilla financiera presenta los movimientos del negocio (ventas, compras, gastos e ingresos) en una '
+        'cuadrícula ordenada, para llevar las cuentas con claridad y ver el balance del negocio.')},
+    {'area': 'frontend', 'clave': 'doc-front-contabilidad', 'nivel': 'admin', 'orden': 9,
+     'titulo': 'Los módulos de gestión (contabilidad)',
+     'resumen': 'Cerca de 19 pantallas para el día a día.',
+     'contenido': (
+        'Bajo "contabilidad" viven los módulos del día a día: tablero (dashboard), inventario, pedidos, venta '
+        '(punto de venta), gastos, ingresos, reportes, analítica, carritos abandonados, cupones, CRM de clientes, '
+        'dropshipping, equipo, carga por CSV, alertas, compras, gamificación, los verticales restaurante y taller, '
+        'la integración de pagos (Wompi) y el modo sin conexión.')},
+    {'area': 'frontend', 'clave': 'doc-front-inventario', 'nivel': 'admin', 'orden': 10,
+     'titulo': 'Inventario',
+     'resumen': 'Donde se administran productos y stock.',
+     'contenido': (
+        'La pantalla de inventario lista los productos y permite crear/editar, subir fotos, fijar precio/costo/'
+        'stock, ver alertas de stock bajo y cargar muchos productos de una vez por CSV. Es una de las vistas más '
+        'completas de la app.')},
+    {'area': 'frontend', 'clave': 'doc-front-pedidos-vista', 'nivel': 'admin', 'orden': 11,
+     'titulo': 'Gestión de pedidos',
+     'resumen': 'Donde el dueño atiende las ventas online.',
+     'contenido': (
+        'Lista los pedidos, muestra el detalle (qué pidió el cliente, datos de envío), permite confirmar y avanzar '
+        'el estado (preparando → enviado → entregado), e incluso saltar directo a un estado con confirmación. Al '
+        'marcar "enviado", arma el mensaje de WhatsApp listo para avisarle al cliente.')},
+    {'area': 'frontend', 'clave': 'doc-front-tienda-publica', 'nivel': 'admin', 'orden': 12,
+     'titulo': 'La tienda pública',
+     'resumen': 'La vitrina que ve el comprador.',
+     'contenido': (
+        'Cuando alguien abre tukomercio.co/tienda/<nombre>, un "router" (r.html) detecta el negocio y carga la '
+        'plantilla elegida con sus productos. Es la vitrina pública donde el cliente navega, ve fotos y precios, y '
+        'agrega al carrito.')},
+    {'area': 'frontend', 'clave': 'doc-front-plantillas', 'nivel': 'admin', 'orden': 13,
+     'titulo': 'Las plantillas de tienda',
+     'resumen': 'Distintos diseños listos para cada negocio.',
+     'contenido': (
+        'Hay varias plantillas (catálogo, Herbal, Pleeness, groove, verde, restaurante, taller, etc.). El dueño '
+        'elige una desde el Diseñador y su tienda toma ese estilo, sin perder los productos. Todas muestran la '
+        'franja de confianza (verificado, calificación, pedidos entregados, antigüedad).')},
+    {'area': 'frontend', 'clave': 'doc-front-checkout', 'nivel': 'admin', 'orden': 14,
+     'titulo': 'Carrito y checkout',
+     'resumen': 'El proceso de compra del cliente.',
+     'contenido': (
+        'El cliente agrega productos al carrito, llena sus datos de envío, elige el método de pago (contra entrega, '
+        'Nequi, transferencia, o tarjeta/PSE con Wompi) y confirma. Al final ve una pantalla de pago exitoso y el '
+        'vendedor recibe el pedido en su panel.')},
+    {'area': 'frontend', 'clave': 'doc-front-pedido-tracking', 'nivel': 'admin', 'orden': 15,
+     'titulo': 'Seguimiento del pedido',
+     'resumen': 'El enlace que el cliente sigue.',
+     'contenido': (
+        'La vista de resumen del pedido (heyden) le muestra al comprador el detalle y el estado de su compra a '
+        'través de un enlace limpio que se comparte por WhatsApp, con una vista previa atractiva (foto, nombre y '
+        'código del pedido).')},
+    {'area': 'frontend', 'clave': 'doc-front-centro-ayuda', 'nivel': 'publico', 'orden': 16,
+     'titulo': 'El Centro de Ayuda',
+     'resumen': 'Las guías de cara al usuario.',
+     'contenido': (
+        'En tukomercio.co/ayuda están las guías para los tenderos (crear tienda, subir productos, pedidos, pagos, '
+        'vender más…), con buscador, categorías, novedades y un estado del sistema. Es la ayuda para el cliente, '
+        'distinta de esta documentación técnica.')},
+
+    # ── PANEL ────────────────────────────────────────────────────────────
+    {'area': 'panel', 'clave': 'doc-panel-admin', 'nivel': 'admin', 'orden': 1,
+     'titulo': 'El Panel de Administración',
+     'resumen': 'El centro de control de toda la plataforma.',
+     'contenido': (
+        'El Panel (admin/panel) es donde el equipo de TuKomercio administra TODO sin tocar código: usuarios, '
+        'negocios, planes, funciones (feature flags), gamificación, reseñas, pagos, anuncios, auditoría, Centro de '
+        'Ayuda, etc. Cada módulo se protege con permisos.')},
+    {'area': 'panel', 'clave': 'doc-panel-permisos', 'nivel': 'admin', 'orden': 2,
+     'titulo': 'Roles y permisos del panel',
+     'resumen': 'Quién puede hacer qué.',
+     'contenido': (
+        'Hay tres roles: SuperAdmin (control total), Admin (con permisos por módulo) y Moderador. El SuperAdmin '
+        'asigna a cada sub-admin solo los módulos que necesita. Toda acción importante queda registrada en la '
+        'auditoría (quién hizo qué y cuándo).')},
+
+    # ── BASE DE DATOS ────────────────────────────────────────────────────
+    {'area': 'base-datos', 'clave': 'doc-db-overview', 'nivel': 'admin', 'orden': 1,
+     'titulo': 'Cómo se guardan los datos',
+     'resumen': 'Las tablas principales del "archivador".',
+     'contenido': (
+        'La información vive en tablas de PostgreSQL. Las principales: usuarios, negocios, sucursales, productos '
+        '(catálogo), compradores, pedidos, transacciones (contabilidad), gamificación (XP/TuKoins/insignias), '
+        'planes y suscripciones, notificaciones, administradores y auditoría, y la base de conocimiento '
+        '(ayuda + esta documentación). Cada negocio solo ve sus propios datos.')},
+    {'area': 'base-datos', 'clave': 'doc-db-multitenant', 'nivel': 'admin', 'orden': 2,
+     'titulo': 'Un sistema, muchos negocios (multi-tenant)',
+     'resumen': 'Cómo conviven todos sin mezclarse.',
+     'contenido': (
+        'Todos los negocios usan la misma plataforma y la misma base de datos, pero cada registro lleva el '
+        'identificador de su negocio. Así, cada dueño solo ve y maneja lo suyo. Además, un mismo usuario puede '
+        'tener varios negocios.')},
+    {'area': 'base-datos', 'clave': 'doc-db-jsonb', 'nivel': 'admin', 'orden': 3,
+     'titulo': 'Datos flexibles (JSONB)',
+     'resumen': 'Casillas que se adaptan sin rehacer el archivador.',
+     'contenido': (
+        'Algunas configuraciones (horarios, redes sociales, diseño de la tienda, tarifas de envío, permisos, los '
+        'datos de un pedido) se guardan en un formato flexible llamado JSONB. Permite agregar o cambiar campos sin '
+        'reconstruir la estructura de la base de datos.')},
 ]
 
 
