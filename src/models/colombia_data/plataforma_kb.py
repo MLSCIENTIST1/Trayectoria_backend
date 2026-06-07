@@ -361,6 +361,52 @@ SEED_KB = [
      'datos': {'categoria': 'cat-cuenta'},
      'contenido': ('Si tienes varios locales, crea sucursales: cada una con su dirección, teléfono e inventario. '
                    'Así llevas las ventas y el stock de cada punto por separado. (Según tu plan.)')},
+
+    # ── Fase 2 (4ª tanda) — cierre de contenido (~45 guías) ──────────────
+    {'tipo': 'articulo', 'area': 'negocio', 'clave': 'guia-tu-panel', 'publicado': True, 'orden': 5,
+     'titulo': 'Conoce tu panel', 'resumen': 'El tablero desde donde controlas todo.',
+     'datos': {'categoria': 'cat-primeros-pasos'},
+     'contenido': ('Tu panel es el centro de tu negocio: ves ventas del día, pedidos pendientes, stock bajo, '
+                   'tu nivel y misiones. Desde el menú llegas a Inventario, Pedidos, Diseñador, Reportes y más. '
+                   'Dale un vistazo cada mañana para no perderte nada.')},
+    {'tipo': 'articulo', 'area': 'negocio', 'clave': 'guia-verificar-negocio', 'publicado': True, 'orden': 6,
+     'titulo': 'Consigue el sello Verificado', 'resumen': 'Más confianza = más ventas.',
+     'datos': {'categoria': 'cat-primeros-pasos'},
+     'contenido': ('El sello ✓ Verificado le dice a tus clientes que tu negocio es real y confiable. '
+                   'Completa los datos de tu negocio, mantén buenas calificaciones y cumple con tus pedidos. '
+                   'Aparece en tu tienda y en la franja de confianza.')},
+    {'tipo': 'articulo', 'area': 'pedidos', 'clave': 'guia-avisar-cliente', 'publicado': True, 'orden': 7,
+     'titulo': 'Avísale al cliente por WhatsApp', 'resumen': 'Mensaje listo con la guía de envío.',
+     'datos': {'categoria': 'cat-pedidos'},
+     'contenido': ('Al marcar un pedido como "Enviado", TuKomercio arma un mensaje de WhatsApp con el resumen y la '
+                   'guía de la transportadora. Solo revisas y envías. El cliente queda informado y tranquilo, y '
+                   'puede seguir su pedido con el enlace.')},
+    {'tipo': 'articulo', 'area': 'pagos', 'clave': 'guia-contraentrega', 'publicado': True, 'orden': 4,
+     'titulo': 'Pago contra entrega', 'resumen': 'Cobra al entregar, sin complicaciones.',
+     'datos': {'categoria': 'cat-pagos'},
+     'contenido': ('El contra entrega es el favorito en Colombia: el cliente paga cuando recibe. Actívalo como '
+                   'método de pago en tu tienda. Consejo: confirma el pedido por WhatsApp antes de despachar para '
+                   'evitar devoluciones.')},
+    {'tipo': 'articulo', 'area': 'marketing', 'clave': 'guia-compartir-producto', 'publicado': True, 'orden': 6,
+     'titulo': 'Comparte un producto con foto', 'resumen': 'Su enlace se ve con imagen en WhatsApp.',
+     'datos': {'categoria': 'cat-vender-mas'},
+     'contenido': ('Cada producto tiene su propio enlace. Cópialo y compártelo: en WhatsApp aparece con la foto, el '
+                   'nombre y el precio. Ideal para responder "¿cuánto vale?" con un solo mensaje que vende.')},
+    {'tipo': 'articulo', 'area': 'marketing', 'clave': 'guia-promociones', 'publicado': True, 'orden': 7,
+     'titulo': 'Crea ofertas y promociones', 'resumen': 'Atrae clientes con descuentos.',
+     'datos': {'categoria': 'cat-vender-mas'},
+     'contenido': ('Pon precios de oferta a tus productos, crea cupones de descuento y arma combos. Comunícalo en '
+                   'tus estados de WhatsApp y redes. Las promociones por tiempo limitado crean urgencia y venden.')},
+    {'tipo': 'articulo', 'area': 'gamificacion', 'clave': 'guia-tienda-premios', 'publicado': True, 'orden': 5,
+     'titulo': 'Canjea tus TuKoins', 'resumen': 'Gasta lo que ganas en la tienda de premios.',
+     'datos': {'categoria': 'cat-premios'},
+     'contenido': ('En la tienda de premios canjeas tus TuKoins por beneficios: plantillas, destacar tu tienda, '
+                   'personalizaciones y más. Entre más usas TuKomercio y más vendes, más TuKoins acumulas.')},
+    {'tipo': 'articulo', 'area': 'cuenta', 'clave': 'guia-soporte', 'publicado': True, 'orden': 5,
+     'titulo': '¿Necesitas ayuda? Contáctanos', 'resumen': 'Estamos para ayudarte a vender más.',
+     'datos': {'categoria': 'cat-cuenta'},
+     'contenido': ('Si algo no te funciona o tienes dudas, escríbenos por WhatsApp desde el botón del Centro de '
+                   'Ayuda. También puedes reportar un problema desde tu panel. Te respondemos lo antes posible.')},
 ]
 
 
