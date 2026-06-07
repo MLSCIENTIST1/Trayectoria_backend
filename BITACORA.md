@@ -26,7 +26,8 @@
 
 ### Fase 1 — Unificación visual (en curso)
 - **M1.1-M1.4 ✅** Tipografía unificada (Sora títulos + Plus Jakarta texto, wordmark Orbitron) en: login (Inter→Jakarta), landing (Outfit/DM Sans→Sora/Jakarta), resumen de pedido/heyden (Bebas Neue→Sora), app studio (BF.css `--font-sans`→Jakarta + display Sora + `.bf-logo__text` Orbitron). Solo cambios tipográficos, reversibles; colores/layout intactos. **Pendiente: QA visual en deploy.**
-- **Siguiente:** M1.5 panel admin · M1.6 tienda/designer chrome (sin tocar la fuente del tendero) · M1.7 QA responsive global · M1.8 limpiar "BizFlow".
+- **M1.5/M1.6/M1.8 ✅** Panel admin (`--font-body`→Jakarta, `--font-display`→Sora) · Designer (chrome→Jakarta, sin tocar la fuente del tendero) · **Limpieza "BizFlow" visible → TuKomercio** (títulos de pestaña, wordmark de reset_password, POS, studio, facturación, política, etc.; sin tocar clases `.bf-*` ni el copyright). 0 visibles restantes.
+- **FASE 1 prácticamente completa.** Pendiente **M1.7 = QA visual** en deploy (no automatizable). Siguiente: Fase 3/4 (estructura del Centro de Ayuda) + Fase 2 (contenido).
 
 ---
 
