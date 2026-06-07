@@ -42,8 +42,14 @@
 - **FASE 4 casi completa** (falta M4.5 estado opcional + QA visual fino). **Centro de Ayuda navegable end-to-end.**
 ### Fase 2 — Contenido (en curso)
 - **M2.1–M2.8 ✅ (base)** **22 guías** reales publicadas con `datos.categoria`, cubriendo **las 8 categorías** (primeros-pasos 3 · diseño 2 · productos 4 · pedidos 3 · pagos 3 · vender-más 3 · premios 2 · cuenta 2). **Publicación inicial única** (flag `config_global.kb_publicacion_inicial`); luego manda el panel. → `/ayuda` y `/novedades` muestran contenido real en todas las categorías. test_plataforma_kb 25/0.
-- **Pulido UX (tras revisar Carlos en prod, se ve muy bien):** las listas públicas (populares, relacionados, categoría, buscar) ahora muestran **solo guías reales** (`tipo='articulo'`), no entradas del catálogo de funciones sin contenido → el usuario nunca cae en "disponible muy pronto". Relacionados por misma categoría. test 14/0.
-- **Estado proyecto marca:** Fases 0,1,3,4 ✅ · Fase 2 con base sólida (22 guías) · Centro de Ayuda **en producción y verificado por Carlos** ("se ve muy chévere"). Pendiente: más guías a gusto + (opcional) M4.5 página Estado.
+- **Pulido UX:** listas públicas muestran solo guías reales (`tipo='articulo'`) → nunca "disponible muy pronto". Relacionados por misma categoría. test 14/0.
+- **M4.5 ✅** Página **Estado del sistema** (`ayuda/estado.html` + `/api/health`) + ruta `/estado` (worker v1.28).
+- **M5.1 ✅** OG por artículo (worker `fetchArticuloAyuda` → título/resumen reales al compartir una guía).
+- **M5.2 ✅** QA de marca: 0 fuentes viejas en el chrome; todas las vistas en Sora/Jakarta; ayuda con design-tokens.
+- **M5.3 ✅** Desplegado + doc maestro `TuKomercio_Funcionalidades.md` v2.21.0 (§28 nueva).
+
+### 🎉 PROYECTO MARCA + CENTRO DE AYUDA: COMPLETO (2026-06-07)
+Marca unificada (Orbitron/Sora/Plus Jakarta + tokens) en toda la plataforma + Centro de Ayuda end-to-end (home, categorías, 22 guías, novedades, estado, buscador, CRUD admin, OG al compartir). Todas las fases (0–5) ✅. Opcional a futuro: más guías, sitemap. Detalle en `memory/roadmap_marca_centro_ayuda.md`.
 
 ---
 
