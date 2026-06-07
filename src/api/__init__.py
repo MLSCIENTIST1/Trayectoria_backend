@@ -222,6 +222,12 @@ def register_api(app):
     else:
         fail_count += 1
         logger.warning("⚠️  Módulo de recuperación de contraseña no cargado")
+
+    # Documentación Maestra de la plataforma (técnica, confidencial)
+    if safe_register('src.api.ayuda.docs_tecnicas_api', 'docs_tecnicas_bp', 'Documentación Técnica', prefix=None):
+        success_count += 1
+    else:
+        fail_count += 1
     
     # ==========================================
     # 🏢 NEGOCIO Y SUCURSALES (CRÍTICO)
