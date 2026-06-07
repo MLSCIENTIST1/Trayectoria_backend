@@ -44,7 +44,9 @@ _UNLOCK_KEY = 'docs_superadmin_unlocked_at'
 SECCIONES_DOC = [
     {'area': 'glosario',     'titulo': 'Glosario (para no técnicos)', 'icono': 'bi-book-half', 'orden': 0},
     {'area': 'arquitectura', 'titulo': 'Arquitectura general', 'icono': 'bi-diagram-3-fill', 'orden': 1},
+    {'area': 'diagramas',    'titulo': 'Diagramas',             'icono': 'bi-bounding-box-circles', 'orden': 1},
     {'area': 'backend',      'titulo': 'Backend (Flask)',       'icono': 'bi-hdd-stack-fill', 'orden': 2},
+    {'area': 'endpoints',    'titulo': 'Referencia de endpoints', 'icono': 'bi-signpost-split-fill', 'orden': 2},
     {'area': 'base-datos',   'titulo': 'Base de datos',         'icono': 'bi-database-fill',  'orden': 3},
     {'area': 'frontend',     'titulo': 'Frontend',              'icono': 'bi-window-fullscreen', 'orden': 4},
     {'area': 'auth',         'titulo': 'Autenticación y sesiones', 'icono': 'bi-shield-lock-fill', 'orden': 5},

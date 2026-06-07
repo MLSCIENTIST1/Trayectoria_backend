@@ -493,6 +493,194 @@ SEED_DOCS = [
         'TuKomercio funciona por suscripción: el tendero usa la plataforma gratis el primer mes y luego elige un '
         'plan (Básico, Pro, Premium, Deluxe) que desbloquea más funciones. No cobra comisión por venta. El objetivo '
         'es masificar la digitalización de las tiendas de barrio en Colombia.')},
+
+    # ── LOTE 4 · DIAGRAMAS ───────────────────────────────────────────────
+    {'area': 'diagramas', 'clave': 'diag-arquitectura', 'nivel': 'publico', 'orden': 1,
+     'titulo': 'Diagrama: arquitectura general',
+     'resumen': 'Cómo se conectan las piezas.',
+     'contenido': (
+        'Visitante / Comprador / Tendero\n'
+        '            |\n'
+        '            v\n'
+        '   [ Navegador / App (PWA) ]\n'
+        '            |  (HTTPS)\n'
+        '            v\n'
+        '   [ Cloudflare Pages + Worker ]   <- FRONTEND (HTML/CSS/JS)\n'
+        '            |  (API, con cookie de sesión)\n'
+        '            v\n'
+        '   [ Render: Flask (gunicorn) ]    <- BACKEND (motor)\n'
+        '            |\n'
+        '   +--------+--------+----------------+-----------+\n'
+        '   |        |        |                |           |\n'
+        '   v        v        v                v           v\n'
+        ' [Neon]  [Cloudinary] [Resend]      [Wompi]     [Groq]\n'
+        '  BD      imágenes     correos       pagos     IA (Dora)\n')},
+    {'area': 'diagramas', 'clave': 'diag-flujo-pedido', 'nivel': 'publico', 'orden': 2,
+     'titulo': 'Diagrama: flujo de un pedido',
+     'resumen': 'Del carrito a la entrega.',
+     'contenido': (
+        'Cliente -> arma carrito -> checkout (datos + envío + pago)\n'
+        '   |\n'
+        '   v\n'
+        'Backend crea PEDIDO + descuenta stock + guarda "foto" de datos\n'
+        '   |\n'
+        '   v\n'
+        'Notificación al tendero (campanita)\n'
+        '   |\n'
+        '   v\n'
+        'Tendero: confirmado -> preparando -> enviado -> en_oficina -> entregado\n'
+        '                                  |\n'
+        '                                  v\n'
+        '                       Aviso por WhatsApp al cliente (con guía)\n'
+        '   |\n'
+        '   v\n'
+        'Cliente sigue su pedido con el enlace de resumen.')},
+    {'area': 'diagramas', 'clave': 'diag-flujo-login', 'nivel': 'admin', 'orden': 3,
+     'titulo': 'Diagrama: inicio de sesión',
+     'resumen': 'Cómo se valida quién entra.',
+     'contenido': (
+        'Usuario -> (correo + contraseña)\n'
+        '   |\n'
+        '   v\n'
+        'Backend: ¿demasiados intentos fallidos? --sí--> bloqueo temporal\n'
+        '   | no\n'
+        '   v\n'
+        'Compara contraseña (bcrypt, segura)\n'
+        '   |--- incorrecta ---> error\n'
+        '   v correcta\n'
+        'Crea sesión + entrega cookie segura (HttpOnly/Secure)\n'
+        '   |\n'
+        '   v\n'
+        'Cada pantalla ya sabe quién eres (sin volver a pedir clave).')},
+    {'area': 'diagramas', 'clave': 'diag-niveles', 'nivel': 'publico', 'orden': 4,
+     'titulo': 'Diagrama: niveles de acceso a esta documentación',
+     'resumen': 'Quién ve qué.',
+     'contenido': (
+        'Visitante sin login            -> NADA (todo está detrás de login)\n'
+        'Usuario autenticado            -> 🟢 Público\n'
+        'Admin con permiso documentación-> 🟢 Público + 🟡 Interno\n'
+        'Admin + step-up de SuperAdmin  -> 🟢 + 🟡 + 🔴 Crítico (30 min)\n'
+        '\n'
+        'El backend filtra por nivel; el navegador nunca decide qué se muestra.')},
+
+    # ── LOTE 4 · REFERENCIA DE ENDPOINTS (por dominio) ───────────────────
+    {'area': 'endpoints', 'clave': 'ep-intro', 'nivel': 'admin', 'orden': 0,
+     'titulo': 'Cómo leer esta referencia',
+     'resumen': 'Las "puertas" del backend, agrupadas por tema.',
+     'contenido': (
+        'El backend expone varios cientos de endpoints (más de 500), agrupados en blueprints por tema. Aquí va un '
+        'resumen de los principales: MÉTODO ruta → para qué sirve. La mayoría requiere sesión iniciada y que el '
+        'recurso pertenezca al negocio del usuario.')},
+    {'area': 'endpoints', 'clave': 'ep-auth', 'nivel': 'admin', 'orden': 1,
+     'titulo': 'Endpoints · Autenticación',
+     'resumen': 'Login, sesión y recuperación de contraseña.',
+     'contenido': (
+        'POST /api/auth/login → iniciar sesión\n'
+        'POST /api/auth/logout → cerrar sesión\n'
+        'GET  /api/auth/session/verify → ¿sesión activa?\n'
+        'GET  /api/auth/user/profile → perfil del usuario\n'
+        'POST /forgot-password → pedir recuperación\n'
+        'GET  /verify-reset-token/<token> → validar token\n'
+        'POST /reset-password → cambiar contraseña')},
+    {'area': 'endpoints', 'clave': 'ep-negocio', 'nivel': 'admin', 'orden': 2,
+     'titulo': 'Endpoints · Negocio y sucursales',
+     'resumen': 'Crear y administrar negocios.',
+     'contenido': (
+        'POST /api/negocios/crear → crear negocio (genera QR)\n'
+        'GET  /api/mis-negocios → listar mis negocios\n'
+        'GET  /api/negocios/<id> → detalle\n'
+        'PUT  /api/negocios/<id> → actualizar\n'
+        'DELETE /api/negocios/<id> → eliminar (papelera)\n'
+        'GET  /api/negocio/slug/<slug> → datos públicos por slug (lo usa la tienda)\n'
+        'POST /api/sucursales/crear → crear sucursal')},
+    {'area': 'endpoints', 'clave': 'ep-catalogo', 'nivel': 'admin', 'orden': 3,
+     'titulo': 'Endpoints · Catálogo e inventario',
+     'resumen': 'Productos y stock.',
+     'contenido': (
+        'GET  /api/inventario/productos → listar productos\n'
+        'POST /api/catalogo/producto/guardar → crear\n'
+        'PUT  /api/producto/actualizar/<id> → actualizar\n'
+        'DELETE /api/producto/eliminar/<id> → eliminar\n'
+        'POST /api/producto/<id>/stock → ajustar stock\n'
+        'GET  /api/stock/alertas → productos con stock bajo\n'
+        'GET  /api/inventario/estadisticas → resumen')},
+    {'area': 'endpoints', 'clave': 'ep-tienda-pedidos', 'nivel': 'admin', 'orden': 4,
+     'titulo': 'Endpoints · Tienda, checkout y pedidos',
+     'resumen': 'La compra y su gestión.',
+     'contenido': (
+        'GET  /api/tiendas/<slug>/catalogo → catálogo público\n'
+        'POST /api/tiendas/<slug>/checkout → procesar compra\n'
+        'GET  /api/pedidos → listar pedidos del negocio\n'
+        'GET  /api/pedidos/<id> → detalle del pedido\n'
+        'PUT  /api/pedidos/<id>/estado → cambiar estado\n'
+        'POST /api/pedidos/<id>/cancelar → cancelar\n'
+        'POST /api/devoluciones/crear → registrar devolución')},
+    {'area': 'endpoints', 'clave': 'ep-pagos', 'nivel': 'admin', 'orden': 5,
+     'titulo': 'Endpoints · Pagos y cupones',
+     'resumen': 'Cobros en línea y descuentos.',
+     'contenido': (
+        'POST /api/wompi/transaccion → crear pago (tarjeta/PSE)\n'
+        'GET  /api/wompi/status/<tx> → estado del pago\n'
+        'POST /api/negocio/<id>/cupones → crear cupón\n'
+        'GET  /api/negocio/<id>/cupones → listar cupones\n'
+        'POST /api/cupones/validar → validar código en checkout')},
+    {'area': 'endpoints', 'clave': 'ep-crm-analytics', 'nivel': 'admin', 'orden': 6,
+     'titulo': 'Endpoints · CRM, reseñas y analítica',
+     'resumen': 'Clientes, opiniones y métricas.',
+     'contenido': (
+        'GET  /api/negocio/<id>/crm/compradores → clientes\n'
+        'GET  /api/negocio/<id>/crm/resumen → métricas CRM\n'
+        'POST /api/compradores/magic-link → enlace sin contraseña\n'
+        'POST /api/resena → crear reseña\n'
+        'GET  /api/negocio/<id>/resenas → reseñas públicas\n'
+        'GET  /api/negocio/<id>/analytics/resumen → visitas/conversión\n'
+        'GET  /api/negocio/<id>/trust → franja de confianza')},
+    {'area': 'endpoints', 'clave': 'ep-gamificacion', 'nivel': 'admin', 'orden': 7,
+     'titulo': 'Endpoints · Gamificación',
+     'resumen': 'XP, TuKoins, misiones, ligas.',
+     'contenido': (
+        'GET  /api/gamificacion/dashboard → estado (XP/nivel/TuKoins/racha)\n'
+        'GET  /api/gamificacion/leaderboard → ranking\n'
+        'GET  /api/gamificacion/tienda → tienda de premios\n'
+        'POST /api/gamificacion/tienda/comprar → canjear TuKoins\n'
+        'POST /api/gamificacion/duelos/retar → duelo\n'
+        'GET  /api/gamificacion/referidos/mi-codigo → referidos')},
+    {'area': 'endpoints', 'clave': 'ep-notificaciones', 'nivel': 'admin', 'orden': 8,
+     'titulo': 'Endpoints · Notificaciones y chat',
+     'resumen': 'La campanita y los mensajes.',
+     'contenido': (
+        'GET  /api/notificaciones → listar (campanita)\n'
+        'PUT  /api/notificaciones/<id>/marcar-leida → marcar leída\n'
+        'POST /api/notificaciones/<id>/aceptar → aceptar\n'
+        'GET  /api/chat → conversaciones\n'
+        'POST /api/chat/<user_id> → enviar mensaje')},
+    {'area': 'endpoints', 'clave': 'ep-ia', 'nivel': 'admin', 'orden': 9,
+     'titulo': 'Endpoints · Dora IA',
+     'resumen': 'La asistente con inteligencia artificial.',
+     'contenido': (
+        'POST /api/ia/chat → conversar con Dora\n'
+        'POST /api/ia/describir-producto → descripción automática\n'
+        'POST /api/ia/generar-promo → texto de promoción\n'
+        'POST /api/ia/analizar-ventas → análisis\n'
+        'POST /api/ia/sugerir-precio → sugerencia de precio')},
+    {'area': 'endpoints', 'clave': 'ep-admin', 'nivel': 'admin', 'orden': 10,
+     'titulo': 'Endpoints · Panel de administración',
+     'resumen': 'Lo que usa el equipo de TuKomercio.',
+     'contenido': (
+        'GET  /api/admin/check → ¿soy admin?\n'
+        'GET  /api/admin/stats → estadísticas generales\n'
+        'GET  /api/admin/audit → log de auditoría\n'
+        'GET/POST /api/admin/features → feature flags\n'
+        'GET  /api/admin/planes → planes\n'
+        'CRUD /api/admin/ayuda → Centro de Ayuda\n'
+        'CRUD /api/admin/docs → esta documentación (+ /unlock, /export)')},
+    {'area': 'endpoints', 'clave': 'ep-verticales', 'nivel': 'admin', 'orden': 11,
+     'titulo': 'Endpoints · Verticales (taller, restaurante, mecánicos)',
+     'resumen': 'Funciones especializadas por rubro.',
+     'contenido': (
+        'Taller:      /api/taller/ordenes, /api/taller/citas, /api/taller/stats\n'
+        'Restaurante: /api/restaurante/mesas, /api/restaurante/comandas, carta pública\n'
+        'MecaLink:    /api/mecalink/buscar, /api/mecalink/perfil/<id>, verificación')},
 ]
 
 
