@@ -32,7 +32,10 @@
 - **Fase 2 lote 2 ✅ (+20 → 34 entradas):** recorrido del frontend (landing, login, app, designer, super_designer, grilla financiera, módulos de contabilidad, inventario, pedidos, tienda pública, plantillas, checkout, seguimiento, centro de ayuda), panel admin + permisos, base de datos (overview/multi-tenant/JSONB) y mapa de UI.
 - **Visor más presentable:** pantalla de bienvenida (hero + leyenda 🟢🟡🔴 + contador de temas) para interesados.
 - **Fase 2 lote 3 ✅ (+19 → 53 entradas):** completadas **las 22 secciones** (auth, gamificación, e-commerce/estados, integraciones, flujos pedido/login/imagen, terceros y fallos, despliegue+migraciones, operación subadmins/feature-flags, respaldo, pruebas, entrega/handover, legal/confidencialidad, negocio/planes). Cobertura 22/22.
-- **Siguiente (profundización opcional):** detalle por endpoint y por pantalla, diagramas, y Fase 4 (tests de acceso) + Fase 5 (export PDF/QA).
+- **Fase 4 ✅** `test_docs_acceso` 9/0: lo 🔴 superadmin NO se filtra sin step-up; aislamiento por tipo='tecnico'; TTL de desbloqueo.
+- **Fase 5 ✅** endpoint `/api/admin/docs/export` + botón "PDF" en el visor → dossier imprimible (portada + confidencialidad + secciones), respeta nivel. Búsqueda + árbol + bienvenida ya estaban.
+- 🎉 **DOCUMENTACIÓN MAESTRA: COMPLETA (base).** Fases 0–5 ✅. Entrada landing → /documentacion (login propio) → árbol 22 secciones / 53 temas, niveles 🟢🟡🔴, step-up, búsqueda, export PDF. Ampliable a más profundidad.
+- **Botón de entrada:** landing → nav "📘 Documentación" (y footer) → /documentacion.
 
 ---
 
