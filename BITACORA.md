@@ -18,6 +18,15 @@
 
 ---
 
+## 2026-06-07 — 🧭 Documentación Maestra de la plataforma — KICKOFF (Fase 0)
+
+- **Proyecto grande nuevo (~50-60 sprints):** documentar cómo está construida TODA la plataforma (back/BD/front/UI/seguridad/integraciones/despliegue) para enseñar a técnicos / entregar a un comprador. Roadmap: `memory/roadmap_documentacion_tecnica.md`.
+- **Decisiones de Carlos:** todo detrás de login (nada público) · 3 niveles (`publico`/`admin`/`superadmin`) con **step-up de contraseña** para lo crítico · almacenado en `plataforma_kb` (`tipo='tecnico'`), editable desde el panel.
+- **Fase 0 ✅:** migración `plataforma_kb.nivel_acceso` (+índice) · modelo actualizado · permiso `documentacion` en el panel. tests 25/0 y 20/0.
+- **Siguiente:** Fase 1 (API lectura con filtro de acceso + CRUD admin + step-up SuperAdmin).
+
+---
+
 ## 2026-06-07 — 🔧 F15 COMPLETO · franja de confianza en TODAS las plantillas
 
 - Creado `assets/tienda/trust-strip.js` (autocontenido, a prueba de fallos): slug→id_negocio→`/trust`, inserta la barra (verificado/rating/pedidos/insignias/miembro desde) al inicio del `<main>`. Se agrega con 1 línea. **Aplicado a las 10 plantillas** (catalogo, Herbal, Pleeness, groove, verde, sb_Landing_page, prueba, restaurante, taller, start_level). Degrada solo si no hay datos. Validación visual fina al deployar.
