@@ -11,6 +11,12 @@
 
 ---
 
+## 2026-06-07 — 🎨 Íconos · Bootstrap Icons 1.13.1 integrado
+
+- Plataforma "pobre de íconos" (Carlos). **Fix:** `@import` de **Bootstrap Icons 1.13.1** (1.800+ íconos, MIT) en `assets/css/design-tokens.css` → disponibles como `<i class="bi bi-..."></i>` en toda vista con tokens. Las 8 categorías del Centro de Ayuda pasaron de emoji → íconos Bootstrap (en color de marca); render `iconHtml()` soporta `bi-` o emoji; migración única para filas ya seedeadas (flag `kb_iconos_bi_v1`). test 25/0.
+
+---
+
 ## 2026-06-07 — 🐞 FIX F14 · "Miembro desde" con fecha real
 
 - El trust strip mostraba fecha reciente (incorrecta) porque `negocio.fecha_registro` se rellenó con la fecha de la migración. **Fix (back, `analytics_api`):** `miembro_desde` = fecha más antigua entre negocio, dueño (created_at/aceptación de términos) y primer pedido. Helper puro `_fecha_miembro_desde`. test 9/0. Sin mutar datos.
