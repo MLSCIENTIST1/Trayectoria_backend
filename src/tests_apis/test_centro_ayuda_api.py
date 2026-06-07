@@ -47,7 +47,7 @@ def main():
 
         # Publicados
         ins('categoria', 'cat-pub', 'Categoría publicada', True, area='ayuda', datos={'icono': '🚀'}, orden=1)
-        ins('feature', 'art-pub', 'Cómo crear mi tienda', True, area='tienda',
+        ins('articulo', 'art-pub', 'Cómo crear mi tienda', True, area='tienda',
             resumen='Guía para crear tu tienda', contenido='Pasos...', datos={'categoria': 'cat-pub'}, orden=1)
         ins('changelog', 'cl-pub', 'Nueva función', True, area='novedades', datos={'tipo': 'nuevo'}, orden=1)
         # Ocultos (publicado=0) — NO deben aparecer

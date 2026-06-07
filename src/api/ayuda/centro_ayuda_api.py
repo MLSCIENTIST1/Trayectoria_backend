@@ -52,7 +52,7 @@ _FIELDS = "clave, tipo, area, titulo, resumen, datos, orden"
 @centro_ayuda_bp.route('/home', methods=['GET'])
 def home():
     cats = _q(f"SELECT {_FIELDS} FROM plataforma_kb WHERE tipo='categoria' AND publicado ORDER BY orden, titulo")
-    populares = _q(f"SELECT {_FIELDS} FROM plataforma_kb WHERE tipo IN ('articulo','feature') AND publicado ORDER BY orden, titulo LIMIT 6")
+    populares = _q(f"SELECT {_FIELDS} FROM plataforma_kb WHERE tipo = 'articulo' AND publicado ORDER BY orden, titulo LIMIT 6")
     novedades = _q(f"SELECT {_FIELDS} FROM plataforma_kb WHERE tipo='changelog' AND publicado ORDER BY orden, titulo LIMIT 5")
     return jsonify({'success': True, 'categorias': cats, 'populares': populares, 'novedades': novedades})
 
@@ -66,7 +66,7 @@ def categorias():
 @centro_ayuda_bp.route('/categoria/<clave>', methods=['GET'])
 def categoria(clave):
     arts = _q(f"""SELECT {_FIELDS}, contenido FROM plataforma_kb
-                  WHERE publicado AND tipo IN ('articulo','feature')
+                  WHERE publicado AND tipo = 'articulo'
                     AND (datos->>'categoria' = :c)
                   ORDER BY orden, titulo""", {'c': clave})
     cat = _q(f"SELECT {_FIELDS} FROM plataforma_kb WHERE clave=:c AND tipo='categoria'", {'c': clave})
@@ -80,8 +80,9 @@ def articulo(clave):
         return jsonify({'success': False, 'error': 'Artículo no encontrado'}), 404
     art = rows[0]
     rel = _q(f"""SELECT {_FIELDS} FROM plataforma_kb
-                 WHERE publicado AND tipo IN ('articulo','feature') AND area=:a AND clave<>:c
-                 ORDER BY orden LIMIT 4""", {'a': art.get('area'), 'c': clave})
+                 WHERE publicado AND tipo = 'articulo' AND clave<>:c
+                   AND (datos->>'categoria' = (:cat))
+                 ORDER BY orden LIMIT 4""", {'cat': (art.get('datos') or {}).get('categoria'), 'c': clave})
     return jsonify({'success': True, 'articulo': art, 'relacionados': rel})
 
 
@@ -92,7 +93,7 @@ def buscar():
         return jsonify({'success': True, 'q': q, 'resultados': []})
     like = f"%{q.lower()}%"
     res = _q(f"""SELECT {_FIELDS} FROM plataforma_kb
-                 WHERE publicado AND tipo IN ('articulo','feature','categoria')
+                 WHERE publicado AND tipo IN ('articulo','categoria')
                    AND (LOWER(titulo) LIKE :l OR LOWER(COALESCE(resumen,'')) LIKE :l
                         OR LOWER(COALESCE(contenido,'')) LIKE :l)
                  ORDER BY orden, titulo LIMIT 20""", {'l': like})
