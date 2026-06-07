@@ -40,7 +40,9 @@
 - **M4.3 ✅** Artículo `ayuda/articulo.html` (slug de URL → `/api/ayuda/articulo/<slug>` + relacionados).
 - **M4.2/M4.4/M4.6/M4.7 ✅** Página de categoría (articulo.html detecta tipo=categoria) · Novedades (`ayuda/novedades.html` + ruta `/novedades` worker v1.27) · buscador en vivo (home) · enlaces landing↔ayuda (nav+footer). **FIX** logo "huevito" (object-fit:contain).
 - **FASE 4 casi completa** (falta M4.5 estado opcional + QA visual fino). **Centro de Ayuda navegable end-to-end.**
-- **Siguiente:** Fase 2 (escribir/publicar contenido desde el panel) + QA. **Nota:** contenido `publicado=false` → publicar desde panel → Centro de Ayuda para que se vea en `/ayuda`.
+### Fase 2 — Contenido (en curso)
+- **M2.1/M2.2 ✅ (parcial)** 6 guías reales publicadas (crear tienda, configurar negocio, publicar/compartir, usar designer, subir productos, recibir pedidos) con `datos.categoria`. **Publicación inicial única** (flag `config_global.kb_publicacion_inicial`): publica el contenido curado una vez; luego manda el panel. → al deployar, `/ayuda` y `/novedades` ya muestran contenido real.
+- **Siguiente:** redactar las ~39 guías restantes (por categoría) + QA visual. El proyecto de marca + Centro de Ayuda queda funcional end-to-end; falta volumen de contenido.
 
 ---
 
