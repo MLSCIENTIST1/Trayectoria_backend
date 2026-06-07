@@ -11,6 +11,26 @@
 
 ---
 
+## 2026-06-06 — ✨ F16 · vista previa de producto al compartir (OpenGraph / WhatsApp)
+
+**Tipo:** feature (backend + worker + frontend).
+
+### Objetivo
+- Que al compartir el link de un producto por WhatsApp salga **foto + nombre + precio** (antes vacío).
+
+### Por qué fallaba
+- El enlace usaba `#producto-<id>` (hash, no llega al servidor) y los bots no ejecutan JS. El Worker ya hacía OG de tienda, pero no de producto.
+
+### Solución (3 capas)
+- **Backend** (`catalogo_api.py`): endpoint público `GET /api/tienda/<slug>/producto/<id>/og` (solo activos/publicados). Test `test_producto_og_publico.py` → 7/0.
+- **Worker** (`_worker.js` v1.22): `fetchProductoOg` + rama que, si la URL trae `?producto=<id>`, inyecta OG con la foto del producto (cae a OG de tienda si falla).
+- **Frontend**: enlaces de compartir ahora usan `?producto=<id>` (rastreable); `checkUrlForProduct` abre el producto al llegar por query (compat con `#`).
+
+### Notas
+- WhatsApp cachea previews → probar con producto nuevo o el debugger de OG de Facebook. Verificación real solo en prod. Detalle en `memory/fixes_tienda_checkout.md` (F16).
+
+---
+
 ## 2026-06-06 — 🐞 FIX producción F13 · columnas de la tabla notification (campanita)
 
 **Tipo:** corrección de esquema (backend, clase F8).

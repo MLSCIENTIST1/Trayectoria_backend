@@ -2492,6 +2492,56 @@ def exportar_productos():
 # 25. CATÁLOGO PÚBLICO (Sin auth) - v3.5
 # ============================================
 
+@catalogo_api_bp.route('/tienda/<slug>/producto/<int:id_producto>/og', methods=['GET', 'OPTIONS'])
+@cross_origin()
+def producto_og_publico(slug, id_producto):
+    """
+    GET /api/tienda/{slug}/producto/{id}/og  — PÚBLICO (sin auth).
+    Datos mínimos para la vista previa al compartir (OpenGraph/WhatsApp).
+    Solo productos activos y publicados de ese negocio. No expone datos privados.
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({"success": True}), 200
+    try:
+        negocio = Negocio.query.filter_by(slug=slug).first()
+        if not negocio:
+            return jsonify({"success": False, "error": "Tienda no encontrada"}), 404
+
+        producto = ProductoCatalogo.query.filter_by(
+            id_producto=id_producto,
+            negocio_id=negocio.id_negocio,
+            activo=True,
+            estado_publicacion=True
+        ).first()
+        if not producto:
+            return jsonify({"success": False, "error": "Producto no disponible"}), 404
+
+        # Imagen: principal o la primera de la galería
+        imagen = producto.imagen_url
+        if not imagen:
+            imgs = parse_json_field(producto.imagenes, [])
+            if imgs:
+                imagen = imgs[0] if isinstance(imgs[0], str) else (imgs[0] or {}).get('url')
+
+        return jsonify({
+            "success": True,
+            "producto": {
+                "id": producto.id_producto,
+                "nombre": producto.nombre,
+                "precio": float(producto.precio) if producto.precio else 0,
+                "descripcion": (producto.descripcion or '')[:300],
+                "imagen": imagen or '',
+            },
+            "negocio": {
+                "nombre": getattr(negocio, 'nombre_negocio', '') or '',
+                "logo_url": getattr(negocio, 'logo_url', '') or '',
+            }
+        }), 200
+    except Exception as e:
+        logger.error(f"❌ Error producto OG público: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @catalogo_api_bp.route('/productos/publicos/<int:negocio_id>', methods=['GET', 'OPTIONS'])
 @cross_origin(supports_credentials=True)
 def catalogo_publico(negocio_id):
