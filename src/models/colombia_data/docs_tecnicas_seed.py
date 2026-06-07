@@ -1154,6 +1154,15 @@ SEED_DOCS = [
      'tecnico': "Tabla 'servicio' (legacy). Columnas: id_servicio (PK), nombre_servicio, descripcion, categoria, fechas (solicitud/aceptacion/inicio/fin), id_usuario, id_contratante, id_contratado, nombre_contratante, negocio_contratante_id, negocio_contratado_id, tipo_contrato, service_active, estado, precio, moneda, etapas_calificacion, etapas_habilitadas, dias_post_servicio, calificacion_bidireccional, aditional_service, viajar_dentro_pais, viajar_fuera_pais, domicilios, incluye_asesoria, requiere_presencia_cliente, experiencia_previa, facturacion_formal, modelos_negocio, qr_code, qr_data, ciudad_id, fechas."},
 ]
 
+# DA6 — rutas REALES extraídas de los archivos (refresco forzado una vez, flag kb_ep_rutas_v1)
+EP_REFRESH = {
+ 'ep-auth': "Archivo src/api/auth/auth_system.py (auth_bp, /api/auth). Rutas reales: POST /login, POST /ingreso (alias), POST /refresh, GET /session/verify, GET /session_status, POST|GET /logout, GET /user/profile, GET /health. Recuperación (password_reset_api.py, password_reset_bp): POST /forgot-password, GET /verify-reset-token/<token>, POST /reset-password, GET /test-smtp, GET /test-send/<email>. Login Flask-Login + bcrypt (cookie bizflow_session).",
+ 'ep-negocio': "Archivo src/api/negocio/negocio_completo_api.py (negocio_api_bp, /api). Rutas reales: GET /mis_negocios, POST /registrar_negocio, GET|PUT|DELETE /negocio/<id>, GET /negocio/slug/<slug> (+ /manifest.json), GET|PUT /negocio/<id>/config-tienda, GET|PATCH /negocio/<id>/config-envios, GET /negocios/<id>/sucursales, POST /registrar_sucursal, GET|PUT|DELETE /sucursal/<id>, POST /sucursal/<id>/set_principal, POST /sucursal/<id>/personal (+ DELETE /<identificacion>), GET /ciudades, POST /contexto/establecer, GET /contexto/actual, GET /negocio/<id>/suscripcion, GET /negocio/<id>/pagos.",
+ 'ep-catalogo': "Archivo src/api/negocio/catalogo_api.py (catalogo_api_bp, /api) — 38 rutas. Principales: GET /inventario/productos, GET /mis-productos, POST /catalogo/producto/guardar, PUT /producto/actualizar/<id>, DELETE /producto/eliminar/<id>, GET /producto/<id>, PATCH /producto/edicion-rapida/<id>, POST /producto/duplicar/<id>, POST /producto/<id>/toggle-activo, POST /producto/<id>/stock, GET /producto/<id>/movimientos, GET /stock/alertas, GET /inventario/estadisticas, CRUD /categorias (+ /categorias/reordenar), POST /producto/<id>/imagenes (+ DELETE /<index>), idem /videos, GET /producto/buscar-codigo, GET /productos/buscar, POST /productos/importar, GET|POST /productos/exportar, GET /tienda/<slug>/producto/<id>/og, GET /productos/publicos/<negocio_id>.",
+ 'ep-tienda-pedidos': "checkout_api.py (checkout_api_bp): POST /tiendas/<slug>/checkout, GET /tiendas/<slug>/checkout/test. pedidos_api.py (tiendas_pedidos_bp) — 18 rutas: GET /pedidos/negocio/<negocio_id>, GET /pedidos/<id>, PUT|PATCH /pedidos/<id>/estado, PATCH /pedidos/<id>/corregir, POST /pedidos/<id>/cancelar, POST /pedidos/<id>/pago, POST /pedidos/<id>/notas, POST /pedidos/<id>/enviar, POST /pedidos/<id>/subir-guia, POST /pedidos/<id>/devolucion, POST /pedidos/devolucion/<id>/recibir, POST /pedidos/devolucion/libre, GET /pedidos/negocio/<id>/devoluciones, GET /pedidos/negocio/<id>/stats, GET /pedidos/<id>/historial, GET /pedidos/buscar, POST /pedidos/manual.",
+ 'ep-pagos': "wompi_api.py (wompi_bp): GET /negocio/<id>/wompi/config-pub (público), GET|PUT /negocio/<id>/wompi/config, POST /negocio/<id>/wompi/session, GET /negocio/<id>/wompi/verify, POST /wompi/webhook. cupones_api.py (cupones_bp): POST|GET /negocio/<id>/cupones, PUT|DELETE /negocio/<id>/cupones/<cupon_id>, POST /cupones/validar.",
+}
+
 
 def seed_docs_tecnicas():
     """Inserta el contenido técnico de forma idempotente (no duplica)."""
@@ -1184,6 +1193,18 @@ def seed_docs_tecnicas():
             if d.get('tecnico'):
                 db.session.execute(fill_tec, {'t': d['tecnico'], 'c': d['clave']})
         db.session.commit()
+        # DA6: refresco ÚNICO de rutas reales en las fichas ep-* (sobre-escribe), por flag
+        try:
+            ya = db.session.execute(text("SELECT 1 FROM config_global WHERE clave = 'kb_ep_rutas_v1'")).fetchone()
+            if not ya:
+                force = text("UPDATE plataforma_kb SET datos = jsonb_set(COALESCE(datos,'{}'::jsonb), '{tecnico}', to_jsonb(CAST(:t AS text))) WHERE clave = :c")
+                for ck, tx in EP_REFRESH.items():
+                    db.session.execute(force, {'t': tx, 'c': ck})
+                db.session.execute(text("INSERT INTO config_global (clave, valor, updated_at) VALUES ('kb_ep_rutas_v1', CAST('true' AS JSONB), NOW()) ON CONFLICT (clave) DO NOTHING"))
+                db.session.commit()
+        except Exception as _er:
+            db.session.rollback()
+            logger.warning(f"[docs] refresco ep rutas omitido: {_er}")
         logger.info(f"✅ Seed docs técnicas: {n} entradas aseguradas")
         return n
     except Exception as ex:
