@@ -1152,6 +1152,28 @@ SEED_DOCS = [
      'resumen': "Servicios contratados entre usuarios (legacy).",
      'contenido': "Modelo de servicios/contratos del sistema anterior (contratante-contratado), con calificación bidireccional.",
      'tecnico': "Tabla 'servicio' (legacy). Columnas: id_servicio (PK), nombre_servicio, descripcion, categoria, fechas (solicitud/aceptacion/inicio/fin), id_usuario, id_contratante, id_contratado, nombre_contratante, negocio_contratante_id, negocio_contratado_id, tipo_contrato, service_active, estado, precio, moneda, etapas_calificacion, etapas_habilitadas, dias_post_servicio, calificacion_bidireccional, aditional_service, viajar_dentro_pais, viajar_fuera_pais, domicilios, incluye_asesoria, requiere_presencia_cliente, experiencia_previa, facturacion_formal, modelos_negocio, qr_code, qr_data, ciudad_id, fechas."},
+
+    # ── AUDITORIA FRONTEND/DEPLOY (DA11/DA16): archivos reales ──
+    {'area': "frontend", 'clave': "bf-designer-js", 'nivel': "admin", 'orden': 90,
+     'titulo': "Archivo: designer.js (el Diseñador por dentro)",
+     'contenido': "El JavaScript que hace funcionar el editor visual de la tienda (el Diseñador).",
+     'tecnico': "designer.js (~245KB). Flujo de datos: loadStoreData() (merge de la config del backend) -> applyConfigToInputs() (puebla el DOM con esa config) -> updatePreview() (lee el DOM de vuelta hacia storeConfig); el orden importa (poblar antes de leer, leccion F18). Funciones clave: applyFonts, applyPreset/aplicarPaquete, applyTemplateSections, applyPlanGating (gating por plan), debounce, _renderOgImageEstado, createUpgradeModal/closeUpgradeModal/contactForUpgrade. Editores por seccion con add*/delete*: categorias, hero badges, horarios y carta (restaurante), pasos y servicios (taller), stats, testimonios, videos, why-items, slider y galeria."},
+    {'area': "frontend", 'clave': "bf-super-designer-js", 'nivel': "admin", 'orden': 91,
+     'titulo': "Archivo: super_designer y módulos sd_*",
+     'contenido': "El editor avanzado de páginas y sus módulos.",
+     'tecnico': "super_designer.html + super_designer.js (Engine) + 19 modulos sd_*.js: sd_ai, sd_animations, sd_clickedit, sd_collab, sd_colors, sd_components, sd_css, sd_dragdrop, sd_export, sd_intelligence, sd_media, sd_mobile, sd_perf, sd_polish, sd_seo, sd_social, sd_typography, sd_undo, sd_versions. Se comunica con las plantillas por postMessage (tuko-runtime.js)."},
+    {'area': "frontend", 'clave': "bf-sw", 'nivel': "admin", 'orden': 92,
+     'titulo': "Archivo: sw.js (Service Worker / PWA)",
+     'contenido': "Hace que la plataforma funcione como app instalable y cargue rápido (offline-friendly).",
+     'tecnico': "sw.js SW_VERSION='2.1.0'. Estrategias por tipo: la API (onrender) network-only (no cachea); HTML network-first (con cache como respaldo offline); .js/.css y /assets stale-while-revalidate (responde de cache y revalida en segundo plano). En install precachea assets base; en activate purga caches viejos (tukomercio-v*) y toma control. Maneja push y notificationclick (enfoca/abre el panel). Manifest: tukomercio-manifest.json."},
+    {'area': "frontend", 'clave': "bf-contabilidad-modulos", 'nivel': "admin", 'orden': 93,
+     'titulo': "Archivos: módulos de contabilidad (21 pantallas)",
+     'contenido': "Las pantallas de gestión del día a día del negocio (la app del tendero).",
+     'tecnico': "Carpeta contabilidad/modulos/ (21 .html): alertas, analytics, carga_csv, carritos, compra, crm, cupones, dashboard, dropshipping, equipo, gamificacion, gastos, ingreso_div, inventario, offline, pedidos, reportes, restaurante, taller, venta, wompi. Mas contabilidad/grilla_financiera.html (Centro de Control Financiero). Cada vista consume la API del negocio."},
+    {'area': "despliegue", 'clave': "bf-create-app-migraciones", 'nivel': "admin", 'orden': 94,
+     'titulo': "create_app: migraciones y seeders",
+     'contenido': "Cómo se crean/actualizan las tablas y se siembran los datos al arrancar el backend.",
+     'tecnico': "src/__init__.py::create_app() ejecuta ~62 sentencias idempotentes (ALTER TABLE ADD COLUMN IF NOT EXISTS / CREATE TABLE IF NOT EXISTS / CREATE INDEX IF NOT EXISTS) en una lista 'migraciones', cada una en try/except con commit aislado (regla F8: van aqui, no en run.py). Seeders idempotentes: inicializar_badges_sistema (catalogo de insignias), poblar_ciudades() (Colombia), seed_plataforma_kb() (ayuda/novedades), seed_docs_tecnicas() (esta documentacion). Flags one-time en config_global: kb_publicacion_inicial, kb_iconos_bi_v1, kb_ep_rutas_v2."},
 ]
 
 # DA6 — rutas REALES extraídas de los archivos (refresco forzado una vez, flag kb_ep_rutas_v2)
