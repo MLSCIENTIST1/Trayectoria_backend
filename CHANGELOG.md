@@ -47,6 +47,11 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
 - **Slider con tamaño y forma configurables.** Nuevos controles en el designer (Tamaño: pequeño/mediano/grande;
   Forma/bordes: cuadrado/redondeado/muy redondeado) → `slider.height`/`slider.shape`. `renderSlider` aplica el
   alto (180/300/440px) y el `border-radius` (0/16/32px) al `.slider-container`.
+- **Posición configurable de "Seguir + Me gusta" y de las Insignias** (ecommerce). Controles en el designer →
+  `config.social = {socialPos, insigniasPos}` con valores `top` (junto al buscador/nombre) o `stats` (barra de
+  confianza). Default = `stats`. `tienda.js::aplicarPosicionesSociales()` (idempotente) coloca `#tkSocial` y
+  `#tukoTrustBadges` en el sitio configurado; `loadTrustData` re-crea y recoloca tras su `innerHTML`
+  (resuelve el timing async); `social-actions.js` expone `__tkSocialRepaint`.
 
 ### Arreglado
 - **Botón de Favoritos (❤️) duplicado en las tarjetas de producto.** Con `buttons.favorite` activo, el corazón
