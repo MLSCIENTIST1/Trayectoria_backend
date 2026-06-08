@@ -24,8 +24,15 @@
   Bootstrap Icons no tiene equivalente 1:1 de muchos. Quitar FA rompería ese selector en miles de
   tiendas. → **FA se mantiene** (es load-bearing y es un set profesional). Se revirtió el intento de
   conversión masiva sin romper nada ni tocar cambios en curso del usuario.
-- **Pendiente de iconografía (seguro, no toca FA):** emojis-usados-como-icono → Bootstrap Icons en el
-  panel admin (~65) y contabilidad (~25); unificar las 3 versiones de FA (+ una v4 vieja) a una sola.
+- **Emojis-icono → Bootstrap Icons (panel admin):** convertidos **58 títulos de sección/página**
+  (`data-section__title` / `admin-header__title`) de emoji a `<i class="bi bi-…">`. Quirúrgico (script
+  temporal con regex que SOLO toca títulos). **No se tocaron** los emojis en `<option>`, placeholders ni
+  datos JS — ahí el HTML de iconos no funciona (un `<option>` no renderiza `<i>`); por eso `contabilidad`
+  (método de pago/estado/vehículo son `<option>`) **no es convertible** a iconos y se deja como está.
+  Verificado: options/pills/placeholders intactos; estructura HTML correcta. (Panel es auth-gated → no
+  verificable en preview sin login; nombres `bi-*` son estándar de Bootstrap Icons 1.13.)
+- **Pendiente menor:** unificar versiones de Font Awesome a una sola; `ad_TuKomercio.html`/`ayuda/estado.html`
+  (pocos emojis, requieren añadir el link de Bootstrap Icons primero).
 - **Fix backend — widget de badges "No disponible":** `widget_badges` (`gamificacion_api.py`) filtraba
   `perfil_publico = true`, excluyendo negocios con `perfil_publico = NULL` (nunca configurado), aunque
   el resto de la app trata NULL como público por defecto (`getattr(n,'perfil_publico',True)`). Por eso
