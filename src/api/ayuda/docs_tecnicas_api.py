@@ -49,6 +49,7 @@ SECCIONES_DOC = [
     {'area': 'endpoints',    'titulo': 'Referencia de endpoints', 'icono': 'bi-signpost-split-fill', 'orden': 2},
     {'area': 'base-datos',   'titulo': 'Base de datos',         'icono': 'bi-database-fill',  'orden': 3},
     {'area': 'frontend',     'titulo': 'Frontend',              'icono': 'bi-window-fullscreen', 'orden': 4},
+    {'area': 'diseno',       'titulo': 'Sistema visual y marca', 'icono': 'bi-palette2', 'orden': 4},
     {'area': 'auth',         'titulo': 'Autenticación y sesiones', 'icono': 'bi-shield-lock-fill', 'orden': 5},
     {'area': 'panel',        'titulo': 'Panel de administración', 'icono': 'bi-sliders', 'orden': 6},
     {'area': 'gamificacion', 'titulo': 'Gamificación',          'icono': 'bi-trophy-fill', 'orden': 7},

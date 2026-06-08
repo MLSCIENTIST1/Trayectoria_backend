@@ -1174,6 +1174,28 @@ SEED_DOCS = [
      'titulo': "create_app: migraciones y seeders",
      'contenido': "Cómo se crean/actualizan las tablas y se siembran los datos al arrancar el backend.",
      'tecnico': "src/__init__.py::create_app() ejecuta ~62 sentencias idempotentes (ALTER TABLE ADD COLUMN IF NOT EXISTS / CREATE TABLE IF NOT EXISTS / CREATE INDEX IF NOT EXISTS) en una lista 'migraciones', cada una en try/except con commit aislado (regla F8: van aqui, no en run.py). Seeders idempotentes: inicializar_badges_sistema (catalogo de insignias), poblar_ciudades() (Colombia), seed_plataforma_kb() (ayuda/novedades), seed_docs_tecnicas() (esta documentacion). Flags one-time en config_global: kb_publicacion_inicial, kb_iconos_bi_v1, kb_ep_rutas_v2."},
+
+    # ── SISTEMA VISUAL / MARCA (paleta, tipografia, tokens) ──
+    {'area': 'diseno', 'clave': "doc-diseno-vision", 'nivel': "publico", 'orden': 1,
+     'titulo': "La visión: un editor visual con alma de red social",
+     'contenido': "TuKomercio no es solo un creador de tiendas: es un EDITOR VISUAL —al estilo de un software de diseño como Photoshop, Adobe o Sony Vegas— pero orientado a RED SOCIAL, para crear tiendas virtuales. La idea es que diseñar y administrar tu tienda se sienta tan fácil, visual y atractivo como usar una app social: arrastrar elementos, elegir colores y tipografías, secciones y animaciones, con ayuda de IA; y al mismo tiempo vivir como red social (perfiles públicos, seguir, me gusta, feed de videos, logros y gamificación). El objetivo: bajar la barrera técnica y volver divertido crear tu negocio en línea.",
+     'tecnico': "Esta visión se materializa en el Diseñador (designer.js) y el Super Designer (motor + módulos sd_*: drag&drop, colors, typography, animations, ai, components, versions), que editan visualmente la config de la tienda; y en la capa social (interacciones de Seguir/Me gusta, feed de videos negocio_videos, gamificación: XP/TuKoins/insignias/ligas). El sistema visual común vive en assets/css/design-tokens.css (variables --tk-*)."},
+    {'area': 'diseno', 'clave': "doc-diseno-paleta", 'nivel': "admin", 'orden': 2,
+     'titulo': "Paleta de colores",
+     'contenido': "Los colores oficiales de la marca, usados en toda la plataforma para que se vea coherente.",
+     'tecnico': "Definidos en assets/css/design-tokens.css. Marca: --tk-indigo #4F46E5, --tk-indigo-dark #4338CA, --tk-indigo-soft #EEF2FF, --tk-violet #7C3AED. Gradientes: --tk-grad-1 #667eea + --tk-grad-2 #764ba2 -> --tk-gradient (135deg); --tk-gradient-hero (claro). Neutros (slate): --tk-ink #0F172A (texto), --tk-slate #475569, --tk-slate-2 #64748B, --tk-line #E7E9F0 (bordes), --tk-bg #F7F8FC (fondo app), --tk-card #FFFFFF, --tk-soft #F1F2F9. Estados: --tk-success #10B981, --tk-warning/--tk-amber #F59E0B, --tk-danger #EF4444, --tk-wa #25D366 (WhatsApp); soft: success-soft #D1FAE5, amber-soft #FEF3C7. Modo oscuro: --tk-dark #0F0F1A, --tk-dark-2 #1E293B, --tk-dark-line rgba(255,255,255,.10), --tk-on-dark #E4E4F0."},
+    {'area': 'diseno', 'clave': "doc-diseno-tipografia", 'nivel': "admin", 'orden': 3,
+     'titulo': "Tipografías",
+     'contenido': "Las familias de letra y los tamaños que usa la plataforma.",
+     'tecnico': "3 familias (Google Fonts), en design-tokens.css: --tk-font-wordmark 'Orbitron' (SOLO el logotipo/wordmark), --tk-font-display 'Sora' (títulos), --tk-font-ui 'Plus Jakarta Sans' (texto/cuerpo). Escala fluida (clamp): --tk-fs-d1 clamp(2rem,6vw,3.2rem), --tk-fs-h1 clamp(1.7rem,4.5vw,2.5rem), --tk-fs-h2 clamp(1.35rem,3vw,1.8rem), --tk-fs-h3 1.25rem, --tk-fs-body 1rem, --tk-fs-sm .9rem, --tk-fs-xs .8rem. Tracking: --tk-tracking-tight -.02em (títulos), --tk-tracking-wordmark .01em. Íconos: Bootstrap Icons 1.13.1 (<i class='bi bi-...'>)."},
+    {'area': 'diseno', 'clave': "doc-diseno-fondos", 'nivel': "admin", 'orden': 4,
+     'titulo': "Fondos, bordes, sombras y estructura",
+     'contenido': "Cómo se ven los fondos, las esquinas redondeadas, las sombras y el espaciado.",
+     'tecnico': "design-tokens.css. Fondos: --tk-bg #F7F8FC (app), --tk-card #FFFFFF (superficies), --tk-soft #F1F2F9, gradientes --tk-gradient y --tk-gradient-hero. Radios: --tk-r-xs 8px, --tk-r-sm 12px, --tk-r 16px (default), --tk-r-lg 22px, --tk-r-pill 999px. Sombras: --tk-shadow, --tk-shadow-lg, --tk-shadow-hover, --tk-glow (todas con tinte índigo). Espaciado/estructura: --tk-gap 16px, --tk-pad 20px, --tk-maxw 1120px. Movimiento: --tk-ease cubic-bezier(.4,0,.2,1), --tk-fast .15s, --tk-med .25s. Capas: --tk-z-header 50, --tk-z-modal 1000, --tk-z-toast 1500."},
+    {'area': 'diseno', 'clave': "doc-diseno-tokens", 'nivel': "admin", 'orden': 5,
+     'titulo': "El sistema de diseño (design-tokens.css)",
+     'contenido': "Un solo archivo define toda la apariencia, para que cada vista se vea igual de profesional.",
+     'tecnico': "assets/css/design-tokens.css es la ÚNICA fuente de verdad visual: importa las fuentes (Sora/Plus Jakarta/Orbitron) y Bootstrap Icons 1.13.1, y declara ~56 variables --tk-* (paleta, gradientes, tipografía, radios, sombras, espaciado, motion, z-index, modo oscuro) + utilidades opt-in (.tk-wordmark, etc.) y prefers-reduced-motion. Cualquier vista que lo incluya hereda la identidad. Aplicado en: login, landing (crea-tu-tienda), resumen de pedido, app/studio, panel admin, designer, Centro de Ayuda y /documentacion."},
 ]
 
 # DA6 — rutas REALES extraídas de los archivos (refresco forzado una vez, flag kb_ep_rutas_v2)
