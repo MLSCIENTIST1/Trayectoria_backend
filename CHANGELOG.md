@@ -8,6 +8,16 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
 
 ---
 
+## [2.22.1] — 2026-06-08
+
+### Arreglado
+- **Slider superior de la tienda en blanco.** Las imágenes del banner se guardan como `data:image/` (base64) y
+  el helper `safeUrl()` (endurecido) bloqueaba **todo** `data:` → banners rotos. Ahora permite `data:image/`
+  (seguro, no ejecuta script) y sigue bloqueando `data:text/html`/`javascript:`/`vbscript:`.
+- **Insignias del negocio como círculos vacíos** (junto al buscador). Los badges usan clases `bi-*` (Bootstrap
+  Icons) pero la tienda solo cargaba **Font Awesome** → sin glifo. Añadido el CSS de Bootstrap Icons al
+  `tienda/index.html`. Cache-bust `tienda.js?v=20260608d` + `SW_VERSION` 2.2.6.
+
 ## [2.22.0] — 2026-06-07
 
 ### Cambiado

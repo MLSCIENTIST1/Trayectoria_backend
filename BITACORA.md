@@ -41,6 +41,19 @@
 
 ---
 
+## 2026-06-08 — 🐞 Fixes de tienda publicada: slider en blanco + insignias vacías
+
+- **Slider roto** (banners en blanco, "Banner N"): las imágenes son `data:image/` base64 y el helper
+  `safeUrl()` (endurecido por Carlos) bloqueaba **todo** `data:`. → ahora permite `data:image/` (seguro).
+  Diagnosticado con datos reales del store (`config.slider.images` = base64) y verificado en vivo (carga).
+- **Insignias = 3 círculos vacíos** junto al buscador: los badges usan clases `bi-*` (Bootstrap Icons) pero
+  `tienda/index.html` solo cargaba Font Awesome → `<i class="bi …">` sin glifo. Añadido el CSS de BI.
+- Cache-bust `tienda.js?v=20260608d` + `SW_VERSION` 2.2.6. Commit `20936de`, pusheado.
+- **Pendiente (pedido de Carlos):** en el designer, control para elegir **posición** de like ❤️ / seguir 👥 /
+  insignias 🏆 (arriba junto al buscador, o abajo en los stats) — por cada uno, para todas las plantillas.
+
+---
+
 ## 2026-06-07 — 🖥️ Previsualizador del Diseñador v7.0 (tienda real en iframe) + auditoría del designer
 
 **Sprint actual:** Canal dedicado al previsualizador y la funcionalidad del Diseñador. Repo frontend
