@@ -10,6 +10,13 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
 
 ## [2.21.0] — 2026-06-07
 
+### Cambiado
+- **Insignias con look premium (medallas SVG).** Nuevo componente front `TKMedal`
+  (`assets/js/badge-medal.js` + `badge-medal.css`) que reemplaza el "icono en círculo" por medallas
+  SVG en marca (aro metálico por tier, volumen, gemas/brillo), reutilizando los datos actuales de cada
+  badge (sin cambios de backend). Aplicado en perfil, modal de celebración, dashboard de gamificación,
+  widget embebible y feed de videos. Preview: `admin/panel/badges_medallas_preview.html`.
+
 ### Añadido
 - **Gamificación social — 12 insignias por seguidores y me gusta.** El negocio gana badges al acumular
   seguidores (Primer Seguidor → Ídolo de Masas 1.000) y me gusta (Primer Me Gusta → Leyenda Imparable

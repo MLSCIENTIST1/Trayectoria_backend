@@ -11,6 +11,59 @@
 
 ---
 
+## 2026-06-07 — 🎖️ Medallas SVG premium para insignias (mejora visual de gamificación)
+
+- **Problema:** los badges se veían pobres (un icono Bootstrap dentro de un círculo) en 7 superficies.
+- **Solución:** sistema reutilizable **TKMedal** que dibuja medallas SVG procedurales en marca, sin
+  imágenes externas ni cambios de backend. Reusa `icono`, `color_primario`, `gradiente`, `nivel`,
+  `codigo` de cada badge → aplica a los 46+ automáticamente.
+  - Nuevos: `assets/js/badge-medal.js` (`TKMedal.html(badge,{size,locked})`, auto-inyecta su CSS,
+    color por tier si falta `color_primario`, usa `imagen_url` si existe) + `assets/css/badge-medal.css`
+    (aro metálico por tier, disco con volumen, brillo especular, remaches/gemas, barrido en platino/
+    diamante/fundador, estado `locked`, respeta `prefers-reduced-motion`).
+  - Preview: `admin/panel/badges_medallas_preview.html` (5 tiers + Fundador + sociales, claro/oscuro).
+- **Cableado en superficies** (con fallback al icono si el script no carga):
+  perfil del negocio (`negocio/negocio_perfil*`), modal de celebración (`assets/js/celebrations.js` +
+  `celebrations.css`, con carga perezosa del componente), dashboard de gamificación
+  (`contabilidad/modulos/gamificacion.html`: próximas insignias `locked` + 2 feeds de logros),
+  widget embebible (`widget-badges.html`), feed de videos (`explorar/feed_videos.*`).
+- **Verificado en navegador:** perfil real (12 medallas), preview (todos los tiers), widget (4 medallas
+  a 54px). `node --check` OK en los 4 JS; sin errores de consola.
+- **Decidido con Carlos:** medallas SVG procedurales (no imágenes IA), alcance solo gamificación; la
+  limpieza de iconografía general (FA→BI en tiendas/rodar, emojis del admin, logo GIF→SVG) queda para
+  otra tanda (diagnóstico ya hecho).
+
+---
+
+## 2026-06-07 — 🔍 Auditoría de plantillas de tienda · Ronda 1 (bugs críticos + XSS)
+
+**Sprint actual:** Canal dedicado de auditoría de plantillas (bugs, responsividad, idempotencia, contrato del designer). Repo frontend (`proyecto_sena`).
+
+### ✅ Completado
+- **Auditoría a fondo de las 9 plantillas dinámicas + `tuko-runtime.js` + flujo checkout** (6 auditores en paralelo): ecommerce (`/tienda/`), restaurante, taller, catálogo, groove, verde, prueba.
+- **Decisión de arquitectura:** el designer **canónico es `designer.js` v7.0** (vivo, tocado hoy, cableado a onboarding/panel/registry/shortcuts; las 6 plantillas personalizan con él vía `config_tienda` + `postMessage TUKO_PREVIEW_CONFIG` + motor propio de cada plantilla). El stack `super_designer.js` + 21 módulos `sd_*` + `tuko-runtime.js` + `data-tuko` (+ `GUIA_IA_PLANTILLAS.md`) es nueva generación **congelada desde mayo y desconectada del flujo** → NO es deuda de las plantillas. Se audita contra v7.0.
+- **Fixes 🔴 aplicados (frontend, `node --check`/`vm.Script` OK):**
+  - **Checkout — pedidos duplicados:** guarda anti-doble-envío (`window.__tkEnviandoPedido`): ignora reentradas, bloquea botón WhatsApp **y** Wompi, y **no reabre en éxito** (el `finally` reabría antes del redirect de 2s → ventana para un 2º pedido). `tienda/checkout.js`.
+  - **Checkout — 404:** eliminado `<script src="checkout_fix.js">` inexistente. `tienda/checkout.html`.
+  - **Tienda home:** `slug is not defined` (ReferenceError tragado) → el link del footer al perfil ahora sí se arma. `tienda/index.html`.
+  - **Verde:** botón "Ver" muerto → ahora abre el modal; el modal abría el **producto equivocado** con dropshipping desactivado (índices desalineados) → filtro alineado con `renderProductos`. `plantillas/verde/index.html`.
+  - **XSS:** helper `esc()` + escape de datos del negocio (nombre/descripción/categoría/URLs de imagen y redes) interpolados en `innerHTML`/atributos en **restaurante, taller y verde**; `onclick` de categoría reconvertidos a `dataset` (sin inyección de JS-string).
+  - Ocultada la plantilla `🧪 prueba` de producción (`visible:false` en `modulos_crear_tienda/plantillas_registry.js`).
+
+### ⏳ Pendiente
+- **Backend (chip de tarea creado):** `idempotency_key` + dedup de pedidos + reconciliación de **pago Wompi aprobado sin pedido** (dinero cobrado sin orden). Cierra el riesgo del lado servidor.
+- **🟡 Próximas rondas (frontend):** Catálogo — el tema "premium" **pisa el color de marca** del dueño (bug de personalización real); envío inconsistente carrito↔checkout; `localStorage` sin try/catch (carrito "desaparece"); áreas táctiles <44px; verde (footer-col oculto en móvil, redes sociales que nunca aparecen, slider no idempotente); `metodo_pago` dice "efectivo" tras pagar con Wompi; restaurante/taller `.desktop-only` indefinida + breakpoints; accesibilidad (labels `for`, aria-labels, validación email/teléfono).
+
+### 🐞 Problemas encontrados / decisiones
+- **Dos sistemas de personalización en paralelo** confundían la auditoría (los scores "12-42/100" eran contra la spec NO canónica `data-tuko`). Documentado en memoria `plantillas_dos_designers.md` y en la documentación técnica (`doc-front-personalizacion-canonica`).
+- `super_designer` es una inversión grande pero desconectada → decisión aparte (revivir/archivar); no se tocó en esta ronda.
+- `tuko-runtime.js` (sistema nueva gen) tiene una vulnerabilidad latente: `postMessage` sin validar `origin`. Solo aplica si se adopta ese stack; anotado por si se revive.
+
+### 👉 Siguiente paso sugerido
+Lote 🟡: empezar por el **secuestro del color de marca en Catálogo** (personalización real) y la **inconsistencia de envío carrito↔checkout** (impacta conversión).
+
+---
+
 ## 2026-06-07 — 🏅 Gamificación social (badges de seguidores y likes) + perfil
 
 - **Badges nuevos (12) por interacción social REAL** (`negocio_interacciones`), categoría `popularidad`,
