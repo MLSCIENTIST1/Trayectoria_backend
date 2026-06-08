@@ -11,6 +11,21 @@
 
 ---
 
+## 2026-06-07 — ❤️👥 Interacciones sociales de tienda (Seguir + Me gusta)
+
+- **Feature nuevo:** el comprador puede **Seguir** y dar **Me gusta** a un negocio desde **todas** las
+  plantillas de tienda. Botones en el header (junto al carrito) + **conteo de seguidores** en la barra
+  de confianza (al lado de "badges ganados"). Invitado → **modal** que invita a iniciar sesión/registrarse.
+- **Backend:** tabla `negocio_interacciones` (modelo `NegocioInteraccion` + migración en `create_app`),
+  blueprint `interacciones_api.py` (`GET /social`, `POST /seguir`, `POST /like`, toggle, auth híbrida,
+  401 para invitados, bonus notificación `seguidor_nuevo`), y `/trust` extendido con `seguidores`.
+- **Frontend:** widget autocontenido `assets/tienda/social-actions.js` incluido en las 11 vistas
+  (tienda principal + 10 plantillas); conteo añadido en los 2 renderizadores de la barra
+  (`tienda.js::loadTrustData` y `trust-strip.js::render`). Usa `var(--primary)` para auto-tematizarse.
+- **Tests:** `test_interacciones.py` 20/0. `node --check` OK en los 3 JS. Probar en prod con `?slug=rodar`.
+
+---
+
 ## 2026-06-07 — 📚 Fase 2 COMPLETA · Centro de Ayuda a 45 guías
 
 - Continuación de los sprints del roadmap (contenido). 22 → 37 → **45 guías** publicadas, cubriendo las 8 categorías (primeros-pasos 6 · diseño 5 · productos 6 · pedidos 7 · pagos 4 · vender-más 7 · premios 5 · cuenta 5). **Meta ~45 alcanzada.** Contenido fiel a las funciones reales. test 25/0.

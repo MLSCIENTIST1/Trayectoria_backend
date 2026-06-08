@@ -8,6 +8,24 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
 
 ---
 
+## [2.21.0] — 2026-06-07
+
+### Añadido
+- **Interacciones sociales de tienda — Seguir 👥 y Me gusta ❤️.** El comprador puede *seguir* un negocio
+  y darle *me gusta* desde cualquier tienda. Botones en el header (junto al carrito) y **conteo de
+  seguidores** en la barra de confianza, al lado de "badges ganados".
+  - Tabla nueva `negocio_interacciones` (`negocio_id`, `usuario_id`, `tipo` ∈ {seguir, like}, UNIQUE) —
+    migración en `create_app()` + modelo `NegocioInteraccion`.
+  - Endpoints `GET /api/negocio/<id>/social`, `POST /api/negocio/<id>/seguir`, `POST /api/negocio/<id>/like`
+    (toggle, auth híbrida sesión/`X-User-ID`; invitado → `401 {requiere_login:true}`). `/trust` ahora
+    incluye `seguidores`.
+  - Frontend: widget autocontenido `assets/tienda/social-actions.js` (en las 11 vistas de tienda),
+    con **modal propio** que invita a iniciar sesión / registrarse cuando el visitante no está logueado.
+    Bonus: notificación `seguidor_nuevo` al dueño (fail-safe).
+  - Tests: `test_interacciones.py` (20/0).
+
+---
+
 ## [2.19.0] — 2026-06 — *Estado actual*
 
 Versión que consolida lo grande ya construido. Resumen de capacidades a la fecha:

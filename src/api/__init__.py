@@ -371,6 +371,12 @@ def register_api(app):
     else:
         fail_count += 1
 
+    # ❤️👥 Interacciones sociales — Seguir / Like de comprador a negocio
+    if safe_register('src.api.tiendas.interacciones_api', 'interacciones_bp', 'Interacciones Sociales v1.0', prefix='/api'):
+        success_count += 1
+    else:
+        fail_count += 1
+
     # 👥 Multi-usuario — Equipo del negocio
     if safe_register('src.api.negocio.equipo_api', 'equipo_bp', 'Equipo Multi-usuario v1.0', prefix='/api'):
         success_count += 1

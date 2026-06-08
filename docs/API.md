@@ -3,7 +3,7 @@
 > Referencia **no exhaustiva** de los endpoints más importantes, generada leyendo los blueprints reales
 > (`src/api/**`). Base del API en producción: `https://trayectoria-backend.onrender.com`.
 > Auth por **cookie de sesión** (Flask-Login) → el frontend llama con `credentials: 'include'`.
-> Última actualización: 2026-06-04.
+> Última actualización: 2026-06-07.
 
 Notas de prefijos: el grueso del API cuelga de `/api`; el panel admin de `/api/admin`; auth de `/api/auth`.
 
@@ -43,6 +43,10 @@ Notas de prefijos: el grueso del API cuelga de `/api`; el panel admin de `/api/a
 | GET | `/api/pedidos/buscar?codigo=` | Busca un pedido por código (lo usa `heyden.html`). |
 | POST | `/api/pedidos/<pedido_id>/devolucion` | Registra una devolución. |
 | POST/GET | `/api/negocio/<negocio_id>/cupones` | Crea / lista cupones de descuento. |
+| GET | `/api/negocio/<id>/social` | Conteos públicos (`seguidores`, `likes`) + estado del usuario (`siguiendo`, `liked`). |
+| POST | `/api/negocio/<id>/seguir` | Toggle seguir el negocio (requiere usuario; invitado → `401 requiere_login`). |
+| POST | `/api/negocio/<id>/like` | Toggle me gusta el negocio (requiere usuario). |
+| GET | `/api/negocio/<id>/trust` | Confianza pública de la tienda (rating, pedidos, badges, **seguidores**, miembro desde). |
 | POST | `/api/cupones/validar` | Valida un cupón en el carrito. |
 | GET | `/api/negocio/<negocio_id>/crm/compradores` | CRM: lista de compradores del negocio. |
 | POST/GET | `/api/negocio/<negocio_id>/carrito/guardar` · `/carritos` | Carritos abandonados (guardar / listar). |

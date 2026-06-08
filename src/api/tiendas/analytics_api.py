@@ -202,6 +202,7 @@ def get_trust_data(negocio_id):
         'num_badges':          0,
         'miembro_desde':       None,   # "Desde ene 2024"
         'visitas_totales':     0,
+        'seguidores':          0,
     }
 
     # Negocio base
@@ -275,6 +276,18 @@ def get_trust_data(negocio_id):
             trust['visitas_totales'] = int(v)
         except Exception as e:
             logger.error(f'Error visitas trust {negocio_id}: {e}')
+
+    # Seguidores (interacciones tipo 'seguir') — fail-safe
+    try:
+        from sqlalchemy import text
+        c = db.session.execute(text(
+            "SELECT COUNT(*) FROM negocio_interacciones "
+            "WHERE negocio_id = :nid AND tipo = 'seguir'"
+        ), {'nid': negocio_id}).scalar()
+        trust['seguidores'] = int(c or 0)
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Error seguidores trust {negocio_id}: {e}')
 
     return jsonify(trust)
 

@@ -578,6 +578,16 @@ def create_app():
                     # Documentación técnica: nivel de acceso (publico|admin|superadmin)
                     "ALTER TABLE plataforma_kb ADD COLUMN IF NOT EXISTS nivel_acceso VARCHAR(20) DEFAULT 'publico'",
                     "CREATE INDEX IF NOT EXISTS ix_kb_nivel ON plataforma_kb(nivel_acceso)",
+                    # ── Interacciones sociales: seguir / like de comprador a negocio ───────
+                    """CREATE TABLE IF NOT EXISTS negocio_interacciones (
+                        id          SERIAL PRIMARY KEY,
+                        negocio_id  INTEGER NOT NULL,
+                        usuario_id  INTEGER NOT NULL,
+                        tipo        VARCHAR(16) NOT NULL,   -- 'seguir' | 'like'
+                        created_at  TIMESTAMP DEFAULT NOW(),
+                        CONSTRAINT uq_negocio_interaccion UNIQUE (negocio_id, usuario_id, tipo)
+                    )""",
+                    "CREATE INDEX IF NOT EXISTS ix_neg_inter_conteo ON negocio_interacciones(negocio_id, tipo)",
                 ]
                 for sql in migraciones:
                     try:

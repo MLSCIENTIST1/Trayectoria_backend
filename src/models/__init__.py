@@ -140,6 +140,9 @@ from src.models.colombia_data.ratings.duelo import Duelo
 from src.models.colombia_data.negocio_perfil_config import NegocioPerfilConfig
 from src.models.colombia_data.negocio_video import NegocioVideo
 
+# Interacciones sociales (seguir / like de comprador a negocio)
+from src.models.colombia_data.negocio_interaccion import NegocioInteraccion
+
 # ==========================================
 # MODELOS DE MONETIZACIÓN
 # ==========================================
@@ -212,6 +215,9 @@ __all__ = [
     # BizScore - Perfil y Videos
     "NegocioPerfilConfig",
     "NegocioVideo",
+
+    # Interacciones sociales
+    "NegocioInteraccion",
     
     # Monetización
     "MonetizationManagement",
