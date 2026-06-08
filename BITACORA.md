@@ -49,9 +49,12 @@
 - **Insignias = 3 círculos vacíos** junto al buscador: los badges usan clases `bi-*` (Bootstrap Icons) pero
   `tienda/index.html` solo cargaba Font Awesome → `<i class="bi …">` sin glifo. Añadido el CSS de BI.
 - Cache-bust `tienda.js?v=20260608d` + `SW_VERSION` 2.2.6. Commit `20936de`, pusheado.
-- **Insignias = mismo look que el perfil:** `renderTrustBadges` pasó de `<i class="bi">` casero a las medallas
-  SVG **`TKMedal`** (`assets/js/badge-medal.js`, el mismo componente del perfil del negocio), tamaño 26px.
-  Cargado `badge-medal.css/js` en `tienda/index.html`. Verificado en vivo (`tk-medal` SVG+ícono). Commit `bf4a4e9`.
+- **Insignias = mismo look que el perfil, EN TODAS las plantillas:** ecommerce → `renderTrustBadges` con
+  `TKMedal` (26px, commit `bf4a4e9`). Las **10 plantillas no-ecommerce** → `trust-strip.js` (compartido)
+  ahora renderiza las medallas `TKMedal` (22px) en la barra de stats (carga `badge-medal.js/css` perezoso);
+  `neg.badges` ya venía en el fetch del negocio. Cache-bust `trust-strip.js?v=20260608d` en los 10 templates.
+  Verificado en vivo (taller: 3 medallas SVG). Commit `8532989`. (El "sigue igual" del ecommerce era caché;
+  hard-refresh tras deploy.)
 - **Pendiente (pedido de Carlos):** en el designer, control para elegir **posición** de like ❤️ / seguir 👥 /
   insignias 🏆 (arriba junto al buscador, o abajo en los stats) — por cada uno. Default acordado: **en los stats**.
   Alcance: **ecommerce primero**. Coordinar: el like/seguir vive en `social-actions.js` (archivo activo de Carlos).

@@ -19,10 +19,13 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
   `tienda/index.html`.
 
 ### Cambiado
-- **Insignias de la tienda con medallas SVG (TKMedal).** `renderTrustBadges` ahora usa el **mismo componente
-  `TKMedal`** que el perfil del negocio (medalla SVG con aro metálico por tier + ícono), en tamaño pequeño,
-  para que se vean iguales en las plantillas y en el perfil. Se cargan `badge-medal.css`/`badge-medal.js` en la
-  tienda (con fallback). Cache-bust `tienda.js?v=20260608e` + `SW_VERSION` 2.2.7.
+- **Insignias del negocio con medallas SVG (TKMedal) en TODAS las plantillas.** Antes el strip de medallas solo
+  existía en ecommerce (`renderTrustBadges`) y se veía distinto al perfil. Ahora:
+  - **Ecommerce**: `renderTrustBadges` usa `TKMedal.html(badge,{size:26})` — el mismo componente del perfil.
+  - **Las 10 plantillas no-ecommerce**: `trust-strip.js` (compartido) renderiza las medallas `TKMedal` (size 22)
+    en la barra de stats, en vez del conteo plano. Carga `badge-medal.css`/`badge-medal.js` de forma perezosa.
+  → las insignias se ven **iguales que en el perfil** en todas partes. Cache-bust `tienda.js?v=20260608e`,
+  `trust-strip.js?v=20260608d`, `SW_VERSION` 2.2.7.
 
 ## [2.22.0] — 2026-06-07
 
