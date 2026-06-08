@@ -32,6 +32,11 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
 - **Catálogo roto en producción (`escapeAttr is not defined`).** `catalogo.js::renderChips()` llamaba a
   `escapeAttr()` (función inexistente; la real es `escAttr`) → `init()` lanzaba y la tienda de catálogo no
   cargaba. Corregido el nombre.
+- **Preview de restaurante/taller no reflejaba todos los campos.** `applyPreviewConfig` mapeaba solo un
+  subconjunto (color/slogan/carta/servicios) → al editar **dirección, teléfono** (ambos) o **especialidad**
+  (taller) no pasaba nada ("no se ve en tiempo real"). Ahora se mapean al DOM real. *(verde/catálogo ya eran
+  completos porque reusan `applyNegocio`/`applyConfig`.)* Pendiente: `garantia`/`pasos` (taller) y
+  `mostrarPrecios`/`tema` (restaurante) no tienen elemento en la plantilla real → controles "muertos" a decidir.
 
 ### Seguridad
 - **Validación de origen en `postMessage`.** Los 3 listeners del puente de preview (designer, tienda,

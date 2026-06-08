@@ -81,6 +81,12 @@
 - ✅ **Pasada de XSS hecha:** verde escapaba nombre/logo en `innerHTML` (3 sinks) → corregido con `esc()` y
   verificado en vivo (nombre malicioso no se ejecuta). Catálogo ya estaba escapado (productos `escAttr`/`escHtml`,
   hero `textContent`); solo necesitó el fix de `escapeAttr`→`escAttr`.
+- ✅ **"Otras plantillas no se ven en tiempo real" (reporte de Carlos) — CAUSA RAÍZ:** el `applyPreviewConfig`
+  custom de **restaurante/taller** mapeaba solo un subconjunto de campos; al editar dirección/teléfono (ambos)
+  o especialidad (taller) no se reflejaba nada. Reproducido en el designer real vía eval (slogan/color sí
+  funcionaban; dirección/etc. no). **Fix:** ampliado el mapeo de ambos al DOM real; verificado en vivo. verde y
+  catálogo ya eran completos (reusan `applyNegocio`/`applyConfig`). Quedan sin target en la plantilla real:
+  taller `garantia`/`pasos`, restaurante `mostrarPrecios`/`tema` (controles muertos a decidir).
 
 ### ⏳ Pendiente
 - Resolver la **divergencia de datos** en restaurante/taller: la tienda publicada carga el menú/servicios de la
@@ -149,6 +155,7 @@ commitear (frontend + backend docs) → considerar punto de guardado.
   - **Accesibilidad:** `label for` en TODO el checkout (16/16 labels); `aria-label` en los 7 botones-icono de la tienda (menú, carrito, slider ◀▶, cerrar/abrir categorías, volver arriba); validación de email (regex) y de teléfono (≥7 dígitos) en `checkout.js`.
 - **Auditoría de `groove` (la otra sesión NO la migra):** ✅ ya escapa XSS (`escHtml`/`escAttr` en tarjetas, carrito, testimonios, modal) e idempotente (waveform/timers con `clearInterval`). Aplicado: eliminado código muerto (`_origUpdateNowPlaying` + `patchNowPlaying` no-op); áreas táctiles `.gr-track-btn` 32→40px y `.gr-card-quick-add` 38→44px (los controles del reproductor `.gr-ctrl-btn` ya eran 46px). `node --check` OK.
 - **Auditoría de seguridad del NUEVO previsualizador por iframe (v2.22.0, otra sesión) — READ-ONLY + 1 fix:** verificadas sus afirmaciones de "validación de origin". ✅ `designer.js` (emisor: valida origin entrante, idempotente, sin fuga de datos), `catalogo.js` (:148), `verde` (:1025) y `taller` (:718) validan `ev.origin` y escapan correctamente. ❌ DOS bridges quedaron SIN validar origin: **restaurante** → **arreglado aquí** (añadida `if (ev.origin !== location.origin) return;`, mismo patrón que taller; `node --check` OK) y **`tienda.js` ecommerce** (el más grave) → **arreglado aquí también** (ver ✅ abajo). Menores 🟡: CSS-injection por `url(${bg})` crudo en catálogo/verde; `why.icon` sin `esc()` y clases de tema que se acumulan en verde; `designer.js` usa `targetOrigin '*'` e iframe por `innerHTML` sin `sandbox`.
+- **🎖️ Badges del negocio en la tienda publicada (reporte de Carlos: "se ven como círculos pálidos"):** causa = `renderTrustBadges()` (`tienda.js:1079`) pintaba los 3 primeros badges junto al nombre con `background:${col}1f` (12% opacidad) e ícono del **mismo color** → círculo pálido con ícono invisible. La mejora TKMedal (medallas SVG) de la otra sesión NO tocó esta superficie del storefront. **Arreglado:** mini-medalla legible (disco con gradiente metálico del color del tier + aro + sombra + ícono **blanco**), autocontenido (sin cargar `badge-medal.js` en la tienda; tamaño 26px apropiado para el inline junto al nombre). `node --check` OK. *(Pendiente menor: `creador.html` y `modulos_crear_tienda/dashboard.html` también renderizan insignias sin TKMedal — este último con badges de DEMO hardcodeados.)*
 
 ### ⏳ Pendiente
 - **Backend (chip de tarea creado):** `idempotency_key` + dedup de pedidos + reconciliación de **pago Wompi aprobado sin pedido** (dinero cobrado sin orden). Cierra el riesgo del lado servidor.
