@@ -269,6 +269,17 @@ SEED_DOCS = [
         'con IA, deshacer/rehacer, versiones, vista responsive y más. Permite construir páginas con mucho detalle.'),
      'tecnico': "Archivos super_designer.html + super_designer.js (Engine) + módulos sd_*.js (sd_ai, sd_animations, sd_clickedit, sd_collab, sd_colors, sd_components, sd_css, sd_dragdrop, sd_export, sd_intelligence, sd_media, sd_mobile, sd_perf, sd_polish, sd_seo, sd_social, sd_typography, sd_undo, sd_versions); editor avanzado que se comunica con las plantillas por postMessage (tuko-runtime.js), con paletas y fuentes predefinidas."},
 
+    {'area': 'frontend', 'clave': 'doc-front-personalizacion-canonica', 'nivel': 'admin', 'orden': 7,
+     'titulo': '¿Cuál diseñador manda? (personalización vigente)',
+     'resumen': 'Hay dos diseñadores; el que personaliza las tiendas hoy es el Diseñador v7.0.',
+     'contenido': (
+        'Conviven dos editores: el "Diseñador" (vigente) y el "Super Designer" (avanzado, en pausa). El que de verdad '
+        'personaliza las tiendas que ven los clientes es el Diseñador: el dueño elige colores, logo, portada y secciones, '
+        'y eso se guarda en la configuración del negocio; cada plantilla lee esa configuración y se pinta con la marca del '
+        'negocio. El Super Designer es una versión más potente que todavía no está conectada a las tiendas, así que por '
+        'ahora no se usa para publicar. En resumen: si quieres cambiar cómo se ve una tienda, se hace desde el Diseñador.'),
+     'tecnico': "Dos sistemas de personalización en paralelo. VIGENTE: designer.js v7.0 (modulos_crear_tienda/crear_tienda/designer.html), abierto desde mi_pagina_web.js::openDesigner() y enrutado por onboarding/registry/shortcuts; guarda config_tienda + tipo_pagina y previsualiza la tienda real en un <iframe> con postMessage type 'TUKO_PREVIEW_CONFIG'. Cada plantilla trae su propio motor que consume config_tienda y aplica el color de marca por --primary/IDs (tienda.js escucha TUKO_PREVIEW_CONFIG; catalogo.js, groove.js, verde init(), restaurante/taller con fetch propio). NUEVA GEN (no adoptada por las plantillas, congelada desde may-2026): super_designer.js + modulos sd_*.js + tuko-runtime.js + contrato data-tuko/--tuko-* + GUIA_IA_PLANTILLAS.md (habla TUKO_CONFIG_FULL/PATCH e inspector data-tuko, pero las 6 plantillas dinamicas no lo usan). Implicacion: medir las plantillas contra el contrato data-tuko da falsos negativos; el contrato real vigente es config_tienda. Pendiente latente del stack nueva gen: tuko-runtime.js no valida origin en postMessage."},
+
     {'area': 'frontend', 'clave': 'doc-front-grilla', 'nivel': 'admin', 'orden': 8,
      'titulo': 'La grilla financiera',
      'resumen': 'Las finanzas del negocio en una cuadrícula clara.',
