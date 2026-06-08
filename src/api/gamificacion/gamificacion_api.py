@@ -1412,7 +1412,7 @@ def _ranking_por_metrica(metrica, inicio, fin, limit, ciudad='', categoria=''):
     """Filas [(id,nombre,ciudad,categoria,logo,slug,score)] según la métrica del reto."""
     from sqlalchemy import text as _t
     params = {'ini': inicio, 'fin': fin, 'lim': limit}
-    filtros = " AND n.activo = true AND n.perfil_publico = true"
+    filtros = " AND n.activo = true AND (n.perfil_publico = true OR n.perfil_publico IS NULL)"
     if ciudad:
         filtros += " AND LOWER(n.ciudad) LIKE :ciudad"; params['ciudad'] = f"%{ciudad.lower()}%"
     if categoria:
@@ -1497,7 +1497,8 @@ def widget_badges(slug):
         neg = db.session.execute(_t("""
             SELECT id_negocio, nombre_negocio, logo_url
             FROM negocios
-            WHERE slug = :slug AND activo = true AND perfil_publico = true
+            WHERE slug = :slug AND activo = true
+              AND (perfil_publico = true OR perfil_publico IS NULL)
             LIMIT 1
         """), {'slug': slug}).fetchone()
         if not neg:
@@ -1559,7 +1560,7 @@ def eventos_comunidad():
               AND (o.activo IS TRUE OR o.activo IS NULL)
               AND (o.oculto_feed IS FALSE OR o.oculto_feed IS NULL)
               AND (b.es_secreto IS FALSE OR b.es_secreto IS NULL)
-              AND n.activo = true AND n.perfil_publico = true
+              AND n.activo = true AND (n.perfil_publico = true OR n.perfil_publico IS NULL)
             ORDER BY o.fecha_obtencion DESC
             LIMIT :lim
         """), {'niv': _niv, 'lim': _lim}).fetchall()
@@ -1622,7 +1623,7 @@ def ligas():
             LEFT JOIN pedidos p ON p.negocio_id = n.id_negocio
                  AND p.estado = 'entregado'
                  AND p.fecha_pedido >= :ini AND p.fecha_pedido < :fin
-            WHERE n.activo = true AND n.perfil_publico = true
+            WHERE n.activo = true AND (n.perfil_publico = true OR n.perfil_publico IS NULL)
         """
         params = {'ini': inicio, 'fin': fin, 'lim': limit}
         if ciudad:

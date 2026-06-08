@@ -11,6 +11,75 @@
 
 ---
 
+## 2026-06-08 — 🎨 Iconografía: placeholder de marca ("casita") + fix widget de badges
+
+- **La "casita" resuelta:** cuando un negocio no tiene `logo_url`, ahora se muestra la **esfera de
+  TuKomercio** (`/assets/img/tuko-favicon.svg`, local) en vez de `fa-store` / `fa-utensils` /
+  `fa-wrench` / `ui-avatars.com` (se quitó esa dependencia externa). Aplica en tienda principal
+  (`assets/tienda/tienda.js`), plantillas restaurante/taller/catálogo/groove/verde, perfil del negocio
+  (`negocio_perfil_loader.js`) y feed de videos (`feed_videos.js`). Producto sin foto → `bi-image`
+  (verde, con Bootstrap Icons añadido). Front commit `7e9c907`.
+- **⚠️ Hallazgo (decisión profesional):** NO se puede quitar Font Awesome del storefront — `tienda.js`
+  tiene un **selector de ~200 iconos FA** para que el comerciante elija el icono de sus categorías, y
+  Bootstrap Icons no tiene equivalente 1:1 de muchos. Quitar FA rompería ese selector en miles de
+  tiendas. → **FA se mantiene** (es load-bearing y es un set profesional). Se revirtió el intento de
+  conversión masiva sin romper nada ni tocar cambios en curso del usuario.
+- **Pendiente de iconografía (seguro, no toca FA):** emojis-usados-como-icono → Bootstrap Icons en el
+  panel admin (~65) y contabilidad (~25); unificar las 3 versiones de FA (+ una v4 vieja) a una sola.
+- **Fix backend — widget de badges "No disponible":** `widget_badges` (`gamificacion_api.py`) filtraba
+  `perfil_publico = true`, excluyendo negocios con `perfil_publico = NULL` (nunca configurado), aunque
+  el resto de la app trata NULL como público por defecto (`getattr(n,'perfil_publico',True)`). Por eso
+  el perfil sí mostraba insignias pero el widget no. → ahora `(perfil_publico = true OR perfil_publico
+  IS NULL)` en el widget, el feed de comunidad y los listados públicos (4 queries). compila OK.
+
+---
+
+## 2026-06-07 — 🖥️ Previsualizador del Diseñador v7.0 (tienda real en iframe) + auditoría del designer
+
+**Sprint actual:** Canal dedicado al previsualizador y la funcionalidad del Diseñador. Repo frontend
+(`proyecto_sena`) + documentación en backend (`trayectoria 30 dic`).
+
+### ✅ Completado
+- **Causa raíz hallada:** el preview era una **maqueta paralela** (`renderPreview*` en `designer.js`) que
+  reimplementaba a mano lo que la tienda real ya sabe pintar (`tienda.js::applyStoreConfig`) → siempre divergía.
+- **Camino B (decidido con Carlos):** el preview pasa a ser la **plantilla real en un `<iframe>`** alimentada
+  con `storeConfig` en vivo por `postMessage` (`TUKO_PREVIEW_CONFIG` + handshake `TUKO_PREVIEW_READY`).
+  - **Fase 1 ecommerce** y **Fase 2 restaurante** migradas y **verificadas en vivo** (color/carta/tagline en
+    tiempo real contra la API real `?slug=rodar`, 36 productos, 0 errores de consola).
+  - `designer.js`: `buildConfigToSave()` (fuente única guardar+preview), `ensurePreviewIframe()`/
+    `postPreviewConfig()`, `PREVIEW_IFRAME_VERTICALS=['ecommerce','restaurante']`.
+  - `tienda.js`: `isPreviewMode()`/`initPreviewBridge()`, `applyStoreConfig({skipSplash,skipCategorias})`.
+  - `restaurante/index.html`: `applyPreviewConfig()`.
+- **Bugs v6.1:** Verde escribía en `#previewContainer` (congelaba el preview) → `#previewContent`; testimonios
+  con `undefined` (claves de tema) corregidos; `sliderEnabled` ahora se lee en `updatePreview()`.
+- **Seguridad/rendimiento (Wave 2):** validación de `ev.origin` en los 3 listeners; `escapeHtml` endurecida +
+  `safeImageUrl` y escape de galería/stats/categorías/hero-badges/nombre-restaurante; sin fetch de categorías
+  en re-aplicados; fuga de `setInterval` del logo arreglada; cache-busting `tienda.js?v=20260607` + `SW_VERSION`
+  2.2.2. Todo **verificado en vivo** (XSS no se ejecuta, 0 fetches de categorías por tecla).
+- **Docs alimentadas:** CHANGELOG `[2.22.0]`, esta bitácora, y nueva guía `doc-front-previsualizador` en
+  `docs_tecnicas_seed.py`.
+
+### 🐞 Problemas / decisiones
+- **Falsos positivos de los agentes de auditoría (verificados contra el código):** los "controles muertos"
+  (`whatsapp.cta`, `filtros`, `promoBoxes`, `productDetail`, `navbar`, `sidebar`) **SÍ** están implementados en
+  la tienda real (`applyCTAAvanzado`, `initFiltrosBar`, `renderPromoBoxes`…) → con el preview por iframe ya se
+  reflejan; **no había que construir nada**. También eran falsos: `_renderOgImageEstado` (sí existe),
+  `setLogoShape` (sí refresca), TypeErrors de handlers inline (los objetos sí se inicializan).
+- **Divergencia de datos en restaurante (pendiente, decisión de producto):** la tienda publicada carga el menú
+  de la API de productos, no de `config.restaurante.carta`. El preview muestra la carta del designer; falta
+  alinear la tienda publicada (o que el editor de carta escriba a productos).
+
+### ⏳ Pendiente
+- Migrar **taller, catálogo, verde** al preview por iframe (mismo patrón que restaurante).
+- Resolver la divergencia de datos del menú de restaurante.
+- Cloudinary: el `uploadPreset` unsigned es público por diseño; restringirlo en el dashboard o migrar a uploads
+  firmados vía backend.
+
+### 👉 Siguiente paso sugerido
+Migrar la vertical **taller** al iframe (mapear `storeConfig.taller` → DOM de su plantilla real) y verificar.
+
+---
+
 ## 2026-06-07 — 🎖️ Medallas SVG premium para insignias (mejora visual de gamificación)
 
 - **Problema:** los badges se veían pobres (un icono Bootstrap dentro de un círculo) en 7 superficies.
@@ -35,7 +104,7 @@
 
 ---
 
-## 2026-06-07 — 🔍 Auditoría de plantillas de tienda · Ronda 1 (bugs críticos + XSS)
+## 2026-06-07 — 🔍 Auditoría de plantillas de tienda · Rondas 1–4 (bugs, XSS, personalización, robustez, accesibilidad)
 
 **Sprint actual:** Canal dedicado de auditoría de plantillas (bugs, responsividad, idempotencia, contrato del designer). Repo frontend (`proyecto_sena`).
 
@@ -49,10 +118,20 @@
   - **Verde:** botón "Ver" muerto → ahora abre el modal; el modal abría el **producto equivocado** con dropshipping desactivado (índices desalineados) → filtro alineado con `renderProductos`. `plantillas/verde/index.html`.
   - **XSS:** helper `esc()` + escape de datos del negocio (nombre/descripción/categoría/URLs de imagen y redes) interpolados en `innerHTML`/atributos en **restaurante, taller y verde**; `onclick` de categoría reconvertidos a `dataset` (sin inyección de JS-string).
   - Ocultada la plantilla `🧪 prueba` de producción (`visible:false` en `modulos_crear_tienda/plantillas_registry.js`).
+- **Fixes 🟡 aplicados (frontend):**
+  - **Catálogo — color de marca:** el tema "premium" ya no pisa el color del dueño. Si definió un color propio, gana también en premium; si no, premium mantiene su dorado por defecto (`assets/catalogo/catalogo.js`, `applyTheme`).
+  - **Carrito↔checkout — envío:** eliminada la cifra de envío falsa del carrito ($10.000/Gratis >$150k) que contradecía el checkout; ahora muestra "Se calcula al pagar" y el total pasa a "Total productos", alineado con la fuente única de verdad del envío (F2) (`tienda/carrito.html`).
+  - **Robustez `localStorage`:** `try/catch` en ambos `loadCarrito` (carrito + checkout) → un carrito corrupto se reinicia en vez de romper toda la página (`tienda/carrito.html`, `tienda/checkout.js`).
+  - **`metodo_pago` tras Wompi:** el mensaje de WhatsApp usa `metodoPagoOverride || selectedPaymentMethod` → ya no dice "efectivo" cuando se pagó con Wompi (`tienda/checkout.js`).
+  - **Verde móvil/idempotencia:** el footer ya no se oculta en móvil (las columnas se apilan → se recupera la navegación); las redes sociales se muestran con solo la URL (+ `esc` + `rel="noopener"`); slider con `clearInterval` antes de re-crear → idempotente (`plantillas/verde/index.html`).
+- **Fixes 🟡 — accesibilidad y áreas táctiles (frontend):**
+  - **Áreas táctiles ≥44px:** `.cat-tab` (restaurante) y `.pill` (taller) con `min-height:44px`; `.modal-close-btn` 32→44px y `.hero-dot` con hit-area ≥40px vía `::after` (verde); `.qty-btn` 28→40px (carrito).
+  - **`.desktop-only` definida** en restaurante y taller (faltaba) → en móvil el CTA queda solo con el ícono.
+  - **Accesibilidad:** `label for` en el grupo de contacto del checkout; `aria-label` en los 7 botones-icono de la tienda (menú, carrito, slider ◀▶, cerrar/abrir categorías, volver arriba); validación de email (regex) y de teléfono (≥7 dígitos) en `checkout.js`.
 
 ### ⏳ Pendiente
 - **Backend (chip de tarea creado):** `idempotency_key` + dedup de pedidos + reconciliación de **pago Wompi aprobado sin pedido** (dinero cobrado sin orden). Cierra el riesgo del lado servidor.
-- **🟡 Próximas rondas (frontend):** Catálogo — el tema "premium" **pisa el color de marca** del dueño (bug de personalización real); envío inconsistente carrito↔checkout; `localStorage` sin try/catch (carrito "desaparece"); áreas táctiles <44px; verde (footer-col oculto en móvil, redes sociales que nunca aparecen, slider no idempotente); `metodo_pago` dice "efectivo" tras pagar con Wompi; restaurante/taller `.desktop-only` indefinida + breakpoints; accesibilidad (labels `for`, aria-labels, validación email/teléfono).
+- **🟢 Pulido opcional (frontend):** completar `label for` en el resto del formulario de checkout (dirección); breakpoints intermedios (768/1024) en restaurante/taller; `aria-label` en botones-icono de las demás plantillas.
 
 ### 🐞 Problemas encontrados / decisiones
 - **Dos sistemas de personalización en paralelo** confundían la auditoría (los scores "12-42/100" eran contra la spec NO canónica `data-tuko`). Documentado en memoria `plantillas_dos_designers.md` y en la documentación técnica (`doc-front-personalizacion-canonica`).
@@ -60,7 +139,7 @@
 - `tuko-runtime.js` (sistema nueva gen) tiene una vulnerabilidad latente: `postMessage` sin validar `origin`. Solo aplica si se adopta ese stack; anotado por si se revive.
 
 ### 👉 Siguiente paso sugerido
-Lote 🟡: empezar por el **secuestro del color de marca en Catálogo** (personalización real) y la **inconsistencia de envío carrito↔checkout** (impacta conversión).
+Lotes 🔴 y 🟡 de auditoría **cerrados**. Pendiente mayor: el **backend** (idempotency key + reconciliación Wompi, chip creado) y la **decisión sobre `super_designer`** (revivir/archivar). Opcional: pulido 🟢 de accesibilidad/responsive y verificación en navegador con un slug real.
 
 ---
 
