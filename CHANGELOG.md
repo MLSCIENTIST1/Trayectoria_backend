@@ -54,6 +54,9 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
   (resuelve el timing async); `social-actions.js` expone `__tkSocialRepaint`.
 
 ### Arreglado
+- **Botón "volver al inicio" detrás del de Facebook.** El back-to-top estaba en la esquina inferior derecha
+  (`bottom:100px;right:24px;z-index:99`), solapado con el stack de redes sociales (Facebook, `z-index:999`) →
+  quedaba oculto detrás. Ahora va en la esquina inferior **izquierda** (opuesto a WhatsApp/redes, `z-index:1001`).
 - **Botón de Favoritos (❤️) duplicado en las tarjetas de producto.** Con `buttons.favorite` activo, el corazón
   se renderizaba en la fila de acciones **y** en la esquina superior derecha → ahora solo en la esquina sup. der.
 - **Bugs del previsualizador (v6.1).** `renderPreviewVerde()` escribía en `#previewContainer` (destruía el
