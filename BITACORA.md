@@ -64,6 +64,7 @@
 - **DA11/DA16 ✅ (frontend + deploy):** designer.js (funciones reales + flujo loadStoreData→applyConfigToInputs→updatePreview), super_designer + 19 sd_*, sw.js (SW_VERSION 2.1.0 + caché), 21 módulos de contabilidad + grilla_financiera, create_app (62 migraciones idempotentes + seeders + flags). **139 temas.**
 - **MODO AUTOMÁTICO (pedido por Carlos):** continúo los sprints de auditoría seguidos, sin pedir aprobación cada vez; commit por sprint + resumen al final.
 - **🔬 AUDITORÍA PROFUNDA CUBIERTA:** BD (74 tablas con columnas reales) + Backend (todas las rutas reales) + Frontend (archivos clave) + Deploy/migraciones. Ampliable a detalle por-función si se requiere.
+- **Sistema visual / marca ✅ (pedido por Carlos):** nueva sección 'diseno' (25 secciones / 144 temas) con 5 fichas leídas de `design-tokens.css` real: **(1) Visión** = editor visual estilo Photoshop/Vegas/Adobe pero orientado a RED SOCIAL para crear tiendas virtuales; **(2) Paleta** (--tk-* índigo/violeta/slate/estados/dark); **(3) Tipografía** (Orbitron/Sora/Plus Jakarta + escala clamp); **(4) Fondos/radios/sombras/espaciado/motion/z-index**; **(5) design-tokens.css** como fuente única. Índice de memoria (MEMORY.md) actualizado.
 
 ---
 
