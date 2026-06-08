@@ -8,6 +8,46 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
 
 ---
 
+## [2.22.0] — 2026-06-07
+
+### Cambiado
+- **Previsualizador del Diseñador = la tienda real (v7.0).** La vista previa dejó de ser una maqueta
+  paralela (que divergía de la tienda publicada) y pasó a ser la **plantilla real dentro de un `<iframe>`**,
+  alimentada con el `storeConfig` en vivo por `postMessage` (`type: 'TUKO_PREVIEW_CONFIG'`). Lo que ves es
+  exactamente lo que se publica, se repinta al instante con cada cambio (sin guardar) y es responsivo de
+  verdad. Migradas **las 5 verticales**: ecommerce, restaurante, taller, catálogo y verde.
+  - Frontend `assets/tienda/tienda.js`: modo preview (`isPreviewMode()` + `initPreviewBridge()`),
+    `applyStoreConfig(opts)` con `skipSplash`/`skipCategorias` (no relanza el splash ni re-pide categorías
+    en cada tecla), y `buildConfigToSave()` como fuente única en el designer (guardar = previsualizar).
+  - Cada plantilla aplica el config en vivo: restaurante/taller con `applyPreviewConfig()` (mapea
+    carta/servicios/slogan/color al DOM real), catálogo vía `applyConfig()`, verde vía `applyNegocio()`.
+
+### Arreglado
+- **Bugs del previsualizador (v6.1).** `renderPreviewVerde()` escribía en `#previewContainer` (destruía el
+  marco del dispositivo y congelaba el preview al cambiar de plantilla) → ahora `#previewContent`. Testimonios
+  de taller/restaurante inyectaban `undefined` por claves de tema inexistentes (`textSecondary`/`cartaBg`) →
+  corregido. El toggle del slider (`sliderEnabled`) no se reflejaba → ahora se lee en `updatePreview()`.
+- **Fuga de memoria:** `setupLogoImageRotation()` creaba un `setInterval` por cada re-aplicado sin limpiar el
+  anterior → ahora hace `clearInterval` previo.
+- **Catálogo roto en producción (`escapeAttr is not defined`).** `catalogo.js::renderChips()` llamaba a
+  `escapeAttr()` (función inexistente; la real es `escAttr`) → `init()` lanzaba y la tienda de catálogo no
+  cargaba. Corregido el nombre.
+
+### Seguridad
+- **Validación de origen en `postMessage`.** Los 3 listeners del puente de preview (designer, tienda,
+  restaurante) rechazan mensajes de orígenes externos (`ev.origin !== location.origin`).
+- **Escape de contenido del tenant (XSS almacenado).** `escapeHtml()` endurecida (coerción a `String`, antes
+  `escapeHtml(número)` lanzaba `TypeError`) + nueva `safeImageUrl()` (solo `http(s)`/relativa/`data:image`;
+  bloquea `javascript:`/`data:text/html`). Escapados los puntos que faltaban en `tienda.js` (galería —se quitó
+  el `src` del `onclick`—, stats, categorías, hero-badges), el nombre/teléfono en **restaurante** y **taller**,
+  y el nombre/logo en **verde**. Catálogo ya estaba escapado (productos con `escAttr`/`escHtml`, hero con
+  `textContent`).
+- **Cache-busting de `tienda.js`** (`?v=20260607` en `tienda/index.html` + precache del SW) y bump de
+  `SW_VERSION` 2.2.1 → 2.2.2, para que los cambios de JS lleguen tras cada deploy.
+
+### Documentación
+- Nueva guía técnica `doc-front-previsualizador` (área *frontend*) en `docs_tecnicas_seed.py`.
+
 ## [2.21.0] — 2026-06-07
 
 ### Cambiado

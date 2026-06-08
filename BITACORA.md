@@ -51,12 +51,14 @@
   reimplementaba a mano lo que la tienda real ya sabe pintar (`tienda.js::applyStoreConfig`) → siempre divergía.
 - **Camino B (decidido con Carlos):** el preview pasa a ser la **plantilla real en un `<iframe>`** alimentada
   con `storeConfig` en vivo por `postMessage` (`TUKO_PREVIEW_CONFIG` + handshake `TUKO_PREVIEW_READY`).
-  - **Fase 1 ecommerce** y **Fase 2 restaurante** migradas y **verificadas en vivo** (color/carta/tagline en
-    tiempo real contra la API real `?slug=rodar`, 36 productos, 0 errores de consola).
+  - **Las 5 verticales migradas y verificadas en vivo** (ecommerce, restaurante, taller, catálogo, verde):
+    color/carta/servicios/slogan/tagline en tiempo real contra la API real `?slug=rodar`, 0 errores.
   - `designer.js`: `buildConfigToSave()` (fuente única guardar+preview), `ensurePreviewIframe()`/
-    `postPreviewConfig()`, `PREVIEW_IFRAME_VERTICALS=['ecommerce','restaurante']`.
-  - `tienda.js`: `isPreviewMode()`/`initPreviewBridge()`, `applyStoreConfig({skipSplash,skipCategorias})`.
-  - `restaurante/index.html`: `applyPreviewConfig()`.
+    `postPreviewConfig()`, `PREVIEW_IFRAME_VERTICALS` con las 5; `previewRealUrl()` enruta cada plantilla.
+  - `tienda.js` (ecommerce): `isPreviewMode()`/`initPreviewBridge()`, `applyStoreConfig({skipSplash,skipCategorias})`.
+    restaurante/taller: `applyPreviewConfig()`; catálogo: `applyConfig()`; verde: `applyNegocio()`.
+  - **Bug pre-existente arreglado de paso:** `catalogo.js::renderChips()` llamaba `escapeAttr()` (no existe; es
+    `escAttr`) → `init()` lanzaba y **el catálogo no cargaba en producción**. Corregido.
 - **Bugs v6.1:** Verde escribía en `#previewContainer` (congelaba el preview) → `#previewContent`; testimonios
   con `undefined` (claves de tema) corregidos; `sliderEnabled` ahora se lee en `updatePreview()`.
 - **Seguridad/rendimiento (Wave 2):** validación de `ev.origin` en los 3 listeners; `escapeHtml` endurecida +
@@ -76,14 +78,22 @@
   de la API de productos, no de `config.restaurante.carta`. El preview muestra la carta del designer; falta
   alinear la tienda publicada (o que el editor de carta escriba a productos).
 
+- ✅ **Pasada de XSS hecha:** verde escapaba nombre/logo en `innerHTML` (3 sinks) → corregido con `esc()` y
+  verificado en vivo (nombre malicioso no se ejecuta). Catálogo ya estaba escapado (productos `escAttr`/`escHtml`,
+  hero `textContent`); solo necesitó el fix de `escapeAttr`→`escAttr`.
+
 ### ⏳ Pendiente
-- Migrar **taller, catálogo, verde** al preview por iframe (mismo patrón que restaurante).
-- Resolver la divergencia de datos del menú de restaurante.
+- Resolver la **divergencia de datos** en restaurante/taller: la tienda publicada carga el menú/servicios de la
+  API de productos, no de `config.restaurante.carta`/`config.taller.servicios` (el preview sí los muestra).
+- Validar el color (`primaryColor`) antes de inyectarlo en `<style>` (inyección CSS de baja severidad; patrón
+  sistémico en varias plantillas).
 - Cloudinary: el `uploadPreset` unsigned es público por diseño; restringirlo en el dashboard o migrar a uploads
   firmados vía backend.
 
 ### 👉 Siguiente paso sugerido
-Migrar la vertical **taller** al iframe (mapear `storeConfig.taller` → DOM de su plantilla real) y verificar.
+Decidir con Carlos la **divergencia de datos** del menú/servicios (que la tienda publicada lea
+`config.restaurante.carta`/`taller.servicios`, o que el editor escriba a productos). Hay un changeset grande sin
+commitear (frontend + backend docs) → considerar punto de guardado.
 
 ---
 
@@ -134,16 +144,23 @@ Migrar la vertical **taller** al iframe (mapear `storeConfig.taller` → DOM de 
 - **Fixes 🟡 — accesibilidad y áreas táctiles (frontend):**
   - **Áreas táctiles ≥44px:** `.cat-tab` (restaurante) y `.pill` (taller) con `min-height:44px`; `.modal-close-btn` 32→44px y `.hero-dot` con hit-area ≥40px vía `::after` (verde); `.qty-btn` 28→40px (carrito).
   - **`.desktop-only` definida** en restaurante y taller (faltaba) → en móvil el CTA queda solo con el ícono.
-  - **Accesibilidad:** `label for` en el grupo de contacto del checkout; `aria-label` en los 7 botones-icono de la tienda (menú, carrito, slider ◀▶, cerrar/abrir categorías, volver arriba); validación de email (regex) y de teléfono (≥7 dígitos) en `checkout.js`.
+  - **Accesibilidad:** `label for` en TODO el checkout (16/16 labels); `aria-label` en los 7 botones-icono de la tienda (menú, carrito, slider ◀▶, cerrar/abrir categorías, volver arriba); validación de email (regex) y de teléfono (≥7 dígitos) en `checkout.js`.
+- **Auditoría de `groove` (la otra sesión NO la migra):** ✅ ya escapa XSS (`escHtml`/`escAttr` en tarjetas, carrito, testimonios, modal) e idempotente (waveform/timers con `clearInterval`). Aplicado: eliminado código muerto (`_origUpdateNowPlaying` + `patchNowPlaying` no-op); áreas táctiles `.gr-track-btn` 32→40px y `.gr-card-quick-add` 38→44px (los controles del reproductor `.gr-ctrl-btn` ya eran 46px). `node --check` OK.
 
 ### ⏳ Pendiente
 - **Backend (chip de tarea creado):** `idempotency_key` + dedup de pedidos + reconciliación de **pago Wompi aprobado sin pedido** (dinero cobrado sin orden). Cierra el riesgo del lado servidor.
-- **🟢 Pulido opcional (frontend):** completar `label for` en el resto del formulario de checkout (dirección); breakpoints intermedios (768/1024) en restaurante/taller; `aria-label` en botones-icono de las demás plantillas.
+- **🟢 Pulido (frontend):** ✅ `label for` completado en TODO el checkout (16/16). Falta: breakpoints intermedios (768/1024) en restaurante/taller; `aria-label` en botones-icono de las demás plantillas.
+- **⚠️ REVERTIDO por edición concurrente (otra sesión migrando a "preview por iframe", v2.22.0) — re-aplicar cuando se estabilice:**
+  - `tienda/carrito.html`: (a) `updateSummary` → quitar envío falso ($10k/Gratis), mostrar "Se calcula al pagar" + total "Total productos"; (b) `.qty-btn` 28→40px; (c) `try/catch` en `loadCarrito` (carrito corrupto → `[]`).
+  - `tienda/index.html`: `aria-label` en los 7 botones-icono (menú, carrito, slider ◀▶, abrir/cerrar categorías, volver arriba). *(El fix de `slug` SÍ sobrevivió.)*
+  - `assets/catalogo/catalogo.js`: color de marca en tema premium — `applyTheme` debe respetar el color del dueño si lo definió. OJO: capturar `colorExplicito` en `init` (`!!(negocio.color_tema||negocio.color)`), NO usar `!!catConfig.color` (siempre trae default `#2563eb` → regresión).
+  - `plantillas/taller/index.html`: verificar `.desktop-only{display:none}` móvil + `.pill{min-height:44px}` (el `esc()` XSS sí vive).
 
 ### 🐞 Problemas encontrados / decisiones
 - **Dos sistemas de personalización en paralelo** confundían la auditoría (los scores "12-42/100" eran contra la spec NO canónica `data-tuko`). Documentado en memoria `plantillas_dos_designers.md` y en la documentación técnica (`doc-front-personalizacion-canonica`).
 - `super_designer` es una inversión grande pero desconectada → decisión aparte (revivir/archivar); no se tocó en esta ronda.
 - `tuko-runtime.js` (sistema nueva gen) tiene una vulnerabilidad latente: `postMessage` sin validar `origin`. Solo aplica si se adopta ese stack; anotado por si se revive.
+- **⚠️ Edición concurrente detectada:** otra sesión (migración a "preview por iframe", v2.22.0) reescribió en vivo `carrito.html`, `catalogo.js` e `index.html`, revirtiendo varios fixes de este canal (ver lista en *Pendiente*). Decisión: NO disputar esos archivos (su trabajo también es válido); coordinar antes de re-aplicar para no pisarse. Evitar correr dos sesiones sobre los mismos archivos.
 
 ### 👉 Siguiente paso sugerido
 Lotes 🔴 y 🟡 de auditoría **cerrados**. Pendiente mayor: el **backend** (idempotency key + reconciliación Wompi, chip creado) y la **decisión sobre `super_designer`** (revivir/archivar). Opcional: pulido 🟢 de accesibilidad/responsive y verificación en navegador con un slug real.
