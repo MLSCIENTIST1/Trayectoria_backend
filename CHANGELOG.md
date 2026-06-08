@@ -43,7 +43,14 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
   - **Botón "Refrescar"** en el previsualizador: `refreshPreview()` ahora **recarga el iframe** de la plantilla
     real (re-fetch + re-aplica), no solo reenvía la config — útil si un cambio no se reflejó solo. Con etiqueta + tooltip.
 
+### Añadido
+- **Slider con tamaño y forma configurables.** Nuevos controles en el designer (Tamaño: pequeño/mediano/grande;
+  Forma/bordes: cuadrado/redondeado/muy redondeado) → `slider.height`/`slider.shape`. `renderSlider` aplica el
+  alto (180/300/440px) y el `border-radius` (0/16/32px) al `.slider-container`.
+
 ### Arreglado
+- **Botón de Favoritos (❤️) duplicado en las tarjetas de producto.** Con `buttons.favorite` activo, el corazón
+  se renderizaba en la fila de acciones **y** en la esquina superior derecha → ahora solo en la esquina sup. der.
 - **Bugs del previsualizador (v6.1).** `renderPreviewVerde()` escribía en `#previewContainer` (destruía el
   marco del dispositivo y congelaba el preview al cambiar de plantilla) → ahora `#previewContent`. Testimonios
   de taller/restaurante inyectaban `undefined` por claves de tema inexistentes (`textSecondary`/`cartaBg`) →
