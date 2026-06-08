@@ -54,6 +54,11 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
   (resuelve el timing async); `social-actions.js` expone `__tkSocialRepaint`.
 
 ### Arreglado
+- **El menú de categorías (☰) en móvil hacía desaparecer los productos.** El 1er toque no abría el menú y
+  desaparecían todos los productos. Causa: `toggleSidebar` ataba el drawer a `!sidebarCollapsed` (estado
+  invertido) y al añadir `.main-container.sidebar-collapsed` el grid pasaba a `0 1fr`; como el sidebar está
+  `display:none` en móvil, los productos caían en la columna de 0px. Ahora en móvil es un drawer limpio
+  (abrir/cerrar) sin tocar `sidebar-collapsed`, + CSS que fuerza `1fr` en móvil.
 - **Botón "volver al inicio" detrás del de Facebook.** El back-to-top estaba en la esquina inferior derecha
   (`bottom:100px;right:24px;z-index:99`), solapado con el stack de redes sociales (Facebook, `z-index:999`) →
   quedaba oculto detrás. Ahora va en la esquina inferior **izquierda** (opuesto a WhatsApp/redes, `z-index:1001`).
