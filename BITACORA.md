@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-06-08 — 🛍️ Tienda/Designer: slider, favoritos, insignias TKMedal, posiciones + Novedades públicas
+
+- **Slider:** arreglado banner en blanco (`safeUrl` bloqueaba `data:image` base64) + controles de **tamaño**
+  (180/300/440px) y **forma/bordes** (0/16/32) en el designer (`slider.height`/`shape`).
+- **Favoritos (❤️):** el corazón salía duplicado (fila de acciones + esquina) → ahora solo en la esquina sup. der.
+- **Insignias = medallas SVG TKMedal** (igual al perfil): ecommerce (`renderTrustBadges`) + las 10 plantillas
+  (`trust-strip.js`, en la barra de stats). Antes se veían como círculos vacíos (faltaba Bootstrap Icons / usaban `<i bi>`).
+- **Posición configurable** (ecommerce) de Seguir/Me gusta e Insignias: `top` (junto al buscador) o `stats`
+  (barra de confianza). Default = stats. `aplicarPosicionesSociales()` (idempotente) + `__tkSocialRepaint`.
+- **Botón "Refrescar"** en el previsualizador (recarga el iframe de la plantilla real).
+- **Novedades públicas** (`plataforma_kb` tipo='changelog', vista `/novedades`): añadidas 3 entradas en lenguaje
+  de tendero (previsualizador en vivo, carrusel personalizable, posición de seguir/me gusta/insignias). Seed
+  idempotente con `publicado:True` y orden negativo (aparecen primero). La bitácora NO alimenta Novedades; son
+  filas `changelog` separadas.
+- Cache-bust acumulado: `tienda.js?v=…h`, `social-actions…d`, `trust-strip…d`, SW 2.3.0.
+
+---
+
 ## 2026-06-08 — 🎨 Iconografía: placeholder de marca ("casita") + fix widget de badges
 
 - **La "casita" resuelta:** cuando un negocio no tiene `logo_url`, ahora se muestra la **esfera de
