@@ -85,8 +85,10 @@
 ### ⏳ Pendiente
 - Resolver la **divergencia de datos** en restaurante/taller: la tienda publicada carga el menú/servicios de la
   API de productos, no de `config.restaurante.carta`/`config.taller.servicios` (el preview sí los muestra).
-- Validar el color (`primaryColor`) antes de inyectarlo en `<style>` (inyección CSS de baja severidad; patrón
-  sistémico en varias plantillas).
+- ✅ **CSS-injection hardening (catálogo) hecho:** `safeColor()`/`safeFont()` validan color/fuente antes de
+  inyectarlos en el `<style>` de `applyTheme`/`applyFont`; verificado en vivo (malicioso → fallback, página
+  intacta). **Pendiente:** mismo patrón en `tienda.js` (fuente + colores de badges) — se dejó para otra tanda
+  porque sus helpers de seguridad (`escapeHtml`/`safeImageUrl`) están en cambio por Carlos.
 - Cloudinary: el `uploadPreset` unsigned es público por diseño; restringirlo en el dashboard o migrar a uploads
   firmados vía backend.
 
@@ -146,9 +148,11 @@ commitear (frontend + backend docs) → considerar punto de guardado.
   - **`.desktop-only` definida** en restaurante y taller (faltaba) → en móvil el CTA queda solo con el ícono.
   - **Accesibilidad:** `label for` en TODO el checkout (16/16 labels); `aria-label` en los 7 botones-icono de la tienda (menú, carrito, slider ◀▶, cerrar/abrir categorías, volver arriba); validación de email (regex) y de teléfono (≥7 dígitos) en `checkout.js`.
 - **Auditoría de `groove` (la otra sesión NO la migra):** ✅ ya escapa XSS (`escHtml`/`escAttr` en tarjetas, carrito, testimonios, modal) e idempotente (waveform/timers con `clearInterval`). Aplicado: eliminado código muerto (`_origUpdateNowPlaying` + `patchNowPlaying` no-op); áreas táctiles `.gr-track-btn` 32→40px y `.gr-card-quick-add` 38→44px (los controles del reproductor `.gr-ctrl-btn` ya eran 46px). `node --check` OK.
+- **Auditoría de seguridad del NUEVO previsualizador por iframe (v2.22.0, otra sesión) — READ-ONLY + 1 fix:** verificadas sus afirmaciones de "validación de origin". ✅ `designer.js` (emisor: valida origin entrante, idempotente, sin fuga de datos), `catalogo.js` (:148), `verde` (:1025) y `taller` (:718) validan `ev.origin` y escapan correctamente. ❌ DOS bridges quedaron SIN validar origin: **restaurante** → **arreglado aquí** (añadida `if (ev.origin !== location.origin) return;`, mismo patrón que taller; `node --check` OK) y **`tienda.js` ecommerce** (el más grave) → **arreglado aquí también** (ver ✅ abajo). Menores 🟡: CSS-injection por `url(${bg})` crudo en catálogo/verde; `why.icon` sin `esc()` y clases de tema que se acumulan en verde; `designer.js` usa `targetOrigin '*'` e iframe por `innerHTML` sin `sandbox`.
 
 ### ⏳ Pendiente
 - **Backend (chip de tarea creado):** `idempotency_key` + dedup de pedidos + reconciliación de **pago Wompi aprobado sin pedido** (dinero cobrado sin orden). Cierra el riesgo del lado servidor.
+- **✅ SEGURIDAD `tienda.js` (ecommerce) — ARREGLADO** (con Carlos, asumiendo el riesgo de concurrencia): el bridge `message` ahora valida `ev.origin === location.origin`; `isPreviewMode()` exige además estar embebido en iframe; READY a `location.origin` (ya no `'*'`); nuevo helper `safeUrl()` (bloquea `javascript:`/`data:`/`vbscript:`) aplicado en galería/redes/slider/lightbox; `escapeHtml` en stats, hero-badges y categorías (custom/product/featured — vía `data-catname` para no romper el filtrado ni el casing del título); `url(${bg})` del hero saneado; `clearInterval` en `setupLogoImageRotation`. Cierra el DOM-XSS. `node --check` OK. ⚠️ Es archivo activo de la otra sesión: si lo reescriben, re-verificar que estas defensas sigan.
 - **🟢 Pulido (frontend):** ✅ `label for` completado en TODO el checkout (16/16). Falta: breakpoints intermedios (768/1024) en restaurante/taller; `aria-label` en botones-icono de las demás plantillas.
 - **⚠️ REVERTIDO por edición concurrente (otra sesión migrando a "preview por iframe", v2.22.0) — re-aplicar cuando se estabilice:**
   - `tienda/carrito.html`: (a) `updateSummary` → quitar envío falso ($10k/Gratis), mostrar "Se calcula al pagar" + total "Total productos"; (b) `.qty-btn` 28→40px; (c) `try/catch` en `loadCarrito` (carrito corrupto → `[]`).

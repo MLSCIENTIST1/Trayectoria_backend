@@ -42,6 +42,11 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
   el `src` del `onclick`—, stats, categorías, hero-badges), el nombre/teléfono en **restaurante** y **taller**,
   y el nombre/logo en **verde**. Catálogo ya estaba escapado (productos con `escAttr`/`escHtml`, hero con
   `textContent`).
+- **Hardening anti–inyección CSS (catálogo).** El color (`primaryColor`) y la fuente del config se
+  interpolaban en el `textContent` de un `<style>` (CSS crudo) → un valor con `;}` podía inyectar reglas
+  CSS. Nuevas `safeColor()`/`safeFont()` validan el valor antes de inyectarlo (`applyTheme`/`applyFont`).
+  Verificado en vivo: un `primaryColor`/fuente malicioso cae al fallback y no oculta la página. *(Pendiente:
+  mismo patrón en `tienda.js` —fuente y colores de badges— para una próxima tanda.)*
 - **Cache-busting de `tienda.js`** (`?v=20260607` en `tienda/index.html` + precache del SW) y bump de
   `SW_VERSION` 2.2.1 → 2.2.2, para que los cambios de JS lleguen tras cada deploy.
 
