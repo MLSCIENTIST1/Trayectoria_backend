@@ -11,6 +11,29 @@
 
 ---
 
+## 2026-06-07 — 🏅 Gamificación social (badges de seguidores y likes) + perfil
+
+- **Badges nuevos (12) por interacción social REAL** (`negocio_interacciones`), categoría `popularidad`,
+  escalera escalable:
+  - **Seguidores** (`criterio_tipo='seguidores'`): Primer Seguidor (1) · Comunidad Fiel (25) ·
+    Influencer Local (100) · Celebridad (500) · Ídolo de Masas (1.000, Diamante con gradiente).
+  - **Me gusta** (`criterio_tipo='me_gusta'`): Primer Me Gusta (1) · Gustando (50) · Muy Querido (200) ·
+    Favorito del Barrio (500) · ¡Sensación Viral! (1.000) · Fenómeno Total (5.000) ·
+    Leyenda Imparable (10.000, gradiente épico). Ampliable (basta añadir más dicts).
+- **Backend:** métricas `seguidores`/`me_gusta` en `badge_verification_service.py`
+  (`_calcular_metricas_para_badges`); badges en `BADGES_INICIALES` (seeder idempotente los siembra
+  solo); `interacciones_api._toggle` dispara `verificar_badges(negocio_id)` (fail-safe) al seguir/like;
+  `perfil_publico_negocio_api` devuelve `seguidores` y `me_gusta` (helper `obtener_social_negocio`).
+  Modelo de **hitos acumulados** (no XP por evento) → no gameable con follow/unfollow.
+- **Frontend:** el **perfil del negocio** (`negocio/negocio_perfil.html` + `_loader.js`) muestra
+  conteo de **Seguidores** y **Me gusta** (solo lectura, `renderSocialStats`); las **insignias sociales
+  ganadas** aparecen solas en la galería de badges existente.
+- **Tests:** `test_badges_sociales.py` 56/0 · `test_interacciones.py` sigue 20/0 · `node --check` OK.
+- ⚠️ Nota: el badge antiguo `fan_club` ("tienes seguidores") en realidad cuenta **reseñas**; se dejó
+  intacto. Los badges nuevos usan las métricas sociales reales.
+
+---
+
 ## 2026-06-07 — ❤️👥 Interacciones sociales de tienda (Seguir + Me gusta)
 
 - **Feature nuevo:** el comprador puede **Seguir** y dar **Me gusta** a un negocio desde **todas** las

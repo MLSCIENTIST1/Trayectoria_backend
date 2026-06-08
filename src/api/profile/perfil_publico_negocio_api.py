@@ -187,6 +187,9 @@ def get_perfil_publico(slug):
         etapas = obtener_etapas_reales(id_negocio)
         bizscore = calcular_bizscore(stats, etapas)
         resenas = obtener_resenas_placeholder()
+
+        # ✅ Interacciones sociales (seguidores / me gusta)
+        social = obtener_social_negocio(id_negocio)
         
         # 5. CONSTRUIR RESPUESTA
         response = {
@@ -214,6 +217,8 @@ def get_perfil_publico(slug):
                          'ciudad': getattr(negocio, 'ciudad', None),
                          'direccion': negocio.direccion,
                          'micrositio_activo': getattr(negocio, 'tiene_pagina', False),
+                         'seguidores': social['seguidores'],
+                         'me_gusta': social['me_gusta'],
                      },
                 'config': {
                     'color_primario': negocio.color_tema or '#a855f7',
@@ -258,6 +263,32 @@ def get_perfil_publico(slug):
 # ═══════════════════════════════════════════════════════════════════════════════
 # FUNCIONES DE DATOS REALES
 # ═══════════════════════════════════════════════════════════════════════════════
+
+def obtener_social_negocio(id_negocio):
+    """Conteo de seguidores y 'me gusta' del negocio (tabla negocio_interacciones).
+    Fail-safe: si algo falla, devuelve ceros (nunca rompe el perfil)."""
+    from sqlalchemy import text
+    from src.models.database import db
+    res = {'seguidores': 0, 'me_gusta': 0}
+    try:
+        rows = db.session.execute(text("""
+            SELECT tipo, COUNT(*) FROM negocio_interacciones
+            WHERE negocio_id = :nid AND tipo IN ('seguir', 'like')
+            GROUP BY tipo
+        """), {'nid': id_negocio}).fetchall()
+        for tipo, n in rows:
+            if tipo == 'seguir':
+                res['seguidores'] = int(n or 0)
+            elif tipo == 'like':
+                res['me_gusta'] = int(n or 0)
+    except Exception as e:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        print(f"   ⚠️ obtener_social_negocio: {e}")
+    return res
+
 
 def obtener_estadisticas_reales(id_negocio):
     """

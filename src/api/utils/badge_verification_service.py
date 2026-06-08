@@ -707,6 +707,26 @@ class BadgeVerificationService:
             except Exception:
                 metricas['duelos_ganados'] = 0
 
+            # Seguidores del negocio (badges sociales: Primer Seguidor … Ídolo de Masas)
+            try:
+                metricas['seguidores'] = db.session.execute(text("""
+                    SELECT COUNT(*) FROM negocio_interacciones
+                    WHERE negocio_id = :nid AND tipo = 'seguir'
+                """), {'nid': negocio_id}).fetchone()[0] or 0
+            except Exception:
+                db.session.rollback()
+                metricas['seguidores'] = 0
+
+            # "Me gusta" recibidos por el negocio (badges sociales: Primer Me Gusta … Leyenda Imparable)
+            try:
+                metricas['me_gusta'] = db.session.execute(text("""
+                    SELECT COUNT(*) FROM negocio_interacciones
+                    WHERE negocio_id = :nid AND tipo = 'like'
+                """), {'nid': negocio_id}).fetchone()[0] or 0
+            except Exception:
+                db.session.rollback()
+                metricas['me_gusta'] = 0
+
             # ═══════════════════════════════════════════
             # NO SOPORTADOS AÚN (retorna None → se skipean)
             # ═══════════════════════════════════════════

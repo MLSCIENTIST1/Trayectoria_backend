@@ -11,6 +11,13 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
 ## [2.21.0] — 2026-06-07
 
 ### Añadido
+- **Gamificación social — 12 insignias por seguidores y me gusta.** El negocio gana badges al acumular
+  seguidores (Primer Seguidor → Ídolo de Masas 1.000) y me gusta (Primer Me Gusta → Leyenda Imparable
+  10.000), escalera ampliable. Métricas `seguidores`/`me_gusta` en `badge_verification_service.py`;
+  badges en `BADGES_INICIALES` (seeder idempotente); se verifican al seguir/like (`interacciones_api`,
+  fail-safe). El **perfil público del negocio** muestra conteo de seguidores y me gusta + las insignias
+  ganadas (`perfil_publico_negocio_api` → `seguidores`/`me_gusta`; front `negocio_perfil`). Tests
+  `test_badges_sociales.py` 56/0.
 - **Interacciones sociales de tienda — Seguir 👥 y Me gusta ❤️.** El comprador puede *seguir* un negocio
   y darle *me gusta* desde cualquier tienda. Botones en el header (junto al carrito) y **conteo de
   seguidores** en la barra de confianza, al lado de "badges ganados".

@@ -95,6 +95,8 @@ def _toggle(negocio_id, tipo):
             activo = True
             if tipo == 'seguir':
                 _notificar_nuevo_seguidor(negocio_id, usuario_id)
+            # Gamificación: el negocio puede ganar badges sociales (seguidores / me_gusta)
+            _verificar_badges_sociales(negocio_id)
         return activo, _contar(negocio_id, tipo)
     except Exception as e:
         db.session.rollback()
@@ -126,6 +128,17 @@ def _notificar_nuevo_seguidor(negocio_id, usuario_id):
     except Exception as e:
         db.session.rollback()
         logger.debug(f'Notificación de nuevo seguidor omitida: {e}')
+
+
+def _verificar_badges_sociales(negocio_id):
+    """Fail-safe: tras un nuevo seguidor/like, revisa si el negocio desbloqueó
+    badges sociales (Primer Seguidor, Influencer, Sensación Viral, …). Si algo
+    falla, se ignora (nunca rompe el seguir/like)."""
+    try:
+        from src.api.utils.badge_verification_service import BadgeVerificationService
+        BadgeVerificationService.verificar_badges(negocio_id)
+    except Exception as e:
+        logger.debug(f'Verificación de badges sociales omitida: {e}')
 
 
 # ── endpoints ────────────────────────────────────────────────────────────────

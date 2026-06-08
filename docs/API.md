@@ -24,6 +24,7 @@ Notas de prefijos: el grueso del API cuelga de `/api`; el panel admin de `/api/a
 | Método | Ruta | Descripción |
 |---|---|---|
 | GET | `/api/negocio/slug/<slug>` | Datos públicos del negocio por slug (nombre, `color_tema`, `logo_url`, badges). |
+| GET | `/api/negocio/perfil-publico/<slug>` | Perfil público (BizScore, estadísticas, badges, videos, y **`seguidores`/`me_gusta`** del negocio). |
 | GET | `/api/productos/publicos/<negocio_id>` | Catálogo público de productos de un negocio. |
 | POST | `/api/catalogo/producto/guardar` | Crea/edita un producto del catálogo. |
 | PUT/PATCH | `/api/producto/actualizar/<id_producto>` | Actualiza un producto. |
