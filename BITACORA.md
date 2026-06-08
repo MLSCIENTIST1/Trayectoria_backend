@@ -61,7 +61,9 @@
 - **DA2–DA5 ✅ AUDITORÍA DE BASE DE DATOS COMPLETA:** las **74 tablas** documentadas con columnas reales leídas de los modelos (gamificación, admin/plataforma, tienda/extra, verticales taller/restaurante/mecalink, y legacy Trayectoria marcadas). Fichas `db-tabla-*`. **134 temas** en la documentación.
 - **DA6 ✅ (backend núcleo):** rutas REALES extraídas de los `@route` de auth_system, password_reset, negocio_completo (corrige: `/registrar_negocio`, `/mis_negocios`), catalogo (38 rutas), checkout, pedidos (18 rutas), wompi (+/wompi/webhook), cupones. Refresco forzado único de las fichas `ep-*` (flag `kb_ep_rutas_v1`).
 - **DA7 ✅ (backend resto):** rutas reales de crm(4), analytics(3), resenas(6), gamificacion(29), notifications (SSE/push/pedidos), dora-ia(12), admin (113), verticales (taller/restaurante/mecalink). EP_REFRESH = 11 fichas; flag `kb_ep_rutas_v2`. **AUDITORÍA BACKEND (rutas) COMPLETA.**
-- **Siguiente:** DA11+ frontend por archivo (designer.js funciones, super_designer sd_*, cada módulo de contabilidad, plantillas, ayuda, panel) y DA16 (cada migración/seeder de create_app).
+- **DA11/DA16 ✅ (frontend + deploy):** designer.js (funciones reales + flujo loadStoreData→applyConfigToInputs→updatePreview), super_designer + 19 sd_*, sw.js (SW_VERSION 2.1.0 + caché), 21 módulos de contabilidad + grilla_financiera, create_app (62 migraciones idempotentes + seeders + flags). **139 temas.**
+- **MODO AUTOMÁTICO (pedido por Carlos):** continúo los sprints de auditoría seguidos, sin pedir aprobación cada vez; commit por sprint + resumen al final.
+- **🔬 AUDITORÍA PROFUNDA CUBIERTA:** BD (74 tablas con columnas reales) + Backend (todas las rutas reales) + Frontend (archivos clave) + Deploy/migraciones. Ampliable a detalle por-función si se requiere.
 
 ---
 
