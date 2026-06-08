@@ -40,6 +40,8 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
     en cada tecla), y `buildConfigToSave()` como fuente única en el designer (guardar = previsualizar).
   - Cada plantilla aplica el config en vivo: restaurante/taller con `applyPreviewConfig()` (mapea
     carta/servicios/slogan/color al DOM real), catálogo vía `applyConfig()`, verde vía `applyNegocio()`.
+  - **Botón "Refrescar"** en el previsualizador: `refreshPreview()` ahora **recarga el iframe** de la plantilla
+    real (re-fetch + re-aplica), no solo reenvía la config — útil si un cambio no se reflejó solo. Con etiqueta + tooltip.
 
 ### Arreglado
 - **Bugs del previsualizador (v6.1).** `renderPreviewVerde()` escribía en `#previewContainer` (destruía el
