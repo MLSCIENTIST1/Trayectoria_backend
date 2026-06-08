@@ -16,7 +16,13 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
   (seguro, no ejecuta script) y sigue bloqueando `data:text/html`/`javascript:`/`vbscript:`.
 - **Insignias del negocio como círculos vacíos** (junto al buscador). Los badges usan clases `bi-*` (Bootstrap
   Icons) pero la tienda solo cargaba **Font Awesome** → sin glifo. Añadido el CSS de Bootstrap Icons al
-  `tienda/index.html`. Cache-bust `tienda.js?v=20260608d` + `SW_VERSION` 2.2.6.
+  `tienda/index.html`.
+
+### Cambiado
+- **Insignias de la tienda con medallas SVG (TKMedal).** `renderTrustBadges` ahora usa el **mismo componente
+  `TKMedal`** que el perfil del negocio (medalla SVG con aro metálico por tier + ícono), en tamaño pequeño,
+  para que se vean iguales en las plantillas y en el perfil. Se cargan `badge-medal.css`/`badge-medal.js` en la
+  tienda (con fallback). Cache-bust `tienda.js?v=20260608e` + `SW_VERSION` 2.2.7.
 
 ## [2.22.0] — 2026-06-07
 
