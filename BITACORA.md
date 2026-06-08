@@ -88,6 +88,7 @@
 - **MODO AUTOMÁTICO (pedido por Carlos):** continúo los sprints de auditoría seguidos, sin pedir aprobación cada vez; commit por sprint + resumen al final.
 - **🔬 AUDITORÍA PROFUNDA CUBIERTA:** BD (74 tablas con columnas reales) + Backend (todas las rutas reales) + Frontend (archivos clave) + Deploy/migraciones. Ampliable a detalle por-función si se requiere.
 - **Sistema visual / marca ✅ (pedido por Carlos):** nueva sección 'diseno' (25 secciones / 144 temas) con 5 fichas leídas de `design-tokens.css` real: **(1) Visión** = editor visual estilo Photoshop/Vegas/Adobe pero orientado a RED SOCIAL para crear tiendas virtuales; **(2) Paleta** (--tk-* índigo/violeta/slate/estados/dark); **(3) Tipografía** (Orbitron/Sora/Plus Jakarta + escala clamp); **(4) Fondos/radios/sombras/espaciado/motion/z-index**; **(5) design-tokens.css** como fuente única. Índice de memoria (MEMORY.md) actualizado.
+- **📍 Aclaración (dónde se "sube" la doc):** NO existe un HTML estático; `public/documentacion/index.html` es **dinámico** y arma el árbol desde `/api/admin/docs/arbol` (tabla `plataforma_kb`). Todo lo añadido al seed `docs_tecnicas_seed.py` (o desde Panel → Documentación Técnica) **aparece solo** en `/documentacion`. Por eso la sección "Sistema visual y marca" ya queda subida; se ve tras el deploy del backend (que siembra) → `/documentacion`.
 
 ---
 
