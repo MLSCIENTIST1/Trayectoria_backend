@@ -11,6 +11,14 @@
 
 ---
 
+## 2026-06-08 — 🐞 FIX inventario/dropshipping en MÓVIL (contexto de negocio en iframe)
+
+- **Síntoma:** en el celular (dentro de la app) Inventario mostraba "No hay productos"; en PC sí cargaba.
+- **Causa:** los módulos corren en un **iframe** dentro del shell. `Auth.getNegocioId()` (inventario) y `getCtx()` (dropshipping) solo miraban `window.bizContext` (que vive en el **padre**, no en el iframe) + `localStorage`. En móvil el `localStorage.negocio_id` venía vacío dentro del iframe → no se enviaba el header `X-Business-ID` → el backend devolvía 0 productos.
+- **Fix:** leer también `window.parent.bizContext` (mismo origen → permitido) y descartar `'undefined'/'null'` en localStorage. Aplicado a `contabilidad/modulos/inventario.html` y `dropshipping.html` (eran los 2 con ese patrón). JS validado.
+
+---
+
 ## 2026-06-08 — 🛍️ Tienda/Designer: slider, favoritos, insignias TKMedal, posiciones + Novedades públicas
 
 - **Slider:** arreglado banner en blanco (`safeUrl` bloqueaba `data:image` base64) + controles de **tamaño**
