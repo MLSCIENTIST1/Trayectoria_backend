@@ -8,6 +8,18 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
 
 ---
 
+## [2.22.2] — 2026-06-08
+
+### Arreglado
+- **El preview al compartir el resumen de pedido por WhatsApp no mostraba la imagen.** La `og:image` (la que el
+  dueño carga desde el designer, `seo.ogImage`) estaba correcta y se servía, pero el worker no declaraba
+  `og:image:width/height`, así que el scraper de WhatsApp tenía que descargar la imagen para medirla; si tardaba
+  o fallaba en el primer intento mostraba el preview pequeño **sin imagen** y lo cacheaba así. Fix en `_worker.js`:
+  `optimizarOgImage()` ahora fuerza el tamaño exacto **1200×630** (`c_fill,g_auto`, el formato `summary_large_image`)
+  y `buildOgHtml()` declara `og:image:width=1200`/`height=630`. `WORKER_VERSION` 1.30. *(Nota: WhatsApp cachea el
+  preview por días; los pedidos nuevos lo muestran bien de inmediato; los enlaces ya compartidos se refrescan con
+  el tiempo o cambiando la URL.)*
+
 ## [2.22.1] — 2026-06-08
 
 ### Arreglado
