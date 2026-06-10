@@ -10,6 +10,15 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
 
 ## [2.22.2] — 2026-06-08
 
+### Cambiado
+- **Los enlaces de tienda/perfil ahora usan el dominio propio `tukomercio.co`** (antes seguían generándose con el
+  dominio de Cloudflare Pages `tuko.pages.dev`). Cambiada la fuente canónica `TUKO_BASE` y reemplazado el dominio
+  en todos los generadores de enlaces (designer, wizard, mis_negocios, mi_pagina_web, plantillas_registry, perfil,
+  worker OG_FALLBACK…). El formato limpio `/tienda/{slug}` ya estaba. **Retrocompatible:** los enlaces viejos
+  (`tuko.pages.dev` y `?slug=`) siguen abriendo (HTTP 200), así que nadie con el enlace guardado se rompe.
+  *(Nota: si un cliente pegó el enlace viejo en su bio/WhatsApp, debe re-copiarlo desde el panel para que muestre
+  el dominio nuevo; el sistema ya lo genera así.)*
+
 ### Arreglado
 - **El preview al compartir el resumen de pedido por WhatsApp no mostraba la imagen.** La `og:image` (la que el
   dueño carga desde el designer, `seo.ogImage`) estaba correcta y se servía, pero el worker no declaraba
