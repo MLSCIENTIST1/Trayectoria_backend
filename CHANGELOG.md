@@ -8,6 +8,22 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
 
 ---
 
+## [2.23.1] — 2026-06-11
+
+### Añadido — Orden de los productos (configurable, todas las plantillas)
+- **El dueño puede elegir cómo aparecen sus productos** al entrar a la tienda, desde el Designer
+  (sección dedicada y prominente "Orden de los productos", visible en **todas** las plantillas, con
+  explicación). 10 opciones: más nuevos, más antiguos, más vendidos, más vistos, precio ↑/↓,
+  nombre A→Z / Z→A, destacados primero, y aleatorio (mezcla en cada visita).
+- **Función de orden canónica y compartida** (`assets/tienda/orden-productos.js` →
+  `window.TukoOrden.ordenar`) aplicada de forma consistente en las 6 plantillas. Antes, **verde,
+  taller y restaurante NO ordenaban** (pintaban el orden crudo del backend) y ecommerce/catálogo/groove
+  usaban claves inconsistentes; ahora todas usan el mismo motor (con alias de compatibilidad).
+- El orden del dueño **aplica aunque la barra de filtros del comprador esté oculta**; si está visible,
+  es el orden inicial (el comprador puede recambiarlo). Se refleja **en vivo** en el previsualizador.
+- Config nueva `config_tienda.orden_productos` (fallback a `filtros.ordenDefault` → `recientes`).
+  Cache-busting: `orden-productos.js`/`tienda.js` `?v=20260611b`, `SW_VERSION` 2.3.4.
+
 ## [2.23.0] — 2026-06-11
 
 ### Añadido — Sprint Referidos "Comparte y gana" (TuKoins canjeables por plan)

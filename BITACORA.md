@@ -11,6 +11,30 @@
 
 ---
 
+## 2026-06-11 — ↕️ Orden de los productos configurable (todas las plantillas)
+
+El dueño elige cómo aparecen sus productos. Antes: control parcial escondido en "Filtros",
+solo en 3 de 6 plantillas, atado a la barra de filtros del comprador.
+
+- **Función canónica compartida** `public/assets/tienda/orden-productos.js` (`window.TukoOrden.ordenar`,
+  no muta): criterios recientes/antiguos/mas_vendidos/mas_vistos/precio_asc/precio_desc/nombre_asc/
+  nombre_desc/destacados/aleatorio + alias de claves legadas (newest, price-asc, etc.). Campos reales:
+  `visitas_7_dias` (vistas), `total_ventas`/`badges.total_ventas`, `badges.destacado`, `created_at`/id.
+- **Designer**: sección dedicada "Orden de los productos" (designer.html, `id=ordenProductos`, 10 opciones
+  + explicación), registrada como `'all'` en TEMPLATE_SECTION_MAP (sale en todas las plantillas).
+  storeConfig.orden_productos + lectura DOM + buildConfigToSave + applyConfigToInputs (normaliza legado).
+- **Aplicado en las 6 plantillas** cargando orden-productos.js:
+  - ecommerce (`tienda.js`): aplicarFiltros usa TukoOrden; render inicial via aplicarFiltros (ordena aunque
+    la barra esté oculta); dropdown del comprador con 9 opciones e inicial = elección del dueño; **re-orden
+    en vivo en el preview** (bridge TUKO_PREVIEW_CONFIG).
+  - catalogo (`catalogo.js` sortArray→TukoOrden), groove (`groove.js` sortFiltered→TukoOrden): si el comprador
+    no cambió, usan el orden del dueño.
+  - verde/taller/restaurante (antes NO ordenaban): ahora ordenan en renderProductos/renderServices/renderMenu.
+- Preview en vivo OK en ecommerce/catalogo/taller/restaurante/verde; groove no usa iframe-preview (aplica en
+  la tienda real). Cache-bust `?v=20260611b`, `SW_VERSION` 2.3.4. JS validado (node --check). Solo frontend.
+
+---
+
 ## 2026-06-11 — 🎁 Sprint Referidos "Comparte y gana" (TuKoins canjeables por plan)
 
 Programa de referidos de 2 niveles, end-to-end, con TuKoins como vehículo del premio.
