@@ -11,6 +11,39 @@
 
 ---
 
+## 2026-06-11 — 🎁 Sprint Referidos "Comparte y gana" (TuKoins canjeables por plan)
+
+Programa de referidos de 2 niveles, end-to-end, con TuKoins como vehículo del premio.
+
+- **Fase 1 — eslabón roto del `?ref=`:** captura en `crea-tu-tienda.html` + `register.html`
+  (localStorage `tk_ref` + payload `ref`), y vínculo en backend (`Referido.vincular`, predicado
+  `referidor_existe` inyectable para tests). En `register_user` se vincula tras crear el usuario,
+  a prueba de fallos. Tests: `test_referidos_fase1_vincular.py` (14).
+- **Fase 2 — gatillo de dos niveles + punto de enganche único:**
+  - Modelo `Referido` extendido con nivel 2 (`pago_confirmado`, `fecha_pago`, `recompensado_pago`) +
+    migración en `create_app` (F8). Nivel 1 reusa `convertido/recompensado`.
+  - Nivel 1 (activación) movido de venta → **publicar tienda** (`on_tienda_publicada` →
+    `procesar_conversion_referido`, 30 TK + 50 XP).
+  - Nivel 2 (primer pago) → `procesar_pago_referido` (1000 TK, config `tukoins_pago_referidor`,
+    crédito en SAVEPOINT para no envenenar la marca). Idempotente.
+  - **`on_pago_confirmado(negocio_id, es_primer_pago, origen)`** en `gamificacion_hooks.py` (hook central).
+    Lo llama `registrar_pago_negocio` (admin_features_api) detectando el 1er pago completado (origen='manual').
+  - Tests: `test_referidos_fase2_niveles.py` (12).
+- **Fase 3 — canje de TuKoins por abono al plan:** `config_gamificacion` con tasa (`cop_por_tukoin=10`)
+  y tope (`tope_pct=50`) + `calcular_canje_tukoins` (pura) + `aplicar_canje_plan` (valida saldo+tope,
+  descuenta con historial). Integrado en el form de pago del admin (`admin.html`: saldo + input + cálculo
+  en vivo) vía `GET /negocios/<id>/tukoins-canje`. Columna `pagos_suscripcion.tukoins_aplicados` + desglose.
+  Endpoints config `GET/PUT /api/admin/gamificacion/tukoins-canje/config`. Tests: `test_referidos_fase3_canje.py` (18).
+- **Fase 4 — vista propia:** `contabilidad/modulos/referidos.html` (link/código, copiar, WhatsApp, contadores
+  registrados/publicaron/pagaron, TuKoins ganados, explicación niveles+canje). Endpoint `mi-codigo` enriquecido
+  (activados/pagaron/tukoins_ganados). Enlazada en `TuKomercio.html`: ítem de menú (sin data-feature → siempre
+  visible) + tarjeta en la home.
+- **Tests:** 44 nuevos, toda la regresión verde (S29 11, hooks 19, A27 28). Sin tocar pasarela de pagos.
+- **Deuda técnica** (nuevo `DEUDA_TECNICA.md`): Wompi de planes pendiente → conectar webhook a
+  `on_pago_confirmado()` (cuenta Wompi de TuKomercio SAS).
+
+---
+
 ## 2026-06-11 — 🎨 Precio legible por contraste + UX Centro Financiero + plantilla en panel admin
 
 - **Bug reportado (DM Marketing, tema morado):** el precio de los productos no se veía. **Causa:** `.price-current`

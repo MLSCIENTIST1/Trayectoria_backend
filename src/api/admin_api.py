@@ -4602,6 +4602,43 @@ def update_referidos_config():
         return build_cors_response({'success': False, 'error': str(e)}, 500)
 
 
+@admin_bp.route('/gamificacion/tukoins-canje/config', methods=['GET'])
+@requiere_permiso('gamificacion')
+def get_tukoins_canje_config_endpoint():
+    """GET /api/admin/gamificacion/tukoins-canje/config → tasa (cop_por_tukoin) + tope_pct."""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import get_tukoins_canje_config
+        return build_cors_response({'success': True, 'config': get_tukoins_canje_config()})
+    except Exception as e:
+        logger.error(f"Error get_tukoins_canje_config: {e}")
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
+@admin_bp.route('/gamificacion/tukoins-canje/config', methods=['PUT'])
+@requiere_permiso('gamificacion')
+def update_tukoins_canje_config():
+    """PUT /api/admin/gamificacion/tukoins-canje/config  body: { cop_por_tukoin, tope_pct }"""
+    try:
+        from src.models.colombia_data.ratings.config_gamificacion import (
+            validar_tukoins_canje_config, set_tukoins_canje_config, get_tukoins_canje_config
+        )
+        antes = get_tukoins_canje_config()
+        ok, limpio, error = validar_tukoins_canje_config(request.get_json(silent=True) or {})
+        if not ok:
+            return build_cors_response({'success': False, 'error': error}, 400)
+        set_tukoins_canje_config(limpio)
+        registrar_auditoria('editar', 'gamif_tukoins_canje_config', None, {'antes': antes, 'despues': limpio})
+        return build_cors_response({'success': True, 'config': limpio, 'message': 'Config de canje actualizada'})
+    except Exception as e:
+        logger.error(f"Error en update_tukoins_canje_config: {e}")
+        try:
+            from src.models.database import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+        return build_cors_response({'success': False, 'error': str(e)}, 500)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # MODERACIÓN DE DUELOS (Admin Panel A26)
 # Ver duelos activos/históricos con marcadores y cancelar los abusivos.

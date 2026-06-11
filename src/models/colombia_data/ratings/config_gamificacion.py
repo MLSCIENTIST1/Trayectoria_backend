@@ -1086,10 +1086,11 @@ def set_recompensas_liga(limpio, db_session=None):
 # ═══════════════════════════════════════════════════════════════════
 
 REFERIDOS_CONFIG_DEFAULT = {
-    'xp_referidor': 50,       # XP personal para quien refirió, al convertir
-    'tukoins_referidor': 30,  # TuKoins al negocio del referidor
-    'umbral_fraude': 10,      # nº de referidos que dispara revisión
-    'ratio_min': 0.2,         # tasa de conversión mínima esperada (<0.2 con muchos referidos = sospechoso)
+    'xp_referidor': 50,            # XP personal para quien refirió (NIVEL 1: activación)
+    'tukoins_referidor': 30,       # TuKoins al negocio del referidor (NIVEL 1: publicó tienda)
+    'tukoins_pago_referidor': 1000,  # TuKoins al referidor (NIVEL 2: el referido pagó su 1ª mensualidad ≈ $10.000)
+    'umbral_fraude': 10,           # nº de referidos que dispara revisión
+    'ratio_min': 0.2,              # tasa de conversión mínima esperada (<0.2 con muchos referidos = sospechoso)
 }
 
 
@@ -1109,6 +1110,11 @@ def validar_referidos_config(payload):
             if not (0 <= v <= 100000):
                 return False, {}, 'tukoins_referidor fuera de rango (0-100000)'
             limpio['tukoins_referidor'] = v
+        if payload.get('tukoins_pago_referidor') not in (None, ''):
+            v = int(payload['tukoins_pago_referidor'])
+            if not (0 <= v <= 1000000):
+                return False, {}, 'tukoins_pago_referidor fuera de rango (0-1000000)'
+            limpio['tukoins_pago_referidor'] = v
         if payload.get('umbral_fraude') not in (None, ''):
             v = int(payload['umbral_fraude'])
             if not (2 <= v <= 1000):
@@ -1166,6 +1172,95 @@ def set_referidos_config(limpio, db_session=None):
         sess.add(GamifConfig(clave='referidos_config', valor=limpio))
     sess.commit()
     return limpio
+
+
+# ═══════════════════════════════════════════════════════════════════
+# CANJE DE TUKOINS POR ABONO AL PLAN (Sprint Referidos — Fase 3)
+# Los TuKoins ganados (referidos, misiones…) pueden abonar la mensualidad.
+# Parametrizable desde el panel admin. Default: 100 TuKoins = $1.000 COP, tope 50%.
+# ═══════════════════════════════════════════════════════════════════
+TUKOINS_CANJE_CONFIG_DEFAULT = {
+    'cop_por_tukoin': 10,   # 100 TuKoins = $1.000 COP  →  1 TuKoin = $10 COP
+    'tope_pct': 50,         # % máximo de la mensualidad pagable con TuKoins
+}
+
+
+def validar_tukoins_canje_config(payload):
+    """Valida la config de canje de TuKoins. PURA. (ok, limpio, error)."""
+    if not isinstance(payload, dict):
+        return False, {}, 'Se espera un objeto de configuración'
+    limpio = dict(TUKOINS_CANJE_CONFIG_DEFAULT)
+    try:
+        if payload.get('cop_por_tukoin') not in (None, ''):
+            v = int(payload['cop_por_tukoin'])
+            if not (1 <= v <= 100000):
+                return False, {}, 'cop_por_tukoin fuera de rango (1-100000)'
+            limpio['cop_por_tukoin'] = v
+        if payload.get('tope_pct') not in (None, ''):
+            v = int(payload['tope_pct'])
+            if not (0 <= v <= 100):
+                return False, {}, 'tope_pct fuera de rango (0-100)'
+            limpio['tope_pct'] = v
+    except (TypeError, ValueError):
+        return False, {}, 'Valores numéricos inválidos'
+    return True, limpio, None
+
+
+def get_tukoins_canje_config():
+    """Config efectiva del canje (override BD o DEFAULT). A prueba de fallos."""
+    try:
+        row = GamifConfig.query.get('tukoins_canje_config')
+        if row and isinstance(row.valor, dict):
+            cfg = dict(TUKOINS_CANJE_CONFIG_DEFAULT); cfg.update(row.valor)
+            return cfg
+    except Exception:
+        pass
+    return dict(TUKOINS_CANJE_CONFIG_DEFAULT)
+
+
+def set_tukoins_canje_config(limpio, db_session=None):
+    sess = db_session or db.session
+    row = GamifConfig.query.get('tukoins_canje_config')
+    if row:
+        row.valor = limpio; row.updated_at = datetime.utcnow()
+    else:
+        sess.add(GamifConfig(clave='tukoins_canje_config', valor=limpio))
+    sess.commit()
+    return limpio
+
+
+def calcular_canje_tukoins(tukoins, monto_mensualidad, cop_por_tukoin=None, tope_pct=None):
+    """
+    Calcula el abono en COP por canjear `tukoins`, respetando el tope (% de la
+    mensualidad). PURA (tasa/tope inyectables; si None usa los defaults).
+    Retorna (ok, resultado|None, error|None) donde
+      resultado = {tukoins, monto_cop, tope_cop, monto_efectivo}.
+    Rechaza el exceso: si el abono supera el tope, NO aplica (informa el máximo).
+    """
+    cpt = TUKOINS_CANJE_CONFIG_DEFAULT['cop_por_tukoin'] if cop_por_tukoin is None else cop_por_tukoin
+    tpct = TUKOINS_CANJE_CONFIG_DEFAULT['tope_pct'] if tope_pct is None else tope_pct
+    try:
+        tukoins = int(tukoins)
+        monto_mensualidad = float(monto_mensualidad)
+        cpt = int(cpt); tpct = int(tpct)
+    except (TypeError, ValueError):
+        return False, None, 'Valores inválidos'
+    if tukoins <= 0:
+        return False, None, 'La cantidad de TuKoins debe ser mayor a 0'
+    if monto_mensualidad <= 0:
+        return False, None, 'La mensualidad debe ser mayor a 0'
+    monto_cop = tukoins * cpt
+    tope_cop = round(monto_mensualidad * tpct / 100)
+    if monto_cop > tope_cop:
+        max_tukoins = int(tope_cop // cpt) if cpt else 0
+        return False, None, (f'Excede el tope: máximo ${tope_cop:,.0f} COP en TuKoins '
+                             f'(≈ {max_tukoins} TuKoins, {tpct}% de la mensualidad)')
+    return True, {
+        'tukoins': tukoins,
+        'monto_cop': monto_cop,
+        'tope_cop': tope_cop,
+        'monto_efectivo': max(0, round(monto_mensualidad - monto_cop)),
+    }, None
 
 
 # ═══════════════════════════════════════════════════════════════════

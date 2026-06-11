@@ -8,6 +8,35 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
 
 ---
 
+## [2.23.0] — 2026-06-11
+
+### Añadido — Sprint Referidos "Comparte y gana" (TuKoins canjeables por plan)
+- **Programa de referidos de dos niveles** que premia con TuKoins canjeables como abono al plan.
+  - **Fase 1 — Captura del referido:** la landing y el registro capturan `?ref=TKxxx` (localStorage +
+    payload), y el backend vincula al nuevo usuario con quien lo invitó (`Referido.vincular`, a prueba
+    de fallos: un código inválido/propio no afecta el registro). Antes el código se perdía.
+  - **Fase 2 — Gatillo de dos niveles:** **Nivel 1 (activación)** cuando el referido **publica su tienda**
+    → +30 TuKoins y +50 XP al referidor. **Nivel 2 (primer pago)** cuando el referido **paga su 1ª
+    mensualidad** (cualquier plan) → **+1.000 TuKoins**. Ambos idempotentes. Todo cuelga del **punto de
+    enganche único** `on_pago_confirmado(negocio_id, es_primer_pago, origen)` — hoy lo dispara el registro
+    manual del pago; mañana el webhook de Wompi, sin reescribir nada.
+  - **Fase 3 — TuKoins como abono al plan:** al registrar un pago manual, el admin ve el saldo de TuKoins
+    del negocio y puede aplicar un canje. **Tasa 100 TuKoins = $1.000 COP** y **tope 50% de la mensualidad**
+    (parametrizables desde el panel admin). El pago queda con desglose (efectivo + TuKoins). Valida saldo y
+    tope; rechaza el exceso.
+  - **Fase 4 — Vista propia "Invita y gana":** módulo `referidos.html` con link + código, copiar, compartir
+    por WhatsApp, contador (registrados / publicaron / pagaron), TuKoins ganados y explicación de los dos
+    niveles y del canje. Accesible desde el menú lateral (sección Principal, junto a Challenge, badge NEW) y
+    desde una tarjeta en la home del Studio.
+- **Tests:** 44 nuevos (Fase 1: 14, Fase 2: 12, Fase 3: 18) + regresión verde (S29, hooks, A27).
+
+### Cambiado
+- El gatillo de recompensa de referido se movió de "primera venta" a "publicar tienda" (nivel 1).
+
+### Pendiente (deuda técnica)
+- Pasarela Wompi de planes: conectar su webhook a `on_pago_confirmado()` (ver `DEUDA_TECNICA.md`).
+  La cuenta Wompi debe ser de TuKomercio SAS, no personal.
+
 ## [2.22.3] — 2026-06-11
 
 ### Arreglado

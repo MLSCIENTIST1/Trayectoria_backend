@@ -462,9 +462,10 @@ def gamificacion_usuario():
 _MESES_ES = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
              'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
 
-# Recompensas de referido (S29)
-REFERIDO_XP_REFERIDOR = 50      # XP personal para quien refirió
-REFERIDO_TUKOINS      = 30      # TuKoins para el negocio del referidor
+# Recompensas de referido (S29 + Sprint Referidos 2 niveles)
+REFERIDO_XP_REFERIDOR = 50      # XP personal para quien refirió (NIVEL 1)
+REFERIDO_TUKOINS      = 30      # TuKoins al negocio del referidor (NIVEL 1: publicó tienda)
+REFERIDO_TUKOINS_PAGO = 1000    # TuKoins al referidor (NIVEL 2: el referido pagó su 1ª mensualidad)
 
 # Recompensa de duelo (S31)
 DUELO_XP_GANADOR      = 80
@@ -627,13 +628,25 @@ def referidos_mi_codigo():
         uid = current_user.id_usuario
         codigo = Referido.codigo_de_usuario(uid)
         total = Referido.query.filter_by(referidor_usuario_id=uid).count()
-        convertidos = Referido.query.filter_by(referidor_usuario_id=uid, convertido=True).count()
+        activados = Referido.query.filter_by(referidor_usuario_id=uid, convertido=True).count()
+        pagaron = Referido.query.filter_by(referidor_usuario_id=uid, pago_confirmado=True).count()
+        # TuKoins ganados por referidos (estimado desde la config de premios)
+        try:
+            from src.models.colombia_data.ratings.config_gamificacion import get_referidos_config
+            _cfg = get_referidos_config()
+            _tk_act = int(_cfg.get('tukoins_referidor', REFERIDO_TUKOINS))
+            _tk_pago = int(_cfg.get('tukoins_pago_referidor', REFERIDO_TUKOINS_PAGO))
+        except Exception:
+            _tk_act, _tk_pago = REFERIDO_TUKOINS, REFERIDO_TUKOINS_PAGO
         return jsonify({
             'success': True,
             'codigo': codigo,
             'link': f"https://tukomercio.co/?ref={codigo}",
             'total_referidos': total,
-            'convertidos': convertidos,
+            'convertidos': activados,          # compat S29
+            'activados': activados,            # nivel 1: publicaron tienda
+            'pagaron': pagaron,                # nivel 2: pagaron 1ª mensualidad
+            'tukoins_ganados': activados * _tk_act + pagaron * _tk_pago,
         }), 200
     except Exception as e:
         logger.error(f"Error en referidos_mi_codigo: {e}", exc_info=True)
@@ -675,9 +688,10 @@ def referidos_registrar():
 
 def procesar_conversion_referido(referido_usuario_id):
     """
-    Llamar cuando un negocio completa una venta. Si su dueño fue referido y
-    aún no se ha recompensado, marca la conversión y premia al referidor.
-    Idempotente y a prueba de fallos. Retorna dict de recompensa o None.
+    NIVEL 1 — Activación. Llamar cuando el referido PUBLICA SU TIENDA. Si su dueño
+    fue referido y aún no se ha recompensado el nivel 1, marca la activación y premia
+    al referidor (XP + TuKoins chico). Idempotente y a prueba de fallos.
+    Retorna dict de recompensa o None.
     """
     try:
         from src.models.colombia_data.ratings.referido import Referido
@@ -715,16 +729,93 @@ def procesar_conversion_referido(referido_usuario_id):
 
         ref.recompensado = True
         db.session.commit()
-        logger.info(f"🎁 Referido convertido: referidor={ref.referidor_usuario_id} premiado")
+        logger.info(f"🎁 Referido activado (nivel 1): referidor={ref.referidor_usuario_id} premiado")
         return {'referidor_usuario_id': ref.referidor_usuario_id,
-                'xp': _xp_ref, 'tukoins': _tk_ref}
+                'xp': _xp_ref, 'tukoins': _tk_ref, 'nivel': 1}
     except Exception as e:
-        logger.warning(f"[referidos] conversión no crítica: {e}")
+        logger.warning(f"[referidos] activación nivel 1 no crítica: {e}")
         try:
             db.session.rollback()
         except Exception:
             pass
         return None
+
+
+def procesar_pago_referido(referido_usuario_id):
+    """
+    NIVEL 2 — Primer pago. Llamar cuando el referido PAGA SU PRIMERA MENSUALIDAD.
+    Si su dueño fue referido y aún no se ha recompensado el nivel 2, premia al
+    referidor con TuKoins grande (≈ medio mes). Idempotente (recompensado_pago) y
+    a prueba de fallos. Retorna dict de recompensa o None.
+    """
+    try:
+        from src.models.colombia_data.ratings.referido import Referido
+        ref = Referido.query.filter_by(
+            referido_usuario_id=referido_usuario_id, recompensado_pago=False).first()
+        if not ref:
+            return None
+
+        ref.pago_confirmado = True
+        ref.fecha_pago = datetime.utcnow()
+
+        # A27: recompensa configurable desde el panel (fallback a la constante).
+        try:
+            from src.models.colombia_data.ratings.config_gamificacion import get_referidos_config
+            _tk_pago = int(get_referidos_config().get('tukoins_pago_referidor', REFERIDO_TUKOINS_PAGO))
+        except Exception:
+            _tk_pago = REFERIDO_TUKOINS_PAGO
+
+        # TuKoins al primer negocio del referidor (registra en historial de transacciones).
+        # En un SAVEPOINT: si el crédito falla, no envenena la marca de recompensado.
+        try:
+            with db.session.begin_nested():
+                from src.models.colombia_data.negocio import Negocio
+                from src.models.colombia_data.ratings.negocio_gamificacion import NegocioGamificacion
+                neg = Negocio.query.filter_by(usuario_id=ref.referidor_usuario_id).first()
+                if neg:
+                    gn = NegocioGamificacion.obtener_o_crear(neg.id_negocio, db.session)
+                    gn.agregar_tukoins(_tk_pago, "Referido pagó su 1ª mensualidad", db_session=db.session)
+        except Exception:
+            pass
+
+        ref.recompensado_pago = True
+        db.session.commit()
+        logger.info(f"💰 Referido pagó (nivel 2): referidor={ref.referidor_usuario_id} +{_tk_pago} TuKoins")
+        return {'referidor_usuario_id': ref.referidor_usuario_id, 'tukoins': _tk_pago, 'nivel': 2}
+    except Exception as e:
+        logger.warning(f"[referidos] recompensa nivel 2 no crítica: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        return None
+
+
+def aplicar_canje_plan(negocio_id, tukoins, monto_mensualidad, db_session,
+                       concepto="Abono al plan (canje de TuKoins)"):
+    """
+    Fase 3 — Aplica un canje de TuKoins como abono a la mensualidad.
+    Valida tope (vía config) y saldo, y descuenta los TuKoins (con historial).
+    NO hace commit (lo hace quien llama, junto con el pago).
+    Retorna (ok, resultado|None, error|None) donde
+      resultado = {tukoins, monto_cop, tope_cop, monto_efectivo, saldo_restante}.
+    """
+    from src.models.colombia_data.ratings.config_gamificacion import (
+        get_tukoins_canje_config, calcular_canje_tukoins
+    )
+    from src.models.colombia_data.ratings.negocio_gamificacion import NegocioGamificacion
+    cfg = get_tukoins_canje_config()
+    ok, res, err = calcular_canje_tukoins(
+        tukoins, monto_mensualidad, cfg.get('cop_por_tukoin'), cfg.get('tope_pct'))
+    if not ok:
+        return False, None, err
+    gn = NegocioGamificacion.obtener_o_crear(negocio_id, db_session)
+    if gn.tukoins < res['tukoins']:
+        return False, None, (f'Saldo insuficiente: {gn.tukoins} TuKoins disponibles, '
+                             f'se intentan canjear {res["tukoins"]}')
+    gn.agregar_tukoins(-res['tukoins'], concepto, db_session=db_session)
+    res['saldo_restante'] = gn.tukoins
+    return True, res, None
 
 
 def _rango_mes(hoy=None):

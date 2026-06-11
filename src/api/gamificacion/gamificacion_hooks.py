@@ -325,14 +325,8 @@ def on_venta_completada(negocio_id, pedido=None):
         misiones_semanales=[('ventas_semana_5', ventas_semana >= 5)],
         verificar_badges=True,
     )
-    # ★ S29 — conversión de referido: si el dueño fue referido, premia al referidor
-    try:
-        owner = _owner_user_id(negocio_id)
-        if owner:
-            from src.api.gamificacion.gamificacion_api import procesar_conversion_referido
-            procesar_conversion_referido(owner)
-    except Exception as e:
-        logger.warning(f"[gamif] conversión referido no crítica: {e}")
+    # Nota: la activación de referido (nivel 1) se movió a on_tienda_publicada
+    # (Sprint Referidos 2 niveles). Aquí ya no se dispara.
     return resultado
 
 
@@ -353,13 +347,46 @@ def on_tienda_publicada(negocio_id):
     """Se dispara al publicar la tienda. (Se cablea en S4)"""
     if not negocio_id:
         return None
-    return _procesar_evento(
+    resultado = _procesar_evento(
         negocio_id,
         evento='tienda_publicada',
         misiones_diarias=[],
         misiones_semanales=[],
         verificar_badges=True,
     )
+    # ★ Referidos NIVEL 1 — activación: si el dueño fue referido, premia al referidor.
+    try:
+        owner = _owner_user_id(negocio_id)
+        if owner:
+            from src.api.gamificacion.gamificacion_api import procesar_conversion_referido
+            procesar_conversion_referido(owner)
+    except Exception as e:
+        logger.warning(f"[gamif] activación referido (nivel 1) no crítica: {e}")
+    return resultado
+
+
+def on_pago_confirmado(negocio_id, es_primer_pago=False, origen='manual'):
+    """
+    ★ PUNTO DE ENGANCHE ÚNICO de confirmación de pago de suscripción.
+    Hoy lo dispara el registro manual del pago por un admin (origen='manual').
+    Mañana lo disparará el webhook de la pasarela (origen='wompi') SIN tocar la
+    lógica de referidos — toda esa lógica cuelga de aquí.
+
+    Cuando es_primer_pago=True, premia al referidor (NIVEL 2). Idempotente y a
+    prueba de fallos: nunca rompe el flujo de pago que lo llamó.
+    """
+    if not negocio_id:
+        return None
+    try:
+        logger.info(f"[pago] on_pago_confirmado negocio={negocio_id} primer_pago={es_primer_pago} origen={origen}")
+        if es_primer_pago:
+            owner = _owner_user_id(negocio_id)
+            if owner:
+                from src.api.gamificacion.gamificacion_api import procesar_pago_referido
+                return procesar_pago_referido(owner)
+    except Exception as e:
+        logger.warning(f"[pago] on_pago_confirmado no crítico: {e}")
+    return None
 
 
 def on_video_subido(negocio_id):

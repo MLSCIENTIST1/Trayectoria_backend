@@ -29,7 +29,7 @@ def main():
     print("\n[2] validar_referidos_config — válidos")
     ok, limpio, err = validar_referidos_config({'xp_referidor': 80, 'tukoins_referidor': 40, 'umbral_fraude': 20, 'ratio_min': 0.3})
     check("válido → ok", ok and err is None)
-    check("limpio correcto", limpio == {'xp_referidor': 80, 'tukoins_referidor': 40, 'umbral_fraude': 20, 'ratio_min': 0.3})
+    check("limpio correcto", limpio == {'xp_referidor': 80, 'tukoins_referidor': 40, 'tukoins_pago_referidor': 1000, 'umbral_fraude': 20, 'ratio_min': 0.3})
     ok2, limpio2, _ = validar_referidos_config({})
     check("vacío → defaults", ok2 and limpio2 == REFERIDOS_CONFIG_DEFAULT)
 

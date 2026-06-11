@@ -588,6 +588,12 @@ def create_app():
                         CONSTRAINT uq_negocio_interaccion UNIQUE (negocio_id, usuario_id, tipo)
                     )""",
                     "CREATE INDEX IF NOT EXISTS ix_neg_inter_conteo ON negocio_interacciones(negocio_id, tipo)",
+                    # Sprint Referidos 2 niveles — nivel 2 (el referido pagó su 1ª mensualidad)
+                    "ALTER TABLE referidos ADD COLUMN IF NOT EXISTS pago_confirmado BOOLEAN NOT NULL DEFAULT FALSE",
+                    "ALTER TABLE referidos ADD COLUMN IF NOT EXISTS fecha_pago TIMESTAMP",
+                    "ALTER TABLE referidos ADD COLUMN IF NOT EXISTS recompensado_pago BOOLEAN NOT NULL DEFAULT FALSE",
+                    # Fase 3 — canje de TuKoins como abono al plan (desglose del pago)
+                    "ALTER TABLE pagos_suscripcion ADD COLUMN IF NOT EXISTS tukoins_aplicados INTEGER NOT NULL DEFAULT 0",
                 ]
                 for sql in migraciones:
                     try:

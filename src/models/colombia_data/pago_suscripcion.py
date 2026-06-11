@@ -78,6 +78,9 @@ class PagoSuscripcion(db.Model):
     periodo_inicio = sa.Column(sa.DateTime, nullable=True)
     periodo_fin    = sa.Column(sa.DateTime, nullable=True)
 
+    # ── Canje de TuKoins (Fase 3): cuántos TuKoins abonaron este pago ──
+    tukoins_aplicados = sa.Column(sa.Integer, nullable=False, default=0)
+
     # ── Auditoría ─────────────────────────────────────────────────────
     notas          = sa.Column(sa.Text, nullable=True)
     registrado_por = sa.Column(sa.String(80), nullable=False, default='admin')
@@ -113,6 +116,8 @@ class PagoSuscripcion(db.Model):
 
             'periodo_inicio': self.periodo_inicio.isoformat() if self.periodo_inicio else None,
             'periodo_fin':    self.periodo_fin.isoformat()    if self.periodo_fin    else None,
+
+            'tukoins_aplicados': self.tukoins_aplicados or 0,
 
             'notas':          self.notas,
             'registrado_por': self.registrado_por,

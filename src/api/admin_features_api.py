@@ -1067,6 +1067,23 @@ def registrar_pago_negocio(negocio_id):
         )
         db.session.add(pago)
 
+        # ★ Fase 3: canje de TuKoins como abono (opcional). Descuenta del saldo del
+        #   negocio respetando el tope; el pago queda con desglose efectivo + TuKoins.
+        try:
+            tukoins_canje = int(body.get('tukoins_canje') or 0)
+        except (TypeError, ValueError):
+            tukoins_canje = 0
+        if tukoins_canje > 0:
+            from src.api.gamificacion.gamificacion_api import aplicar_canje_plan
+            ok_c, res_c, err_c = aplicar_canje_plan(negocio_id, tukoins_canje, float(monto), db.session)
+            if not ok_c:
+                db.session.rollback()
+                return jsonify({'success': False, 'error': err_c}), 400
+            pago.tukoins_aplicados = res_c['tukoins']
+            _desglose = (f"Abonado con TuKoins: ${res_c['monto_cop']:,.0f} ({res_c['tukoins']} TK) "
+                         f"+ efectivo ${res_c['monto_efectivo']:,.0f}")
+            pago.notas = ((pago.notas + ' | ') if pago.notas else '') + _desglose
+
         # Activar/extender suscripción automáticamente si el pago está completado
         activar = body.get('activar_suscripcion', True)
         if activar and pago.estado == 'completado':
@@ -1096,6 +1113,20 @@ def registrar_pago_negocio(negocio_id):
 
         db.session.commit()
         logger.info(f'✅ Pago registrado: negocio={negocio_id} monto={monto} método={pago.metodo_pago}')
+
+        # ★ Punto de enganche único: confirmar el pago. Si es el PRIMER pago
+        #   completado del negocio, dispara la recompensa de referido (nivel 2).
+        #   Mañana este mismo hook lo llamará el webhook de Wompi (origen='wompi').
+        try:
+            if pago.estado == 'completado':
+                completados = PagoSuscripcion.query.filter_by(
+                    negocio_id=negocio_id, estado='completado').count()
+                es_primer_pago = (completados == 1)
+                from src.api.gamificacion.gamificacion_hooks import on_pago_confirmado
+                on_pago_confirmado(negocio_id, es_primer_pago=es_primer_pago, origen='manual')
+        except Exception as _hook_e:
+            logger.warning(f'[pago] enganche on_pago_confirmado no crítico: {_hook_e}')
+
         return jsonify({
             'success': True,
             'data':    pago.to_dict(),
@@ -1106,6 +1137,28 @@ def registrar_pago_negocio(negocio_id):
         db.session.rollback()
         logger.error(f'❌ Error registrando pago: {e}', exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@admin_features_bp.route('/api/admin/negocios/<int:negocio_id>/tukoins-canje', methods=['GET', 'OPTIONS'])
+@admin_required
+def info_canje_tukoins(negocio_id):
+    """Fase 3: saldo de TuKoins del negocio + parámetros de canje (para el form de pago)."""
+    if request.method == 'OPTIONS':
+        return jsonify({'ok': True}), 200
+    try:
+        from src.models.colombia_data.ratings.negocio_gamificacion import NegocioGamificacion
+        from src.models.colombia_data.ratings.config_gamificacion import get_tukoins_canje_config
+        gn = NegocioGamificacion.query.filter_by(negocio_id=negocio_id).first()
+        cfg = get_tukoins_canje_config()
+        return jsonify({
+            'success': True,
+            'saldo':          int(gn.tukoins) if gn else 0,
+            'cop_por_tukoin': cfg.get('cop_por_tukoin', 10),
+            'tope_pct':       cfg.get('tope_pct', 50),
+        }), 200
+    except Exception as e:
+        logger.error(f'Error info_canje_tukoins: {e}')
+        return jsonify({'success': True, 'saldo': 0, 'cop_por_tukoin': 10, 'tope_pct': 50}), 200
 
 
 @admin_features_bp.route('/api/admin/pagos/<int:pago_id>', methods=['PUT', 'OPTIONS'])

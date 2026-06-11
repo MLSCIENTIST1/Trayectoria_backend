@@ -352,7 +352,26 @@ def register_user():
         db.session.commit()
 
         logger.info(f"✅ Usuario registrado: {new_user.correo} (ID: {new_user.id_usuario}) | Términos aceptados: {fecha_aceptacion.isoformat()}")
-        
+
+        # ──────────────────────────────────────────────
+        # ★ Referidos (Fase 1): vincular con quien lo invitó (?ref=TKxxx).
+        #   A prueba de fallos: un código inválido/propio NO afecta el registro.
+        # ──────────────────────────────────────────────
+        try:
+            from src.models.colombia_data.ratings.referido import Referido
+            ref_obj, motivo = Referido.vincular(data.get('ref'), new_user.id_usuario, db.session)
+            if ref_obj is not None:
+                db.session.commit()
+                logger.info(f"🔗 Referido vinculado: {ref_obj.referidor_usuario_id} → {new_user.id_usuario}")
+            elif motivo != 'sin_codigo':
+                logger.info(f"Referido no vinculado ({motivo}) para usuario {new_user.id_usuario}")
+        except Exception as _ref_e:
+            logger.warning(f"[referidos] vínculo no crítico en registro: {_ref_e}")
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+
         return jsonify({
             'success': True,
             'message': '¡Te has registrado exitosamente!',
