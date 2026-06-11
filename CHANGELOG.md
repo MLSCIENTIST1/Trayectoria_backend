@@ -8,6 +8,18 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
 
 ---
 
+## [2.23.2] — 2026-06-11
+
+### Añadido — Ayuda "¿Para qué sirve?" en cada sección del Designer
+- Cada recuadro de configuración del Designer ahora tiene una **explicación en lenguaje de tendero**
+  (para qué sirve, cómo se usa, por qué conviene), **colapsada por defecto** detrás de un botón ℹ️ en el
+  encabezado. No alarga la vista: suma 0 de alto cerrada y se despliega con un toque (funciona en táctil,
+  a diferencia de un tooltip de hover). **38 secciones** cubiertas.
+- Arquitectura **escalable**: las explicaciones viven en un único mapa `SECTION_HELP` (clave = título de la
+  sección) y una función genérica `injectSectionHelp()` inyecta el botón y el panel en todas. Añadir/editar
+  una explicación = tocar el mapa, sin editar el HTML de cada recuadro. El botón ℹ️ no interfiere con el
+  colapso de la sección (`stopPropagation`); si la sección está cerrada, el ℹ️ la abre y muestra la ayuda.
+
 ## [2.23.1] — 2026-06-11
 
 ### Añadido — Orden de los productos (configurable, todas las plantillas)

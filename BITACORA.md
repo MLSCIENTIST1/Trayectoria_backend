@@ -11,6 +11,23 @@
 
 ---
 
+## 2026-06-11 — ❓ Ayuda "¿Para qué sirve?" colapsable en cada sección del Designer
+
+Las secciones tenían solo un subtítulo de 3-5 palabras; ninguna explicaba para qué sirve / cómo se usa.
+Pedido: añadir explicaciones SIN alargar la vista (desplegable o tooltip).
+
+- **Mecanismo elegido:** botón ℹ️ en el encabezado → panel colapsable (no hover, porque los tenderos usan
+  celular = táctil). Suma 0 de alto cerrado.
+- **Escalable:** mapa `SECTION_HELP` (clave = título <h3>) + `injectSectionHelp()` genérico que inyecta
+  botón + panel en cada `.settings-section`. `toggleSectionHelp(e, sec)` con `stopPropagation` (no togglea la
+  sección) y abre la sección si estaba cerrada. Editar explicaciones = tocar el mapa, sin tocar 40 recuadros.
+- **38 secciones** con explicación en lenguaje de tendero (solo "Orden de los productos" se omitió: ya tiene
+  su caja inline). CSS `.cfg-help-btn`/`.cfg-help-panel` (max-height transition). designer.js?v=20260611c.
+- Verificado en navegador: 38 botones+paneles inyectados, toggle abre/cierra, no cierra la sección, en sección
+  cerrada el ℹ️ la abre. Sin errores de consola. Solo frontend.
+
+---
+
 ## 2026-06-11 — ↕️ Orden de los productos configurable (todas las plantillas)
 
 El dueño elige cómo aparecen sus productos. Antes: control parcial escondido en "Filtros",
