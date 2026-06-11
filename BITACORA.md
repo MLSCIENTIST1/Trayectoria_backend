@@ -11,6 +11,33 @@
 
 ---
 
+## 2026-06-11 — 🎨 Precio legible por contraste + UX Centro Financiero + plantilla en panel admin
+
+- **Bug reportado (DM Marketing, tema morado):** el precio de los productos no se veía. **Causa:** `.price-current`
+  tenía color fijo `#1f2937` y los temas oscuros solo repintaban `.product-price` (clase obsoleta del markup viejo)
+  → precio oscuro sobre card oscura. La regla la pisaba además el `<style id="productCardDynamicStyles">` inyectado
+  por `tienda.js`.
+- **Fix (relación de colores inteligente):** helpers `tkRelLuminance/tkContrastRatio/tkMixColor/tkIdealTextColor`
+  (luminancia WCAG + ratio + mezcla). El precio usa el **color de marca** si ya contrasta (AA ≥ 4.5); si no, se
+  aclara/oscurece hasta lograrlo. **Las tiendas claras no se tocan** (solo recalcula cuando el default no contrasta).
+  - **Ecommerce:** `--tk-precio-color` por tema en `applyEcommerceTema` → `.price-current` (CSS + estilo inyectado).
+  - **Taller:** card fija `#252525`; precio `tkIdealText('#252525', color)`. Dos puntos de aplicación de `--amber`.
+  - **Verde:** card según tema (`#fff`/`#0f2d17`); precio calculado tras aplicar el tema en `applyNegocio`.
+  - **Verificado en vivo:** vibrant→`#aa7ff3` (5.11), taller oscuro→`#8d8d8d` (4.62), verde oscuro→`#67ac81` (5.54).
+    Restaurante (precio `--red` fijo) y catálogo/groove (precio sobre texto general) son bajo riesgo → no se tocaron.
+- **Panel admin:** el endpoint `/api/admin/negocios/<id>/info` (admin_features_api.py) ahora devuelve `tipo_pagina`
+  y el modal "Información del Negocio" muestra la **Plantilla** (label legible). Útil para soporte/diagnóstico.
+- **Centro Financiero (grilla_financiera.html):** (1) el botón central abre **todo con un clic** (antes 0→1→2);
+  (2) **pantalla de carga inteligente** para el cold-start de Render (barra asintótica + mensajes por tiempo + ping
+  a `/api/health` → 100% al conectar; salvaguarda 60 s; `prefers-reduced-motion`).
+- **OG landing (pendiente de doc previo):** `OG_FALLBACK` pasó de `tuko-logo.gif` (10.5 MB, WhatsApp no lo muestra)
+  a `pwa-512.png` (209 KB) + `og:image:type/width/height`. `WORKER_VERSION` 1.31.
+- **Cache-busting:** `tienda.js/css?v=20260611a`, `SW_VERSION` 2.3.3. JS validado (`node --check`), Python (`py_compile`).
+- **Siguiente / recomendado:** keep-alive (UptimeRobot → `/api/health` cada 5 min) para matar el cold-start de raíz;
+  reemplazar el GIF de 10.5 MB; (opcional) sembrar estas mejoras en Novedades públicas (`plataforma_kb`).
+
+---
+
 ## 2026-06-08 — 🐞 FIX inventario/dropshipping en MÓVIL (contexto de negocio en iframe)
 
 - **Síntoma:** en el celular (dentro de la app) Inventario mostraba "No hay productos"; en PC sí cargaba.

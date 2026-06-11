@@ -8,6 +8,35 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
 
 ---
 
+## [2.22.3] — 2026-06-11
+
+### Arreglado
+- **El precio de los productos quedaba invisible según el color/tema de la tienda.** Reportado en una tienda con
+  tema morado (vibrant): el precio (`.price-current`) tenía un color fijo oscuro (`#1f2937`) y ningún tema oscuro
+  lo repintaba (solo se repintaba `.product-price`, una clase ya en desuso) → texto oscuro sobre fondo oscuro.
+  **Fix con relación de colores inteligente:** helpers de contraste (luminancia WCAG + ratio + mezcla) calculan un
+  color de precio que **respeta la marca** del comerciante si ya contrasta (AA ≥ 4.5), o lo aclara/oscurece hasta
+  que se vea. Las tiendas claras que ya funcionaban **no se tocan**. Aplicado a la tienda **ecommerce** (por tema
+  light/dark/vibrant) y a las plantillas **taller** (card oscura fija) y **verde** (card según tema). Verificado:
+  vibrant→`#aa7ff3` (5.11), taller con color oscuro→`#8d8d8d` (4.62), verde tema oscuro→`#67ac81` (5.54). Cache-bust
+  `tienda.js/css?v=20260611a` + `SW_VERSION` 2.3.3.
+- **`tukomercio.co` (landing) no mostraba el logo al compartir por WhatsApp.** El `OG_FALLBACK` del worker era
+  `tuko-logo.gif`, un **GIF de 10.5 MB** que WhatsApp ni renderiza (no soporta GIF) ni acepta por peso. Cambiado a
+  `pwa-512.png` (PNG liviano, 209 KB) + el worker declara `og:image:type/width/height`. `WORKER_VERSION` 1.31.
+  Beneficia también ayuda/novedades/estado (mismo fallback). *(Deuda técnica anotada: el GIF de 10.5 MB se usa como
+  logo en varias pantallas — reemplazar por SVG/PNG/WebP.)*
+
+### Cambiado
+- **Centro Financiero (grilla): un solo clic despliega todo.** El botón central abría por niveles (clic 1 = stats,
+  clic 2 = módulos/inventarios). Ahora un clic muestra todo y otro cierra.
+- **Pantalla de carga inteligente en el Centro Financiero** para cuando el servidor (Render) está dormido: barra de
+  progreso asintótica + mensajes por tiempo ("Cargando…" → "Conectando…" → "Despertando el servidor 😴☕"); pinga
+  `/api/health` (ligero) y al responder salta a 100% y entra. Salvaguarda de 60 s; respeta `prefers-reduced-motion`.
+
+### Añadido
+- **Panel admin · modal "Información del Negocio":** ahora muestra la **Plantilla** que usa el negocio
+  (`tipo_pagina`: ecommerce/restaurante/taller/catálogo/verde/groove), útil para diagnóstico de soporte.
+
 ## [2.22.2] — 2026-06-08
 
 ### Cambiado
