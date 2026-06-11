@@ -8,6 +8,28 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
 
 ---
 
+## [2.24.0] — 2026-06-11
+
+### Añadido — Vista Dividida (Split View) en el Studio · SOLO escritorio
+- **Workspace dividido** estilo Firebase Studio / Adobe: trabaja con 2–3 módulos lado a lado en la misma
+  pantalla (ej. registrar ventas a la izquierda mientras ves tu tienda a la derecha). El botón de la barra
+  superior abre un menú de layouts: 1 panel, 50/50, 70/30 y 3 paneles (50/25/25).
+- Cada panel tiene su **selector de módulo** (los mismos del menú lateral) + botón refrescar; **divisor
+  arrastrable** (y con teclado ←/→) con ancho mínimo por panel; **persistencia** del layout por usuario;
+  **atajos** Ctrl+\\ para dividir/quitar y Ctrl+\\ luego 1/2/3 para enfocar un panel. Incluye un panel
+  **"Mi tienda (vista previa)"** que carga la tienda pública del negocio activo.
+- Toques TuKomercio: animación de apertura suave, **logro "Multitasker"** la primera vez (confetti + aviso),
+  tip de descubrimiento y sugerencia de pareja útil (descartables). Accesible (roles ARIA, foco visible,
+  navegación por teclado).
+- **⚠️ Protección móvil (regla de oro):** el split es EXCLUSIVO de escritorio (≥1024px). En móvil/tablet
+  vertical el botón está oculto y su JS/CSS **ni siquiera se cargan**; el CSS vive 100% dentro de
+  `@media (min-width:1024px)` (cero impacto en móvil). Si achicas la ventana se vuelve a la vista normal sin
+  romper nada y se restaura al volver a escritorio. Verificado: la experiencia móvil queda intacta.
+
+### Pendiente (deuda técnica)
+- Split contextual master-detail (Fase 2), barra de actividad en vivo dentro del preview (Fase 3) y el badge
+  "Multitasker" real en el motor de gamificación. Ver `DEUDA_TECNICA.md`.
+
 ## [2.23.2] — 2026-06-11
 
 ### Añadido — Ayuda "¿Para qué sirve?" en cada sección del Designer

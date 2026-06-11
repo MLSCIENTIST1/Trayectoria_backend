@@ -11,6 +11,34 @@
 
 ---
 
+## 2026-06-11 — 🪟 Split View (Workspace Dividido) en el Studio — SOLO escritorio
+
+Vista dividida estilo Firebase Studio/Adobe: 2–3 módulos lado a lado. Regla de oro: cero degradación móvil.
+
+- **Arquitectura de bajo riesgo:** el split es un modo-overlay con su propio contenedor `#sv-root`
+  (position:absolute) dentro de `#editor-content`, con sus propios iframes. El sistema de Tabs queda
+  INTACTO (cero regresión). Cuando el split está activo, `#editor-content.sv-on` oculta los frames de tabs.
+- **Archivos nuevos:** `assets/js/split-view.js` (window.SplitView) + `assets/css/split-view.css`.
+  Cableado en `TuKomercio.html`: botón `#btn-split` (.desktop-only) + lazy-loader que SOLO carga el JS/CSS
+  en `innerWidth>=1024`. Los módulos del selector se leen del nav (`.bf-nav-item[data-path]`).
+- **Motor (Fase 1):** layouts 1/50-50/70-30/50-25-25; paneles con selector + refrescar; divisor arrastrable
+  (mousedown) y por teclado (←/→) con MIN_PANEL_PX=240; lazy-iframe al elegir módulo; persistencia
+  localStorage `tk_split_layout_<uid>`; atajos Ctrl+\\ (toggle) + chord 1/2/3 (enfocar). ARIA + focus-visible.
+- **Regla de oro móvil (Fase 0) — verificada:** botón oculto <1024 (.desktop-only ya existía con ese
+  breakpoint); JS/CSS no se cargan en móvil; CSS 100% dentro de `@media(min-width:1024px)`; `init()` y
+  `_restore()` retornan si `!isDesktop()`; resize guard desmonta al bajar de 1024 (preservando lo guardado)
+  y restaura al volver. Verificado en navegador (harness): 50/50=609·6·609, 70/30, 3 paneles, exit, persist,
+  ciclo desktop→móvil→desktop.
+- **Fase 3 (base):** panel "Mi tienda (vista previa)" (iframe a /tienda/<slug> del negocio activo) + refrescar.
+- **Fase 4:** animación sv-enter <300ms; logro local "Multitasker" 1ª vez (confetti via ConfettiFX + toast,
+  idempotente por localStorage `tk_split_first`); tip de descubrimiento; sugerencia de pareja (descartable);
+  **slot arquitectónico "asistente"** reservado en el registro de módulos (sin IA).
+- **Diferido (DEUDA_TECNICA):** Fase 2 master-detail contextual + comparar; Fase 3 barra de actividad en vivo
+  + sync cross-panel; badge "Multitasker" real en el motor de gamificación. Solo frontend; sin endpoints
+  nuevos (persistencia local). JS validado (node --check); sin errores de consola.
+
+---
+
 ## 2026-06-11 — ❓ Ayuda "¿Para qué sirve?" colapsable en cada sección del Designer
 
 Las secciones tenían solo un subtítulo de 3-5 palabras; ninguna explicaba para qué sirve / cómo se usa.

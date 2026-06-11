@@ -364,6 +364,17 @@ SEED_DOCS = [
         'vendedor recibe el pedido en su panel.'),
      'tecnico': "Archivos tienda/checkout.html y tienda/carrito.html: resumen del carrito, datos de envío (nombre, teléfono, dirección, ciudad), pago vía Wompi y otros métodos; integra mensaje automático de WhatsApp a la tienda; pantalla de pago-exitoso al final."},
 
+    {'area': 'frontend', 'clave': 'doc-front-split-view', 'nivel': 'admin', 'orden': 17,
+     'titulo': 'Vista Dividida del Studio (Split View)',
+     'resumen': 'Trabajar con 2–3 módulos lado a lado, solo en escritorio.',
+     'contenido': (
+        'En el computador, el dueño puede dividir la pantalla del Studio y abrir dos o tres módulos a la '
+        'vez (por ejemplo, registrar ventas mientras ve su tienda). Tiene layouts (50/50, 70/30, 3 paneles), '
+        'divisor arrastrable, un selector de módulo por panel y recuerda la última distribución.\n\n'
+        'Es EXCLUSIVO de escritorio: en el celular el botón no aparece y la experiencia móvil queda '
+        'exactamente igual que siempre.'),
+     'tecnico': "assets/js/split-view.js (window.SplitView) + assets/css/split-view.css. Cableado en TuKomercio.html: botón #btn-split (.desktop-only) + lazy-loader que solo carga JS/CSS si innerWidth>=1024. Modo-overlay: #sv-root (position:absolute) dentro de #editor-content; el sistema de Tabs queda intacto (#editor-content.sv-on oculta los frames de tab). Paneles leen módulos del nav (.bf-nav-item[data-path]) + un módulo 'Mi tienda (vista previa)' (/tienda/<slug>) + slot 'asistente' reservado. Persistencia localStorage tk_split_layout_<uid>. Atajos Ctrl+\\ (toggle) y chord 1/2/3 (enfocar panel). PROTECCIÓN MÓVIL: todo el CSS dentro de @media(min-width:1024px); init()/_restore() retornan si !isDesktop(); resize-guard desmonta <1024 (preservando lo guardado) y restaura al volver. Diferido (DEUDA_TECNICA): Fase 2 master-detail, Fase 3 barra de actividad + sync cross-panel, badge Multitasker real."},
+
     {'area': 'frontend', 'clave': 'doc-front-orden-productos', 'nivel': 'admin', 'orden': 16,
      'titulo': 'Orden de los productos (todas las plantillas)',
      'resumen': 'El dueño elige cómo aparecen sus productos al entrar.',
