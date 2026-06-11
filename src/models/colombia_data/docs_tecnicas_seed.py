@@ -364,6 +364,17 @@ SEED_DOCS = [
         'vendedor recibe el pedido en su panel.'),
      'tecnico': "Archivos tienda/checkout.html y tienda/carrito.html: resumen del carrito, datos de envío (nombre, teléfono, dirección, ciudad), pago vía Wompi y otros métodos; integra mensaje automático de WhatsApp a la tienda; pantalla de pago-exitoso al final."},
 
+    {'area': 'frontend', 'clave': 'doc-front-orden-productos', 'nivel': 'admin', 'orden': 16,
+     'titulo': 'Orden de los productos (todas las plantillas)',
+     'resumen': 'El dueño elige cómo aparecen sus productos al entrar.',
+     'contenido': (
+        'Desde el Diseñador, el dueño elige en qué orden aparecen sus productos al entrar a la tienda: más '
+        'nuevos, más antiguos, más vendidos, más vistos, por precio, alfabético, destacados primero o aleatorio. '
+        'Aplica a TODAS las plantillas y se ve al instante en la vista previa.\n\n'
+        'Si la barra de filtros del comprador está activa, ese es el orden inicial y el cliente puede '
+        'recambiarlo desde su propio menú de orden.'),
+     'tecnico': "Función canónica compartida assets/tienda/orden-productos.js (window.TukoOrden.ordenar, no muta; .normalizar mapea claves legadas como newest/price-asc). Config config_tienda.orden_productos (fallback filtros.ordenDefault -> 'recientes'). Designer: sección 'Orden de los productos' (id=ordenProductos, 10 opciones) registrada como 'all' en TEMPLATE_SECTION_MAP. Aplicado en las 6 plantillas: tienda.js (aplicarFiltros), catalogo.js (sortArray), groove.js (sortFiltered), verde/taller/restaurante (render* — antes NO ordenaban). Campos usados: visitas_7_dias, total_ventas/badges.total_ventas, badges.destacado, created_at/id, precio, nombre."},
+
     {'area': 'frontend', 'clave': 'doc-front-pedido-tracking', 'nivel': 'admin', 'orden': 15,
      'titulo': 'Seguimiento del pedido',
      'resumen': 'El enlace que el cliente sigue.',
@@ -464,6 +475,18 @@ SEED_DOCS = [
         'afectada. Los valores (cuánto XP da cada cosa, misiones, eventos) son configurables desde el panel sin '
         'tocar código, con un valor por defecto de respaldo.'),
      'tecnico': "Hooks en src/api/gamificacion/gamificacion_hooks.py (on_venta_completada, on_login, etc.) en try/except con commit/rollback propio: si fallan no afectan la operación principal; config_gamificacion.py usa la tabla gamif_config (columna valor JSONB) con patrón DEFAULT-en-código + override-en-BD y helpers puros merge_*/validar_*/get_* que caen al DEFAULT si la BD falla."},
+
+    {'area': 'gamificacion', 'clave': 'doc-gami-referidos', 'nivel': 'admin', 'orden': 3,
+     'titulo': 'Referidos "Comparte y gana" (dos niveles)',
+     'resumen': 'Invitar a otro tendero da TuKoins canjeables por el plan.',
+     'contenido': (
+        'Cada tendero tiene un link de invitación; quien se registra con ese link queda vinculado '
+        'automáticamente. El que invita gana en dos momentos: cuando su invitado PUBLICA su tienda '
+        '(premio chico) y cuando PAGA su primera mensualidad (premio grande). Los TuKoins ganados sirven '
+        'para abonar la propia mensualidad (100 TuKoins = $1.000, hasta el 50% del plan).\n\n'
+        'Hoy el pago del plan lo registra un administrador a mano; el día que se integre la pasarela de '
+        'pagos, todo el premio se otorga automáticamente sin cambiar nada de la lógica de referidos.'),
+     'tecnico': "Modelo Referido (ratings/referido.py): vincular() llamado desde register_user_api (captura ?ref=TKxxx). Nivel 1 (publicar tienda): on_tienda_publicada -> procesar_conversion_referido (30 TK+50 XP, flags convertido/recompensado). Nivel 2 (1er pago): procesar_pago_referido (1000 TK, flags pago_confirmado/recompensado_pago, crédito en SAVEPOINT). PUNTO DE ENGANCHE ÚNICO on_pago_confirmado(negocio_id, es_primer_pago, origen) en gamificacion_hooks.py: hoy lo invoca el registro manual del pago (admin_features_api::registrar_pago_negocio, origen='manual'); mañana el webhook de Wompi (origen='wompi') sin reescribir referidos. Canje: calcular_canje_tukoins + aplicar_canje_plan (config_gamificacion: cop_por_tukoin=10, tope_pct=50, editable en /api/admin/gamificacion/tukoins-canje/config). Migración de columnas en create_app (regla F8). Vista contabilidad/modulos/referidos.html. Pendiente: pasarela Wompi de planes (ver DEUDA_TECNICA.md)."},
 
     # E-COMMERCE
     {'area': 'ecommerce', 'clave': 'doc-ecom-overview', 'nivel': 'admin', 'orden': 1,
