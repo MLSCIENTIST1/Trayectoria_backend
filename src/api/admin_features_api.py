@@ -559,6 +559,7 @@ def get_negocio_info(negocio_id):
                n.email, n.whatsapp, n.telefono, n.categoria, n.fecha_registro,
                u.correo as dueno_email, u.nombre as dueno_nombre,
                p.nombre as plan_nombre, p.color as plan_color,
+               COALESCE(NULLIF(n.tipo_pagina, ''), 'ecommerce') as tipo_pagina,
                (SELECT COUNT(*) FROM productos_catalogo pc WHERE pc.negocio_id = n.id_negocio) as num_productos,
                (SELECT COUNT(*) FROM pedidos pd WHERE pd.negocio_id = n.id_negocio) as num_pedidos,
                (SELECT COUNT(*) FROM pedidos pd WHERE pd.negocio_id = n.id_negocio AND pd.estado = 'entregado') as pedidos_entregados
@@ -586,9 +587,10 @@ def get_negocio_info(negocio_id):
             'categoria': row[9], 'fecha_registro': _fmt(row[10]),
             'dueno_email': row[11], 'dueno_nombre': row[12],
             'plan_nombre': row[13] or 'Basic', 'plan_color': row[14] or '#22c55e',
-            'num_productos': int(row[15] or 0),
-            'num_pedidos': int(row[16] or 0),
-            'pedidos_entregados': int(row[17] or 0),
+            'tipo_pagina': row[15] or 'ecommerce',
+            'num_productos': int(row[16] or 0),
+            'num_pedidos': int(row[17] or 0),
+            'pedidos_entregados': int(row[18] or 0),
         }
     })
 
