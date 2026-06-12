@@ -98,10 +98,11 @@ from src.models.colombia_data.negocio import Negocio
 from src.models.database import db
 from src.models.feature_models import  check_limit, check_feature_access
 from src.models.colombia_data.contabilidad.operaciones_y_catalogo import (
-    ProductoCatalogo, 
+    ProductoCatalogo,
     TransaccionOperativa,
     MovimientoStock,
-    CategoriaProducto
+    CategoriaProducto,
+    ProductoEstadisticas   # ★ Fix: faltaba (lo usan /producto/<id>/vista y /estadisticas → NameError 500)
 )
 
 # --- CONFIGURACIÓN DE LOGS ---

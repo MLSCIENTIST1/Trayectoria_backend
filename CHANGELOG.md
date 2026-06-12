@@ -8,6 +8,16 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
 
 ---
 
+## [2.24.4] — 2026-06-11
+
+### Arreglado
+- **Métricas de producto daban error 500** (`name 'ProductoEstadisticas' is not defined`): el modelo
+  `ProductoEstadisticas` no estaba importado en `catalogo_api.py`, así que `GET /producto/<id>/estadisticas`
+  fallaba. El mismo bug rompía `POST /producto/<id>/vista`, por lo que **las vistas de producto nunca se
+  registraban**. Añadido el import → ahora las métricas cargan y el conteo de vistas empieza a acumular.
+  *(Las métricas mostrarán números bajos al inicio hasta que se acumulen visitas con el tracking ya
+  funcionando.)*
+
 ## [2.24.3] — 2026-06-11
 
 ### Añadido — Métricas por producto + Actividad en vivo (Split View Fase 3)
