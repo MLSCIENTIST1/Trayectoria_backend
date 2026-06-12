@@ -36,10 +36,11 @@ La Vista Dividida entregó Fase 0 (protección móvil), Fase 1 (motor) y parte d
 **Fase 2 — Split contextual (master-detail):** HECHO en Pedidos, Inventario y CRM (CHANGELOG 2.24.1).
 El shell escucha `TUKO_SPLIT_DETAIL` y abre el detalle al lado; cada módulo de lista recibe `?tukoSplit=1`
 y al seleccionar postea `TUKO_SPLIT_DETAIL` con `path=<módulo>?tukoDetail=<id>` (CRM invitado usa `tukoTel`).
-Cambios aditivos/gated: sin el flag, comportamiento idéntico (uso normal y móvil). FALTA: **modo COMPARAR**
-(seleccionar 2 ítems → lado a lado) y pulir el panel de detalle (hoy carga el módulo enfocando el ítem con
-su modal; idealmente un modo "solo detalle" que oculte la lista del panel). Pendiente verificar en la app
-logueado (los cambios no se pudieron probar dentro del Studio por el login).
+Cambios aditivos/gated: sin el flag, comportamiento idéntico (uso normal y móvil). **Modo COMPARAR HECHO en
+Inventario** (CHANGELOG 2.24.2): botón "Comparar" → eliges 2 productos → `openCompare` los abre lado a lado
+(`TUKO_SPLIT_COMPARE`). FALTA: extender Comparar a **Pedidos/CRM**; pulir el panel de detalle (hoy carga el
+módulo enfocando el ítem con su modal; idealmente un modo "solo detalle" que oculte la lista del panel).
+Pendiente verificar en la app logueado (los cambios no se pudieron probar dentro del Studio por el login).
 
 **Fase 3 — Barra de actividad en vivo:** dentro del panel "Mi tienda (vista previa)", una barra inferior
 expandible con últimas visitas/pedidos (estilo consola de Firebase) + sync suave cross-panel (si el panel A

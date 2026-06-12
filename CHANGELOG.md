@@ -8,6 +8,16 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
 
 ---
 
+## [2.24.2] — 2026-06-11
+
+### Añadido — Modo Comparar en la Vista Dividida (productos)
+- En **Inventario** dentro de la Vista Dividida (escritorio), un botón **"⚖️ Comparar"** activa el modo
+  selección: eliges **2 productos** y se abren **lado a lado** (50/50) para comparar precio, stock y margen de
+  un vistazo — ideal para decidir precios. El shell expone `openCompare({paths,titles})` (evento
+  `TUKO_SPLIT_COMPARE`). Aditivo y gated: fuera del split (uso normal y móvil), nada cambia.
+- Verificado en navegador (harness): abre 2 paneles con los 2 productos; bridge de postMessage OK.
+  `split-view.js?v=4`.
+
 ## [2.24.1] — 2026-06-11
 
 ### Añadido — Split contextual (master-detail) en la Vista Dividida

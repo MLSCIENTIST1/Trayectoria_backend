@@ -38,9 +38,12 @@ el detalle se abre en el panel de al lado.
   CRM, Dropshipping, Alertas, Carga CSV, Dashboard) + "Diseñar mi tienda" (Store Designer), y se QUITÓ
   "Centro Financiero" (la grilla no aporta en un panel). `MODULOS_FINANCIEROS` en split-view.js; el resto del
   nav se sigue leyendo (filtrando Centro Financiero). split-view.js?v=3. Verificado en harness.
-- **Diferido (DEUDA_TECNICA):** modo Comparar, modo "solo detalle" del panel, barra de actividad (Fase 3),
-  badge real. Solo frontend. No pude probar dentro del Studio (login); los cambios son aditivos/gated y se
-  verificarán en la app logueado.
+- **Modo Comparar (productos) HECHO** (2.24.2): shell `openCompare({paths,titles})` abre 2 paneles 50/50 con
+  los 2 detalles (`_loadDetailInto` extraído, DRY con openDetail; bridge `TUKO_SPLIT_COMPARE`). Inventario:
+  barra flotante "⚖️ Comparar" → modo selección → clic selecciona (no abre detalle) → al elegir 2 postea el
+  comparativo. Aditivo/gated. Verificado en harness; JS inline sin errores. `split-view.js?v=4`.
+- **Diferido (DEUDA_TECNICA):** Comparar en Pedidos/CRM, modo "solo detalle" del panel, barra de actividad
+  (Fase 3), badge real. Solo frontend. Pendiente verificar en la app logueado (login).
 
 ---
 
