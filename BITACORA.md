@@ -11,6 +11,25 @@
 
 ---
 
+## 2026-06-11 — 📊 Métricas por producto + barra de actividad en vivo (Split View Fase 3)
+
+- **Métricas de producto (la data YA existía):** endpoint `GET /api/producto/<id>/estadisticas` (catalogo_api,
+  modelo `ProductoEstadisticas` + campos `visitas_7_dias/total_ventas/ventas_30_dias`). Faltaba UI →
+  `contabilidad/modulos/producto_metricas.html?producto=ID`: tarjetas (visitas 7/30d, carrito, compras,
+  ingresos, conversión) + embudo + gráfico diario CSS. Acceso: botón "Ver métricas" en el modal de producto
+  de inventario (`verMetricasProducto`): en split → `TUKO_SPLIT_DETAIL` al lado; si no → overlay iframe
+  (universal, móvil). Mostrado solo al editar (productId).
+- **Fase 3 — barra de actividad en vivo:** en `split-view.js`, `_mountActivityBar(rec)` cuando el panel es el
+  preview (`mod.preview`): barra `.sv-activity` minimizada/expandible, polling 45s a
+  `/negocio/<id>/analytics/resumen` (visitas hoy) + `/pedidos/negocio/<id>?limit=5` (últimos pedidos), punto
+  "en vivo" pulsante, cliente escapado (anti-XSS). `_stopActivity` limpia el timer en setPanelModule/
+  _loadDetailInto/exit/applyLayout/resize (sin fugas). CSS bajo `@media ≥1024`. `split-view.js?v=5`.
+- Verificado en harness: vista 6 tarjetas+gráfico; barra monta/expande/limpia al cambiar de módulo. Solo
+  frontend (consume endpoints existentes). Novedad pública "Mira las métricas de cada producto".
+- **Diferido (DEUDA):** sync cross-panel (bus de eventos), Comparar en Pedidos/CRM, badge real.
+
+---
+
 ## 2026-06-11 — 🔗 Split contextual master-detail (Fase 2) + Pedidos de referencia
 
 Sobre el motor de Split View, el patrón master-detail (AWS Cloudscape): al seleccionar un ítem de lista,

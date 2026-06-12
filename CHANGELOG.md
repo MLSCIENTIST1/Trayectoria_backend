@@ -8,6 +8,23 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
 
 ---
 
+## [2.24.3] — 2026-06-11
+
+### Añadido — Métricas por producto + Actividad en vivo (Split View Fase 3)
+- **Métricas de cada producto:** nueva vista `producto_metricas.html` que muestra visitas (7/30 días),
+  agregados al carrito, compras, ingresos, **tasa de conversión** y un gráfico diario, con un **embudo**
+  (vieron → al carrito → compraron). Consume el endpoint que ya existía `GET /api/producto/<id>/estadisticas`
+  (solo faltaba la interfaz). Se abre con el botón **"Ver métricas"** en el modal de producto de Inventario:
+  dentro del Split se abre en el panel de al lado; en cualquier otro caso (incluido móvil) en un overlay.
+- **Barra de actividad en vivo (Fase 3):** en el panel "Mi tienda (vista previa)" del Split, una barra
+  inferior minimizada/expandible muestra **visitas y pedidos de hoy** y los **últimos pedidos entrando**,
+  refrescando cada ~45 s (visitas: `/analytics/resumen`; pedidos: `/pedidos/negocio/<id>`). El nombre del
+  cliente va escapado (anti-XSS) y el polling se detiene al cambiar de módulo / salir del split.
+
+### Pendiente (deuda técnica)
+- Sincronización fina entre paneles (Fase 3), Comparar en Pedidos/CRM y el badge "Multitasker" real.
+  Ver `DEUDA_TECNICA.md`.
+
 ## [2.24.2] — 2026-06-11
 
 ### Añadido — Modo Comparar en la Vista Dividida (productos)

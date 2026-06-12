@@ -42,10 +42,10 @@ Inventario** (CHANGELOG 2.24.2): botón "Comparar" → eliges 2 productos → `o
 módulo enfocando el ítem con su modal; idealmente un modo "solo detalle" que oculte la lista del panel).
 Pendiente verificar en la app logueado (los cambios no se pudieron probar dentro del Studio por el login).
 
-**Fase 3 — Barra de actividad en vivo:** dentro del panel "Mi tienda (vista previa)", una barra inferior
-expandible con últimas visitas/pedidos (estilo consola de Firebase) + sync suave cross-panel (si el panel A
-registra una venta, refrescar el panel B vía evento global ligero; sin websockets nuevos). El panel preview
-y su refrescar ya existen; falta la barra de actividad y el bus de eventos.
+**Fase 3 — Barra de actividad en vivo:** HECHA (CHANGELOG 2.24.3). El panel "Mi tienda (vista previa)" tiene
+una barra inferior expandible con visitas/pedidos de hoy + últimos pedidos (polling ~45s a
+`/analytics/resumen` y `/pedidos/negocio/<id>`). FALTA: **sync suave cross-panel** (si el panel A registra una
+venta, refrescar el panel B vía un bus de eventos ligero; sin websockets) — el bus de eventos aún no existe.
 
 **Badge "Multitasker" real:** hoy la 1ª vez se da una celebración LOCAL (confetti + toast, idempotente por
 localStorage). Falta crear el badge en el catálogo de gamificación y un disparo idempotente (evento/endpoint
