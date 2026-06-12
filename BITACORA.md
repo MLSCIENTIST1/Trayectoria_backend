@@ -11,6 +11,30 @@
 
 ---
 
+## 2026-06-11 — 🔗 Split contextual master-detail (Fase 2) + Pedidos de referencia
+
+Sobre el motor de Split View, el patrón master-detail (AWS Cloudscape): al seleccionar un ítem de lista,
+el detalle se abre en el panel de al lado.
+
+- **Shell (`split-view.js`):** `_installMessageBridge()` escucha `message` (valida `e.origin===location.origin`)
+  y al recibir `{type:'TUKO_SPLIT_DETAIL', path, title}` llama `openDetail()`, que asegura 2 paneles
+  (layout 60/40 si había 1), usa el último panel como detalle (`data-role="detail"`), carga el path SIN el
+  flag de lista y lo enfoca. `setPanelModule` ahora añade `?tukoSplit=1` a los módulos normales (no al
+  preview ni al detalle) para avisarles que están dentro de un split.
+- **Pedidos (`contabilidad/modulos/pedidos.html`) — integración aditiva/gated:** `verDetalle(id)` al inicio:
+  si `window.__tukoSplitHost && window.parent!==window` → `postMessage TUKO_SPLIT_DETAIL` (path
+  `pedidos.html?tukoDetail=ID`) y `return` (no abre el modal local). Fuera del split (uso normal y móvil) →
+  comportamiento idéntico. En `DOMContentLoaded`: lee `tukoSplit` (rol lista → setea `__tukoSplitHost`) y
+  `tukoDetail` (rol detalle → auto-abre el pedido tras cargar la lista).
+- **Cero regresión por construcción:** los cambios de Pedidos solo actúan con el flag presente; sin él, nada
+  cambia. Verificado: JS inline de pedidos sin errores; shell master-detail probado en harness (flag en la
+  lista, openDetail crea `data-role=detail` con `tukoDetail`, bridge postMessage abre el detalle).
+- **Diferido (DEUDA_TECNICA):** mismo patrón en Inventario/CRM, modo Comparar, barra de actividad (Fase 3),
+  badge real. `split-view.js?v=2`. Solo frontend. No pude probar dentro del Studio (login); el cambio es
+  aditivo/gated y se verificará en la app logueado.
+
+---
+
 ## 2026-06-11 — 🪟 Split View (Workspace Dividido) en el Studio — SOLO escritorio
 
 Vista dividida estilo Firebase Studio/Adobe: 2–3 módulos lado a lado. Regla de oro: cero degradación móvil.
