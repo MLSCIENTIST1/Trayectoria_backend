@@ -208,6 +208,18 @@ SEED_DOCS = [
         'y descripción), para que se vea atractivo. Si algo falla, muestra un error limpio sin exponer detalles.'),
      'tecnico': "public/_worker.js (Cloudflare Pages Advanced Mode). _redirects se ignora. ASSETS.fetch('/foo') -> 200 (clean URL); '/foo.html' -> 307. Rutas: /, /app, /tienda/:slug (sirve tienda/r.html), /pedido/:t/:codigo, /ayuda, /ayuda/:slug, /novedades, /estado, /documentacion. Para bots (BOT_RE: WhatsApp/Telegram/Facebook...) genera HTML con OG tags (buildOgHtml + optimizarOgImage para Cloudinary). Errores 5xx -> 404 limpio. WORKER_VERSION en /_debug/version."},
 
+    {'area': 'frontend', 'clave': 'doc-front-share-producto', 'nivel': 'admin', 'orden': 8,
+     'titulo': 'Compartir un producto con su propia foto',
+     'resumen': 'Cómo el enlace de un producto muestra su imagen al compartirlo por WhatsApp/redes.',
+     'contenido': (
+        'Cuando alguien comparte el enlace de un producto (por WhatsApp, Facebook, etc.), la "tarjeta de vista '
+        'previa" muestra la foto, el nombre y el precio de ESE producto, no la imagen general de la tienda.\n\n'
+        'La clave: al abrir un producto, la dirección lleva un dato que el servidor SÍ puede leer '
+        '(?producto=<número>). Así, cuando WhatsApp pide la vista previa, el sistema busca ese producto y arma la '
+        'tarjeta con su imagen. Funciona en todas las plantillas. El envío del resumen de pedido es un flujo '
+        'aparte y no se ve afectado.'),
+     'tecnico': "Cadena completa: (1) product-detail.js pone ?producto=<id> en la barra via pushState/replaceState (además del #producto-<id> para anclaje y botón atrás) — antes solo ponía el hash, que NO llega al servidor, por eso la preview salía genérica. (2) _worker.js, para bots, lee url.searchParams 'producto'/'p' y llama GET /api/tienda/<slug>/producto/<id>/og (catalogo_api.py::producto_og_publico, test_producto_og_publico.py). (3) Arma el OG con pickOgImage(p.imagen, negocio.logo_url) — Cloudinary c_fill,w_1200,h_630. (4) checkUrlForProduct() en tienda.js abre el producto al llegar por ?producto= o #producto-. Propagación del JS: bump de product-detail.js?v=... en tienda/index.html + SW_VERSION en sw.js (era cache stale-while-revalidate). NO toca /pedido/:tienda/:codigo (resumen de pedido)."},
+
 
     # ── LOTE 2: recorrido del frontend (vistas) + base de datos ──────────
     {'area': 'ui-map', 'clave': 'doc-ui-overview', 'nivel': 'publico', 'orden': 1,
