@@ -201,7 +201,8 @@ Programa de referidos de 2 niveles, end-to-end, con TuKoins como vehículo del p
 - **Auditoría (toda la cadena ya existía y probada):** endpoint `GET /api/tienda/<slug>/producto/<id>/og` (`catalogo_api.py::producto_og_publico`, test `test_producto_og_publico.py`), `_worker.js` ya inyecta OG de producto cuando la URL trae `?producto=<id>`, `checkUrlForProduct()` ya abre el producto por `?producto=` o `#producto-`, y los botones de compartir del modal ya usaban `?producto=`.
 - **Único punto roto:** al abrir un producto, la **barra de direcciones** mostraba `#producto-<id>` (hash). El hash **no llega al servidor**, así que al copiar el enlace desde la barra (como hace el usuario), WhatsApp pedía `/tienda/<slug>` sin `?producto` → preview genérico.
 - **Fix (1 punto):** `product-detail.js` — el `pushState/replaceState` ahora arma la URL como `?producto=<id>#producto-<id>` (query rastreable + hash para anclaje/atrás). Asset **común → todas las plantillas**. **No toca** `/pedido/:tienda/:codigo` (resumen de pedido). JS validado (`node --check`).
-- **Pendiente de QA real:** verificar en dispositivo tras deploy de Cloudflare **y** cuando se restablezca Neon (hoy la BD está sobre cuota; el endpoint `/og` consulta BD).
+- **Verificado en vivo (Neon ya restablecido):** `?producto=44` (camilla) y `?producto=36` (probador de relés) devuelven `og:image` con la **foto real** del producto. Funciona para cualquier producto/tienda (código slug+id-agnóstico).
+- **Propagación (2.3.5):** el JS viejo seguía en caché (SW stale-while-revalidate) → a unos usuarios la barra daba `?producto=` y a otros `#producto-`. Fix: subí `product-detail.js?v=20260605-resp2 → ?v=20260612-share` en `tienda/index.html` (URL nueva = todos bajan el JS nuevo sin limpiar caché) + `SW_VERSION 2.3.4 → 2.3.5` + precache con la nueva versión.
 
 ---
 
