@@ -203,6 +203,7 @@ Programa de referidos de 2 niveles, end-to-end, con TuKoins como vehículo del p
 - **Fix (1 punto):** `product-detail.js` — el `pushState/replaceState` ahora arma la URL como `?producto=<id>#producto-<id>` (query rastreable + hash para anclaje/atrás). Asset **común → todas las plantillas**. **No toca** `/pedido/:tienda/:codigo` (resumen de pedido). JS validado (`node --check`).
 - **Verificado en vivo (Neon ya restablecido):** `?producto=44` (camilla) y `?producto=36` (probador de relés) devuelven `og:image` con la **foto real** del producto. Funciona para cualquier producto/tienda (código slug+id-agnóstico).
 - **Propagación (2.3.5):** el JS viejo seguía en caché (SW stale-while-revalidate) → a unos usuarios la barra daba `?producto=` y a otros `#producto-`. Fix: subí `product-detail.js?v=20260605-resp2 → ?v=20260612-share` en `tienda/index.html` (URL nueva = todos bajan el JS nuevo sin limpiar caché) + `SW_VERSION 2.3.4 → 2.3.5` + precache con la nueva versión.
+- **Publicado:** `/novedades` → changelog `cl-2026-06-compartir-producto` (publicado, orden -17 = primero). `/documentacion` → `doc-front-share-producto` (área frontend, nivel admin) con `datos.tecnico` de la cadena completa. Seeders idempotentes; tests `test_plataforma_kb` 25/0 y `test_docs_tecnicas_seed` 15/0.
 
 ---
 
