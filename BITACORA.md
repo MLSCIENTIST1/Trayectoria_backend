@@ -33,9 +33,14 @@ el detalle se abre en el panel de al lado.
   hay id; crear nuevo sigue normal) + `initApp` lee tukoSplit/tukoDetail; crm `abrirModalRegistrado(id)` y
   `abrirModalInvitado(tel,nombre)` (usa `tukoTel`/`tukoNombre`) + IIFE init lee los params. JS inline validado
   (new Function) en los 3 módulos.
+- **Selector de módulo afinado** (a pedido de Carlos, tras verlo en vivo): el picker de cada panel ahora lista
+  las 12 opciones del Centro Financiero (Inventario, Pedidos, Ventas, Compras, Gastos, Ingresos, Reportes,
+  CRM, Dropshipping, Alertas, Carga CSV, Dashboard) + "Diseñar mi tienda" (Store Designer), y se QUITÓ
+  "Centro Financiero" (la grilla no aporta en un panel). `MODULOS_FINANCIEROS` en split-view.js; el resto del
+  nav se sigue leyendo (filtrando Centro Financiero). split-view.js?v=3. Verificado en harness.
 - **Diferido (DEUDA_TECNICA):** modo Comparar, modo "solo detalle" del panel, barra de actividad (Fase 3),
-  badge real. `split-view.js?v=2`. Solo frontend. No pude probar dentro del Studio (login); los cambios son
-  aditivos/gated y se verificarán en la app logueado.
+  badge real. Solo frontend. No pude probar dentro del Studio (login); los cambios son aditivos/gated y se
+  verificarán en la app logueado.
 
 ---
 
