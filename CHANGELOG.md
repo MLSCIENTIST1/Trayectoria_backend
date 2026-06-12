@@ -13,7 +13,7 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
 ### Añadido — Split contextual (master-detail) en la Vista Dividida
 - En la Vista Dividida (escritorio), al seleccionar un ítem de una lista se abre su **detalle en el panel de
   al lado**, sin navegar y sin perder la lista (patrón master-detail). El panel de detalle aparece solo al
-  seleccionar (cerrado por defecto). **Pedidos** queda integrado como referencia: clic en un pedido →
+  seleccionar (cerrado por defecto). Integrado en **Pedidos, Inventario y CRM**: clic en un ítem → su
   detalle al lado.
 - Arquitectura reutilizable: el shell (`window.SplitView`) escucha el evento `TUKO_SPLIT_DETAIL` (postMessage,
   mismo origen) y abre/actualiza el panel de detalle; los módulos de lista reciben un flag (`tukoSplit=1`)
@@ -23,8 +23,8 @@ Todas las versiones notables del proyecto. Formato inspirado en [Keep a Changelo
   bridge de postMessage lo abre. `split-view.js?v=2`.
 
 ### Pendiente (deuda técnica)
-- Integrar el mismo patrón en Inventario y CRM, el modo Comparar y la barra de actividad en vivo (Fase 3).
-  Ver `DEUDA_TECNICA.md`.
+- Modo Comparar (2 ítems lado a lado), pulir el panel de detalle (modo "solo detalle") y la barra de
+  actividad en vivo (Fase 3). Ver `DEUDA_TECNICA.md`.
 
 ## [2.24.0] — 2026-06-11
 

@@ -29,9 +29,13 @@ el detalle se abre en el panel de al lado.
 - **Cero regresión por construcción:** los cambios de Pedidos solo actúan con el flag presente; sin él, nada
   cambia. Verificado: JS inline de pedidos sin errores; shell master-detail probado en harness (flag en la
   lista, openDetail crea `data-role=detail` con `tukoDetail`, bridge postMessage abre el detalle).
-- **Diferido (DEUDA_TECNICA):** mismo patrón en Inventario/CRM, modo Comparar, barra de actividad (Fase 3),
-  badge real. `split-view.js?v=2`. Solo frontend. No pude probar dentro del Studio (login); el cambio es
-  aditivo/gated y se verificará en la app logueado.
+- **Extendido a Inventario y CRM** (mismo contrato aditivo/gated): inventario `openProductModal(id)` (solo si
+  hay id; crear nuevo sigue normal) + `initApp` lee tukoSplit/tukoDetail; crm `abrirModalRegistrado(id)` y
+  `abrirModalInvitado(tel,nombre)` (usa `tukoTel`/`tukoNombre`) + IIFE init lee los params. JS inline validado
+  (new Function) en los 3 módulos.
+- **Diferido (DEUDA_TECNICA):** modo Comparar, modo "solo detalle" del panel, barra de actividad (Fase 3),
+  badge real. `split-view.js?v=2`. Solo frontend. No pude probar dentro del Studio (login); los cambios son
+  aditivos/gated y se verificarán en la app logueado.
 
 ---
 
