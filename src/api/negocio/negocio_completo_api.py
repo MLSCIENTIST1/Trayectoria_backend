@@ -1082,8 +1082,22 @@ def actualizar_config_tienda(negocio_id):
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(negocio, 'config_tienda')
 
+        # ★ Sincronizar el número de WhatsApp del Designer con las columnas del negocio.
+        #   El dueño edita el número en config_tienda.whatsapp.numero; si no se replica en
+        #   negocio.whatsapp/telefono, otros puntos siguen mostrando el "número viejo" (bug F-tel).
+        try:
+            ct = negocio.config_tienda if isinstance(negocio.config_tienda, dict) else {}
+            wa = ct.get('whatsapp') if isinstance(ct.get('whatsapp'), dict) else {}
+            numero = (wa.get('numero') or '').strip()
+            if numero:
+                negocio.whatsapp = numero
+                if not (getattr(negocio, 'telefono', '') or '').strip():
+                    negocio.telefono = numero
+        except Exception as _se:
+            logger.warning(f"[config_tienda] sync whatsapp omitido: {_se}")
+
         db.session.commit()
-        
+
         logger.info(f"🎨 Config tienda actualizada para negocio {negocio_id}")
         
         return jsonify({
