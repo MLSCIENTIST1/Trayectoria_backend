@@ -207,6 +207,12 @@ Programa de referidos de 2 niveles, end-to-end, con TuKoins como vehículo del p
 - **Propagación:** `BF.css`/`Bf.js?v=20260612-rail` + `SW 2.3.6`. JS validado, CSS balanceado.
 - **Diferido (a propósito, para no romper):** *hover-to-expand* (los módulos son iframes → expandir en hover reflowaría el iframe constantemente = jankey; mejor click) y *resaltar/recordar módulo activo* (revisar antes la lógica de pestañas existente). Ofrecidos como siguiente paso.
 
+### 2026-06-13 — Seguimiento (#2 y #3)
+- **#1 verificado** por el dueño (capturas: rail con íconos OK, expandido OK).
+- **#2 Resaltar + recordar módulo activo:** el shell ya marcaba el nav-item al hacer clic; añadí `Tabs.syncNavHighlight(path)` (resalta el ítem por `data-path` también en rail al cambiar de pestaña) + `bf_last_module` en localStorage y **reapertura del último módulo** al arrancar. `Bf.js?v=20260612-rail2` + `SW 2.3.7`. (Nota: `CommandPalette` Ctrl+K ya existía.)
+- **#3 Sincronizar teléfono (deuda saldada):** en `actualizar_config_tienda` (endpoint del Designer), al guardar `config_tienda.whatsapp.numero` ahora se replica en `negocio.whatsapp` (y `telefono` si estaba vacío). A prueba de fallos. Cierra la causa del "número viejo" en cualquier punto que lea las columnas. py validado.
+- **#4 (captura de leads / Play Store):** pospuesto por decisión del dueño.
+
 ---
 
 ## 2026-06-12 — 🐞 FIX teléfono viejo en el magic link (resumen de pedido)
