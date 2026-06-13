@@ -207,6 +207,13 @@ Programa de referidos de 2 niveles, end-to-end, con TuKoins como vehículo del p
 - **Propagación:** `BF.css`/`Bf.js?v=20260612-rail` + `SW 2.3.6`. JS validado, CSS balanceado.
 - **Diferido (a propósito, para no romper):** *hover-to-expand* (los módulos son iframes → expandir en hover reflowaría el iframe constantemente = jankey; mejor click) y *resaltar/recordar módulo activo* (revisar antes la lógica de pestañas existente). Ofrecidos como siguiente paso.
 
+## 2026-06-13 — 📱 FIX responsividad del carrito (móvil) + suter de mejoras del detalle
+
+- **Síntoma:** en `tienda/carrito.html` en móvil el contenido se cortaba a la derecha (precios, "N productos", subtotal/total tapados) = desbordamiento horizontal.
+- **Causa:** `.item-details` (flex:1) sin `min-width:0` + la fila de acciones (cantidad + precio en nowrap) forzaban el ancho del ítem → empujaban todo el card más allá del viewport.
+- **Fix (CSS inline de carrito.html):** `min-width:0` en `item-details`/`cart-section`/`summary`, `overflow-wrap:anywhere` en el nombre, `html,body{overflow-x:hidden}`, y `@media(max-width:560px)` con imagen 76px + `.item-actions{flex-wrap:wrap}` y precio alineado a la derecha. (HTML network-first → se actualiza al navegar, sin bump de SW.)
+- **Pendiente/sugerido (detalle de producto):** precio arriba junto al título, barra de compra fija (sticky) en móvil, galería con miniaturas, descuento claro, señales de confianza cerca del precio, descripción en pestañas/colapsable, variantes como chips. (A la espera de cuáles implementar.)
+
 ### 2026-06-13 — Seguimiento (#2 y #3)
 - **#1 verificado** por el dueño (capturas: rail con íconos OK, expandido OK).
 - **#2 Resaltar + recordar módulo activo:** el shell ya marcaba el nav-item al hacer clic; añadí `Tabs.syncNavHighlight(path)` (resalta el ítem por `data-path` también en rail al cambiar de pestaña) + `bf_last_module` en localStorage y **reapertura del último módulo** al arrancar. `Bf.js?v=20260612-rail2` + `SW 2.3.7`. (Nota: `CommandPalette` Ctrl+K ya existía.)
