@@ -195,6 +195,15 @@ Programa de referidos de 2 niveles, end-to-end, con TuKoins como vehículo del p
 
 ---
 
+## 2026-06-12 — 🐞 FIX teléfono viejo en el magic link (resumen de pedido)
+
+- **Síntoma:** dueño cambia su número en el Designer, hace un pedido, comparte el enlace del pedido → sigue saliendo el número anterior. Reproducido en `rodar`.
+- **Causa raíz (verificada en vivo):** el Designer guarda el número en `config_tienda.whatsapp.numero` (en `rodar` = `+573228188375`, el nuevo), pero **NO** actualiza las columnas `negocio.whatsapp/telefono` (siguen en `3058916907`, el de registro). `heyden.html` mostraba `DATA.asesorTel`, que salía de `?atelef` o del **default hardcodeado `ASESOR_DEFAULT_TEL='3058916907'`** (= justo el valor stale de la columna) y **nunca** se refrescaba con la config del negocio.
+- **Fix (frontend, `heyden.html::cargarBranding`):** toma el teléfono EN VIVO con prioridad `config_tienda.whatsapp.numero → negocio.whatsapp → negocio.telefono`, actualiza el span `#asesorTel` y re-ejecuta `renderEstado()`/`renderWa()`. `/negocio/slug/<slug>` ya devolvía `config_tienda`. NO toca el checkout ni el snapshot del pedido. JS inline validado.
+- **Observación (no tocada):** las columnas `negocio.whatsapp/telefono` quedan desincronizadas del Designer; el magic link ahora usa la fuente correcta (config_tienda). Si en el futuro otro punto lee esas columnas, conviene sincronizarlas al guardar el Designer.
+
+---
+
 ## 2026-06-09 — 🖼️ Compartir producto con FOTO en el preview (WhatsApp/FB)
 
 - **Pedido:** que al compartir el enlace de un producto, el preview muestre la **foto del producto** (no la imagen genérica de la tienda), **sin dañar** el envío del resumen de pedido (que ya carga bien su imagen).
