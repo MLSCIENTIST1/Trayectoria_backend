@@ -207,7 +207,10 @@ Programa de referidos de 2 niveles, end-to-end, con TuKoins como vehículo del p
 - **Propagación:** `BF.css`/`Bf.js?v=20260612-rail` + `SW 2.3.6`. JS validado, CSS balanceado.
 - **Diferido (a propósito, para no romper):** *hover-to-expand* (los módulos son iframes → expandir en hover reflowaría el iframe constantemente = jankey; mejor click) y *resaltar/recordar módulo activo* (revisar antes la lógica de pestañas existente). Ofrecidos como siguiente paso.
 
-## 2026-06-13 — 📱 FIX responsividad del carrito (móvil) + suter de mejoras del detalle
+## 2026-06-13 — ⏳ FIX pantalla de carga (salto/doble) + revisión real del detalle
+
+- **Loader:** `tienda/r.html` entraba con `translateY(8px)` (aparecía "desde abajo") y al pasar de spinner (44px) a logo (96px) el bloque centrado saltaba; además se sentía "doble" (r.html → index.html). Fix: `fadein` solo opacidad + `.loader` con `min-height` reservada y flex-center (spinner y logo en el mismo punto) + spinner igualado a 50px/4px. El logo de r.html ya coincide con el de `index.html` (96px/radio 22/pulse) → la transición `document.write` se ve continua (una sola pantalla). HTML network-first.
+- **Revisión del detalle (antes de tocar):** se confirmó que YA EXISTEN y se configuran desde inventario/Designer: precio de **oferta/descuento** (`precio_original`→% off, `showDiscount`), **badges** (destacado/personalizable + badges de inventario), **variantes** (pills), **stock** (`showStock`), **cantidad** (`showQuantity`), botones **carrito + WhatsApp**, **compartir**, **pestañas** (desc/specs), **relacionados**. En el render el precio va justo bajo el título; el "precio muy abajo" es porque en **móvil** la galería apila primero y empuja el precio bajo el fold. → Mejora real propuesta: **barra de compra fija (sticky)** en móvil (precio + agregar siempre visibles), sin duplicar nada.
 
 - **Síntoma:** en `tienda/carrito.html` en móvil el contenido se cortaba a la derecha (precios, "N productos", subtotal/total tapados) = desbordamiento horizontal.
 - **Causa:** `.item-details` (flex:1) sin `min-width:0` + la fila de acciones (cantidad + precio en nowrap) forzaban el ancho del ítem → empujaban todo el card más allá del viewport.
