@@ -195,6 +195,20 @@ Programa de referidos de 2 niveles, end-to-end, con TuKoins como vehículo del p
 
 ---
 
+## 2026-06-12 — 🧭 Shell: sidebar "rail" (modo íconos) + logo del negocio
+
+- **Pedido:** logo del negocio junto al nombre + que el sidebar arranque semi-oculto y se transforme en íconos a la izquierda. Sin afectar móvil. Calidad "talla mundial".
+- **Estudio:** el shell (`TuKomercio.html` + `assets/js/Bf.js` + `assets/css/BF.css`) ya tenía sidebar colapsable (`bf_sidebar_collapsed`) y una activity bar (solo ≥1024). "Colapsar" ocultaba a ancho 0; el logo no se usaba ni guardaba.
+- **Hecho:**
+  1. **Rail** (escritorio ≥768): colapsado = ~72px con los **íconos reales** del menú centrados (textos/secciones/badges/mode-toggle ocultos). Chevron del header = expandir/colapsar. En ≥1024 se oculta la activity bar en rail (sin doble columna, vía `:has`). **Arranca colapsado** por defecto (preload pone el flag; respeta la preferencia luego).
+  2. **Logo del negocio** (28px redondo) en el Espacio de Trabajo con **fallback a iniciales**; cache en `localStorage.negocio_logo` + auto-sanado por `GET /negocio/slug/<slug>` (refleja cambios del Designer). `Bf.js::updateSession`.
+  3. **Tooltips** (nombre del módulo) en rail (`data-tooltip` + `title`).
+- **Móvil blindado:** todo el rail bajo `@media (min-width:768px)`; preload gateado a ≥768; en móvil sigue el cajón deslizable.
+- **Propagación:** `BF.css`/`Bf.js?v=20260612-rail` + `SW 2.3.6`. JS validado, CSS balanceado.
+- **Diferido (a propósito, para no romper):** *hover-to-expand* (los módulos son iframes → expandir en hover reflowaría el iframe constantemente = jankey; mejor click) y *resaltar/recordar módulo activo* (revisar antes la lógica de pestañas existente). Ofrecidos como siguiente paso.
+
+---
+
 ## 2026-06-12 — 🐞 FIX teléfono viejo en el magic link (resumen de pedido)
 
 - **Síntoma:** dueño cambia su número en el Designer, hace un pedido, comparte el enlace del pedido → sigue saliendo el número anterior. Reproducido en `rodar`.
