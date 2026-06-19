@@ -453,8 +453,9 @@ def cancelar_pedido(pedido_id):
         estado_anterior = pedido.estado
         pedido.cancelar(motivo=motivo, usuario_id=user_id)
 
-        # ★ NUEVO v2.0: Revertir transacción y stock si ya estaba confirmado
-        if estado_anterior == 'confirmado' and TIENE_TRANSACCIONES:
+        # ★ NUEVO v2.0: Revertir transacción y stock si ya estaba confirmado o en preparación
+        #   (ambos son post-confirmación → ya generaron la venta en la contabilidad/stock).
+        if estado_anterior in ('confirmado', 'preparando') and TIENE_TRANSACCIONES:
             try:
                 # monto = subtotal − descuento: espeja la transacción de venta original
                 ingreso_original = float((pedido.subtotal or 0) - (pedido.descuento or 0))
