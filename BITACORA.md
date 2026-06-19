@@ -207,6 +207,15 @@ Programa de referidos de 2 niveles, end-to-end, con TuKoins como vehículo del p
 - **Propagación:** `BF.css`/`Bf.js?v=20260612-rail` + `SW 2.3.6`. JS validado, CSS balanceado.
 - **Diferido (a propósito, para no romper):** *hover-to-expand* (los módulos son iframes → expandir en hover reflowaría el iframe constantemente = jankey; mejor click) y *resaltar/recordar módulo activo* (revisar antes la lógica de pestañas existente). Ofrecidos como siguiente paso.
 
+## 2026-06-19 — 🚫 Cancelar/anular pedido (dejarlo "incontable")
+
+- **Necesidad:** un cliente hizo 2 pedidos (duplicado); el flujo permitía editar pero **no había forma de cancelar/anular** un pedido para que no contara en ventas/contabilidad.
+- **Investigación:** el backend YA tenía estado `cancelado`, `cancelar(motivo)` y `POST /api/pedidos/<id>/cancelar` (que **revierte la contabilidad** con una contra-transacción DEVOLUCIÓN + **repone stock**). Analytics/métricas **excluyen** `cancelado`. El Centro Financiero suma `TransaccionOperativa` (la reversa lo descuenta). Lo único que faltaba: **botón en la UI**. Para enviados/entregados ya existe **Devolución**.
+- **Hecho (front `pedidos.html`):** botón **"Cancelar pedido"** en la tarjeta y en el modal de detalle para estados pre-envío (`confirmado`/`preparando`), con motivo + confirmación; `cancelarPedido()` llama al endpoint existente. El pedido queda `cancelado` (incontable).
+- **Hecho (back `pedidos_api.py`):** la reversa de contabilidad/stock ahora aplica también desde `preparando` (antes solo `confirmado`) → cancelar nunca deja descuadre. Inline JS + py validados.
+
+---
+
 ## 2026-06-19 — 🔇 Pantalla de carga: respetar "Mostrar nombre" (splash.showTitle)
 
 - **Síntoma:** el dueño desactiva el nombre de la tienda en el Designer (para que solo salga el logo) pero el **nombre sigue apareciendo en la pantalla de carga**. Afecta a varios usuarios.
