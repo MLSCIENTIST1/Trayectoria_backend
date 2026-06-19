@@ -207,6 +207,14 @@ Programa de referidos de 2 niveles, end-to-end, con TuKoins como vehículo del p
 - **Propagación:** `BF.css`/`Bf.js?v=20260612-rail` + `SW 2.3.6`. JS validado, CSS balanceado.
 - **Diferido (a propósito, para no romper):** *hover-to-expand* (los módulos son iframes → expandir en hover reflowaría el iframe constantemente = jankey; mejor click) y *resaltar/recordar módulo activo* (revisar antes la lógica de pestañas existente). Ofrecidos como siguiente paso.
 
+## 2026-06-19 — 🔇 Pantalla de carga: respetar "Mostrar nombre" (splash.showTitle)
+
+- **Síntoma:** el dueño desactiva el nombre de la tienda en el Designer (para que solo salga el logo) pero el **nombre sigue apareciendo en la pantalla de carga**. Afecta a varios usuarios.
+- **Causa:** el **splash** sí respeta `splash.showTitle` (`tienda.js:3179`), pero la **pantalla de carga** (loader) no: `r.html` (`brand-name`) e `index.html` (`#loadingText`) pintaban el nombre **siempre**.
+- **Fix:** `r.html` lee `config_tienda.splash.showTitle`; si es `false` no pinta el nombre (solo logo) y reenvía `window.__TUKO_SHOW_NAME` a la plantilla. `index.html`: si `__TUKO_SHOW_NAME===false`, oculta `#loadingText` (solo logo). `r.html` es universal → aplica a todas las plantillas; las demás plantillas no tenían loader-con-nombre. HTML network-first. Inline JS validado.
+
+---
+
 ## 2026-06-19 — 🗑️ Designer: eliminar imágenes de la pantalla de carga
 
 - **Pedido:** la sección "Pantalla de Carga" del Designer (imagen de fondo + Logo 1/2/3) no tenía forma de **quitar** una imagen ya subida.
