@@ -211,7 +211,8 @@ Programa de referidos de 2 niveles, end-to-end, con TuKoins como vehículo del p
 
 - **Síntoma:** el dueño pone Facebook en el Designer, pero en el resumen de pedido (heyden / magic link) **no aparece** ninguna red social.
 - **Causa (verificada en rodar):** el Designer guarda en **`config_tienda.redesSociales`** con forma `{facebook:true, facebookUrl:'...'}`, pero `heyden.html` leía **`negocio.redes_sociales`** (que está **undefined** — el endpoint `/negocio/slug/` no lo expone). Mismo patrón que el bug del teléfono.
-- **Fix (`heyden.html::cargarBranding`):** ahora deriva `{facebook:'url', ...}` desde `config_tienda.redesSociales` (solo las activadas y con URL); `negocio.redes_sociales` queda como fallback legado. `_buildSocialUrl` ya soporta URLs completas. `/negocio/slug/` ya devuelve `config_tienda`. Verificado: rodar tiene `facebook:true` + URL → ahora se muestra. HTML network-first. Inline JS validado.
+- **Fix (`heyden.html::cargarBranding`):** ahora deriva `{facebook:'url', ...}` desde `config_tienda.redesSociales` (solo las activadas y con URL); `negocio.redes_sociales` queda como fallback legado. `_buildSocialUrl` ya soporta URLs completas. `/negocio/slug/` ya devuelve `config_tienda`. Verificado: rodar tiene `facebook:true` + URL → ahora se muestra. Aplica a **cualquier tienda** (lee el slug del pedido). HTML network-first. Inline JS validado.
+- **Añadido:** encabezado **"❤️ ¿Te gustó? ¡Síguenos!"** + subtítulo invitando a dar like/seguir, sobre las tarjetas de redes (`#socialRowTitle`, visible solo si hay redes).
 
 ---
 
