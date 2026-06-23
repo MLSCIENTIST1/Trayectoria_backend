@@ -207,6 +207,14 @@ Programa de referidos de 2 niveles, end-to-end, con TuKoins como vehículo del p
 - **Propagación:** `BF.css`/`Bf.js?v=20260612-rail` + `SW 2.3.6`. JS validado, CSS balanceado.
 - **Diferido (a propósito, para no romper):** *hover-to-expand* (los módulos son iframes → expandir en hover reflowaría el iframe constantemente = jankey; mejor click) y *resaltar/recordar módulo activo* (revisar antes la lógica de pestañas existente). Ofrecidos como siguiente paso.
 
+## 2026-06-22 — 🔗 FIX redes sociales en el magic link (resumen de pedido)
+
+- **Síntoma:** el dueño pone Facebook en el Designer, pero en el resumen de pedido (heyden / magic link) **no aparece** ninguna red social.
+- **Causa (verificada en rodar):** el Designer guarda en **`config_tienda.redesSociales`** con forma `{facebook:true, facebookUrl:'...'}`, pero `heyden.html` leía **`negocio.redes_sociales`** (que está **undefined** — el endpoint `/negocio/slug/` no lo expone). Mismo patrón que el bug del teléfono.
+- **Fix (`heyden.html::cargarBranding`):** ahora deriva `{facebook:'url', ...}` desde `config_tienda.redesSociales` (solo las activadas y con URL); `negocio.redes_sociales` queda como fallback legado. `_buildSocialUrl` ya soporta URLs completas. `/negocio/slug/` ya devuelve `config_tienda`. Verificado: rodar tiene `facebook:true` + URL → ahora se muestra. HTML network-first. Inline JS validado.
+
+---
+
 ## 2026-06-22 — 🔌 INCIDENTE: backend dormido (Render spin-down) + fix SW
 
 - **Síntoma:** plataforma lenta; una corrección de guía se quedaba "Guardando…". Consola: `ERR_CONNECTION_TIMED_OUT` en casi todo (`/pedidos/94/corregir`, `/negocio/slug/rodar` repetido, `/admin/check`, etc.) + `Uncaught (in promise) Failed to fetch` en `sw.js:170`.
