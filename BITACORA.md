@@ -207,6 +207,15 @@ Programa de referidos de 2 niveles, end-to-end, con TuKoins como vehículo del p
 - **Propagación:** `BF.css`/`Bf.js?v=20260612-rail` + `SW 2.3.6`. JS validado, CSS balanceado.
 - **Diferido (a propósito, para no romper):** *hover-to-expand* (los módulos son iframes → expandir en hover reflowaría el iframe constantemente = jankey; mejor click) y *resaltar/recordar módulo activo* (revisar antes la lógica de pestañas existente). Ofrecidos como siguiente paso.
 
+## 2026-06-22 — 🔌 INCIDENTE: backend dormido (Render spin-down) + fix SW
+
+- **Síntoma:** plataforma lenta; una corrección de guía se quedaba "Guardando…". Consola: `ERR_CONNECTION_TIMED_OUT` en casi todo (`/pedidos/94/corregir`, `/negocio/slug/rodar` repetido, `/admin/check`, etc.) + `Uncaught (in promise) Failed to fetch` en `sw.js:170`.
+- **Causa:** el backend en Render estaba **dormido (spin-down del plan)**: hasta `/api/health` (estático) hacía timeout (HTTP 000 a los 25–30s). Tras el arranque en frío volvió solo (health 200 en ~0.9s, `/negocio/slug/rodar` 200 en ~1.5s). Infra, no código. Las decenas de `/negocio/slug/rodar` eran reintentos golpeando el backend caído.
+- **Recomendación:** para producción, plan de Render **sin spin-down** (always-on) o un **keep-alive** (cron a `/api/health` cada ~10 min) para evitar arranques en frío.
+- **Fix de código (SW 2.3.8):** en la rama SWR el `fetch` de fallback no tenía `.catch()` → con la red caída dejaba una promesa rechazada ("Uncaught Failed to fetch"). Ahora responde `504` limpio. JS validado.
+
+---
+
 ## 2026-06-19 — 🚫 Cancelar/anular pedido (dejarlo "incontable")
 
 - **Necesidad:** un cliente hizo 2 pedidos (duplicado); el flujo permitía editar pero **no había forma de cancelar/anular** un pedido para que no contara en ventas/contabilidad.
