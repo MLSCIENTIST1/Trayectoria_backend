@@ -207,6 +207,15 @@ Programa de referidos de 2 niveles, end-to-end, con TuKoins como vehículo del p
 - **Propagación:** `BF.css`/`Bf.js?v=20260612-rail` + `SW 2.3.6`. JS validado, CSS balanceado.
 - **Diferido (a propósito, para no romper):** *hover-to-expand* (los módulos son iframes → expandir en hover reflowaría el iframe constantemente = jankey; mejor click) y *resaltar/recordar módulo activo* (revisar antes la lógica de pestañas existente). Ofrecidos como siguiente paso.
 
+## 2026-06-22 — 💬 FIX emojis corruptos (�) en mensajes WA de estado del pedido
+
+- **Síntoma:** al enviar al cliente el mensaje de estado ("Pedido en Preparación", etc.) los **emojis salían como `�`** (rombos con `?`); los acentos (`está`, `ñ`, `¿`) sí salían bien.
+- **Causa:** patrón clásico de canal que solo soporta UTF-8 de **3 bytes** — los emojis (astral, **4 bytes**: 📦🚚👋📋📞📍) se corrompen al enviar por la app de escritorio; los caracteres de 2 bytes sobreviven. (Fuente en `pedidos.html::notificarEstadoWA`, enviado por `wa.me?text=`.)
+- **Fix:** se reemplazaron los emojis de 4 bytes por **símbolos BMP seguros (≤3 bytes)**: `✅` (U+2705), `▸` (U+25B8), `☎` (U+260E), y se limpió el formato de los 5 mensajes (confirmado/preparando/enviado/en_oficina/devuelto). Inline JS validado. HTML network-first.
+- **Pendiente relacionado:** el teléfono del mensaje usa `localStorage 'asesor_tel' || '3058916907'` (default hardcodeado) → debería tomar el WhatsApp real de la tienda (mismo patrón que el fix del magic link).
+
+---
+
 ## 2026-06-22 — 🔗 FIX redes sociales en el magic link (resumen de pedido)
 
 - **Síntoma:** el dueño pone Facebook en el Designer, pero en el resumen de pedido (heyden / magic link) **no aparece** ninguna red social.
