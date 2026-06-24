@@ -231,6 +231,7 @@ Programa de referidos de 2 niveles, end-to-end, con TuKoins como vehículo del p
 - **Síntoma:** "Ventas del Mes" mostraba ~$11.27M cuando en el mes en curso (1–24 jun) era mucho menos.
 - **Causa:** `dashboard.html` llama `/control/reporte/<id>?limite=500` y sumaba **todas** las operaciones por tipo **sin filtrar por mes** (los endpoints `/control/reporte` y `/control/resumen` devuelven historial completo, no mensual). Las tarjetas decían "del Mes" pero calculaban acumulado de varios meses.
 - **Fix (`dashboard.html`):** los KPIs (ventas, ingresos, gastos, compras, balance) ahora filtran `fecha >= inicio del mes en curso` antes de sumar. Las listas "Últimos ingresos/egresos" siguen mostrando los más recientes (sin cambio). Inline JS validado. (Caveat: `limite=500` cubre meses normales de un SMB; para volúmenes enormes convendría un endpoint backend con filtro de fecha.)
+- **Revisión de los demás widgets (mismo día):** se encontraron 2 con el mismo bug y se corrigieron: **Distribución de Gastos** (`gastosPorCategoria` sumaba gastos+compras de todo el historial → ahora `.filter(_delMes)`) y **Envíos del Mes** (`loadEnviosData` sumaba todos los pedidos con envío → ahora filtra `fecha_pedido >= día 1`; ciudad top y ranking de transportadoras también quedan del mes). **Correctos sin cambio:** Flujo de Caja (ventana 7/15/30 días por día), Transacciones de hoy, Productos/Stock bajo (conteo de inventario), Metas (sin suma de historial propia).
 
 ---
 
