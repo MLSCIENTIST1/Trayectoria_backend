@@ -214,6 +214,7 @@ Programa de referidos de 2 niveles, end-to-end, con TuKoins como vehículo del p
 - **Fix:** se reemplazaron los emojis de 4 bytes por **símbolos BMP seguros (≤3 bytes)**: `✅` (U+2705), `▸` (U+25B8), `☎` (U+260E), y se limpió el formato de los 5 mensajes (confirmado/preparando/enviado/en_oficina/devuelto). Inline JS validado. HTML network-first.
 - **Corrección (2ª vuelta):** tras prueba real, `▸` (no-emoji) sobrevivía pero `✅`/`☎` (con propiedad Emoji) seguían corrompiéndose → el canal corrompe **cualquier carácter con propiedad Emoji**, sin importar bytes. Se quitaron TODOS los caracteres emoji y se dejó solo `▸` + `*negrita*` + texto plano, en los 5 mensajes de estado + el de **Confirmación (heyden)** (`🏁`/`✅`) + el de **prospectos** (`👋`/`🎯`). Verificado: 0 caracteres emoji en los `msg`.
 - **Pendiente relacionado:** el teléfono del mensaje usa `localStorage 'asesor_tel' || '3058916907'` (default hardcodeado) → debería tomar el WhatsApp real de la tienda (mismo patrón que el fix del magic link).
+- **RESUELTO (2026-06-24):** `pedidos.html` ahora trae al iniciar el WhatsApp real (`cargarTelNegocio()` → `GET /negocio/slug/<slug>` → `config_tienda.whatsapp.numero` → fallback `negocio.whatsapp`/`telefono`) y lo cachea en `asesor_tel`; se auto-sana en cada carga. Los 5 mensajes de estado ya no muestran el `3058916907` por defecto sino el del Designer. Verificado: rodar = `+573228188375`.
 
 ---
 
