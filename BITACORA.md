@@ -226,6 +226,14 @@ Programa de referidos de 2 niveles, end-to-end, con TuKoins como vehículo del p
 
 ---
 
+## 2026-06-24 — 📊 FIX Dashboard: "del Mes" sumaba todo el historial
+
+- **Síntoma:** "Ventas del Mes" mostraba ~$11.27M cuando en el mes en curso (1–24 jun) era mucho menos.
+- **Causa:** `dashboard.html` llama `/control/reporte/<id>?limite=500` y sumaba **todas** las operaciones por tipo **sin filtrar por mes** (los endpoints `/control/reporte` y `/control/resumen` devuelven historial completo, no mensual). Las tarjetas decían "del Mes" pero calculaban acumulado de varios meses.
+- **Fix (`dashboard.html`):** los KPIs (ventas, ingresos, gastos, compras, balance) ahora filtran `fecha >= inicio del mes en curso` antes de sumar. Las listas "Últimos ingresos/egresos" siguen mostrando los más recientes (sin cambio). Inline JS validado. (Caveat: `limite=500` cubre meses normales de un SMB; para volúmenes enormes convendría un endpoint backend con filtro de fecha.)
+
+---
+
 ## 2026-06-22 — 🔌 INCIDENTE: backend dormido (Render spin-down) + fix SW
 
 - **Síntoma:** plataforma lenta; una corrección de guía se quedaba "Guardando…". Consola: `ERR_CONNECTION_TIMED_OUT` en casi todo (`/pedidos/94/corregir`, `/negocio/slug/rodar` repetido, `/admin/check`, etc.) + `Uncaught (in promise) Failed to fetch` en `sw.js:170`.
